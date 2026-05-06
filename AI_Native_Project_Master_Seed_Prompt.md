@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Master Seed Prompt (English)
 
-<!-- seed-tier: Master; language: English; version: v1.4.0; date: 2026-05-03; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: README.md -->
+<!-- seed-tier: Master; language: English; version: v1.4.1; date: 2026-05-06; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: README.md -->
 
 > **How to use**: When starting a new project, copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent that reads this prompt will start an **interactive bootstrap session** that guides your project setup step by step.
 >
@@ -328,6 +328,14 @@ Files to generate in Phase 7 Step A. Templates in **§ File Templates**.
 - [ ] `scripts/escape-md-tildes.mjs` — bulk tilde escape, idempotent (template in § File Templates)
 - [ ] `scripts/build-md-to-html.mjs` — MD → A4 HTML for Chrome `--print-to-pdf` (template in § File Templates) — only needed if the project will produce PDFs for outside parties
 - [ ] `scripts/build-pdf.ps1` (Windows) or `scripts/build-pdf.sh` (macOS/Linux) — wraps the 3-step escape → HTML → PDF pipeline (template in § File Templates) — optional convenience wrapper
+
+### scripts/hooks/ (optional — only if § Enforcement Hook Architecture is adopted; for projects with absolute rules worth enforcing — multi-AI projects, IP-sensitive vocab discipline, safety-critical command guards)
+- [ ] `scripts/hooks/_patterns.mjs` — single regex SSoT: `FORBIDDEN_VOCAB` · `BASH_FORBIDDEN` · `EXEMPT_PATH` (see § Enforcement Hook Architecture)
+- [ ] `scripts/hooks/check-rules.mjs` — Layer 1 Claude Code `PreToolUse` stdin-JSON handler (see § Enforcement Hook Architecture)
+- [ ] `scripts/hooks/pre-commit.mjs` — Layer 2 git staged-file scanner (see § Enforcement Hook Architecture)
+- [ ] `scripts/hooks/install.mjs` — idempotent installer (`.git/hooks/pre-commit` shim + `.claude/settings.local.json` merge)
+- [ ] `scripts/hooks/__tests__/*.test.mjs` — `node --test` regression suite (block · exempt · false-positive avoidance · edge cases)
+- [ ] Document `node scripts/hooks/install.mjs` in `AGENTS.md` Core Rules so new clones / new machines don't silently bypass enforcement
 
 ---
 
@@ -1293,6 +1301,9 @@ Confirm all services give consistent summaries. Any divergence → investigate w
 | § File Templates → `.gitignore` (Common + per-stack rows + seed-produced artifacts block) | v1.3.2 |
 | Lite tier: cross-tier references removed; Lite became fully self-contained with inline AGENTS.md / `.agent/rules.md` / `.gitignore` / scripts / bridge stubs | v1.3.2 |
 | Compact tier: cross-tier references removed; new § Scaffold specs section gives algorithm-spec descriptions for all scaffold targets | v1.3.2 |
+| § Enforcement Hook Architecture (two-layer defense — Layer 1 Claude Code `PreToolUse` + Layer 2 `git pre-commit` — with `scripts/hooks/_patterns.mjs` single regex SSoT, idempotent `install.mjs`, Bash quote/HEREDOC false-positive avoidance, `node --test` regression suite, cross-AI applicability matrix) | v1.3.4 |
+| § Task Decomposition Strategy (cross-AI behavioral pattern for complex work with multiple decomposition paths: announce → judgment/inertia → accept user pivot mid-flight; trigger thresholds, inertia priority, per-AI tool mapping, anti-patterns) | v1.3.5 |
+| § Index Synchronization Policy → External knowledge index auto-sync subsection (when mirroring structured folders to Claude memory · Notion · Obsidian · Logseq · wiki · RAG metadata store, pre-commit calls a dedicated sync script to auto-update the mechanical structure) | v1.3.6 |
 
 Present a filtered diff to the user as a numbered menu:
 

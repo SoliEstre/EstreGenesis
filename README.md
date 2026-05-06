@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v1.4.0" src="https://img.shields.io/badge/version-v1.4.0-2ea44f?style=flat-square" />
+  <img alt="Version: v1.4.1" src="https://img.shields.io/badge/version-v1.4.1-2ea44f?style=flat-square" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=flat-square" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=flat-square" />
@@ -226,7 +226,8 @@ Each tier has its own version. Master is the authoritative evolution track; Lite
 - **v1.3.5** (2026-05-03) — Task Decomposition Strategy added. The seed now gives agents a cross-AI pattern for complex work with multiple decomposition paths: announce the chosen shape, proceed by judgment/inertia without stalling for confirmation, and accept explicit or implicit user pivots mid-flight. Master includes thresholds, inertia priority, per-AI tool mapping, and anti-patterns; Lite and Compact carry condensed forms.
 - **v1.3.6** (2026-05-03) — External knowledge index auto-sync added under Index ↔ Body Sync. When a project mirrors structured folders into an external KB such as Claude memory, Notion, a wiki, or RAG metadata, pre-commit may call a dedicated sync script to update mechanical structure (counts, stubs, numbering, orphan warnings) while leaving semantic content human-curated. Master has the full subsection; Lite and Compact carry condensed clauses.
 - **v1.3.7** (2026-05-03) — Phase 0 now captures agent reply tone after working language. Korean prompts offer six speech-level choices (`~니다`, `~에요/예요/어요`, `~음/슴/임`, casual peer tone, blunt challenge tone, or custom direction); English prompts carry equivalent tone choices. Default is to match the user's opening tone or use one notch more polite. Generated `AGENTS.md`, `.agent/rules.md`, and bridge stubs now record language and tone separately.
-- **v1.4.0** (2026-05-03) — Applied the official EstreGenesis naming across document titles, anonymized source-project references for public release, and published the seed prompt library as a public repo.
+- **v1.4.0** (2026-05-03) — Applied the official EstreGenesis naming across document titles, anonymized source-project references for public release, and published the seed prompt library as a public repo. Content base: legacy private archive, commit `5944a50` (v1.3.6, 2026-05-03).
+- **v1.4.1** (2026-05-06) — Metadata reconciliation. During the v1.3.6 → v1.4.0 absorption pass, the Master tier (KO/EN) Migration B delta tables omitted the v1.3.4 (Enforcement Hook Architecture), v1.3.5 (Task Decomposition Strategy), and v1.3.6 (External knowledge index auto-sync) rows that the four other tiers carried. v1.4.0 content is unchanged — the three rows are reinstated to restore 6-tier sync. The Master Phase 7 § File Scaffolding Checklist also gains an explicit optional `scripts/hooks/` block (Enforcement Hook Architecture is opt-in for projects with absolute rules worth enforcing). README v1.4.0 entry gains the legacy archive SHA for traceability.
 
 This README is the changelog SSoT. Each seed file keeps only a compact header metadata line with tier, language, current version, counterpart, and a pointer back to this README. When you upgrade a project using Migration B, the agent uses the seed header version marker plus this changelog to compute the delta.
 
@@ -465,7 +466,8 @@ your-project/
 - **v1.3.5** (2026-05-03) — 작업 분해 전략 추가. 분해 경로가 여러 개인 복잡 작업에서 에이전트가 선택한 진행 형태를 announce 하고, 판단/관성에 따라 확인 대기 없이 진행하며, 사용자 피벗을 즉시 반영하는 cross-AI 행동 패턴을 추가. Master 는 임계값·관성 우선순위·AI 별 도구 매핑·안티패턴을 포함하고, Lite·Compact 는 축약 형태로 반영.
 - **v1.3.6** (2026-05-03) — 인덱스 ↔ 본문 동기화에 외부 지식 인덱스 자동 동기화 추가. 프로젝트가 Claude 메모리·Notion·wiki·RAG 메타데이터 같은 외부 KB 에 구조화 폴더를 미러링하면, pre-commit 이 전용 sync 스크립트로 메커니컬 구조(카운트·stub·번호·orphan 경고)를 자동 갱신하고 의미 콘텐츠는 사람 큐레이션으로 유지. Master 는 전체 subsection, Lite·Compact 는 축약 절 반영.
 - **v1.3.7** (2026-05-03) — Phase 0 이 작업 언어 다음에 에이전트 응답 말투를 선택하도록 확장. 한국어 프롬프트는 `~니다`, `~에요/예요/어요`, `~음/슴/임`, 친구/동료 말투, 직설 도전 말투, 직접 방향성 프롬프트 6가지를 제시하고, 영문 프롬프트는 이에 부합하는 tone 옵션을 제공. 기본값은 사용자가 대화를 건 톤과 동일하거나 한 단계 공손하게. 생성되는 `AGENTS.md`, `.agent/rules.md`, 브릿지 stub 이 언어와 말투를 분리 기록.
-- **v1.4.0** (2026-05-03) — 문서 제목 전반에 EstreGenesis 정식 네이밍 적용, 소스 프로젝트 참조 공개용 익명화, public repo 공개.
+- **v1.4.0** (2026-05-03) — 문서 제목 전반에 EstreGenesis 정식 네이밍 적용, 소스 프로젝트 참조 공개용 익명화, public repo 공개. 콘텐츠 베이스: legacy private archive, commit `5944a50` (v1.3.6, 2026-05-03).
+- **v1.4.1** (2026-05-06) — 메타데이터 정합화. v1.3.6 → v1.4.0 흡수 과정에서 Master tier (KO/EN) 의 마이그레이션 B delta 표에 v1.3.4 (강제 훅 아키텍처) · v1.3.5 (작업 분해 전략) · v1.3.6 (외부 지식 인덱스 자동 동기화) 행이 누락 — 다른 4 tier 는 정상 보유. v1.4.0 콘텐츠는 그대로 유지하고 누락된 3 행만 보강해 6-tier sync 복원. Master 의 Phase 7 § 파일 스캐폴딩 체크리스트에 옵션 `scripts/hooks/` 블록 명시 (강제 훅 아키텍처는 절대 규칙 강제가 필요한 프로젝트의 opt-in). README v1.4.0 항목에 legacy archive SHA 박제 추가.
 
 이 README가 changelog SSoT. 각 시드 파일은 tier, 언어, 현재 버전, counterpart, README 포인터만 담은 짧은 헤더 메타데이터를 유지. 마이그레이션 B 로 프로젝트 업그레이드 시 에이전트는 시드 헤더의 버전 마커와 본 changelog 로 delta 를 계산.
 

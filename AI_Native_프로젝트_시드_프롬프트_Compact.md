@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Compact
 
-<!-- seed-tier: Compact; language: Korean; version: v1.4.0; date: 2026-05-03; counterpart: AI_Native_Project_Seed_Prompt_Compact.md; changelog: README.md -->
+<!-- seed-tier: Compact; language: Korean; version: v1.4.1; date: 2026-05-06; counterpart: AI_Native_Project_Seed_Prompt_Compact.md; changelog: README.md -->
 
 > 어떤 AI 코딩 에이전트에게든 첫 메시지로 붙여넣기. **자기 완결** — 다른 tier 참조 없음; AI Native 패턴 이미 아는 저자용. 라이브러리의 다른 tier (Master, Lite) 가 동일 패턴을 다른 깊이로 ship — **프로젝트 repo 당 1 tier**, 혼합은 dead link 발생. 본 시드의 inline 스크립트는 *알고리즘 spec* 으로 묘사 (에이전트가 spec 따라 생성); 즉시 복사-붙여넣기 가능한 풀 source 가 필요하면 라이브러리의 Master 또는 Lite tier 사용.
 
