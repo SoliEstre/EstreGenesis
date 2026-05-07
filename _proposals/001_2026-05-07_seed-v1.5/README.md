@@ -27,15 +27,17 @@ Cases are drawn from a **private host project** that adopts EstreUI. Per `_propo
 
 When a cited commit hash exists in the public EstreUI repo, that is stated explicitly so the seed maintainer can navigate. When a cited commit hash exists only in the private host repo, the citation is hash-only without a repo target.
 
+Closure note: the reverse-link pattern remains proposal lineage only. It was not absorbed as a seed runtime requirement; source repo → agent-docs repo backlinks should stay opt-in for explicit private/internal cases. The v1.5 seed body uses `source-map.md`, `public-boundary.md`, and the `.gitignore` source guard instead.
+
 ## Closure log
 
 Updated by the seed maintainer as documents are absorbed:
 
 | Doc | Status | Absorbed in seed commit | Notes |
 | --- | --- | --- | --- |
-| 001 | 🟡 submitted | — | — |
-| 002 | 🟡 submitted | — | — |
-| 003 | 🟡 submitted | — | — |
+| 001 | 🟢 absorbed | `21a1e31` | Absorbed into v1.5.0 Bootstrap Residency + Adoption Catalog. Reverse links kept as proposal lineage only. |
+| 002 | 🟢 absorbed | `21a1e31` | Absorbed into v1.5.0 repo residency and `<scope-root>` folder-shape handling. |
+| 003 | 🟢 absorbed | `21a1e31` | Absorbed into v1.5.0 upstream/public-boundary operation and `.gitignore` source guard. |
 
 Status legend: 🟡 submitted · 🟢 absorbed · 🟠 deferred · 🔴 rejected.
 
@@ -71,15 +73,17 @@ When a document moves to 🟢 / 🟠 / 🔴, fill the absorbed-commit column (fo
 
 인용 commit hash 가 EstreUI (공개) 에 있는 경우 명시 — 시드 유지자가 navigate 가능. 비공개 호스트 repo 에만 있는 hash 는 repo target 없이 hash 만 인용.
 
+Closure note: 리버스 링크 패턴은 proposal lineage 로만 유지합니다. 시드 runtime 요구사항으로는 흡수하지 않았고, source repo → agent-docs repo backlink 는 private/internal case 에서 사용자가 명시적으로 원할 때만 opt-in 으로 다룹니다. v1.5 시드 본문은 대신 `source-map.md`, `public-boundary.md`, `.gitignore` source guard 를 사용합니다.
+
 ## Closure 로그
 
 문서가 흡수될 때 시드 유지자가 갱신:
 
 | 문서 | 상태 | 흡수 시드 commit | 메모 |
 | --- | --- | --- | --- |
-| 001 | 🟡 submitted | — | — |
-| 002 | 🟡 submitted | — | — |
-| 003 | 🟡 submitted | — | — |
+| 001 | 🟢 absorbed | `21a1e31` | v1.5.0 Bootstrap Residency + Adoption Catalog 로 흡수. 리버스 링크는 proposal lineage 로만 유지. |
+| 002 | 🟢 absorbed | `21a1e31` | v1.5.0 repo residency 및 `<scope-root>` folder-shape 처리로 흡수. |
+| 003 | 🟢 absorbed | `21a1e31` | v1.5.0 upstream/public-boundary 운영 및 `.gitignore` source guard 로 흡수. |
 
 상태 범례: 🟡 submitted · 🟢 absorbed · 🟠 deferred · 🔴 rejected.
 
