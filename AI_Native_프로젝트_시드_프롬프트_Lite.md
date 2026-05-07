@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v1.4.1; date: 2026-05-06; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: README.md -->
+<!-- seed-tier: Lite; language: Korean; version: v1.5.0; date: 2026-05-07; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: README.md -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -21,7 +21,7 @@
 
 사용자 첫 메시지가 모호하면 모드 확정 전 한 가지만 재질문. 확인 없이 스캐폴딩 금지.
 
-### 핵심 원칙 (6)
+### 핵심 원칙 (7)
 
 1. **문서가 진실** — 코드 전에 설계. 모든 결정은 파일에 기록.
 2. **멀티에이전트 레디 Day 1부터** — Claude + Gemini + Cursor 혼합해도 깨지지 않음. `AGENTS.md` 가 모든 서비스의 SSoT.
@@ -29,6 +29,7 @@
 4. **인간이 결정** — 각 phase 확인 후 진행. 옵션 제시하고 기다림. 설명 없이 스캐폴딩하지 말 것.
 5. **인덱스 ↔ 본문 동기화** — 본문 문서가 추가·재명명·폐기·재작성될 때, 그 문서를 가리키는 모든 인덱스 (폴더 README · 루트 README · living-doc 등록부) 를 같은 커밋에서 갱신. 낡은 인덱스는 다른 에이전트를 옛 목록으로 작업하게 만듦.
 6. **외부 표면 N-way sync** — 한 기능이 N 개 표면 (skill 마크다운 · JSON 스펙 · install 가이드 · 도움말 · 전략 문서) 에 묘사될 때, 같은 작업 단위에서 갱신. 실측 사고: 한 표면이 일주일 뒤처져 외부 AI 가 잘못된 필드값을 사용함.
+7. **Repo residency before doc shape** — `.agent/`를 scaffold하기 전에 현재 workspace가 source repo인지, private agent-docs sidecar repo인지, multi-project orchestration repo인지, upstream-bound work를 가진 scope인지 결정.
 
 ### 대화 규칙
 
@@ -92,6 +93,30 @@
 
 ---
 
+## Phase 2.5 — Bootstrap Residency
+
+> **agent/developer docs가 어디에 살아야 하는지 어떻게 결정할까요?**
+> 1. Minimal bootstrap (추천): folder/git/remotes를 검사하고 애매할 때만 질문
+> 2. Full manual setup: repo residency, source location, upstream, public/private boundary, multi-project orchestration 모두 질문
+> 3. Repo provider assisted setup: GitHub/GitLab/Bitbucket/Azure DevOps/Gitea/Forgejo/self-hosted Git/local remotes/사용자 제공 repo list로 추론
+
+현재 폴더가 비어 있거나, seed-only이거나, 아직 구체적 project work가 없으면 agent-docs-only repo인지 묻습니다. 맞다면 source가 이 폴더 아래인지, 다른 local path인지, remote-only인지, 아직 없는지 확인합니다. Antigravity IDE/GitHub Copilot 같은 workspace-limited agent는 workspace 밖 접근이 제한될 수 있으므로 필요 시 source를 workspace 아래로 옮기거나 link하도록 안내합니다. Claude Code/Codex는 외부 path 접근 가능성이 있으나 실제 권한을 확인해야 합니다.
+
+Residency 기본값:
+
+| Shape | 언제 사용 | Scope root |
+| --- | --- | --- |
+| Flat default | 하나의 project, docs가 source 또는 단일 sidecar와 함께 있음. | `.agent/` |
+| Agent-docs sidecar | source repo가 public/collab이거나 private note를 담으면 안 됨. | `.agent/` + `source-map.md` |
+| Multi-project orchestration | 하나의 docs repo가 독립 project repo 여러 개를 운영. | `.agent/<unit-project-name>/` |
+| Upstream split | 개발자가 upstream 수정 가능하고 upstream-bound 변경이 여기서 시작. | `<scope-root>/project/` + `<scope-root>/upstream/` |
+
+upstream split이면 upstream folder 기본 이름은 `upstream/`; 사용자가 이름을 주면 그 이름을 사용합니다. 사용자가 source folder가 workspace 안에 있다고 특정하면 존재 확인 후 root `.gitignore`에 추가합니다. 추측 경로, 중복 entry, submodule/gitlink ignore 금지.
+
+Adoption catalog 규칙: catalog는 체크리스트가 아니라 메뉴입니다. 유용하지만 아직 이른 option을 건너뛰면 `<scope-root>/PM/NNN_seed_migration_triggers.md`에 option, rationale, trigger, adoption work를 기록합니다. 주요 option: `_lessons/`, `PM/`, `_coordination/`, `_contracts/`, `_questions/`, `rules.md`, `architecture.md`, `source-map.md`, `public-boundary.md`/`style-guide.md`, multi-project folders, upstream split, `upstream-vs-local.md`, `archive/`, `legacy-design-rationale.md`, `adaptation-map.md`, `review/` + `roadmap/`, lint indexes spec.
+
+---
+
 ## Phase 3 — 문서 레이어
 
 > **어떤 문서 레이어를 쓸까요? (복수 선택, 번호)**
@@ -152,13 +177,15 @@ Phase 7 계획 깊이를 결정.
 
 ### Step A (모든 레벨) — 스캐폴딩
 
-Phase 3/4/5 선택 반영해 다음 파일 생성.
+Phase 2.5/3/4/5 선택 반영해 다음 파일 생성. agent workspace 파일은 `<scope-root>` 사용 (기본 `.agent/`).
 
-**항상**: `AGENTS.md` (§ 파일 템플릿 참조), `.agent/rules.md`, `.agent/architecture.md`, `.gitignore` (§ 파일 템플릿 참조 — Phase 2 스택 행 선택), `README.md`.
+**항상**: `AGENTS.md` (§ 파일 템플릿 참조), `<scope-root>/rules.md`, `<scope-root>/architecture.md`, `<scope-root>/PM/README.md`, `<scope-root>/_lessons/README.md`, `.gitignore` (§ 파일 템플릿 참조 — Phase 2 스택 행 선택), `README.md`.
+
+**Phase 2.5에서 sidecar/orchestration/upstream 선택 시**: 필요하면 `<scope-root>/source-map.md`; private note가 public docs로 넘어갈 수 있으면 `<scope-root>/public-boundary.md` 또는 `style-guide.md`; upstream split이면 `<scope-root>/project/upstream-vs-local.md`; 사용자가 특정했고 존재 확인된 source folder만 root `.gitignore`에 추가 (submodule/gitlink 제외).
 
 **Phase 4 선택 서비스별**: 각 브릿지 파일에 `@AGENTS.md` import (또는 해당 서비스 동등 방식 — § 파일 템플릿 → 브릿지 stub 참조).
 
-**Phase 5 = Yes 면**: `.agent/_coordination/STATE.md` · `HANDOFF.md` · `CHANGELOG.md`, `.agent/_contracts/README.md`, `.agent/_questions/{open,resolved}/`, `.agent/_lessons/README.md`.
+**Phase 5 = Yes 면**: `<scope-root>/_coordination/STATE.md` · `HANDOFF.md` · `CHANGELOG.md`, `<scope-root>/_contracts/README.md`, `<scope-root>/_questions/{open,resolved}/`.
 
 **Phase 3 에 `docs/` · `executive-docs/` · `dashboard/` · `meetings/` 포함되면** 각 dir + README 생성.
 
@@ -168,15 +195,15 @@ Phase 3/4/5 선택 반영해 다음 파일 생성.
 
 ### Step B (중급+) — 1차 Phase 계획
 
-`.agent/PM/001_Phase1_Plan.md`: 목표·산출물·대략 WBS(5-10 태스크)·수용 기준·ETA.
+`<scope-root>/PM/001_Phase1_Plan.md`: 목표·산출물·대략 WBS(5-10 태스크)·수용 기준·ETA.
 
 ### Step C (고급+) — 기술 스택·아키텍처 확정
 
-`.agent/architecture.md` 에 버전 고정. 데이터 플로우 다이어그램(mermaid 또는 ASCII). 환경변수 리스트. 외부 의존성.
+`<scope-root>/architecture.md` 에 버전 고정. 데이터 플로우 다이어그램(mermaid 또는 ASCII). 환경변수 리스트. 외부 의존성.
 
 ### Step D (전문가) — MVP 범위 + 리스크
 
-`.agent/PM/002_MVP_Scope.md` + WBS 20-40 태스크 + `.agent/PM/003_Risk_Register.md` (top 5 리스크·완화·소유자).
+`<scope-root>/PM/002_MVP_Scope.md` + WBS 20-40 태스크 + `<scope-root>/PM/003_Risk_Register.md` (top 5 리스크·완화·소유자).
 
 ---
 
@@ -266,6 +293,7 @@ Step A-D 완료 후 에이전트 안내:
 - v1.3.5 delta: 분해 경로가 여러 개인 복잡 작업용 작업 분해 전략
 - v1.3.6 delta: 인덱스 ↔ 본문 동기화의 외부 지식 인덱스 자동 동기화 절
 - v1.3.7 delta: Phase 0 에이전트 말투 선택 + AGENTS.md / rules / 브릿지의 언어·말투 placeholder
+- v1.5.0 delta: Phase 2.5 Bootstrap Residency + Adoption Catalog (`<scope-root>`, agent-docs sidecar, multi-project orchestration, upstream split, `source-map.md`, public-boundary/style-guide, `.gitignore` source guard)
 
 번호 메뉴로 사용자에게 제시:
 ```

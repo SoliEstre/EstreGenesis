@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Master Seed Prompt (English)
 
-<!-- seed-tier: Master; language: English; version: v1.4.1; date: 2026-05-06; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: README.md -->
+<!-- seed-tier: Master; language: English; version: v1.5.0; date: 2026-05-07; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: README.md -->
 
 > **How to use**: When starting a new project, copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent that reads this prompt will start an **interactive bootstrap session** that guides your project setup step by step.
 >
@@ -30,6 +30,7 @@ If the user's opening message is ambiguous, ask one clarifying question before c
 7. **Research-driven decisions** — For **significant branch points** (strategy, tech selection, market analysis, competitive response, design-principle finalization, etc.), always run the **Research → Report → Plan** three-step loop. No ad-hoc decisions. See § Research-Driven Decision Loop.
 8. **Index ↔ body synchronization** — Whenever a body document is added, retitled, deprecated, or substantially rewritten, **every index that points to it must be updated in the same commit**. A stale index is worse than no index — agents act on the older list. See § Index Synchronization Policy.
 9. **External-interface fan-out (N-way sync)** — When a single capability is described in multiple surfaces (e.g., a Skill markdown + a JSON spec endpoint + a developer install guide + an end-user help page + a strategy doc), all surfaces must be updated in the same work unit. Real incidents happen when one surface lags by even a week. See § External-Interface N-Way Sync.
+10. **Repo residency before doc shape** — Before scaffolding `.agent/`, decide whether the current workspace is the source repo, a private agent-docs sidecar repo, a multi-project orchestration repo, or a scope with upstream-bound work. Private agent notes must not leak into public/collaboration source repos.
 
 ### Dialogue Rules
 
@@ -119,9 +120,51 @@ Confirm before Phase 3.
 
 ---
 
+## Phase 2.5 — Bootstrap Residency Check
+
+Before choosing document layers, decide where agent/developer operation docs live. Default: agent docs live in the current source repo under flat `.agent/`.
+
+**Bootstrap style**:
+
+> How should I decide repo residency?
+>
+> 1. **Minimal bootstrap (recommended)** — inspect the current folder, git state, remotes, and obvious repo shape; ask only if ambiguous.
+> 2. **Full manual setup** — ask every repo residency, source-location, upstream, public/private boundary, and multi-project orchestration question.
+> 3. **Repo provider assisted setup** — infer from GitHub / GitLab / Bitbucket / Azure DevOps / Gitea / Forgejo / self-hosted Git / local git remotes / user-provided repo list, then ask only remaining questions.
+>
+> Security: never ask for passwords or raw access tokens in chat. Prefer installed connectors, authenticated CLIs, public repo URLs, or a user-provided repo summary.
+
+**Empty-or-seed-only folder check**: if the current working folder is empty, contains only this seed prompt, or has no concrete project work yet, ask:
+
+1. Is this folder intended to be a **developer/agent-docs-only repo**?
+2. If yes, where is the source project: under this folder, another local path, remote-only, or not created yet?
+3. Does the source repo already exist locally/remotely, or should a new source project be created?
+
+**Workspace access warning**:
+
+- Workspace-limited agents such as Antigravity IDE or GitHub Copilot may not access paths outside the opened workspace. If the source project is outside, tell the user to move it under the workspace or link it there.
+- Claude Code and Codex may access external paths, but must verify actual read/write access before relying on them.
+
+**Residency shapes**:
+
+| Shape | When to use | `<scope-root>` |
+| --- | --- | --- |
+| Flat default | One project; agent docs live in source repo or one sidecar repo. | `.agent/` |
+| Agent-docs sidecar | Source repo is public/collaboration-owned or should not carry private agent docs. | `.agent/` plus `source-map.md` |
+| Multi-project orchestration | One agent-docs repo operates several independent project repos (more independent than FE/BE roles). | `.agent/<unit-project-name>/` |
+| Upstream split | Developer operates/can update upstream, and upstream-bound changes are first implemented here. | `<scope-root>/project/` + `<scope-root>/upstream/` by default |
+
+If upstream split applies, default the upstream folder name to `upstream/`. If the user names it explicitly (`estreui`, `payments-sdk`, `internal-platform`, etc.), use that name instead.
+
+If the user says a source project folder is now inside the current workspace, verify it exists. If it is a separate source repo or linked project folder that should not be committed into an agent-docs repo, add its root-relative path to the root `.gitignore` automatically. Do not add guessed paths. Do not duplicate existing entries. If the user intends a submodule/gitlink, do not ignore it.
+
+Record the chosen residency in `AGENTS.md` and in `<scope-root>/README.md` during Phase 7.
+
+---
+
 ## Phase 3 — Document Management Structure
 
-This project defaults to a **three-layer document separation**:
+This project defaults to a **three-layer document separation**. The tree below shows the flat default. If Phase 2.5 chose a sidecar, multi-project, or upstream split shape, mount the `.agent/` contents under the selected `<scope-root>`.
 
 ```
 project-root/
@@ -157,7 +200,7 @@ project-root/
 >
 > *Heuristic*: If there's even a 0.1% chance of fundraising or team expansion, pick 1.
 
-Scaffold only the selected folders in Phase 7.
+Scaffold only the selected folders in Phase 7. For deferred catalog options, create `<scope-root>/PM/NNN_seed_migration_triggers.md` with option, rationale, trigger, and adoption work.
 
 ---
 
@@ -228,13 +271,13 @@ Generate entry files only for selected services in Phase 7.
 
 ### Step A (all levels) — Scaffolding
 
-This step **creates actual files**. Report each file creation with a one-line summary:
+This step **creates actual files**. Use the Phase 2.5 `<scope-root>` for agent workspace files. Report each file creation with a one-line summary:
 
 ```
 Created: AGENTS.md — common agent rules SSoT
 Created: README.md — project first impression
-Created: .agent/rules.md — working rules baseline
-Created: .agent/_coordination/STATE.md — live work board
+Created: <scope-root>/rules.md — working rules baseline
+Created: <scope-root>/_coordination/STATE.md — live work board
 ... (continue)
 ```
 
@@ -254,33 +297,34 @@ After scaffolding:
 >
 > Proceed as-is, or adjust?
 
-After agreement: create `.agent/PM/001_Phase1_Plan.md`.
+After agreement: create `<scope-root>/PM/001_Phase1_Plan.md`.
 
 ### Step C (Advanced+) — Finalize Tech Stack + Architecture
 
 Lock the stack discussed in Phase 2 and **diagram it**:
 
-- `.agent/architecture.md`: stack table + data flow Mermaid diagram
+- `<scope-root>/architecture.md`: stack table + data flow Mermaid diagram
 - Reasons for each tech choice → `docs/adr/0001_….md`
 - External dependencies (APIs, cloud, payment, etc.) → `docs/api/external_dependencies.md`
 
 ### Step D (Expert) — MVP Scope + WBS
 
 - Classify MVP features with MoSCoW (Must/Should/Could/Won't)
-- Record in `.agent/PM/002_MVP_Scope.md`
-- Work Breakdown Structure in `.agent/PM/003_WBS.md` (decomposed to task level)
+- Record in `<scope-root>/PM/002_MVP_Scope.md`
+- Work Breakdown Structure in `<scope-root>/PM/003_WBS.md` (decomposed to task level)
 - Tag each task with owning role (PM/FE/BE) + estimated time
 
 ---
 
 ## File Scaffolding Checklist
 
-Files to generate in Phase 7 Step A. Templates in **§ File Templates**.
+Files to generate in Phase 7 Step A. Templates in **§ File Templates**. Replace `<scope-root>` with the Phase 2.5 selection: normally `.agent/`, or `.agent/<unit-project-name>/` inside a multi-project orchestration repo. If upstream split applies, create both `<scope-root>/project/` and `<scope-root>/upstream/` (or the user-named upstream folder).
 
 ### Root docs
 - [ ] `AGENTS.md` — common SSoT (incorporating Phases 1–5 decisions)
 - [ ] `README.md` — project first impression
 - [ ] `.gitignore` — Common block + Phase 2 stack rows + Seed-produced artifacts block (template in § File Templates)
+- [ ] If this is an agent-docs sidecar repo and the source folder is placed/linked under root: add that source folder path to `.gitignore` only after verifying the user-identified folder exists and is not a submodule/gitlink.
 
 ### AI service bridges (only those selected in Phase 4)
 - [ ] `CLAUDE.md` (Claude Code)
@@ -294,23 +338,28 @@ Files to generate in Phase 7 Step A. Templates in **§ File Templates**.
 - [ ] `.amazonq/rules/main.md` (Amazon Q)
 - [ ] `.rules` (Zed / generic fallback)
 
-### Agent workspace (`.agent/`)
-- [ ] `.agent/rules.md`
-- [ ] `.agent/architecture.md`
-- [ ] `.agent/_coordination/README.md`
-- [ ] `.agent/_coordination/STATE.md`
-- [ ] `.agent/_coordination/HANDOFF.md`
-- [ ] `.agent/_coordination/CHANGELOG.md`
-- [ ] `.agent/_contracts/README.md`
-- [ ] `.agent/_contracts/api/README.md`
-- [ ] `.agent/_contracts/events/README.md`
-- [ ] `.agent/_contracts/types/README.md`
-- [ ] `.agent/_questions/README.md`
-- [ ] `.agent/_questions/open/.gitkeep`
-- [ ] `.agent/_questions/resolved/.gitkeep`
-- [ ] `.agent/_lessons/README.md`
-- [ ] `.agent/PM/README.md`
-- [ ] Role folders per Phase 2 stack (`Frontend/`, `Backend/`, `Mobile/`, `Data/`, etc.)
+### Agent workspace (`<scope-root>`)
+- [ ] `<scope-root>/README.md` — includes repo residency and read-order note
+- [ ] `<scope-root>/rules.md`
+- [ ] `<scope-root>/architecture.md`
+- [ ] `<scope-root>/source-map.md` (if agent docs live outside source repo or orchestration points to source repos)
+- [ ] `<scope-root>/public-boundary.md` or `<scope-root>/style-guide.md` (if source is public/collaborative or docs may be promoted public)
+- [ ] `<scope-root>/project/upstream-vs-local.md` (if upstream split applies)
+- [ ] `<scope-root>/_coordination/README.md`
+- [ ] `<scope-root>/_coordination/STATE.md`
+- [ ] `<scope-root>/_coordination/HANDOFF.md`
+- [ ] `<scope-root>/_coordination/CHANGELOG.md`
+- [ ] `<scope-root>/_contracts/README.md`
+- [ ] `<scope-root>/_contracts/api/README.md`
+- [ ] `<scope-root>/_contracts/events/README.md`
+- [ ] `<scope-root>/_contracts/types/README.md`
+- [ ] `<scope-root>/_questions/README.md`
+- [ ] `<scope-root>/_questions/open/.gitkeep`
+- [ ] `<scope-root>/_questions/resolved/.gitkeep`
+- [ ] `<scope-root>/_lessons/README.md`
+- [ ] `<scope-root>/PM/README.md`
+- [ ] `<scope-root>/PM/NNN_seed_migration_triggers.md` (if any catalog options are deferred)
+- [ ] Role folders under `<scope-root>/` per Phase 2 stack (`Frontend/`, `Backend/`, `Mobile/`, `Data/`, etc.)
 
 ### docs/ (if selected in Phase 3)
 - [ ] `docs/README.md`
@@ -352,11 +401,13 @@ Files to generate in Phase 7 Step A. Templates in **§ File Templates**.
 
 ## 1. Context files (reading order)
 
+Agent workspace root: `[Phase 2.5 <scope-root>, default .agent/]`
+
 1. `AGENTS.md` — this file
-2. `.agent/rules.md` — working rules
-3. `.agent/architecture.md` — tech stack & infra
-4. `.agent/_coordination/STATE.md` — live agent activity
-5. `.agent/_contracts/` — inter-part interface contracts
+2. `<scope-root>/rules.md` — working rules
+3. `<scope-root>/architecture.md` — tech stack & infra
+4. `<scope-root>/_coordination/STATE.md` — live agent activity
+5. `<scope-root>/_contracts/` — inter-part interface contracts
 6. Your role folder's `README.md`
 
 ## 2. Role-based work
@@ -372,43 +423,43 @@ Files to generate in Phase 7 Step A. Templates in **§ File Templates**.
 ## 4. Multi-agent coordination
 
 ### 4.1 Before starting any task
-1. Read `.agent/_coordination/STATE.md` — see what other agents are doing
-2. If overlap: create a question file in `.agent/_questions/open/`
+1. Read `<scope-root>/_coordination/STATE.md` — see what other agents are doing
+2. If overlap: create a question file in `<scope-root>/_questions/open/`
 3. Add your task row in `STATE.md`
 
 ### 4.2 Before editing shared files
-- Cross-cutting files → claim in `.agent/_coordination/HANDOFF.md`
+- Cross-cutting files → claim in `<scope-root>/_coordination/HANDOFF.md`
 - Check existing claims → wait or negotiate via `_questions/`
 
 ### 4.3 Interface changes
-- Edit files under `.agent/_contracts/`, move status DRAFT → REVIEW → ACTIVE
+- Edit files under `<scope-root>/_contracts/`, move status DRAFT → REVIEW → ACTIVE
 - Request ack from consumer agents via `_questions/`
 
 ### 4.4 Blockers / questions
-- `.agent/_questions/open/YYYY-MM-DD_FROM-to-TO_NNN.md`
+- `<scope-root>/_questions/open/YYYY-MM-DD_FROM-to-TO_NNN.md`
 - Priority: 🔴 Blocker(24h) / 🟡 Soon(72h) / 🟢 Info
 
 ### 4.5 Task completion
-- One line in `.agent/_coordination/CHANGELOG.md`
+- One line in `<scope-root>/_coordination/CHANGELOG.md`
 - Remove your row from `STATE.md`
 
 ### 4.6 Troubleshooting record (autonomous evolution)
-- Any blocker taking 30 min+ → `.agent/_lessons/NNN_*.md`
+- Any blocker taking 30 min+ → `<scope-root>/_lessons/NNN_*.md`
 - Before starting new work → grep `_lessons/` tags for similar cases
 - **AI agents should record lessons proactively, without being told**
 
 ## 5. Core rules
 
 1. **Language and tone**: docs/commits in **[Phase 0 language]**; agent responses use **[Phase 0 tone]**
-2. **Documentation (3-digit numbering + Index)**: task logs in `.agent/[role]/001_Task.md`. Update the role README on every file add/change.
+2. **Documentation (3-digit numbering + Index)**: task logs in `<scope-root>/[role]/001_Task.md`. Update the role README on every file add/change.
 3. **Git**: commit conventions in §7. Never use `git commit -a` (always `git add` → `git commit`).
 4. **Coordination first**: STATE.md check → work → CHANGELOG.md record
-5. **Accumulate troubleshooting experience** in `.agent/_lessons/`
-6. **Preserve the 3-layer doc separation**: `.agent/` (agents) / `docs/` (human devs) / `executive-docs/` (business)
+5. **Accumulate troubleshooting experience** in `<scope-root>/_lessons/`
+6. **Preserve the 3-layer doc separation**: `<scope-root>` (agents) / `docs/` (human devs) / `executive-docs/` (business)
 7. **Index synchronization (mandatory)**: When adding · retitling · deprecating · substantially rewriting an `executive-docs/*.md` (or any analogous body doc), update **all indexes that point to it in the same commit**. Typical 3-way set: (a) the folder's own `README.md` (category table); (b) the project root `README.md` (top-level navigation); (c) any "living document cycle" registry. Missing one breaks the entry point and other agents act on the older list. Detail: § Index Synchronization Policy.
 8. **N-way sync for external-facing surfaces (mandatory)**: When a capability is described in N surfaces (e.g., AI-skill markdown · JSON spec endpoint · developer install guide · end-user help page · strategy doc), all N surfaces must be updated in the same work unit. Use the project's N-way sync table in § External-Interface N-Way Sync to know which surfaces are coupled. Real incident: external AI agents acted on a stale guide for a week, hard-coded the wrong identity, before the lag was noticed.
 9. **Markdown `~` escape (mandatory)**: GFM renderers interpret `~text~` and `~~text~~` as strikethrough. Single `~` in body text (range notation `2,500\~3,000`, approximation `\~5min`, phase notation `Phase 4\~5`) **must** be escaped as `\~` whenever two or more occurrences appear on one line, or the renderer pairs them and strikes the text in between. Run the project's escape script before any external HTML/PDF build. Detail: § Markdown Tilde Escape Policy.
-10. **RAG-friendly index density (recommended)**: When the project is loaded into a chat environment that switches to retrieval-augmented generation (e.g., Claude project files at >100% capacity), keyword density of *index documents* (root README · folder READMEs · this AGENTS.md · `.agent/rules.md`) determines repo-wide search hit-rate. Apply the 5 density rules (body nouns ≥3 occurrences · acronym + spelled-out + native-language synonyms · proper nouns · numbers/dates · custom roles/aliases) when authoring or editing indexes. Detail: § RAG Index Optimization.
+10. **RAG-friendly index density (recommended)**: When the project is loaded into a chat environment that switches to retrieval-augmented generation (e.g., Claude project files at >100% capacity), keyword density of *index documents* (root README · folder READMEs · this AGENTS.md · `<scope-root>/rules.md`) determines repo-wide search hit-rate. Apply the 5 density rules (body nouns ≥3 occurrences · acronym + spelled-out + native-language synonyms · proper nouns · numbers/dates · custom roles/aliases) when authoring or editing indexes. Detail: § RAG Index Optimization.
 
 ## 6. Slash workflows (optional)
 
@@ -434,13 +485,13 @@ Co-Authored-By: <agent name>
 ## 8. References
 - [docs/README.md] — human developer docs
 - [executive-docs/README.md] — business strategy docs
-- [.agent/_coordination/README.md] — coordination details
-- [.agent/_lessons/README.md] — troubleshooting store
+- [<scope-root>/_coordination/README.md] — coordination details
+- [<scope-root>/_lessons/README.md] — troubleshooting store
 ```
 
 ### Bridge templates
 
-Each AI service's entry file follows the **same pattern**. Add service-specific sections when unique features exist.
+Each AI service's entry file follows the **same pattern**. Add service-specific sections when unique features exist. If Phase 2.5 chose a non-default scope, replace `.agent/...` paths in rule summaries with the chosen `<scope-root>/...`.
 
 #### `CLAUDE.md`
 ```markdown
@@ -453,11 +504,11 @@ Each AI service's entry file follows the **same pattern**. Add service-specific 
 ## Claude Code-specific features
 - `.claude/rules/`: path-scoped rules
 - Auto Memory: `~/.claude/projects/<project>/memory/`
-- Slash commands: see `.agent/workflows/`
+- Slash commands: see `<scope-root>/workflows/`
 - Co-Authored-By: `Claude Opus 4.7 (1M context) <noreply@anthropic.com>` (avoid model confusion)
 
 ## Rule summary
-Before work: AGENTS.md → .agent/rules.md → .agent/architecture.md → .agent/_coordination/STATE.md → .agent/_contracts/
+Before work: AGENTS.md → <scope-root>/rules.md → <scope-root>/architecture.md → <scope-root>/_coordination/STATE.md → <scope-root>/_contracts/
 ```
 
 #### `GEMINI.md`
@@ -470,9 +521,9 @@ Before work: AGENTS.md → .agent/rules.md → .agent/architecture.md → .agent
 
 ## Must read
 1. AGENTS.md
-2. .agent/rules.md
-3. .agent/architecture.md
-4. .agent/_coordination/STATE.md
+2. <scope-root>/rules.md
+3. <scope-root>/architecture.md
+4. <scope-root>/_coordination/STATE.md
 
 ## Co-Authored-By
 `Co-Authored-By: Gemini 2.5 Pro`
@@ -1304,6 +1355,7 @@ Confirm all services give consistent summaries. Any divergence → investigate w
 | § Enforcement Hook Architecture (two-layer defense — Layer 1 Claude Code `PreToolUse` + Layer 2 `git pre-commit` — with `scripts/hooks/_patterns.mjs` single regex SSoT, idempotent `install.mjs`, Bash quote/HEREDOC false-positive avoidance, `node --test` regression suite, cross-AI applicability matrix) | v1.3.4 |
 | § Task Decomposition Strategy (cross-AI behavioral pattern for complex work with multiple decomposition paths: announce → judgment/inertia → accept user pivot mid-flight; trigger thresholds, inertia priority, per-AI tool mapping, anti-patterns) | v1.3.5 |
 | § Index Synchronization Policy → External knowledge index auto-sync subsection (when mirroring structured folders to Claude memory · Notion · Obsidian · Logseq · wiki · RAG metadata store, pre-commit calls a dedicated sync script to auto-update the mechanical structure) | v1.3.6 |
+| Phase 2.5 Bootstrap Residency Check + Adoption Catalog (minimal/manual/provider-assisted setup, agent-docs sidecar repos, multi-project orchestration, upstream split, source-map, public-boundary/style-guide, `.gitignore` source guard) | v1.5.0 |
 
 Present a filtered diff to the user as a numbered menu:
 
@@ -1354,6 +1406,38 @@ Project has some pieces from a previous seed + some custom structure. Apply Migr
 5. **Document the hybrid origin** in `.agent/_lessons/001_AI_Native_Migration.md` so future agents understand why some directories look "standard" and others don't.
 
 Hybrid migrations often surface real business logic that a pure Migration A or B would miss. Treat this as an opportunity to write a high-value lessons file.
+
+---
+
+## Adoption Catalog with Triggers
+
+When a project does not adopt every seed option immediately, preserve the deferred choices in one trigger table instead of scattering rationale through commit messages. Store it at `<scope-root>/PM/NNN_seed_migration_triggers.md`.
+
+| # | Option | Trigger | Anchor |
+| --- | --- | --- | --- |
+| A | `_lessons/` | 30+ minute blockers or non-obvious behaviors recur. | `<scope-root>/_lessons/` |
+| B | `PM/` | Tasks span more than one sitting or have deferred options. | `<scope-root>/PM/` |
+| C | `_coordination/` | Two or more agents work on the same repo concurrently. | `<scope-root>/_coordination/` |
+| D | `_contracts/` | Cross-part APIs/events/types need written lifecycle. | `<scope-root>/_contracts/` |
+| E | `_questions/` | Async Q&A needs durable routing. | `<scope-root>/_questions/` |
+| F | `rules.md` | AGENTS.md grows too large or scope-specific rules diverge. | `<scope-root>/rules.md` |
+| G | `architecture.md` | Scope-specific architecture outgrows existing docs. | `<scope-root>/architecture.md` |
+| H | `source-map.md` | Agent docs live outside source repo or point to multiple source repos. | `<scope-root>/source-map.md` |
+| I | `public-boundary.md` / `style-guide.md` | Public/collaboration boundary or sanitization needed. | `<scope-root>/public-boundary.md` |
+| J | `.gitignore` source guard | Source folder is placed/linked under an agent-docs repo. | root `.gitignore` |
+| K | Multi-project folders | One agent-docs repo operates several independent project repos. | `.agent/<unit-project-name>/` |
+| L | Upstream split | Upstream-bound changes are first implemented here. | `<scope-root>/project/` + `<scope-root>/upstream/` |
+| M | `upstream-vs-local.md` | Upstream-bound vs local-only files need classification. | `<scope-root>/project/upstream-vs-local.md` |
+| N | Mirror sync policy | Upstream docs/files are mirrored for read/search convenience. | `<scope-root>/upstream/` or `<scope-root>/<upstream-name>/` |
+| O | `archive/` | External negotiations span multiple rounds. | `<scope-root>/archive/` |
+| P | `open-implementation-markers.md` | TODO/FIXME markers need a punch list. | `<scope-root>/open-implementation-markers.md` |
+| Q | `legacy-design-rationale.md` | Set-aside designs need preservation outside source. | `<scope-root>/legacy-design-rationale.md` |
+| R | `adaptation-map.md` | Local code increasingly depends on external library surfaces. | `<scope-root>/adaptation-map.md` |
+| S | Bilingual docs parallel | Public docs need multiple working languages. | public-facing docs |
+| T | `review/` + `roadmap/` split | Findings and planned improvements outgrow one list. | `<scope-root>/review/`, `<scope-root>/roadmap/` |
+| U | lint indexes spec | Index ↔ file consistency drift needs automation. | repo root or `<scope-root>/lint.mjs` |
+
+Each deferred row records: option, why deferred, trigger, and adoption work. When a trigger fires, perform the work and mark the row DONE. The catalog is a menu, not a checklist.
 
 ---
 

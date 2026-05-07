@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v1.4.1" src="https://img.shields.io/badge/version-v1.4.1-2ea44f?style=flat-square" />
+  <img alt="Version: v1.5.0" src="https://img.shields.io/badge/version-v1.5.0-2ea44f?style=flat-square" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=flat-square" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=flat-square" />
@@ -35,6 +35,7 @@ This seed bakes in patterns tested during the intensive operation of the author'
 
 - **Preventing repeat mistakes** — `.agent/_lessons/` records every surprising blocker with tags; next session greps before touching the area.
 - **Document-layer separation** — `.agent/` (agent workspace) vs `docs/` (developer runbooks) vs `executive-docs/` (strategy) vs `dashboard/` (user-action backlog) — each with a specific audience, no mixing.
+- **Repo residency boundaries** — Phase 2.5 decides whether the workspace is the source repo, a private agent-docs sidecar, a multi-project orchestration repo, or an upstream/local split before choosing the `.agent/` shape.
 - **Service-agnostic bridges** — `AGENTS.md` is the single source of truth. Every AI service's rule file (CLAUDE.md, GEMINI.md, .cursor/rules/, .windsurfrules, .aider.conf.yml, …) imports from it. Switch services freely, rules don't break.
 - **Concurrent multi-agent safety** — `.agent/_coordination/` with STATE.md, HANDOFF.md, CHANGELOG.md prevents file-edit collisions and gives every agent a live map of who's doing what.
 - **Research-driven decisions** — Significant branch points (strategy, tech selection, legal, market) trigger a Research → Report → Plan → Link loop with URL-sourced evidence and honest "source unverified" markers.
@@ -45,9 +46,9 @@ This seed bakes in patterns tested during the intensive operation of the author'
 
 | Tier | Size | Primary use | Target reader |
 |---|---|---|---|
-| **Master** | ~2060 lines | New projects that need deep guidance, teams learning the pattern for the first time, edge cases where you need every inline template (full AGENTS.md + `.gitignore` per-stack rows + escape/HTML/PDF scripts + bridge templates) | First-time AI Native author; teams formalizing a process |
-| **Lite** | ~970 lines | Quick new projects, migration sessions, onboarding new AI services into existing projects, when the master would eat too much context window. Self-contained — embeds inline templates for AGENTS.md, `.agent/rules.md`, `.gitignore`, scripts, and bridge stubs in compressed form | Returning author who remembers the pattern; most projects |
-| **Compact** | ~110 lines | Authors who already know the pattern and want the minimum viable seed; tightest context window; bullet triggers + algorithm-spec descriptions only (the agent generates the actual files following the specs) | Power user who just needs a checklist |
+| **Master** | ~1650 lines | New projects that need deep guidance, teams learning the pattern for the first time, edge cases where you need every inline template (full AGENTS.md + `.gitignore` per-stack rows + escape/HTML/PDF scripts + bridge templates) | First-time AI Native author; teams formalizing a process |
+| **Lite** | ~740 lines | Quick new projects, migration sessions, onboarding new AI services into existing projects, when the master would eat too much context window. Self-contained — embeds inline templates for AGENTS.md, `.agent/rules.md`, `.gitignore`, scripts, and bridge stubs in compressed form | Returning author who remembers the pattern; most projects |
+| **Compact** | ~95 lines | Authors who already know the pattern and want the minimum viable seed; tightest context window; bullet triggers + algorithm-spec descriptions only (the agent generates the actual files following the specs) | Power user who just needs a checklist |
 
 You place **one tier** into your project. Not all three. Cross-referencing tiers that aren't present produces dead links and agent confusion, so each tier is **self-contained** — internally complete, no forward or backward references to other tiers.
 
@@ -58,9 +59,9 @@ When a project grows to need more detail, you don't upgrade tiers in-place. You 
 ## File list
 
 ```
-AI_Native_Project_Master_Seed_Prompt.md       ← English master (deepest, ~2060 lines)
-AI_Native_Project_Seed_Prompt_Lite.md         ← English lite (~970 lines, self-contained)
-AI_Native_Project_Seed_Prompt_Compact.md      ← English compact (~110 lines, self-contained)
+AI_Native_Project_Master_Seed_Prompt.md       ← English master (deepest, ~1650 lines)
+AI_Native_Project_Seed_Prompt_Lite.md         ← English lite (~740 lines, self-contained)
+AI_Native_Project_Seed_Prompt_Compact.md      ← English compact (~95 lines, self-contained)
 AI_Native_프로젝트_마스터_시드_프롬프트.md       ← Korean master
 AI_Native_프로젝트_시드_프롬프트_Lite.md          ← Korean lite
 AI_Native_프로젝트_시드_프롬프트_Compact.md       ← Korean compact
@@ -78,11 +79,11 @@ Each language pair (English + Korean) of a given tier is fully aligned — same 
 ### Scenario 1 — new project, solo or small team
 
 1. Decide tier — **Lite** is the default. Pick **Master** only if you want the full reference baked in, or **Compact** if you're experienced and want minimum overhead.
-2. Copy the chosen file into your new project as `.agent/seed_prompt.md`. (The file scaffolding created during bootstrap will expect that path.)
+2. Copy the chosen file into your new project as `.agent/seed_prompt.md` by default. For private agent-docs sidecar or orchestration repos, copy it into that repo and let Phase 2.5 choose the final `<scope-root>`.
 3. Also copy it as your first chat message to the AI agent you're using (Claude Code, Cursor, etc.).
 4. Follow the agent's interactive interview through Phase 0-7 (~10-20 min).
 5. Commit the generated scaffolding separately from feature code: `git commit -m "[Chore] Initial AI Native scaffolding"`.
-6. Start Phase 1 work from `.agent/PM/001_Phase1_Plan.md`.
+6. Start Phase 1 work from `<scope-root>/PM/001_Phase1_Plan.md` (default: `.agent/PM/001_Phase1_Plan.md`).
 
 ### Scenario 2 — existing project, no formal AI collaboration setup
 
@@ -108,7 +109,7 @@ Parts of the project are seed-compliant, parts are ad-hoc. Agent runs **Migratio
 
 ## What the seed produces
 
-After Phase 7 (bootstrap) or a migration completes, your project has this shape:
+After Phase 7 (bootstrap) or a migration completes, the default source-repo shape is:
 
 ```
 your-project/
@@ -139,6 +140,8 @@ your-project/
 └── meetings/                          ← meeting records (optional)
 ```
 
+Phase 2.5 may choose a non-default `<scope-root>` first: direct `.agent/` for ordinary source repos, `.agent/<unit-project-name>/` for multi-project orchestration, or `<scope-root>/project/` plus `<scope-root>/upstream/` for upstream-bound work. Sidecar setups add source-map/public-boundary docs and only add a source folder to `.gitignore` after the user identifies it and the agent verifies it exists in the workspace.
+
 Every AI service that joins the project later reads `AGENTS.md` and is immediately productive. No service-specific onboarding, no "wait, what are the rules here?" — everything lives in one place.
 
 ---
@@ -146,6 +149,8 @@ Every AI service that joins the project later reads `AGENTS.md` and is immediate
 ## The operating loop (after bootstrap)
 
 Every agent — the one you use daily, and any new one joining — follows this 8-step loop:
+
+The list below uses default `.agent/` paths; replace them with `<scope-root>` when Phase 2.5 selected a non-default residency shape.
 
 1. Read `AGENTS.md` (SSoT)
 2. Read `.agent/rules.md` + `.agent/architecture.md`
@@ -192,7 +197,7 @@ Your project already has `CLAUDE.md` with 143 lines of rules, a `.cursor/rules/`
 
 ### Migration B — previous seed version → current
 
-Project was bootstrapped with an older version of this seed (missing the research loop, or the multi-agent coordination layer, or the migration guides themselves). The agent identifies the starting version, diffs capabilities, presents a numbered menu of available deltas. The user picks which to apply. Every addition is marked with `<!-- added in seed vX.Y migration, YYYY-MM-DD -->` so future readers can trace lineage. **Existing user customizations are preserved** — the agent never re-runs the Phase 0-7 interview on a migrated project.
+Project was bootstrapped with an older version of this seed (missing the research loop, multi-agent coordination layer, migration guides, or Bootstrap Residency checks). The agent identifies the starting version, diffs capabilities, presents a numbered menu of available deltas. The user picks which to apply. Every addition is marked with `<!-- added in seed vX.Y migration, YYYY-MM-DD -->` so future readers can trace lineage. **Existing user customizations are preserved** — the agent never re-runs the Phase 0-7 interview on a migrated project.
 
 ### Migration C — hybrid
 
@@ -202,13 +207,14 @@ Parts of the project are seed-compliant, parts are ad-hoc custom structure. The 
 
 ## Design principles
 
-The seed reflects five opinions earned the hard way:
+The seed reflects six opinions earned the hard way:
 
 1. **Docs before code, not the other way around.** Every decision lives in a file. An agent that can't find the decision will reinvent (often differently from last time).
 2. **One SSoT (`AGENTS.md`), many bridges.** Service proliferation is a given. Centralize shared rules, let each service keep its own knobs.
 3. **Memory compounds through `_lessons/`.** A 30-minute debug session becomes a 30-second grep next time.
 4. **Coordination is explicit, not implicit.** Multi-agent projects need STATE/HANDOFF/CHANGELOG. "Just trust each other not to collide" does not scale past two agents.
 5. **Research-driven decisions for branch points.** Ad-hoc strategic decisions are how projects compound tech debt silently. Research → Report → Plan → Link turns every major choice into an auditable trail.
+6. **Repo residency before doc shape.** Public/collab source repos, private agent-docs repos, multi-project orchestration, and upstream-bound work need different `<scope-root>` decisions before files are created.
 
 ---
 
@@ -228,6 +234,7 @@ Each tier has its own version. Master is the authoritative evolution track; Lite
 - **v1.3.7** (2026-05-03) — Phase 0 now captures agent reply tone after working language. Korean prompts offer six speech-level choices (`~니다`, `~에요/예요/어요`, `~음/슴/임`, casual peer tone, blunt challenge tone, or custom direction); English prompts carry equivalent tone choices. Default is to match the user's opening tone or use one notch more polite. Generated `AGENTS.md`, `.agent/rules.md`, and bridge stubs now record language and tone separately.
 - **v1.4.0** (2026-05-03) — Applied the official EstreGenesis naming across document titles, anonymized source-project references for public release, and published the seed prompt library as a public repo. Content base: legacy private archive, commit `5944a50` (v1.3.6, 2026-05-03).
 - **v1.4.1** (2026-05-06) — Metadata reconciliation. During the v1.3.6 → v1.4.0 absorption pass, the Master tier (KO/EN) Migration B delta tables omitted the v1.3.4 (Enforcement Hook Architecture), v1.3.5 (Task Decomposition Strategy), and v1.3.6 (External knowledge index auto-sync) rows that the four other tiers carried. v1.4.0 content is unchanged — the three rows are reinstated to restore 6-tier sync. The Master Phase 7 § File Scaffolding Checklist also gains an explicit optional `scripts/hooks/` block (Enforcement Hook Architecture is opt-in for projects with absolute rules worth enforcing). README v1.4.0 entry gains the legacy archive SHA for traceability.
+- **v1.5.0** (2026-05-07) — Bootstrap Residency added across all six seed files. New Phase 2.5 decides whether the workspace is a source repo, private agent-docs sidecar, multi-project orchestration repo, or upstream/local split before choosing `<scope-root>`. It supports Minimal, Full manual, and repo-provider assisted bootstrap (GitHub, GitLab, Bitbucket, Azure DevOps, Gitea, Forgejo, self-hosted/local remotes, or user-provided repo lists), adds workspace-limited-agent warnings, defaults upstream folders to `upstream/` unless renamed by the user, and guards `.gitignore` sidecar-source entries with explicit user identification plus agent verification. Master also gains an Adoption Catalog with trigger conditions; Lite and Compact carry condensed forms.
 
 This README is the changelog SSoT. Each seed file keeps only a compact header metadata line with tier, language, current version, counterpart, and a pointer back to this README. When you upgrade a project using Migration B, the agent uses the seed header version marker plus this changelog to compute the delta.
 
@@ -293,6 +300,7 @@ These are ecosystem touchpoints, not seed prerequisites. The seed works independ
 
 - **같은 실수 반복 방지** — `.agent/_lessons/` 가 모든 예상 밖 블로커를 태그와 함께 기록; 다음 세션은 해당 영역 건드리기 전 grep.
 - **문서 레이어 분리** — `.agent/`(에이전트 워크스페이스) vs `docs/`(개발자 런북) vs `executive-docs/`(전략) vs `dashboard/`(사용자 조치 백로그) — 각각 특정 독자, 섞이지 않음.
+- **repo residency 경계** — Phase 2.5 가 작업공간이 소스 repo, 개인 개발/에이전트 문서 sidecar, 다중 프로젝트 오케스트레이션 repo, upstream/local split 중 무엇인지 먼저 정한 뒤 `.agent/` 모양을 선택.
 - **서비스 중립 브릿지** — `AGENTS.md` 가 단일 SSoT. 모든 AI 서비스의 규칙 파일(CLAUDE.md, GEMINI.md, .cursor/rules/, .windsurfrules, .aider.conf.yml, …)이 여기서 import. 서비스 자유롭게 전환해도 규칙 불변.
 - **동시 멀티에이전트 안전성** — `.agent/_coordination/` 의 STATE.md·HANDOFF.md·CHANGELOG.md 가 파일 편집 충돌 예방 + 모든 에이전트에게 실시간 작업 맵 제공.
 - **리서치 기반 의사결정** — 중대 분기점(전략·기술·법무·시장)에서 Research → Report → Plan → Link 루프가 발동, URL 출처와 "출처 미확인" 정직 마커를 동반.
@@ -301,9 +309,9 @@ These are ecosystem touchpoints, not seed prerequisites. The seed works independ
 
 | Tier | 크기 | 주 용도 | 대상 독자 |
 |---|---|---|---|
-| **Master** | ~2060줄 | 깊이 있는 가이드 필요한 신규 프로젝트, 패턴 처음 배우는 팀, 모든 인라인 템플릿 필요한 엣지 케이스 | 첫 AI Native 저자; 프로세스 공식화하는 팀 |
-| **Lite** | ~970줄 | 빠른 신규 프로젝트, 마이그레이션 세션, 기존 프로젝트에 새 AI 서비스 편입, 마스터가 컨텍스트 윈도우에 무거울 때 | 패턴 기억하는 복귀 저자; 대부분 프로젝트 |
-| **Compact** | ~110줄 | 이미 패턴 알고 최소 시드 원하는 저자; 가장 타이트한 컨텍스트 윈도우; bullet 트리거만 | 체크리스트만 필요한 파워 유저 |
+| **Master** | ~1650줄 | 깊이 있는 가이드 필요한 신규 프로젝트, 패턴 처음 배우는 팀, 모든 인라인 템플릿 필요한 엣지 케이스 | 첫 AI Native 저자; 프로세스 공식화하는 팀 |
+| **Lite** | ~740줄 | 빠른 신규 프로젝트, 마이그레이션 세션, 기존 프로젝트에 새 AI 서비스 편입, 마스터가 컨텍스트 윈도우에 무거울 때 | 패턴 기억하는 복귀 저자; 대부분 프로젝트 |
+| **Compact** | ~95줄 | 이미 패턴 알고 최소 시드 원하는 저자; 가장 타이트한 컨텍스트 윈도우; bullet 트리거만 | 체크리스트만 필요한 파워 유저 |
 
 프로젝트에는 **tier 하나만** 배치. 세 개 다 넣지 않음. 존재하지 않는 tier 를 교차 참조하면 dead link 와 에이전트 혼란만 발생하므로, 각 tier 는 **self-contained** — 내부 완결, 다른 tier 로의 forward/backward 참조 없음.
 
@@ -312,9 +320,9 @@ These are ecosystem touchpoints, not seed prerequisites. The seed works independ
 ## 파일 목록
 
 ```
-AI_Native_Project_Master_Seed_Prompt.md       ← 영문 마스터 (가장 깊음, ~2060줄)
-AI_Native_Project_Seed_Prompt_Lite.md         ← 영문 lite (~970줄)
-AI_Native_Project_Seed_Prompt_Compact.md      ← 영문 compact (~110줄)
+AI_Native_Project_Master_Seed_Prompt.md       ← 영문 마스터 (가장 깊음, ~1650줄)
+AI_Native_Project_Seed_Prompt_Lite.md         ← 영문 lite (~740줄)
+AI_Native_Project_Seed_Prompt_Compact.md      ← 영문 compact (~95줄)
 AI_Native_프로젝트_마스터_시드_프롬프트.md       ← 한국어 마스터
 AI_Native_프로젝트_시드_프롬프트_Lite.md          ← 한국어 lite
 AI_Native_프로젝트_시드_프롬프트_Compact.md       ← 한국어 compact
@@ -330,11 +338,11 @@ logo/EstreGenesis.png                          ← README 로고
 ### 시나리오 1 — 신규 프로젝트, 솔로 또는 소규모 팀
 
 1. tier 결정 — **Lite** 가 기본값. **Master** 는 풀 레퍼런스 내장 원할 때만, **Compact** 는 경험 있고 최소 오버헤드 원할 때만.
-2. 선택한 파일을 새 프로젝트의 `.agent/seed_prompt.md` 로 복사. (부트스트랩 중 생성될 파일 스캐폴딩이 이 경로를 기대.)
+2. 선택한 파일은 기본적으로 새 프로젝트의 `.agent/seed_prompt.md` 로 복사. 개인 agent-docs sidecar 또는 오케스트레이션 repo 로 시작한다면 그 repo 에 복사하고 Phase 2.5 에서 최종 `<scope-root>` 를 정함.
 3. 동일 파일을 사용 중인 AI 에이전트(Claude Code·Cursor 등)의 첫 채팅 메시지로 붙여넣기.
 4. 에이전트의 Phase 0-7 대화형 인터뷰 따라가기 (~10-20분).
 5. 생성된 스캐폴딩을 기능 코드와 분리해 커밋: `git commit -m "[Chore] Initial AI Native scaffolding"`.
-6. `.agent/PM/001_Phase1_Plan.md` 부터 Phase 1 작업 착수.
+6. `<scope-root>/PM/001_Phase1_Plan.md` 부터 Phase 1 작업 착수 (기본값: `.agent/PM/001_Phase1_Plan.md`).
 
 ### 시나리오 2 — 기존 프로젝트, 공식 AI 협업 셋업 없음
 
@@ -358,7 +366,7 @@ logo/EstreGenesis.png                          ← README 로고
 
 ## 시드가 생성하는 것
 
-Phase 7 (부트스트랩) 또는 마이그레이션 완료 후 프로젝트 모양:
+Phase 7 (부트스트랩) 또는 마이그레이션 완료 후 기본 소스 repo 모양:
 
 ```
 your-project/
@@ -389,11 +397,15 @@ your-project/
 └── meetings/                          ← 회의 기록 (선택)
 ```
 
+Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 소스 repo 는 `.agent/` 직접, 다중 프로젝트 오케스트레이션은 `.agent/<unit-project-name>/`, upstream-bound 작업은 `<scope-root>/project/` + `<scope-root>/upstream/`. Sidecar 구성은 source-map/public-boundary 문서를 추가하고, 사용자가 workspace 내부 소스 폴더를 알려주며 에이전트가 존재를 확인한 뒤에만 `.gitignore` 에 등록.
+
 나중에 합류하는 모든 AI 서비스는 `AGENTS.md` 를 읽고 즉시 생산성 확보. 서비스별 온보딩 없음, "잠깐, 여기 규칙이 뭐지?" 없음 — 모든 게 한 곳에.
 
 ## 운영 루프 (부트스트랩 이후)
 
 매일 쓰는 에이전트와 나중에 합류하는 모든 에이전트가 따르는 8단계:
+
+아래 목록은 기본 `.agent/` 경로 기준. Phase 2.5 에서 비기본 residency shape 를 선택했다면 `<scope-root>` 로 치환.
 
 1. `AGENTS.md` 읽기 (SSoT)
 2. `.agent/rules.md` + `.agent/architecture.md` 읽기
@@ -436,7 +448,7 @@ your-project/
 
 ### 마이그레이션 B — 이전 시드 버전 → 현 버전
 
-프로젝트가 구 버전 시드로 부트스트랩됨(리서치 루프 없음·멀티에이전트 코디네이션 없음·마이그레이션 가이드 자체가 없음 등). 에이전트가 시작 버전 파악, 역량 차이 산출, 번호 delta 메뉴 제시. 사용자가 적용할 것 선택. 모든 추가에 `<!-- seed vX.Y 마이그레이션에서 추가, YYYY-MM-DD -->` 마커를 달아 향후 독자가 계보 추적 가능. **기존 사용자 커스터마이제이션 보존** — 마이그레이션 프로젝트에 Phase 0-7 인터뷰 재실행 절대 금지.
+프로젝트가 구 버전 시드로 부트스트랩됨(리서치 루프 없음·멀티에이전트 코디네이션 없음·마이그레이션 가이드 없음·Bootstrap Residency 확인 없음 등). 에이전트가 시작 버전 파악, 역량 차이 산출, 번호 delta 메뉴 제시. 사용자가 적용할 것 선택. 모든 추가에 `<!-- seed vX.Y 마이그레이션에서 추가, YYYY-MM-DD -->` 마커를 달아 향후 독자가 계보 추적 가능. **기존 사용자 커스터마이제이션 보존** — 마이그레이션 프로젝트에 Phase 0-7 인터뷰 재실행 절대 금지.
 
 ### 마이그레이션 C — 하이브리드
 
@@ -444,13 +456,14 @@ your-project/
 
 ## 설계 원칙
 
-어렵게 얻은 5개 의견:
+어렵게 얻은 6개 의견:
 
 1. **코드 전에 문서, 반대 아님.** 모든 결정은 파일에 존재. 결정을 찾지 못하는 에이전트는 재발명함(종종 지난번과 다르게).
 2. **하나의 SSoT(`AGENTS.md`), 다수의 브릿지.** 서비스 확산은 기정사실. 공통 규칙을 중앙화, 각 서비스는 자기 knobs 유지.
 3. **`_lessons/` 를 통한 메모리 복리.** 30분 디버그 세션이 다음번엔 30초 grep 이 됨.
 4. **코디네이션은 명시적, 암묵적 아님.** 멀티에이전트 프로젝트는 STATE/HANDOFF/CHANGELOG 필요. "그냥 충돌 안 나도록 서로 신뢰해" 는 2개 에이전트 이상에서 안 통함.
 5. **중대 분기점은 리서치 기반 의사결정.** 애드혹 전략 결정은 프로젝트가 조용히 기술 부채를 복리로 쌓는 방법. Research → Report → Plan → Link 가 모든 중대 선택을 감사 가능한 trail 로 전환.
+6. **repo residency 가 문서 모양보다 먼저.** 공개/협업 소스 repo, 개인 agent-docs repo, 다중 프로젝트 오케스트레이션, upstream-bound 작업은 파일 생성 전 서로 다른 `<scope-root>` 결정이 필요.
 
 ## 버전 관리
 
@@ -468,6 +481,7 @@ your-project/
 - **v1.3.7** (2026-05-03) — Phase 0 이 작업 언어 다음에 에이전트 응답 말투를 선택하도록 확장. 한국어 프롬프트는 `~니다`, `~에요/예요/어요`, `~음/슴/임`, 친구/동료 말투, 직설 도전 말투, 직접 방향성 프롬프트 6가지를 제시하고, 영문 프롬프트는 이에 부합하는 tone 옵션을 제공. 기본값은 사용자가 대화를 건 톤과 동일하거나 한 단계 공손하게. 생성되는 `AGENTS.md`, `.agent/rules.md`, 브릿지 stub 이 언어와 말투를 분리 기록.
 - **v1.4.0** (2026-05-03) — 문서 제목 전반에 EstreGenesis 정식 네이밍 적용, 소스 프로젝트 참조 공개용 익명화, public repo 공개. 콘텐츠 베이스: legacy private archive, commit `5944a50` (v1.3.6, 2026-05-03).
 - **v1.4.1** (2026-05-06) — 메타데이터 정합화. v1.3.6 → v1.4.0 흡수 과정에서 Master tier (KO/EN) 의 마이그레이션 B delta 표에 v1.3.4 (강제 훅 아키텍처) · v1.3.5 (작업 분해 전략) · v1.3.6 (외부 지식 인덱스 자동 동기화) 행이 누락 — 다른 4 tier 는 정상 보유. v1.4.0 콘텐츠는 그대로 유지하고 누락된 3 행만 보강해 6-tier sync 복원. Master 의 Phase 7 § 파일 스캐폴딩 체크리스트에 옵션 `scripts/hooks/` 블록 명시 (강제 훅 아키텍처는 절대 규칙 강제가 필요한 프로젝트의 opt-in). README v1.4.0 항목에 legacy archive SHA 박제 추가.
+- **v1.5.0** (2026-05-07) — 6개 시드 파일 전체에 Bootstrap Residency 추가. 새 Phase 2.5 가 `<scope-root>` 선택 전 작업공간이 소스 repo, 개인 agent-docs sidecar, 다중 프로젝트 오케스트레이션 repo, upstream/local split 중 무엇인지 결정. Minimal, Full manual, repo-provider assisted bootstrap 지원 (GitHub, GitLab, Bitbucket, Azure DevOps, Gitea, Forgejo, self-hosted/local remotes, 사용자 제공 repo 목록), workspace-limited agent 안내, upstream 폴더 기본값 `upstream/` 및 사용자 지정명 허용, sidecar 소스 폴더 `.gitignore` 등록은 사용자 식별 + 에이전트 확인 후로 제한. Master 는 트리거 조건이 있는 Adoption Catalog 를 추가하고 Lite·Compact 는 축약 반영.
 
 이 README가 changelog SSoT. 각 시드 파일은 tier, 언어, 현재 버전, counterpart, README 포인터만 담은 짧은 헤더 메타데이터를 유지. 마이그레이션 B 로 프로젝트 업그레이드 시 에이전트는 시드 헤더의 버전 마커와 본 changelog 로 delta 를 계산.
 

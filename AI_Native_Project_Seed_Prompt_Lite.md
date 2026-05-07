@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Seed Prompt — Lite
 
-<!-- seed-tier: Lite; language: English; version: v1.4.1; date: 2026-05-06; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: README.md -->
+<!-- seed-tier: Lite; language: English; version: v1.5.0; date: 2026-05-07; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: README.md -->
 
 > **How to use**: Copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent will run an **interactive bootstrap session** (or a **migration session** if your project already exists — see § Migration Guides).
 >
@@ -29,6 +29,7 @@ If the user's opening message is ambiguous, ask one clarifying question before c
 4. **Human decides** — Confirm each phase. Offer options, wait. Never scaffold without asking.
 5. **Index ↔ body sync** — When a body doc is added/retitled/deprecated/rewritten, every index that points to it (folder README · root README · living-doc registry) updates in the same commit. Stale indexes drive other agents to act on the older list.
 6. **N-way sync for external surfaces** — When a capability is described in N surfaces (skill markdown · JSON spec · install guide · help page · strategy doc), update them as one work unit. Real incident: a one-week lag in one surface made external AI agents use the wrong field value.
+7. **Repo residency before doc shape** — Before scaffolding `.agent/`, decide whether this workspace is the source repo, a private agent-docs sidecar repo, a multi-project orchestration repo, or a scope with upstream-bound work.
 
 ### Dialogue Rules
 
@@ -92,6 +93,30 @@ Don't finalize — just capture shape. Step C of Phase 7 elaborates. Used at sca
 
 ---
 
+## Phase 2.5 — Bootstrap Residency
+
+> **How should I decide where agent/developer docs live?**
+> 1. Minimal bootstrap (recommended): inspect folder/git/remotes and ask only if ambiguous
+> 2. Full manual setup: ask repo residency, source location, upstream, public/private boundary, multi-project orchestration
+> 3. Repo provider assisted setup: infer from GitHub/GitLab/Bitbucket/Azure DevOps/Gitea/Forgejo/self-hosted Git/local remotes/user-provided repo list
+
+If the current folder is empty, seed-only, or has no concrete project work yet, ask whether this is an agent-docs-only repo. If yes, ask whether the source is under this folder, another local path, remote-only, or not created yet. Workspace-limited agents (Antigravity IDE, GitHub Copilot) may not access outside the opened workspace; tell the user to move/link the source under the workspace when needed. Claude Code/Codex may access external paths, but must verify access.
+
+Residency defaults:
+
+| Shape | Use when | Scope root |
+| --- | --- | --- |
+| Flat default | One project, docs live with source or one sidecar. | `.agent/` |
+| Agent-docs sidecar | Source repo is public/collab or should not carry private notes. | `.agent/` + `source-map.md` |
+| Multi-project orchestration | One docs repo operates independent project repos. | `.agent/<unit-project-name>/` |
+| Upstream split | Developer can update upstream and upstream-bound changes start here. | `<scope-root>/project/` + `<scope-root>/upstream/` |
+
+If upstream split applies, default upstream folder name is `upstream/`; use a user-provided name if given. If the user identifies a source folder now inside this workspace, verify it exists before adding it to root `.gitignore`; do not guess paths, duplicate entries, or ignore submodules/gitlinks.
+
+Adoption catalog rule: this is a menu, not a checklist. If you skip useful-but-premature options, record them in `<scope-root>/PM/NNN_seed_migration_triggers.md` with option, rationale, trigger, and adoption work. Common options: `_lessons/`, `PM/`, `_coordination/`, `_contracts/`, `_questions/`, `rules.md`, `architecture.md`, `source-map.md`, `public-boundary.md`/`style-guide.md`, multi-project folders, upstream split, `upstream-vs-local.md`, `archive/`, `legacy-design-rationale.md`, `adaptation-map.md`, `review/` + `roadmap/`, lint indexes spec.
+
+---
+
 ## Phase 3 — Doc Layer
 
 > **Which of these doc layers do you want? (multi-select, numbered)**
@@ -152,13 +177,15 @@ Dictates how deep Phase 7 planning goes.
 
 ### Step A (all levels) — Scaffolding
 
-Create these files based on Phase 3/4/5 selections.
+Create these files based on Phase 2.5/3/4/5 selections. Use `<scope-root>` for agent workspace files (default `.agent/`).
 
-**Always**: `AGENTS.md` (template in § File Templates), `.agent/rules.md`, `.agent/architecture.md`, `.gitignore` (template in § File Templates — pick the Phase 2 stack rows), `README.md`.
+**Always**: `AGENTS.md` (template in § File Templates), `<scope-root>/rules.md`, `<scope-root>/architecture.md`, `<scope-root>/PM/README.md`, `<scope-root>/_lessons/README.md`, `.gitignore` (template in § File Templates — pick the Phase 2 stack rows), `README.md`.
+
+**If Phase 2.5 chose sidecar/orchestration/upstream**: add `<scope-root>/source-map.md` as needed; add `<scope-root>/public-boundary.md` or `style-guide.md` when private notes may cross into public docs; add `<scope-root>/project/upstream-vs-local.md` when upstream split applies; add verified source folder path to root `.gitignore` only after the user identifies it and it is not a submodule/gitlink.
 
 **If Phase 4 selected services**: Each bridge file with `@AGENTS.md` import (or the service's equivalent — stubs in § File Templates → Bridge stubs).
 
-**If Phase 5 = Yes**: `.agent/_coordination/STATE.md` · `HANDOFF.md` · `CHANGELOG.md`, `.agent/_contracts/README.md`, `.agent/_questions/{open,resolved}/`, `.agent/_lessons/README.md`.
+**If Phase 5 = Yes**: `<scope-root>/_coordination/STATE.md` · `HANDOFF.md` · `CHANGELOG.md`, `<scope-root>/_contracts/README.md`, `<scope-root>/_questions/{open,resolved}/`.
 
 **If Phase 3 included** `docs/` · `executive-docs/` · `dashboard/` · `meetings/`, create each dir + README.
 
@@ -168,15 +195,15 @@ Commit scaffolding separately from first feature code.
 
 ### Step B (Intermediate+) — First Phase Plan
 
-In `.agent/PM/001_Phase1_Plan.md`: goals, deliverables, rough WBS (5–10 tasks), acceptance criteria, ETA.
+In `<scope-root>/PM/001_Phase1_Plan.md`: goals, deliverables, rough WBS (5–10 tasks), acceptance criteria, ETA.
 
 ### Step C (Advanced+) — Finalize Stack + Architecture
 
-Pin versions in `.agent/architecture.md`. Data flow diagram (mermaid or ASCII). Env var list. External deps.
+Pin versions in `<scope-root>/architecture.md`. Data flow diagram (mermaid or ASCII). Env var list. External deps.
 
 ### Step D (Expert) — MVP Scope + Risk
 
-`.agent/PM/002_MVP_Scope.md` + WBS 20–40 tasks + `.agent/PM/003_Risk_Register.md` (top 5 risks, mitigation, owner).
+`<scope-root>/PM/002_MVP_Scope.md` + WBS 20–40 tasks + `<scope-root>/PM/003_Risk_Register.md` (top 5 risks, mitigation, owner).
 
 ---
 
@@ -266,6 +293,7 @@ Found in your project:
 - v1.3.5 deltas: Task Decomposition Strategy for complex work with multiple viable decomposition paths
 - v1.3.6 deltas: External knowledge index auto-sync clause under Index ↔ Body Sync
 - v1.3.7 deltas: Phase 0 agent tone selection + AGENTS.md / rules / bridge placeholders for language and tone
+- v1.5.0 deltas: Phase 2.5 Bootstrap Residency + Adoption Catalog (`<scope-root>`, agent-docs sidecar, multi-project orchestration, upstream split, `source-map.md`, public-boundary/style-guide, `.gitignore` source guard)
 
 Present this diff to the user as a numbered menu:
 ```
