@@ -51,7 +51,7 @@ When the cited code is in a public repo (e.g., a public library the adopting pro
 
 | # | Bundle | Status | Summary |
 | --- | --- | --- | --- |
-| 001 | [`001_2026-05-07_seed-v1.5/`](001_2026-05-07_seed-v1.5/README.md) | 🟡 submitted | Adoption Catalog with Triggers · `.agent/` folder shape for library+host · library reference repo cases |
+| 001 | [`001_2026-05-07_seed-v1.5/`](001_2026-05-07_seed-v1.5/README.md) | 🟡 submitted | Bootstrap residency check · adoption catalog with triggers · repo/agent-docs folder shapes · generic upstream/public-boundary operation |
 
 ---
 
@@ -106,4 +106,4 @@ draft (묶음 내) → submitted (repo push) → under review (시드 유지자 
 
 | # | 묶음 | 상태 | 요약 |
 | --- | --- | --- | --- |
-| 001 | [`001_2026-05-07_seed-v1.5/`](001_2026-05-07_seed-v1.5/README.md) | 🟡 submitted | Adoption Catalog with Triggers · 라이브러리+호스트의 `.agent/` 폴더 shape · 라이브러리 reference repo 케이스 |
+| 001 | [`001_2026-05-07_seed-v1.5/`](001_2026-05-07_seed-v1.5/README.md) | 🟡 submitted | Bootstrap residency check · trigger 기반 adoption catalog · repo/agent-docs folder shape · generic upstream/public-boundary operation |
