@@ -1,20 +1,20 @@
 <p align="center">
-  <img src="logo/EstreGenesis.png" alt="EstreGenesis logo" width="236" />
+  <img src="logo/EstreGenesis.png" alt="EstreGenesis logo" width="472" height="384" />
 </p>
 
 <p align="center">
-  <img alt="Version: v1.5.0" src="https://img.shields.io/badge/version-v1.5.0-2ea44f?style=flat-square" />
-  <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square" /></a>
-  <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=flat-square" />
-  <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=flat-square" />
-  <img alt="Languages: English and Korean" src="https://img.shields.io/badge/languages-EN%20%7C%20KO-bf8700?style=flat-square" />
+  <img alt="Version: v1.5.0" src="https://img.shields.io/badge/version-v1.5.0-2ea44f?style=for-the-badge" />
+  <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
+  <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
+  <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
+  <img alt="Languages: English and Korean" src="https://img.shields.io/badge/languages-EN%20%7C%20KO-bf8700?style=for-the-badge" />
 </p>
 
 <p align="center">
-  <img alt="Layer: seed prompt library" src="https://img.shields.io/badge/layer-seed_prompt_library-6e7781?style=flat-square" />
-  <img alt="Mode: bootstrap and migration" src="https://img.shields.io/badge/mode-bootstrap_%2B_migration-0a7f5a?style=flat-square" />
-  <img alt="Runtime: agent agnostic" src="https://img.shields.io/badge/runtime-agent_agnostic-c2410c?style=flat-square" />
-  <img alt="Repository: public" src="https://img.shields.io/badge/repo-public-1a7f37?style=flat-square" />
+  <img alt="Layer: seed prompt library" src="https://img.shields.io/badge/layer-seed_prompt_library-6e7781?style=for-the-badge" />
+  <img alt="Mode: bootstrap and migration" src="https://img.shields.io/badge/mode-bootstrap_%2B_migration-0a7f5a?style=for-the-badge" />
+  <img alt="Runtime: agent agnostic" src="https://img.shields.io/badge/runtime-agent_agnostic-c2410c?style=for-the-badge" />
+  <img alt="Repository: public" src="https://img.shields.io/badge/repo-public-1a7f37?style=for-the-badge" />
 </p>
 
 # EstreGenesis — AI Native Project Seed Prompt Library
