@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Master Seed Prompt (English)
 
-<!-- seed-tier: Master; language: English; version: v1.5.1; date: 2026-05-08; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Master; language: English; version: v1.6.0; date: 2026-05-09; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **How to use**: When starting a new project, copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent that reads this prompt will start an **interactive bootstrap session** that guides your project setup step by step.
 >
@@ -31,6 +31,7 @@ If the user's opening message is ambiguous, ask one clarifying question before c
 8. **Index ↔ body synchronization** — Whenever a body document is added, retitled, deprecated, or substantially rewritten, **every index that points to it must be updated in the same commit**. A stale index is worse than no index — agents act on the older list. See § Index Synchronization Policy.
 9. **External-interface fan-out (N-way sync)** — When a single capability is described in multiple surfaces (e.g., a Skill markdown + a JSON spec endpoint + a developer install guide + an end-user help page + a strategy doc), all surfaces must be updated in the same work unit. Real incidents happen when one surface lags by even a week. See § External-Interface N-Way Sync.
 10. **Repo residency before doc shape** — Before scaffolding `.agent/`, decide whether the current workspace is the source repo, a private agent-docs sidecar repo, a multi-project orchestration repo, or a scope with upstream-bound work. Private agent notes must not leak into public/collaboration source repos.
+11. **Agent-time vs human-time estimation** — When this seed is in use, the AI agent is the worker. Duration estimates apply a multiplier derived from the project's **execution pace mode** (cautious 2–4× for free tier or local LLM, proactive 5–6×, burst 6–8×, sprint 9–10×) adjusted by **task type** (execution-heavy at the mode's upper end, debugging mid, research / strategy ~1× because human review is rate-limiting). Every estimate must declare its basis, split **agent active time** from **human review / approval time**, and calibrate against `.agent/_lessons/` actuals. Mode is set at Phase 0 and may be switched mid-project. Detail: § Agent-Time Estimation Policy.
 
 ### Dialogue Rules
 
@@ -68,7 +69,20 @@ Once the language is answered, ask the second Phase 0 question:
 >
 > Default if skipped: match your current tone, or use one notch more polite.
 
-Once answered, conduct **all subsequent dialogue** in that language and tone. Use the selected language for documents and commit messages. Record both decisions in `AGENTS.md` at Phase 7.
+Once the language and tone are answered, ask the third Phase 0 question:
+
+> One more setup item: **what execution pace mode are we running this project in?**
+>
+> The mode sets the multiplier I apply when estimating durations vs. a human dev team baseline. Within each mode I split estimates into **agent active time** + **human review / approval time**, and adjust by task type (execution-heavy work hits the mode's top end; debugging the middle; research / strategy ~1× regardless because human decisions are the bottleneck).
+>
+> 1. **Cautious / token-saving (2–4×)** — Free tier, strict token budget, or local LLM (Continue.dev, Aider with local models, etc.). For local LLM specifically, calibrate further against observed output tokens-per-second; slow models may drop below 2×. I avoid speculative parallel runs, keep diffs small, summarize aggressively.
+> 2. **Proactive (5–6×)** — Paid plan with normal usage limits. Standard delegation; I batch reasonably and parallelize when it clearly saves time.
+> 3. **Burst / cruise (6–8×)** — High-throughput plan, occasional bursts welcome. I parallelize more aggressively, fewer confirmation pauses, larger contiguous diffs.
+> 4. **Sprint (9–10×)** — Effectively unlimited tokens. Max parallelism, multiple subagents readily, minimize handoff overhead.
+>
+> Default if skipped: 2 (Proactive). The mode can switch mid-project — just say "switch to sprint" or "drop to cautious" and I'll re-baseline existing estimates.
+
+Once all three are answered, conduct **all subsequent dialogue** in that language and tone, and apply the selected pace mode to every duration estimate. Use the selected language for documents and commit messages. Record all three decisions in `AGENTS.md` at Phase 7.
 
 ---
 
@@ -291,7 +305,10 @@ After scaffolding:
 >
 > Proposed Phase 1 scope:
 > - Goal: [minimum feature derived from motive]
-> - Duration: [1–4 weeks by scale]
+> - Duration (mode: [Phase 0 pace mode]):
+>   - Agent active: [hours, mode-and-task-type aware — e.g. 4–6h boilerplate-heavy in proactive mode]
+>   - Human review / approval: [hours — e.g. 1–2h]
+>   - Calendar window: [days incl. handoff gaps — e.g. 2–3 days]
 > - Deliverables: [3–5 concrete checklist items]
 > - Success criteria: [measurable metric]
 >
@@ -312,7 +329,7 @@ Lock the stack discussed in Phase 2 and **diagram it**:
 - Classify MVP features with MoSCoW (Must/Should/Could/Won't)
 - Record in `<scope-root>/PM/002_MVP_Scope.md`
 - Work Breakdown Structure in `<scope-root>/PM/003_WBS.md` (decomposed to task level)
-- Tag each task with owning role (PM/FE/BE) + estimated time
+- Tag each task with owning role (PM/FE/BE) and split-time estimate (agent active + human review, current pace mode applied). The two numbers are kept separate so totals stay honest as the project's calibration multiplier shifts; both sides are recalibrated against `.agent/_lessons/` actuals as the project progresses.
 
 ---
 
@@ -450,7 +467,7 @@ Agent workspace root: `[Phase 2.5 <scope-root>, default .agent/]`
 
 ## 5. Core rules
 
-1. **Language and tone**: docs/commits in **[Phase 0 language]**; agent responses use **[Phase 0 tone]**
+1. **Language, tone, pace mode**: docs/commits in **[Phase 0 language]**; agent responses use **[Phase 0 tone]**; duration estimates follow **[Phase 0 pace mode]** (split agent active + human review, task-type-adjusted within mode; switchable mid-project)
 2. **Documentation (3-digit numbering + Index)**: task logs in `<scope-root>/[role]/001_Task.md`. Update the role README on every file add/change.
 3. **Git**: commit conventions in §7. Never use `git commit -a` (always `git add` → `git commit`).
 4. **Coordination first**: STATE.md check → work → CHANGELOG.md record
@@ -1356,6 +1373,7 @@ Confirm all services give consistent summaries. Any divergence → investigate w
 | § Task Decomposition Strategy (cross-AI behavioral pattern for complex work with multiple decomposition paths: announce → judgment/inertia → accept user pivot mid-flight; trigger thresholds, inertia priority, per-AI tool mapping, anti-patterns) | v1.3.5 |
 | § Index Synchronization Policy → External knowledge index auto-sync subsection (when mirroring structured folders to Claude memory · Notion · Obsidian · Logseq · wiki · RAG metadata store, pre-commit calls a dedicated sync script to auto-update the mechanical structure) | v1.3.6 |
 | Phase 2.5 Bootstrap Residency Check + Adoption Catalog (minimal/manual/provider-assisted setup, agent-docs sidecar repos, multi-project orchestration, upstream split, source-map, public-boundary/style-guide, `.gitignore` source guard) | v1.5.0 |
+| Phase 0 pace mode (Cautious / Proactive / Burst / Sprint) + Core Principle #11 (agent-time vs human-time estimation) + § Agent-Time Estimation Policy + PM template split-time format (agent active + human review + calendar window) + AGENTS.md Core rules pace-mode line | v1.6.0 |
 
 Present a filtered diff to the user as a numbered menu:
 
@@ -1954,7 +1972,7 @@ Skip when:
 
 Examples:
 
-- "5 `_lessons/` files to summarize: 5 parallel subagents vs sequential — proceeding parallel (~2 min saved). Redirect welcome."
+- "5 `_lessons/` files to summarize: 5 parallel subagents vs sequential — proceeding parallel (~2 min agent-active saved). Redirect welcome."
 - "Single file `_patterns.mjs` regex addition — single-thread (no trade-off)."
 - "Polyrepo bootstrap of 4 sister repos: 4 parallel subagents vs sequential per-repo — proceeding sequential (high inter-repo decision dependency). Redirect welcome."
 
@@ -2158,3 +2176,96 @@ Common decision branches in a community-style AI Native project and the matching
 | Research / publication strategy | `executive-docs/<NN>_Research_Publication_Strategy.md` | `.agent/PM/<NNN>_Research_Execution.md` |
 
 Each report passes through the **Research (with subagent delegation) → Structured doc → PM Task + index update** 4-step process without skipping any step. Assign numbers (NN, NNN) continuing the project's existing sequence.
+
+---
+
+## Agent-Time Estimation Policy
+
+### Why this exists
+
+When AI agents estimate task durations using human dev-team baselines, plans inflate by 5–10× compared to actual execution. This produces calendar mismatches: the user expects "Phase 1 in 3 weeks" (human-team timing), the agent finishes in 3 days. Multi-week plans burn in afternoons, weekly check-ins lose meaning, PM templates misrepresent reality. The fix: agents declare the real basis for every duration they report.
+
+### Two-axis framework
+
+Every duration estimate is the product of two factors.
+
+**Axis 1 — Execution Pace Mode** (project-wide, set at Phase 0):
+
+| Mode | Multiplier | Typical context |
+|---|---|---|
+| **Cautious / token-saving** | 2–4× | Free tier, strict token budget, or local LLM (Continue.dev, Aider with local models). Local LLM specifically should calibrate against observed output tokens-per-second; very slow models may drop below 2×. |
+| **Proactive** | 5–6× | Paid plan with normal usage limits. Default for most users. |
+| **Burst / cruise** | 6–8× | High-throughput plan; occasional bursts welcome. Aggressive parallelization, fewer confirmation pauses. |
+| **Sprint** | 9–10× | Effectively unlimited tokens, max parallelism, multiple subagents readily. |
+
+**Axis 2 — Task Type** (adjusts position within the mode's range):
+
+| Task type | Position in mode range | Examples |
+|---|---|---|
+| Execution-heavy | Top of range | Code generation, refactoring, boilerplate, doc rewrite, file scaffolding |
+| Debugging | Middle of range | Mystery bugs, context-dependent issues, race conditions — capped by investigation pace |
+| Research / strategy / decision | ~1× regardless of mode | Research → Report → Plan loop; human review and decision are rate-limiters |
+
+The two axes compose: a debugging task in Sprint mode lands around 6–7× (mid of 9–10×), while research in Sprint is still ~1× because the human is deciding.
+
+### Estimate format
+
+Every duration estimate renders as:
+
+```
+Duration (mode: <mode> <multiplier>):
+  - Agent active: <hours>
+  - Human review / approval: <hours>
+  - Calendar window: <days incl. handoff gaps>
+```
+
+Example (Phase 1, proactive mode, boilerplate-heavy):
+
+```
+Duration (mode: proactive 5–6×):
+  - Agent active: 4–6h
+  - Human review / approval: 1–2h
+  - Calendar window: 2–3 days
+```
+
+The two time numbers calibrate independently. If the user's review pace shifts (busy week), only the human-review column moves. If the agent gets faster (mode switch up, or `_lessons/` reveal task patterns), agent-active moves. Calendar window absorbs handoff gaps that neither side controls.
+
+### Mid-project mode switching
+
+Pace mode is project-wide but not permanent. Trigger phrases:
+
+- "switch to sprint" / "drop to cautious" / "go burst"
+- "we hit the rate limit" → drop one mode
+- "the plan ran out" / "tokens are unlimited now" → bump up
+
+When a switch happens, the agent:
+
+1. Acknowledges and re-baselines existing estimates in active PM docs (`<scope-root>/PM/*.md`).
+2. Records the switch in `<scope-root>/_coordination/CHANGELOG.md`: `mode switch: <old> → <new> (reason)`.
+3. Updates `AGENTS.md` § Core rules line to reflect the new mode.
+
+Task-type adjustment stays the same; only the mode band moves.
+
+### Self-calibration via `_lessons/`
+
+First-guess multipliers (2–4×, 5–6×, 6–8×, 9–10×) are reasonable opening positions. Real projects deviate. The convergence loop:
+
+1. After each Phase or sprint completes, the agent records actual time vs. original estimate in `<scope-root>/_lessons/NNN_*.md` **if delta exceeded ±30%** (smaller deltas are noise).
+2. The lesson tags include `estimation` so future planning grep finds calibration signals.
+3. After three+ such entries within the same mode, the agent proposes a calibrated multiplier: *"Looks like our actual proactive multiplier is closer to 4.5× than 5–6× — should I adjust the band?"*
+4. The user accepts, rejects, or asks for more samples.
+
+This loop makes estimates trustworthy over time rather than a one-off guess.
+
+### Anti-patterns
+
+- **Reporting wall-clock without label** — "Phase 1: 2 days" with no mode and no split is meaningless. The user can't tell if 2 days is agent-active or calendar.
+- **Single-number override extending to research tasks** — User picks a single multiplier (e.g., 5×) and the agent applies it to research too, where it should still be ~1×. Preserve task-type adjustment unless the user explicitly opts out for the whole project.
+- **Hiding human review inside agent-active** — Tempting because it makes estimates look smaller. Conflating the two breaks calibration.
+- **No `_lessons/` entry on big deltas** — A 50%+ miss without recording it means the next plan repeats the mistake.
+
+### Cross-AI applicability
+
+The two-axis framework is service-agnostic. Mode definitions reflect token-budget + parallelization-headroom realities every major coding agent (Claude Code, Cursor, Copilot, Gemini CLI, Codex CLI, Cline, Windsurf, Aider, Continue.dev) experiences to varying degrees. Local LLM cases anchor at Cautious; cloud paid plans span Proactive through Sprint by quota tier and task density.
+
+When `AGENTS.md` records the pace mode, every bridge file inherits it. Switching AI services mid-project preserves the mode unless the new service's tier doesn't support it (e.g., switching from a Sprint-tier API key to a free local LLM should drop to Cautious; record the switch as above).

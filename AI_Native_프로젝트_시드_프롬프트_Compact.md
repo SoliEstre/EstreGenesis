@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Compact
 
-<!-- seed-tier: Compact; language: Korean; version: v1.5.1; date: 2026-05-08; counterpart: AI_Native_Project_Seed_Prompt_Compact.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Compact; language: Korean; version: v1.6.0; date: 2026-05-09; counterpart: AI_Native_Project_Seed_Prompt_Compact.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > 어떤 AI 코딩 에이전트에게든 첫 메시지로 붙여넣기. **자기 완결** — 다른 tier 참조 없음; AI Native 패턴 이미 아는 저자용. 라이브러리의 다른 tier (Master, Lite) 가 동일 패턴을 다른 깊이로 ship — **프로젝트 repo 당 1 tier**, 혼합은 dead link 발생. 본 시드의 inline 스크립트는 *알고리즘 spec* 으로 묘사 (에이전트가 spec 따라 생성); 즉시 복사-붙여넣기 가능한 풀 source 가 필요하면 라이브러리의 Master 또는 Lite tier 사용.
 
@@ -27,9 +27,10 @@
 10. 강제 훅 (절대 규칙 존재 시): Layer 1 (Claude Code `PreToolUse` AI 별 즉시 차단) + Layer 2 (`git pre-commit` 보편 출구 게이트); 단일 regex SSoT `scripts/hooks/_patterns.mjs` (`FORBIDDEN_VOCAB`·`BASH_FORBIDDEN`·`EXEMPT_PATH`); `install.mjs` 로 `.git/hooks/` shim + `.claude/settings.local.json` hooks 머지 (per-machine, 멱등); EXEMPT_PATH 는 `(?:^|[\/\\])` prefix 로 상대+절대 경로 양쪽 매칭; Bash 플래그 검사엔 따옴표/HEREDOC strip 적용 (어휘 검사엔 미적용); `node --test` 회귀 스위트 의무.
 11. 작업 분해 전략: 작업에 분해 경로가 여러 개일 때 (병렬 vs 순차, subagent vs 단일 스레드), 1줄 announce → 판단/관성에 따라 진행 → 사용자 피벗 프롬프트 즉시 반영. 관성 우선순위: 같은 세션 내 직전 결정 > 메모리 `feedback_*.md` > CHANGELOG 패턴. AI 별: Claude Code 는 `Agent` tool 다중 호출 병렬; 다른 AI 는 순차 단일 스레드 default. Auto 모드에서 확인 대기 stall 금지.
 12. repo residency before doc shape: `.agent/` 스캐폴딩 전에 현 작업공간이 소스 repo, 개인 개발/에이전트 문서 sidecar, 다중 프로젝트 오케스트레이션, upstream-bound scope 중 무엇인지 결정. 개인 메모와 협업/공개 소스 repo 경계를 먼저 지켜야 함.
+13. agent-time vs human-time 추정: AI 에이전트가 작업자; 인간 팀 baseline 그대로 쓰면 5\~10× 부풀어남. 페이스 모드 (Cautious 2\~4× 무료/로컬 LLM — Continue.dev, 로컬 모델 사용 Aider, 출력 토큰/초 기준 추가 보정; Proactive 5\~6× 일반 유료 플랜 default; Burst 6\~8× 고처리량; Sprint 9\~10× 무제한) × 작업 유형 (실행 중심 = 모드 상단, 디버깅 = 중간, 연구·전략 = 모드 무관 ~1× — 인간 검토가 율속). 모든 추정은 **agent active + human review/approval + calendar window** 분리; `.agent/_lessons/` 의 `estimation` 태그로 ±30%+ delta 만 기록·보정. 모드는 P0 에서 설정, 프로젝트 진행 중 전환 가능 ("switch to sprint" / "drop to cautious"); 전환 시 활성 PM 추정치 재산정 + CHANGELOG.md 기록 + AGENTS.md 핵심 규칙 라인 갱신.
 
 ## Bootstrap phases (한 턴 한 질문, 답 기다림)
-- **P0 언어 + 에이전트 말투** — 먼저 한국어 / 영어 / 기타 선택. 문서·커밋·에이전트 응답에 사용. 그 다음 응답 말투 선택: (1) `~니다.` 체 (Javis 형식), (2) `~에요/예요/어요.` 체 (Friday 형식), (3) `~음/슴/임.` 체 (메모/브리핑 형식), (4) `~어/야/게.` 체 (친구/동료 느낌), (5) `~냐?/해?/라고?` 체 (*마조히스트용 특별 옵션), (6) 직접 설명 (직접 방향성 프롬프트). 기본값: 사용자가 대화를 건 톤과 동일하거나 한 단계 공손하게.
+- **P0 언어 + 에이전트 말투 + 페이스 모드** — 먼저 한국어 / 영어 / 기타 선택 (문서·커밋·에이전트 응답에 사용). 그 다음 응답 말투 선택: (1) `~니다.` 체 (Javis 형식), (2) `~에요/예요/어요.` 체 (Friday 형식), (3) `~음/슴/임.` 체 (메모/브리핑 형식), (4) `~어/야/게.` 체 (친구/동료 느낌), (5) `~냐?/해?/라고?` 체 (*마조히스트용 특별 옵션), (6) 직접 설명 (직접 방향성 프롬프트). 기본값: 사용자가 대화를 건 톤과 동일하거나 한 단계 공손하게. 그 다음 실행 페이스 모드 선택: (1) Cautious 2\~4× (무료 티어 / 토큰 예산 빠듯 / 로컬 LLM — Continue.dev, 로컬 모델 사용 Aider — 출력 토큰/초 기준 추가 보정), (2) Proactive 5\~6× (일반 유료 플랜, default), (3) Burst 6\~8× (고처리량 플랜, burst 환영), (4) Sprint 9\~10× (무제한 토큰, 최대 병렬화). 기본값: 2 (Proactive). 프로젝트 진행 중 전환 가능 ("switch to sprint" / "drop to cautious"); 전환 시 기존 추정치 재산정.
 - **P1 본질** — 동기·타겟 유저·성공 지표 1개·규모(A 주말 / B MVP 3-6mo / C 중형 6-12mo 3-5인 / D 풀 1yr+ 5인+).
 - **P2 스택 모양** — 프론트·백·DB·인프라·실시간. 대략만; P7-C 에서 확정.
 - **P2.5 Bootstrap residency** — Minimal (추천: 폴더/git/remotes 확인 후 모호할 때만 질문), Full manual, Repo-provider assisted 중 선택 (GitHub/GitLab/Bitbucket/Azure DevOps/Gitea/Forgejo/self-hosted/local remotes/사용자 제공 repo 목록; raw token/password 를 chat 으로 받지 않음). 빈 폴더/시드만 있는 폴더면 이곳이 agent-docs-only repo 인지와 소스 위치를 확인. scope root 기본값은 `.agent/`; 다중 프로젝트는 `.agent/<unit-project-name>/`; upstream split 은 사용자가 이름을 지정하지 않으면 `<scope-root>/project/` + `<scope-root>/upstream/`. 사용자가 workspace 내부 소스 폴더를 알려준 경우에만 확인 후 root `.gitignore` 에 추가; 추측·중복·submodule/gitlink ignore 금지. 보류 옵션은 `<scope-root>/PM/NNN_seed_migration_triggers.md` 에 기록.
@@ -41,7 +42,7 @@
 
 ## 스캐폴드 spec (P7-A — 본 spec 따라 에이전트가 실제 파일 작성)
 
-- **`AGENTS.md`**: SSoT. 섹션: (1) `<scope-root>` 를 포함한 읽기 순서 · (2) 역할 · (3) 브릿지 (P4 결과) · (4) 코디네이션 프로토콜 (§ 멀티에이전트 cadence 와 일치) · (5) 핵심 규칙 — 항목 7-12 (인덱스 동기화 · N-way sync · `~` escape · RAG 풍부성 · 훅 · repo residency) 포함 · (5.8) N-way sync 등록부 stub · (7) 커밋 형식 · (8) 참조.
+- **`AGENTS.md`**: SSoT. 섹션: (1) `<scope-root>` 를 포함한 읽기 순서 · (2) 역할 · (3) 브릿지 (P4 결과) · (4) 코디네이션 프로토콜 (§ 멀티에이전트 cadence 와 일치) · (5) 핵심 규칙 — 항목 7-13 (인덱스 동기화 · N-way sync · `~` escape · RAG 풍부성 · 훅 · repo residency · 페이스 모드 포함 agent-time 추정) 포함 · (5.8) N-way sync 등록부 stub · (7) 커밋 형식 · (8) 참조. 핵심 규칙 라인 1 은 언어 + 말투 + 페이스 모드 함께 기록.
 - **`<scope-root>/rules.md`**: AGENTS.md §5 항목과 일치하는 언어/문서/git/코디네이션/트러블슈팅 정책 stub. P2.5 에서 sidecar/public/upstream case 가 선택되면 `source-map.md`, `public-boundary.md`/`style-guide.md`, `project/upstream-vs-local.md` 추가.
 - **`.gitignore`**: Common (OS: `.DS_Store` `Thumbs.db` `desktop.ini`; IDE: `.idea/` `.vscode/*` 와 sub-allowlist; env: `.env*` `!.env.example` `*.pem` `*.key` `secrets/`; 로그: `*.log` `npm-debug.log*`) + Phase-2 스택 행 (Node: `node_modules/` `dist/` `.next/` `.nuxt/` `.turbo/` `coverage/`; Python: `__pycache__/` `.venv/` `*.egg-info/` `.pytest_cache/` `.coverage`; Go: `bin/` `*.exe` `vendor/`; Rust: `target/` `**/*.rs.bk`; JVM: `*.class` `.gradle/` `build/`; DB: `*.sqlite` `*.db`) + 시드 산출물 (`.agent/_questions/open/*.draft.md`, `.agent/scratch/`, `**/*.generated.html`, `**/*.generated.pdf`) + 사용자가 알려주고 에이전트가 확인한 sidecar 소스 폴더 경로만.
 - **`scripts/escape-md-tildes.mjs`**: Node ≥18, 의존 없음, idempotent. **5단계 placeholder 알고리즘** — sentinel 보호 (1) 코드 펜스 ` ``` ` / ` ~~~ ` (multiline) → (2) 인라인 코드 `` `…` `` → (3) `~~text~~` 취소선 → (4) HTML 태그 `<…>` → (5) 남은 `~` 를 `(^|[^\\])~` → `$1\\~` 로 escape; sentinel 모두 사라질 때까지 placeholder 복원 loop (중첩 `` ~~`code`~~ `` 위해 cap 10회). CLI: `[--dry]`. AI 가 raw 로 읽는 마크다운·upstream boilerplate 위해 `EXCLUDED_FILES` 세트 유지.
@@ -63,7 +64,7 @@
 
 ## 마이그레이션 B — 구 시드 버전 → 현 버전
 1. **시작 버전 파악** — AGENTS.md 마커 / git 이력 / 사용자 질문.
-2. **역량 차이 산출** — 전형적 delta: `.agent/_coordination/` (v1.0), 리서치 루프 (v1.1), 마이그레이션 가이드 (v1.2), Bootstrap/Migration 모드 분기 (v1.2), 원칙 6\~9 + § 인덱스 동기화 · § 외부 N-way sync · § 마크다운 `~` escape · § RAG 인덱스 최적화 · § 문서 인플레이션 방지 (v1.3), 강제 훅 (v1.3.4), 작업 분해 전략 (v1.3.5), 외부 지식 인덱스 자동 동기화 (v1.3.6), Phase 0 에이전트 말투 선택 (v1.3.7), Phase 2.5 Bootstrap Residency + Adoption Catalog (v1.5.0). 번호 메뉴로 제시.
+2. **역량 차이 산출** — 전형적 delta: `.agent/_coordination/` (v1.0), 리서치 루프 (v1.1), 마이그레이션 가이드 (v1.2), Bootstrap/Migration 모드 분기 (v1.2), 원칙 6\~9 + § 인덱스 동기화 · § 외부 N-way sync · § 마크다운 `~` escape · § RAG 인덱스 최적화 · § 문서 인플레이션 방지 (v1.3), 강제 훅 (v1.3.4), 작업 분해 전략 (v1.3.5), 외부 지식 인덱스 자동 동기화 (v1.3.6), Phase 0 에이전트 말투 선택 (v1.3.7), Phase 2.5 Bootstrap Residency + Adoption Catalog (v1.5.0), Phase 0 페이스 모드 + 원칙 #13 (agent-time vs human-time 추정) + PM split-time 형식 (v1.6.0). 번호 메뉴로 제시.
 3. **가산적 적용** — 신규 디렉토리는 템플릿으로, 신규 AGENTS.md 섹션은 자연 위치에 삽입, 신규 브릿지는 기존 건드리지 않고 추가. 각 추가에 `<!-- seed vX.Y 마이그레이션에서 추가, YYYY-MM-DD -->` 마커.
 4. **사용자 진화분 보존** — 커스텀 규칙·프로젝트 특화 섹션은 그대로.
 5. **`.agent/_coordination/CHANGELOG.md` 에 기록** — 어떤 delta 를 적용했는지·뭘 생략했는지·뭘 보존했는지.

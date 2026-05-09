@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v1.5.1; date: 2026-05-08; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Lite; language: Korean; version: v1.6.0; date: 2026-05-09; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -21,7 +21,7 @@
 
 사용자 첫 메시지가 모호하면 모드 확정 전 한 가지만 재질문. 확인 없이 스캐폴딩 금지.
 
-### 핵심 원칙 (7)
+### 핵심 원칙 (8)
 
 1. **문서가 진실** — 코드 전에 설계. 모든 결정은 파일에 기록.
 2. **멀티에이전트 레디 Day 1부터** — Claude + Gemini + Cursor 혼합해도 깨지지 않음. `AGENTS.md` 가 모든 서비스의 SSoT.
@@ -30,6 +30,7 @@
 5. **인덱스 ↔ 본문 동기화** — 본문 문서가 추가·재명명·폐기·재작성될 때, 그 문서를 가리키는 모든 인덱스 (폴더 README · 루트 README · living-doc 등록부) 를 같은 커밋에서 갱신. 낡은 인덱스는 다른 에이전트를 옛 목록으로 작업하게 만듦.
 6. **외부 표면 N-way sync** — 한 기능이 N 개 표면 (skill 마크다운 · JSON 스펙 · install 가이드 · 도움말 · 전략 문서) 에 묘사될 때, 같은 작업 단위에서 갱신. 실측 사고: 한 표면이 일주일 뒤처져 외부 AI 가 잘못된 필드값을 사용함.
 7. **Repo residency before doc shape** — `.agent/`를 scaffold하기 전에 현재 workspace가 source repo인지, private agent-docs sidecar repo인지, multi-project orchestration repo인지, upstream-bound work를 가진 scope인지 결정.
+8. **Agent-time vs human-time 추정** — 본 시드가 사용 중일 때 작업자는 AI 에이전트. 모든 duration 추정은 프로젝트의 **페이스 모드** (Cautious 2~4× — 무료 티어/로컬 LLM, Proactive 5~6×, Burst 6~8×, Sprint 9~10×) 와 **작업 유형** (실행 중심은 모드 범위 상단, 디버깅 중간, 연구·전략은 인간 검토가 율속이라 모드 무관 ~1×) 의 곱. 모든 추정은 **agent active** 와 **human review/approval** 분리, `.agent/_lessons/` 실측치로 보정. 모드는 Phase 0 에서 설정, 프로젝트 진행 중 전환 가능. § Agent-Time 추정 정책 참조.
 
 ### 대화 규칙
 
@@ -64,7 +65,20 @@
 >
 > 기본값: 사용자가 대화를 건 톤과 동일하거나 한 단계 공손하게.
 
-이후 **모든 대화**를 선택 언어와 말투로. 기록·문서·커밋은 선택 언어로. Phase 7에서 두 결정을 `AGENTS.md` 에 기록.
+세 번째 질문:
+
+> **이 프로젝트의 실행 페이스 모드는?**
+>
+> 인간 dev 팀 baseline 대비 적용할 multiplier 결정. 모드 안에서 추정은 agent active + human review/approval 로 분리되고, 작업 유형 (실행 중심은 상단·디버깅 중간·연구/전략은 인간 결정이 율속이라 모드 무관 ~1×) 으로 위치 조정.
+>
+> 1. **Cautious / 토큰 절약 (2~4×)** — 무료 티어, 토큰 예산 빠듯, 또는 로컬 LLM (Continue.dev, 로컬 모델 사용 Aider). 로컬 LLM 은 출력 토큰/초 기준 추가 보정 — 매우 느린 모델은 2× 미만 가능.
+> 2. **Proactive (5~6×)** — 일반 유료 플랜. 기본값.
+> 3. **Burst / cruise (6~8×)** — 고처리량 플랜, 가끔 burst 환영.
+> 4. **Sprint (9~10×)** — 사실상 무제한 토큰, 최대 병렬화.
+>
+> 기본값: 2 (Proactive). 프로젝트 진행 중 전환 가능 ("switch to sprint", "drop to cautious") — 기존 추정치 재산정.
+
+이후 **모든 대화**를 선택 언어와 말투로 진행하고, 모든 duration 추정에 페이스 모드 적용. 기록·문서·커밋은 선택 언어로. 세 결정 모두 Phase 7에서 `AGENTS.md` 에 기록.
 
 ---
 
@@ -195,7 +209,7 @@ Phase 2.5/3/4/5 선택 반영해 다음 파일 생성. agent workspace 파일은
 
 ### Step B (중급+) — 1차 Phase 계획
 
-`<scope-root>/PM/001_Phase1_Plan.md`: 목표·산출물·대략 WBS(5-10 태스크)·수용 기준·ETA.
+`<scope-root>/PM/001_Phase1_Plan.md`: 목표·산출물·대략 WBS(5-10 태스크)·수용 기준·ETA 는 Phase 0 페이스 모드에 따른 split-time (agent active + human review/approval + calendar window).
 
 ### Step C (고급+) — 기술 스택·아키텍처 확정
 
@@ -294,6 +308,7 @@ Step A-D 완료 후 에이전트 안내:
 - v1.3.6 delta: 인덱스 ↔ 본문 동기화의 외부 지식 인덱스 자동 동기화 절
 - v1.3.7 delta: Phase 0 에이전트 말투 선택 + AGENTS.md / rules / 브릿지의 언어·말투 placeholder
 - v1.5.0 delta: Phase 2.5 Bootstrap Residency + Adoption Catalog (`<scope-root>`, agent-docs sidecar, multi-project orchestration, upstream split, `source-map.md`, public-boundary/style-guide, `.gitignore` source guard)
+- v1.6.0 delta: Phase 0 페이스 모드 (Cautious / Proactive / Burst / Sprint) + 핵심 원칙 #8 (agent-time vs human-time 추정) + § Agent-Time 추정 정책 + Step B PM split-time 형식 (agent active + human review + calendar window) + AGENTS.md Core rules 페이스 모드 라인
 
 번호 메뉴로 사용자에게 제시:
 ```
@@ -583,6 +598,48 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 
 ---
 
+## Agent-Time 추정 정책
+
+> 본 시드 사용 시 작업자는 AI 에이전트. 인간 팀 baseline 그대로 쓰면 추정 5~10× 부풀어남. 모든 duration 은 페이스 모드 × 작업 유형 × split-time 형식으로 기준 명시.
+
+### 2축 multiplier
+
+| 모드 | Multiplier | 컨텍스트 |
+|---|---|---|
+| Cautious / 토큰 절약 | 2~4× | 무료 티어, 토큰 예산 빠듯, 로컬 LLM (Continue.dev, 로컬 모델 사용 Aider). 로컬 LLM 은 출력 토큰/초 기준 추가 보정 — 매우 느린 모델은 2× 미만 가능. |
+| Proactive | 5~6× | 일반 유료 플랜. 기본값. |
+| Burst / cruise | 6~8× | 고처리량 플랜, burst 환영. |
+| Sprint | 9~10× | 사실상 무제한 토큰, 최대 병렬화. |
+
+작업 유형이 모드 범위 안에서 위치 조정: 실행 중심 (코드 생성·리팩토링·boilerplate) 은 상단; 디버깅 (미스터리 버그·race condition) 은 중간; 연구·전략·결정은 모드 무관 ~1× (인간 검토가 율속).
+
+### 추정 형식
+
+```
+기간 (모드: <모드> <multiplier>):
+  - Agent active: <시간>
+  - Human review / approval: <시간>
+  - Calendar window: <handoff 갭 포함 일수>
+```
+
+예시 (Phase 1, proactive, boilerplate 비중 높음): `proactive 5~6× → agent active 4~6h, human review 1~2h, calendar 2~3일`.
+
+두 시간 숫자는 독립 보정 — 검토 페이스와 에이전트 페이스가 다른 시그널로 변동.
+
+### 프로젝트 진행 중 모드 전환
+
+트리거 표현: "switch to sprint" · "drop to cautious" · "go burst" · "rate limit 걸렸어" → 한 단계 하향 · "이제 토큰 무제한" → 상향. 전환 시: 활성 PM 문서 추정치 재산정 · `<scope-root>/_coordination/CHANGELOG.md` 에 기록 (`mode switch: <old> → <new> (사유)`) · `AGENTS.md` § 5 Core rules 라인 갱신.
+
+### `_lessons/` 자가 보정
+
+각 Phase·sprint 가 추정 대비 **±30% 초과 delta** 로 끝나면 `<scope-root>/_lessons/NNN_*.md` 에 `estimation` 태그로 기록. 같은 모드에서 3개+ 누적 시 보정 multiplier 제안 ("실측 proactive 가 5~6× 가 아니라 4.5× 에 가까워 보임 — 밴드 조정?"). 사용자 수락·거절·표본 더 요청.
+
+### 안티패턴
+
+라벨 없는 wall-clock · 단일 숫자 override 가 연구 작업까지 적용 · agent-active 안에 human review 숨김 · 큰 delta 에 `_lessons/` 항목 없음 · 토큰 예산 변경 시 모드 전환 잊음.
+
+---
+
 ## 파일 템플릿
 
 스캐폴딩 시 에이전트가 작성할 inline 템플릿. 모든 템플릿이 자기 완결 — 추가 참조 불필요.
@@ -618,7 +675,7 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 - 4.6 30분+ 블로커 → `.agent/_lessons/NNN_*.md`. **AI 에이전트는 사용자 지시 없이도 자발적으로 교훈 기록.**
 
 ## 5. 핵심 규칙
-1. 언어와 말투: 문서·커밋 메시지는 [Phase 0 선택 언어], 에이전트 응답은 [Phase 0 선택 말투].
+1. 언어·말투·페이스 모드: 문서·커밋 메시지는 [Phase 0 선택 언어], 에이전트 응답은 [Phase 0 선택 말투], duration 추정은 [Phase 0 페이스 모드] (agent active + human review 분리, 모드 범위 안에서 작업 유형별 조정; 프로젝트 진행 중 전환 가능).
 2. 문서화 (3자리 순번 & Index): 작업 내역은 `.agent/[파트]/001_Task.md`. 파일 add/change 시 역할 README 갱신.
 3. Git: 커밋 형식 §7. `git commit -a` 금지 (항상 `git add` → `git commit`).
 4. 코디네이션 우선: STATE.md 확인 → 작업 → CHANGELOG.md 기록.
