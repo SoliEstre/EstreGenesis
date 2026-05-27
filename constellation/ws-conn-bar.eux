@@ -1,0 +1,14 @@
+@component ws-conn-bar
+@intent Connection status bar for the live board — shows WS connection state (connecting/connected/closed), an accent-colored status dot, optional meta (session/proto), and a repo link. Host injects status via setStatus; the component only reflects it. Isolated — no own WS.
+@expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
+@targets vanilla
+@state
+status : string = "connecting"  # connecting | connected | closed
+meta   : string = ""            # optional session/proto text
+@ports
+cmd setStatus(status, meta) : host injects connection state → re-render dot + meta
+# no events-out · no deps
+@behavior gist
+render bar: status dot (.on when connected, accent color) + label + meta + repo link.
+@styles gist
+accent = var(--accent, #7a4dff); .ws-conn flex/gap; .ws-dot2 8px circle, .on → accent; .ws-meta muted; .ws-repo accent + hover underline.

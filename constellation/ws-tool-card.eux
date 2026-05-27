@@ -1,0 +1,18 @@
+@component ws-tool-card
+@intent Tool-call aggregate card for a WS stream. The host feeds START/ARGS/END/RESULT events (by toolCallId) into one card that accumulates: tool name, title, status (running→done/error), args, result, display meta. Status drives left-border/badge color. Isolated component — no own WS/global access; host maps WS events to feed.
+@expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
+@targets vanilla
+@state
+tool     : map = {}        # accumulated tool state by toolCallId
+expanded : boolean = false # compact card body toggle
+@ports
+cmd feed(evt) : inject START/ARGS/END/RESULT — aggregate by toolCallId. evt={phase, toolCallName, argsPreview, args, delta, resultPreview, content, display}
+# no events-out (self-managed expand) · no deps
+@machine tool
+states: running(initial) · done · error
+dispatch feed(evt) by evt.phase: start→init(status=running) · args→accumulate · end→running→done · result→set result, running→done
+guard: evt.display.status="error" → error
+@behavior gist
+feed accumulates per phase + mergeDisplay → render; header (icon·title·status badge) + body (args/result KV); compact folds body, header click toggles expanded.
+@styles gist
+status tokens via shared palette: running=var(--ws-st-running) · done=var(--ws-st-done) · error=var(--ws-st-error). border-left + badge color by status.

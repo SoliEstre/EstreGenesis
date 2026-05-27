@@ -1,0 +1,16 @@
+@component ws-collab-invite
+@intent External-collab key issue + join-URL onboarding UI. "Issue key" click → onRegister(label) to host (host sends RegisterCollabKey over WS) → status=issuing (button disabled, "issuing…"). Host injects CollabKeyIssued{key, joinUrl, label} via setIssued → status=issued → show joinUrl + "Copy" button (clipboard, async). Before issue: idle (label input + issue button). Teal (collab role) accent. clipboard is an injected dependency (deps) — mockable in tests.
+@expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
+@targets vanilla
+@state
+status  : string = "idle"  # idle | issuing | issued
+joinUrl : string = ""      # issued join URL
+@ports
+cmd setIssued(payload)   : host injects {key, joinUrl, label} → status=issued
+out onRegister(label)    : "issue key" click — host sends RegisterCollabKey
+deps clipboard : { writeText(s):Promise }  # injected, async, mockable
+@machine status
+states: idle(initial) · issuing · issued
+dispatch: onRegister→issuing · setIssued→issued
+@behavior gist
+idle = label input + issue button; issuing = disabled "issuing…"; issued = joinUrl + Copy (clipboard.writeText). teal accent for collab role.

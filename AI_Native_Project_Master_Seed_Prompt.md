@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Master Seed Prompt (English)
 
-<!-- seed-tier: Master; language: English; version: v1.6.0; date: 2026-05-09; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Master; language: English; version: v2.0.0; date: 2026-05-27; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **How to use**: When starting a new project, copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent that reads this prompt will start an **interactive bootstrap session** that guides your project setup step by step.
 >
@@ -32,6 +32,7 @@ If the user's opening message is ambiguous, ask one clarifying question before c
 9. **External-interface fan-out (N-way sync)** — When a single capability is described in multiple surfaces (e.g., a Skill markdown + a JSON spec endpoint + a developer install guide + an end-user help page + a strategy doc), all surfaces must be updated in the same work unit. Real incidents happen when one surface lags by even a week. See § External-Interface N-Way Sync.
 10. **Repo residency before doc shape** — Before scaffolding `.agent/`, decide whether the current workspace is the source repo, a private agent-docs sidecar repo, a multi-project orchestration repo, or a scope with upstream-bound work. Private agent notes must not leak into public/collaboration source repos.
 11. **Agent-time vs human-time estimation** — When this seed is in use, the AI agent is the worker. Duration estimates apply a multiplier derived from the project's **execution pace mode** (cautious 2–4× for free tier or local LLM, proactive 5–6×, burst 6–8×, sprint 9–10×) adjusted by **task type** (execution-heavy at the mode's upper end, debugging mid, research / strategy ~1× because human review is rate-limiting). Every estimate must declare its basis, split **agent active time** from **human review / approval time**, and calibrate against `.agent/_lessons/` actuals. Mode is set at Phase 0 and may be switched mid-project. Detail: § Agent-Time Estimation Policy.
+12. **Live orchestration (Constellation)** — Multi-agent coordination can graduate from file-based (`.agent/_coordination/`) to a real-time live board (WS + A2A): roles (board/main/local/upstream/collab), key registry, graceful main handoff, infinite-wait bridges. The **A2A bridge interface** is the invariant contract; implementation depth follows the seed tier. Constellation's UI components are authored as `.eux` and brewed with **EstreUX** — a separate, referenced runtime, not a capability this seed owns or teaches. Optional — for concurrent multi-agent operation. Detail: § Constellation (separate module, referenced by URL).
 
 ### Dialogue Rules
 
@@ -2269,3 +2270,32 @@ This loop makes estimates trustworthy over time rather than a one-off guess.
 The two-axis framework is service-agnostic. Mode definitions reflect token-budget + parallelization-headroom realities every major coding agent (Claude Code, Cursor, Copilot, Gemini CLI, Codex CLI, Cline, Windsurf, Aider, Continue.dev) experiences to varying degrees. Local LLM cases anchor at Cautious; cloud paid plans span Proactive through Sprint by quota tier and task density.
 
 When `AGENTS.md` records the pace mode, every bridge file inherits it. Switching AI services mid-project preserves the mode unless the new service's tier doesn't support it (e.g., switching from a Sprint-tier API key to a free local LLM should drop to Cautious; record the switch as above).
+
+---
+
+## Constellation (Live Multi-Agent Orchestration)
+
+> **Optional module** (Core Principle #12), referenced — not inlined. Constellation graduates multi-agent coordination from file-based (`.agent/_coordination/` STATE/HANDOFF/CHANGELOG) to a **real-time live board** (WebSocket + A2A messaging) with a dashboard. It is a runtime system (server + bridges + watchers), so the implementation lives as repo files and this seed **points to them**; only the A2A bridge interface is described inline as the invariant contract.
+
+### When to adopt
+
+File-based coordination (`.agent/_coordination/`, Phase 5) is the default and sufficient for most projects. Adopt Constellation when concurrent multi-agent operation needs: real-time visibility (a human watching the board), live cross-agent messaging (A2A), or orchestrated delegation (a main/PM agent dispatching workers in real time). Constellation depth **follows the seed tier** — Master pulls the full setup, lighter tiers reference only the A2A bridge interface + URL.
+
+### The A2A bridge interface (the invariant)
+
+This is the part that must be described identically wherever Constellation is adopted; everything else flexes per agent/user preference.
+
+- **Roles**: `board` (the live board/dashboard) · `main` (orchestrator/supervisor — receives target-unspecified messages; default = the IDE session that started the server) · `local` (worker IDE agents) · `upstream` (registered via `uk-` key) · `collab` (external collaborator via `ck-` key + join URL).
+- **Handshake**: WS connect → `SERVER_HELLO` → `HELLO {agentId, agentName, role}` → A2A `CUSTOM/AgentHello {targetAgentId: main, …}` for self-introduction → main `OnboardAck` → wait for `Delegate`.
+- **Messaging**: target-unspecified → main; main → worker via `targetAgentId` (with `reason`/`summary`). Workers report via `WorkerReport`; the board (`state.json`) SSoT = main (workers never write the board directly).
+- **Runtime patterns**: turn-based agents (Claude Code) use a **bridge daemon** (file IO inbox/outbox) + **self-wake watcher** (polls inbox, wakes next turn); turn-holding runtimes use a turn-held 15-second poll loop. Detached residency required (survive shell/session end).
+
+### Setup (referenced files)
+
+Constellation ships as a separate module in this repo. Fetch the implementation + protocol rather than re-deriving:
+
+- **`Constellation.md`** — full guide: protocol (roles/keys/handoff/monitors), setup checklist, bridge/watcher/watchdog operation.
+- **`constellation/*.eux`** — rough-tier distilled specs of the live-board components (channel input, conn bar, tabs, tool card, fab badge, collab invite) as flexible brew starting points.
+- Reference via raw URL — latest on `main`: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; pin a tag (`…/v2.0.0/Constellation.md`) for reproducibility.
+
+> **Goal**: Constellation matures toward a published EstreGenesis Claude plugin. Until then it is a 2.0-included module; the live-board protocol SSoT remains the upstream `WS-PROTOCOL.md` / `AGENT-CONNECT.md`.

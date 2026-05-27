@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v1.6.0; date: 2026-05-09; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Lite; language: Korean; version: v2.0.0; date: 2026-05-27; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -21,7 +21,7 @@
 
 사용자 첫 메시지가 모호하면 모드 확정 전 한 가지만 재질문. 확인 없이 스캐폴딩 금지.
 
-### 핵심 원칙 (8)
+### 핵심 원칙 (9)
 
 1. **문서가 진실** — 코드 전에 설계. 모든 결정은 파일에 기록.
 2. **멀티에이전트 레디 Day 1부터** — Claude + Gemini + Cursor 혼합해도 깨지지 않음. `AGENTS.md` 가 모든 서비스의 SSoT.
@@ -31,6 +31,7 @@
 6. **외부 표면 N-way sync** — 한 기능이 N 개 표면 (skill 마크다운 · JSON 스펙 · install 가이드 · 도움말 · 전략 문서) 에 묘사될 때, 같은 작업 단위에서 갱신. 실측 사고: 한 표면이 일주일 뒤처져 외부 AI 가 잘못된 필드값을 사용함.
 7. **Repo residency before doc shape** — `.agent/`를 scaffold하기 전에 현재 workspace가 source repo인지, private agent-docs sidecar repo인지, multi-project orchestration repo인지, upstream-bound work를 가진 scope인지 결정.
 8. **Agent-time vs human-time 추정** — 본 시드가 사용 중일 때 작업자는 AI 에이전트. 모든 duration 추정은 프로젝트의 **페이스 모드** (Cautious 2~4× — 무료 티어/로컬 LLM, Proactive 5~6×, Burst 6~8×, Sprint 9~10×) 와 **작업 유형** (실행 중심은 모드 범위 상단, 디버깅 중간, 연구·전략은 인간 검토가 율속이라 모드 무관 ~1×) 의 곱. 모든 추정은 **agent active** 와 **human review/approval** 분리, `.agent/_lessons/` 실측치로 보정. 모드는 Phase 0 에서 설정, 프로젝트 진행 중 전환 가능. § Agent-Time 추정 정책 참조.
+9. **라이브 오케스트레이션 (Constellation)** — 멀티에이전트 코디네이션을 파일 기반(`.agent/_coordination/`)에서 실시간 라이브보드(WS + A2A)로 격상 가능. A2A 브릿지 인터페이스가 불변부, 깊이는 시드 티어 따라감. UI 컴포넌트는 `.eux` 로 작성해 EstreUX 로 brew (EstreUX 는 별도 참조 런타임 — 본 시드가 소유하는 기능 아님). 선택적. § Constellation 참조.
 
 ### 대화 규칙
 
@@ -637,6 +638,18 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 ### 안티패턴
 
 라벨 없는 wall-clock · 단일 숫자 override 가 연구 작업까지 적용 · agent-active 안에 human review 숨김 · 큰 delta 에 `_lessons/` 항목 없음 · 토큰 예산 변경 시 모드 전환 잊음.
+
+---
+
+## Constellation
+
+> 선택적 모듈 (원칙 #9), 인라인 아닌 참조. 멀티에이전트 코디네이션을 파일 기반(`.agent/_coordination/`)에서 실시간 라이브보드(WS + A2A) + 대시보드로 격상. 런타임 시스템 → repo 파일로 존재, 시드는 가리키기만. 깊이는 시드 티어 따라감.
+
+**도입 시점**: 동시 멀티에이전트 운영에서 실시간 가시성·라이브 A2A 메시징·실시간 위임 오케스트레이션이 필요할 때. 아니면 파일 기반 코디네이션(Phase 5) 으로 충분.
+
+**A2A 브릿지 인터페이스 (불변부)**: role `board`/`main`(오케스트레이터, 타깃 미지정 수신)/`local`(워커)/`upstream`(`uk-` 키)/`collab`(`ck-` 키 + join URL). 핸드셰이크: WS → `SERVER_HELLO` → `HELLO{agentId,role}` → A2A `AgentHello{targetAgentId:main}` → `OnboardAck` → `Delegate` 대기. 워커는 `WorkerReport` 로 보고; 보드 SSoT=메인. turn 기반 에이전트(Claude Code): 브릿지 데몬(파일 IO inbox/outbox) + self-wake watcher; detached 상주 필수.
+
+**셋업 (참조)**: `Constellation.md`(전체 프로토콜 + 셋업) + `constellation/*.eux`(러프 컴포넌트 spec). raw URL: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md` (최신; 재현성은 tag 핀). 목표: 공개 EstreGenesis Claude 플러그인으로 성숙.
 
 ---
 
