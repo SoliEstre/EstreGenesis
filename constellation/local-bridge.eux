@@ -1,0 +1,37 @@
+@component local-bridge
+@intent Detached WS bridge proxying a turn-based local IDE agent (Claude Code session) onto the live board. The real agent can't hold a WS socket in its tool loop (turn ends), so this resident process stands in: it holds the WS connection + HELLO, relays inbound (UserPrompt/Command/Cancel/AgentHello) into an **inbox file** the agent tails at safe points, and ships **outbox file** appends out as WS events (so the agent's progress shows on the board). On `AgentHello` (main role) it auto-replies a formal `OnboardAck` (welcome/guide/modes/policy) but **leaves Delegate to the main PM's judgment** (inbox-preserved, not auto-delegated). Scope = control/A2A bridge ONLY: it does NOT auto-capture the runtime's tool calls — TOOL_CALL/RUN events appear only if the agent explicitly mirrors them to the outbox (or uses a direct-WS adapter). Pure runtime, no DOM. (Distilled from dashboard/live/examples/ws-local-bridge.cjs — WS-PROTOCOL §13.9/§13.11.)
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
+@targets vanilla
+@state
+connected    : boolean = false   # WS open
+backoff      : number = 500      # reconnect backoff ms (cap 8000)
+seq          : number = 0        # outbound message sequence
+runId        : string = null     # current run id (set by outbox {run:"start"})
+outboxCursor : number = 0        # byte offset already shipped from outbox (init = EOF so pre-existing lines are skipped)
+@ports
+in   wsUrl     : string          # ws://host:7878/ws (+ ?token= if set)
+in   agentId   : string          # registration id (WS_AGENT_ID; main = local-ide-agent; worker = own id)
+in   agentName : string          # display name
+in   threadId  : string          # channel/thread id (WS_THREAD_ID; default: local-ide-agent→'local-ide', else AGENT_ID; worker must set its own to avoid showing as local-ide)
+in   inbox     : string          # inbox file path the agent reads (WS_INBOX; worker = own queue)
+in   outbox    : string          # outbox file path the agent appends to (WS_OUTBOX; worker = own queue)
+out  inboxAppend(rec) : append routed inbound {at,name,value,source} to inbox file for the agent
+deps ws        : websocket       # injected WS client (the bridge owns the socket the agent can't hold)
+deps fs        : file IO         # inbox append + outbox tail (cursor-based)
+deps token     : string          # optional LIVE_BOARD_WS_TOKEN
+@behavior
+connect          : open WS as agentId; on open send HELLO (capabilities.inbound: UserPrompt/Command/Cancel/Priority) + Status + ServerNotice(online, reconnect broadcast). Auto-reconnect with backoff on close (onerror is no-op; onclose owns reconnect).
+onInbound(m)     : SERVER_HELLO → log protocolVersion, return (not CUSTOM). ignore AgentList/History/CloseChannel (server→board). For other CUSTOM: append {at,name,value,source} to inbox. UserPrompt w/ promptId → send UserPromptAccepted(queued_for_next_safe_point). AgentHello → auto OnboardAck(targetAgentId=sender, contextId=msg.contextId||msg.threadId, parentId=msg.id, welcome/guide/modes(from state.json)/policy); Delegate NOT automated (left in inbox for main PM).
+pollOutbox       : every 500ms tail outbox from cursor (reset if file shrank/replaced); ship each new line via emit.
+emit(line)       : parse JSON (plain text → {say}). {say}→TEXT_MESSAGE_START/CONTENT/END · {run:"start"}→RUN_STARTED · {run:"finish"}→RUN_FINISHED · {step}→STEP_STARTED · {stepDone}→STEP_FINISHED · {tool}→TOOL_CALL_START · {type,...}→raw event.
+gracefulExit(sig): on SIGINT/SIGTERM send ServerNotice(offline, "restart pending") then close (flush ~300ms). SIGKILL can't run this → restarter should pre-announce ServerNotice(restarting).
+@machine
+# reducer: (connState, event) → connState
+states: DISCONNECTED(initial) · CONNECTING · CONNECTED
+dispatch by event:
+  start  : DISCONNECTED → CONNECTING   (entry: open WS)
+  OPEN   : CONNECTING → CONNECTED       (entry: HELLO + Status + ServerNotice online; backoff=500)
+  CLOSE  : CONNECTED → CONNECTING       (entry: backoff reconnect, cap 8000)
+derive:
+  connected_gate ← emit() only ships when connected (pre-connect appends would be lost; cursor inits at EOF)
+  bridge_scope   ← control/A2A only; tool-call/run mirroring is the agent's explicit responsibility (no auto-capture)

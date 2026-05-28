@@ -1,0 +1,35 @@
+@component self-wake-watcher
+@intent Infinite-wait self-wake watcher for turn-based agents (Claude Code etc.) that cannot hold a WS socket across turn boundaries. Run detached in the background; it polls the agent's inbox (already a routed queue) + feedback file every ~15s and **exits when a meaningful new entry arrives or standby turns off** — process exit wakes the agent's next turn (self-wake). The woken agent processes the new entries, advances the cursor, and **re-arms this watcher** (never end the conversation while joined — always return to watch). Semantic filter is a **blocklist**: known broadcast noise (ServerNotice/AgentList/Status/ConnectionRestored/Heartbeat/Typing/UserPromptAccepted/PersistentAdapterSmoke/OnboardAck/WorkerInboxReceived/EditMessage) is absorbed (cursor advances, no wake); everything else (UserPrompt/Delegate/WorkerReport/WorkerAck/AgentHello/Handoff*) wakes — so new meaningful message names are never missed (allowlist would drop them). Pure runtime, no DOM. (Distilled from dashboard/live/examples/ws-wait.sh — Constellation infinite-wait, AGENT-CONNECT §1.9.)
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
+@targets vanilla
+@state
+inboxCursor    : number = 0        # processed-line count for inbox (persisted to cursor file)
+feedbackCursor : number = 0        # processed-line count for feedback.jsonl
+interval       : number = 15       # poll interval seconds (WS_WAIT_INTERVAL; "≤15s near-real-time")
+maxTicks       : number = 196      # poll count before re-arm timeout (~49min)
+tick           : number = 0        # current poll count
+@ports
+in   inbox        : string         # inbox path to watch (WS_INBOX; worker uses its own queue, not main's)
+in   cursorFile   : string         # processed-cursor path (derived from inbox name if unset; per-queue, no collision)
+in   agentId      : string         # my agentId (WS_AGENT_ID) — for armed log only
+cmd  arm()        : (re)start the poll loop from current cursors — called on launch and after each wake-process cycle
+out  wake(reason) : exit(0) on meaningful change — reason ∈ {action, feedback/standby, timeout-rearm}; exit = agent's next-turn trigger
+deps clock        : sleep/timer    # injected poll timer (interval seconds)
+deps fs           : file reader    # read inbox/feedback line counts + cursor files
+deps stateRead    : function       # read state.json.standby (SSoT for standby on/off)
+@behavior
+arm              : read inboxCursor (cursorFile) + feedbackCursor; log armed(inbox, cursor, agentId, interval, maxTicks); enter poll loop.
+pollTick         : every `interval`s — read inbox total lines (it), feedback total (ft), standby (sb). (1) ft>feedbackCursor OR sb!=true → wake("feedback/standby"). (2) it>inboxCursor → meaningful(inboxCursor)? wake("action") : absorb (inboxCursor=it, no wake). Else continue until maxTicks → re-arm timeout (exit 0, agent re-arms).
+meaningful(from) : scan inbox lines from cursor; true if any line's name/type is NOT in the noise blocklist = {ServerNotice, AgentList, Status, ConnectionRestored, Heartbeat, Typing, UserPromptAccepted, PersistentAdapterSmoke, OnboardAck, WorkerInboxReceived, EditMessage}. (blocklist, not allowlist — unknown names wake.)
+postWakeContract : the woken agent MUST process new entries, set inboxCursor = current total, then call arm() again. Skipping re-arm = monitoring stops (real incident: missed delegate). Confirm re-arm every turn before ending.
+@machine
+# reducer: (watchState, event) → watchState. The exit IS the wake signal for a turn-based runtime.
+states: WATCHING(initial) · WOKEN · REARM
+dispatch by event:
+  meaningful_inbox : WATCHING → WOKEN    (guard: meaningful(cursor)=true; entry: wake("action"), exit process)
+  noise_inbox      : WATCHING → WATCHING (guard: only blocklist names; entry: advance inboxCursor, no wake)
+  feedback_or_standby_off : WATCHING → WOKEN (entry: wake("feedback/standby"), exit process)
+  timeout          : WATCHING → REARM    (entry: log re-arm, exit 0 — agent re-arms next turn)
+derive:
+  routed     ← inbox is already a per-agent routed queue; no targetAgentId re-filter needed here
+  rearm_duty ← woken agent re-arms arm() after processing (infinite-wait invariant: never stop watching while joined)

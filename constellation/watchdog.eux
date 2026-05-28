@@ -1,0 +1,42 @@
+@component watchdog
+@intent Always-on liveness watchdog (deps-0) for the live board. Guards the WS **server** and the **main bridge**, auto-restarting either if it dies — the infrastructure guarantee behind "always connected": if this stays detached-resident, the board survives individual session ends. Watches by holding a `board`-role WS connection (connect succeeds = server alive); on WS drop/connect-fail it re-checks TCP, restarts server.cjs if down, and reconnects with backoff; when the pushed AgentList lacks the main agent it restarts the bridge. A 15s backup timer revives the server if WS stays disconnected. Non-interrupt principle: never touches a live server/bridge — only spawns a replacement when one is dead, with a per-target SPAWN_COOLDOWN to avoid duplicate spawns during startup. Restarts are detached (survive the watchdog's own death). Pure runtime, no DOM. (Distilled from dashboard/live/ws-watchdog.cjs — Constellation residency layer.)
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
+@targets vanilla
+@state
+wsConnected     : boolean = false   # board-role WS to server is up (= server alive)
+backoff         : number = 1000     # reconnect backoff ms (cap 8000)
+lastServerSpawn : number = 0        # last server restart ts (SPAWN_COOLDOWN gate)
+lastBridgeSpawn : number = 0        # last bridge restart ts (SPAWN_COOLDOWN gate)
+@ports
+in   host       : string            # 127.0.0.1
+in   port       : number            # 7878
+in   serverPath : string            # server.cjs path
+in   bridgePath : string            # examples/ws-local-bridge.cjs path
+in   mainId     : string            # main agentId to expect in AgentList (WS_PRIMARY_AGENT; default local-ide-agent)
+out  restartServer() : detached-spawn server.cjs when server is down (cooldown-gated)
+out  restartBridge() : detached-spawn the main bridge when AgentList lacks mainId (cooldown-gated)
+deps ws         : websocket         # board-role connection used as a liveness probe
+deps tcp        : net connect       # TCP reachability re-check before restarting server
+deps spawn      : detached spawner  # spawn(node, file, {detached, stdio→log}).unref()
+deps fs         : log appender      # ws-watchdog.log
+@behavior
+connectWs        : construct WS as board role inside try/catch — synchronous construct failure → scheduleReconnect, return. onopen → wsConnected=true, backoff=1000, log "server alive". onerror → no-op (onclose owns recovery). onclose → wsConnected=false, ws=null, scheduleReconnect.
+onAgentList(m)   : on pushed AgentList — if no agent with agentId==mainId → restartBridge(); else log ok. (server pushes AgentList on connect/disconnect change; no active polling needed.)
+checkServerAlive : TCP connect host:port (2s timeout) → boolean.
+restartServer    : if now-lastServerSpawn < SPAWN_COOLDOWN(8000) skip; else lastServerSpawn=now, detached-spawn serverPath.
+restartBridge    : if now-lastBridgeSpawn < SPAWN_COOLDOWN(8000) skip; else lastBridgeSpawn=now, detached-spawn bridgePath.
+scheduleReconnect: once-pending timer (backoff) → checkServerAlive; if dead restartServer; then ALWAYS connectWs (unconditional). backoff ×2 each schedule (cap 8000); reset to 1000 on onopen.
+backupTimer      : every 15s — if !wsConnected, checkServerAlive; if dead restartServer (covers missed event path).
+gracefulExit(sig): SIGINT/SIGTERM → log, ws.close, process.exit(0).
+@machine
+# reducer: (guardState, event) → guardState
+states: WATCHING(initial, WS connected) · RECONNECTING (WS down)
+dispatch by event:
+  WS_OPEN       : RECONNECTING → WATCHING     (entry: backoff=1000, watch AgentList)
+  WS_CLOSE      : WATCHING → RECONNECTING     (entry: wsConnected=false, ws=null, scheduleReconnect)
+  WS_CONSTRUCT_FAIL : * → RECONNECTING        (entry: scheduleReconnect — synchronous WS construct threw)
+  agentlist_no_main : WATCHING → WATCHING     (entry: restartBridge, cooldown-gated)
+  reconnect_tick : RECONNECTING → RECONNECTING (entry: if TCP dead restartServer[cooldown-gated], then ALWAYS connectWs; backoff ×2 cap 8000)
+derive:
+  no_interrupt ← only spawn a replacement when target is confirmed dead; live server/bridge untouched
+  detached     ← all restarts spawn detached + unref → survive watchdog death (self-healing root)

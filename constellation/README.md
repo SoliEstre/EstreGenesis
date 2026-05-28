@@ -19,8 +19,8 @@ Rough-tier (`@intent` + core `@state`/`@ports` gist) `.eux` distillations of the
 |---|---|---|
 | `gateway-client.eux` | autonomous-runtime WS adapter (HELLO handshake + turn-held A2A drain) | `in wsUrl/agentId` · `cmd connect()/feedInbound(evt)` · `out onReady()/onBatch(msgs)/emit(agUiEvt)` · `deps ws_send/key/storage` · `@machine` 2-axis (connection + turn-held drain) |
 
-The six UI components are **rough** (flexible per project); `gateway-client.eux` is **detail** because it *is* the A2A bridge interface — the one part that must stay identical across adopters. (Re-distilled by the EstreUF live-board main from Hermes's concept model into verified EstreUX `.eux`; brew PASS.)
+The six UI components are **rough** (flexible per project); `gateway-client.eux` is **detail** because it *is* the A2A bridge interface — the one part that must stay identical across adopters. (Re-distilled from a concept model into verified EstreUX `.eux`; brew PASS.)
 
-To brew: `node spike/expand.mjs constellation/<comp>.eux` (provider `agent`), then fill the `@agent-brew` stub keeping the provenance header; `drift-check` to verify. See [Constellation.md §6](../Constellation.md) and EstreUX `BREW.md`. The deps-0 reference vanilla implementation is EstreUX `examples/ws-agent-client.cjs`.
+**To brew** — the runtime is [EstreUX](https://github.com/SoliEstre/EstreUX) (clone & run, Apache-2.0; not an npm package): `node bin/estreux.mjs brew constellation/<comp>.eux` (provider `agent` — the requesting agent brews it directly, no API key), fill the `@agent-brew` stub keeping the provenance header, then `node bin/estreux.mjs drift constellation/<comp>.eux` to verify the roundtrip. See [Constellation.md §6](../Constellation.md), EstreUX `BREW.md`, and the format SSoT `docs/eux-format-v0.md`. The public deps-0 reference client is `gateway-client.eux` (+ `local-bridge.eux`) in this folder — not a private file.
 
 Detail-tier source specs (full `@behavior`/`@render`/`@styles`/`@machine`) for the UI components live in the upstream live board; these rough versions are the EstreGenesis-side distribution.

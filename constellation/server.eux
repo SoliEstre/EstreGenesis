@@ -1,0 +1,83 @@
+@component live-board-server
+@intent The Constellation live-board **server** (deps-0 raw HTTP + WS, no framework) — the single resident process every agent connects to. HTTP half: serves the static dashboard, a `state.json` live board (GET `/api/state` + SSE `/api/events` pushed on `fs.watch`), feedback intake (POST `/api/feedback`, data-URL attachments extracted to disk, path-ref kept), a one-URL external-collab onboarding endpoint (GET `/join/collab?key=ck-…` → dynamic onboarding md; 403 on bad key), and a **whitelist** of integration docs (public protocol SSoT + reference client + representative `.eux` + brew guide only — private agreements are NEVER listed). WS half (`/ws` upgrade): the multi-agent router — per-`agentId` registry, role classification (board/main/local/upstream/collab), A2A relay with reply-window pairing, telemetry exclusion, graceful main handoff, and per-channel persistent history (active/cold/archived with streaming compression). The `state.json` SSoT is owned by the **main** agent; the server only relays + records (workers never write the board directly). Pure runtime, no DOM. (Distilled from dashboard/live/server.cjs — WS-PROTOCOL §13 orchestration; the A2A relay here is the server side of the §2 bridge interface.)
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
+@targets vanilla
+@state
+# consts
+MAX_BODY      : number = 33554432   # 32MB cap for POST /api/feedback body (over → req.destroy)
+A2A_WINDOW    : number = 120000     # §13.8 reply-window fallback (ms)
+HIST_CAP      : number = 200        # per-channel stored-event cap
+# HTTP
+sseClients    : Set<res>            # open SSE subscribers (state pushes)
+# WS registries
+wsConns       : Set<conn>           # all live WS connections (agents + boards)
+wsAgents      : Map<agentId,conn>   # registered agents (HELLO); same id re-connect replaces prior
+WS_PRIMARY_ID : string = env.WS_PRIMARY_AGENT || 'local-ide-agent'  # current main (orchestrator)
+_a2aPending   : Map<agentId,{from,contextId,parentId,at}>  # §13.8 reply-window pairing (responder → original requester)
+wsKeys        : {key,label,role,createdAt}[]   # persisted uk-/ck- registry (ws-keys.json, gitignore)
+_pendingMain  : string = null       # handoff target awaiting HandoffReady (10s timer)
+# history
+wsHistByChan  : Map<chanKey,events[]>   # per-channel ring (cap 200); channel = agentId
+wsBuf         : Map<chanKey,{msg,tool}> # streaming delta/fragment accumulators (compress to 1 stored event)
+@ports
+in   PORT              : number = 7878   # env.PORT
+in   WS_PRIMARY_AGENT  : string          # default main agentId (local-ide-agent)
+in   LIVE_BOARD_WS_TOKEN: string?        # optional token gate (enforced in ws-core upgrade)
+# HTTP routes (out = response surface)
+out  GET  /api/state        : current state.json (no-store)
+out  GET  /api/events       : SSE; emits `state` on connect + on every state.json change (fs.watchFile 500ms); 20s `: ping`
+out  POST /api/feedback      : append entry→feedback.jsonl (≤32MB); data-URL atts → feedback-atts/ (path ref kept inline)
+out  GET  /join/<group>?key=: dynamic onboarding md (key+host embedded; collab group → 403 if wsKeyRole(key)!='collab')
+out  GET  <whitelist docs>  : INTEGRATION_DOCS only — protocol SSoT doc · onboarding doc · reference client · 3 representative .eux (ws-conn-bar · ws-tool-card · ws-collab-invite) · BREW.md (private agreements never whitelisted)
+out  static PUBLIC/         : path-jailed to PUBLIC (../ escape → 403)
+# WS
+out  /ws upgrade            : ws-core.handleUpgrade → conn; query key (?key/?upstreamKey/?collabKey) sets collab/upstream meta
+deps http             : node http server
+deps fs               : state read + watchFile + history/feedback/keys IO
+deps ws-core          : deps-0 WS framing (handleUpgrade, event())
+deps crypto           : randomBytes → key issue (uk-/ck-)
+@behavior
+# --- HTTP ---
+broadcastState   : on state.json change (fs.watchFile 500ms) → write `event: state` to every sseClient (newlines flattened).
+serveFeedback    : POST body (≤MAX_BODY 32MB, destroy if over); JSON parse (400 on bad); stamp receivedAt; map atts via storeAtt; append feedback.jsonl.
+storeAtt         : if att.src is a data-URL → decode (base64/uri) to feedback-atts/<ts-rand.ext>, replace src with {stored:path,bytes,mime}; code/text bodies stay inline.
+joinCollab       : /join/<group>?key= → validate wsKeyRole(key)=='collab' else 403 md; else return wsCollabOnboardMd(host,key) — connect line + IDE/CLI vs autonomous-runtime branch + paste-ready onboarding prompt.
+integrationDocs  : serve only whitelisted files (public protocol SSoT + onboarding doc + reference client + 3 representative .eux + BREW.md); anything else 404. (private agreement docs deliberately absent.)
+# --- WS lifecycle ---
+onUpgrade        : reject non-/ws (socket.destroy); ws-core.handleUpgrade → conn; read key from query → wsKeyRole → set conn.meta.collab/upstream; add to wsConns; send SERVER_HELLO{protocolVersion:'0.3'} → AgentList (role first, so monitors classify A2A) → History ONLY if non-empty (active events full + cold/archived stubs, lazy; skipped when events+cold+archived all empty).
+onClose          : delete conn from wsConns; if it was the registered agent-of-record for its agentId → wsAgents.delete + wsPushAgentList.
+# --- agent outbound (conn.meta.role=='agent') ---
+register(HELLO)  : set role=agent, agentId (default 'agent-'+conn.id.slice(0,4)), clientId, agentName, key-role meta; close+replace any prior conn for same agentId; wsAgents.set; wsPushAgentList.
+orchestration    : wsHandleOrch (agents AND boards) — RegisterUpstreamKey→issue uk- · RegisterCollabKey→issue ck- + joinUrl · Revoke{Upstream,Collab}Key · SetMain · HandoffReady.
+dropTransient    : Heartbeat / PersistentAdapterSmoke / Typing → swallow (no relay, no record).
+serverNotice     : ServerNotice → wsToAll (agents+boards) + wsRecord (online/offline/restart broadcast).
+relay            : if targetAgentId present & registered → send to that agent + _a2aPending.set(tgt,{from,context,parent,at}). else reply-window fallback — if THIS sender has a pending A2A within A2A_WINDOW(120000ms) and msg isn't telemetry/ConnectionRestored → backfill targetAgentId/contextId/parentId from pending + relay to original requester (only if alive & d!==conn); RUN_FINISHED closes the pairing. else target-unspecified CUSTOM (not telemetry, name!='ConnectionRestored') → wsPrimaryAgent (main, if p!==conn). ALWAYS also wsToBoards(msg) + wsRecord(msg).
+telemetryExclude : wsIsTelemetry (threadId/runId=='codex-watch' or STATE_SNAPSHOT scope=='codex-watch') → board broadcast only; never bound into the A2A reply-window.
+# --- board/user inbound (conn.meta.role!='agent') ---
+boardInbound     : CloseChannel→wsCloseChannelHist+notify boards · RequestChannelHistory→wsLoadChannel→ChannelHistory · ArchiveChannel→wsArchiveChannel · UserPrompt atts→storeAtt. route to targetAgentId else wsPrimaryAgent; mirror to other boards (sender board excluded); wsRecord.
+# --- main handoff (graceful) ---
+setMain(to)      : if to≠current & registered → send current main HandoffRequested{to,reason}; _pendingMain=to; arm 10s timer → wsCommitMain.
+handoffReady     : HandoffReady → clear timer → wsCommitMain immediately.
+commitMain       : WS_PRIMARY_ID=to; wsPushAgentList; broadcast MainChanged. (server uninterrupted — only role/authority moves.)
+# --- history persistence ---
+record           : skip HELLO/SERVER_HELLO + AgentList/Heartbeat/PersistentAdapterSmoke/Typing; channel=agentId (channelId is source-badge only); compress streaming (TEXT/TOOL _START→buffer, _CONTENT/_ARGS→accumulate, _END/_RESULT→store 1 event); truncate large result/content(2000)/text(8000) on store (full at relay); ring cap 200/channel; debounce 1s per-channel .jsonl write.
+historyLifecycle : active (in-memory, scanned, sent full on connect when main or a present agent is involved) ↔ cold (no present agent → stub {key,count,lastTs}, loaded on RequestChannelHistory) ↔ archived (✕ close → moved to archived/, excluded from active scan/cap; on RequestChannelHistory the archived file is loaded back to active and deleted from archived/).
+boot             : ws-history/ exists → wsLoadAll (read per-channel .jsonl, re-key by content=agentId, normalize/time-sort/cap, drop orphan files) else wsMigrate (legacy ws-history.json → per-channel compressed split + .bak).
+@machine
+# two-axis: (1) per-connection role classification  (2) main handoff
+# axis 1 — connection role  (reducer: (connRole, event) → connRole)
+states: ANON(initial, on upgrade) · BOARD(default non-agent) · AGENT(after HELLO)
+  upgrade      : → ANON              (entry: SERVER_HELLO + AgentList + History-if-nonempty; key meta set → collab/upstream)
+  HELLO        : ANON|BOARD → AGENT  (entry: register agentId, replace prior conn, push AgentList)
+  no-HELLO     : ANON → BOARD        (board/user; its inbound routes to agents)
+  close        : * → ⊗              (entry: if agent-of-record → wsAgents.delete + push AgentList)
+derive role: collab(ck- key) · upstream(uk- key) · main(agentId==WS_PRIMARY_ID) · local(other agent) · board(non-agent)
+# axis 2 — main handoff  (reducer: (mainState, event) → mainState)
+states: STABLE(initial) · HANDOFF_PENDING
+  SetMain{to}  : STABLE → HANDOFF_PENDING  (entry: HandoffRequested→current main; arm 10s timer)
+  HandoffReady : HANDOFF_PENDING → STABLE  (entry: wsCommitMain, MainChanged)
+  timeout(10s) : HANDOFF_PENDING → STABLE  (entry: wsCommitMain anyway — current main may be gone)
+derive:
+  board_ssot   ← server only relays+records; state.json authored by main (workers never write board → no multi-session collision)
+  a2a_paired   ← reply-window backfills targetAgentId for adapters that can't echo the A2A envelope (§13.8)
+  doc_safety   ← INTEGRATION_DOCS is an explicit whitelist; private agreements are unreachable by construction
