@@ -75,6 +75,8 @@ v1.x is the project seed — bootstrap a new AI-native project, or migrate an ex
 
 Constellation ships as a **referenced module** ([Constellation.md](Constellation.md) + [constellation/](constellation/)) so the tier seeds stay lean. As of **v2.1.0** the live-board runtime (server · bridge · self-wake watcher · watchdog) is distilled into public `.eux` + a self-sufficient guide — build a compatible board with no private-runtime access. Its components are authored as `.eux` and brewed with **[EstreUX](https://github.com/SoliEstre/EstreUX)** — a separate Apache-2.0 runtime EstreGenesis *references* (clone-and-run), not bundles or owns.
 
+**Design drafts (post-v2.2 work).** [`Superscalar.md`](Superscalar.md) (design-draft v0.2) — aggressive sub-agent execution scheduling (out-of-order + gated speculation, with the lane-isolation / in-order-retire ROB pattern) over native subagents + git worktrees; independent of Constellation. Stage 1 design is integrated from a 3-axis deep-research review (processor architecture · agent harness · work communication); Stages 2/3 (register renaming · memory disambiguation · value prediction) are future work. Not production yet — surfaced here so adopters can discover it.
+
 File-based coordination (Phase 5) remains the default and is enough for most projects; Constellation is for concurrent multi-agent operation that benefits from a live board. Skip it and you have the v1.x project seed.
 
 ---
@@ -372,6 +374,8 @@ These are ecosystem touchpoints, not seed prerequisites. The seed works independ
 v1.x 는 프로젝트 시드 — 신규 AI-Native 프로젝트 부트스트랩, 또는 기존 프로젝트를 `AGENTS.md` SSoT 로 마이그레이션 (위의 모든 내용). **v2.0 은 Constellation 하나를 선택적 모듈로 추가**: 멀티에이전트 코디네이션을 파일 기반 `.agent/_coordination/` 에서 실시간 라이브보드(WebSocket + A2A 메시징 + 대시보드)로 격상. **A2A 브릿지 인터페이스**가 불변 계약, 도입 깊이는 시드 티어 따라감.
 
 Constellation 은 **참조 모듈**로 ship ([Constellation.md](Constellation.md) + [constellation/](constellation/)) — tier 시드는 lean 유지. **v2.1.0** 부터 라이브보드 런타임(server · bridge · self-wake watcher · watchdog)을 공개 `.eux` + 자족 가이드로 증류 — 비공개 런타임 접근 없이 호환 보드 구현 가능. 컴포넌트는 `.eux` 로 작성해 **[EstreUX](https://github.com/SoliEstre/EstreUX)** 로 brew — EstreUX 는 EstreGenesis 가 *참조*하는 별도 Apache-2.0 런타임(clone-and-run)이고 번들·소유하지 않음.
+
+**디자인 초안 (post-v2.2 작업).** [`Superscalar.md`](Superscalar.md) (design-draft v0.2) — 서브에이전트 비순차 실행 + 게이트된 투기적 실행(lane 격리·in-order retire ROB 패턴)을 native 서브에이전트 + git worktree 위에서 구현하는 공격적 스케줄링. Constellation 비의존. Stage 1 설계는 3축 딥리서치(프로세서 아키텍처·에이전트 하네스·워크 커뮤니케이션) 권고 통합 완료; Stage 2/3 (register renaming · memory disambiguation · value prediction) 은 미래 작업. 아직 production 아님 — 채택자가 발견 가능하도록 명시.
 
 파일 기반 코디네이션(Phase 5)이 기본이고 대부분 프로젝트엔 충분; Constellation 은 라이브보드가 도움 되는 동시 멀티에이전트 운영용. 안 쓰면 v1.x 프로젝트 시드 그대로.
 
