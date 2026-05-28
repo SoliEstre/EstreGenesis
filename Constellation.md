@@ -98,6 +98,7 @@ Constellation needs near-real-time (≤15s) presence, not tick-level realtime. T
 - [ ] **Re-arm the watcher for real** — actually relaunch the background watcher after processing. Writing "re-armed" without the real call silently stops monitoring (a real incident missed a delegation this way). This is the hard invariant.
 - [ ] **Reply at least one line** over WS to any user/main prompt — the human is watching the board; silence reads as a stall.
 - [ ] **Register review items** in the board state (`decisions`) with summary + rationale + report path, so the main can review/commit.
+- [ ] **Silent-disable WARN** — any optional input that gates a watcher / handler / replay path MUST emit a WARN line at the point it's resolved to null (e.g. `[WARN] feedback=null — events will NOT wake this watcher`). An *alive-but-deaf* watcher is as bad as no watcher; one log line saves hours of "looks healthy but isn't" diagnosis. Symmetric to the watch-state invariant — never silent on a wake-trigger being dead.
 
 **Residency checklist**:
 - [ ] Separate `agentId`/`threadId`/`inbox`/`outbox` per worker (never occupy the main's default queue — an unseparated thread shows the worker as the main).

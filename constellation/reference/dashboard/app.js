@@ -1480,10 +1480,54 @@ function wsGroupMembers(gkey) {
 }
 function onWsEvent(m) {
   const t = m.type;
-  if (t === 'SERVER_HELLO') { wsState.open = true; updateWsConn(); return; }
-  if (t === 'CUSTOM' && m.name === 'AgentList') { const agents = (m.value && m.value.agents) || []; for (const a of agents) { if (a.role === 'main' && a.agentId) { WS_LOCAL = a.agentId; break; } } wsSyncAgents(agents); return; }
-  if (t === 'CUSTOM' && m.name === 'History') { const v = m.value || {}; wsReplayHistory(v.events, v.cold, v.archived); return; }   // 서버 기록 재생 복원(active full + cold/archived stub)
-  if (t === 'CUSTOM' && m.name === 'ChannelHistory') { const v = m.value || {}; wsReplayChannelHistory(v.channelKey, v.events); return; }   // C: on-demand 채널 내용
+  if (t === 'SERVER_HELLO') {
+    wsState.open = true; updateWsConn();
+    // post-handshake assertion (envelope-drift catch): 5s after SERVER_HELLO,
+    //   if an AgentList was seen but no channel populated → almost certainly an envelope mismatch
+    //   (e.g. a brewed server emitting bare-type instead of CUSTOM-wrapped).  Warn loudly — silence here is the foot-gun.
+    setTimeout(() => {
+      if (wsState.open && wsState._agentListSeen && wsState.channels.size === 0) {
+        try { console.warn('[Constellation] AgentList frame received but channels not populated — likely envelope mismatch. Expected CUSTOM/AgentList/value.agents per server.eux envelope_convention; if the server brew emits bare top-level, the compat shim below should have caught it. See constellation/server.eux @intent.'); } catch {}
+      }
+    }, 5000);
+    return;
+  }
+  // ── Envelope compat shim (transition-period safety net) ──────────────────────────
+  // server.cjs / server.eux v2.2.x onward pin CUSTOM-wrapped (envelope_convention).
+  // A brewed server from v2.1.0 (when the .eux did NOT pin envelope shape) may legitimately
+  // emit AgentList / History / ChannelHistory at bare top-level. Accept both shapes so a
+  // brewed-runtime drift never silently empties the dashboard. Remove once the ecosystem is on v2.2.x+.
+  if (t === 'AgentList' || (t === 'CUSTOM' && m.name === 'AgentList')) {
+    wsState._agentListSeen = true;
+    const agents = (t === 'AgentList') ? (m.agents || []) : ((m.value && m.value.agents) || []);
+    for (const a of agents) { if (a.role === 'main' && a.agentId) { WS_LOCAL = a.agentId; break; } }
+    wsSyncAgents(agents); return;
+  }
+  if (t === 'History' || (t === 'CUSTOM' && m.name === 'History')) {
+    // CUSTOM-wrapped (canonical): value.events is the flat per-event list, each event carrying its own agentId.
+    // bare top-level legacy: m.channels[] grouped by key — flatten and inject channel.key as agentId for any event that lacks one
+    //   (older brewed JSONL stored TEXT_MESSAGE without explicit agentId, relying on filename grouping).
+    const v = (t === 'History') ? m : (m.value || {});
+    let events;
+    if (Array.isArray(v.events)) {
+      events = v.events;
+    } else if (Array.isArray(v.channels)) {
+      events = [];
+      for (const ch of v.channels) {
+        if (!Array.isArray(ch.events)) continue;
+        for (const ev of ch.events) {
+          if (ch.key && !ev.agentId) ev.agentId = ch.key;
+          events.push(ev);
+        }
+      }
+    } else { events = []; }
+    wsReplayHistory(events, v.cold, v.archived); return;
+  }
+  if (t === 'ChannelHistory' || (t === 'CUSTOM' && m.name === 'ChannelHistory')) {
+    const v = (t === 'ChannelHistory') ? m : (m.value || {});
+    const channelKey = v.channelKey || v.channel;
+    wsReplayChannelHistory(channelKey, v.events); return;
+  }
   if (t === 'CUSTOM' && m.name === 'ServerNotice') {   // 브릿지/서버 재시작 등 시스템 공지 → 활성 채널 status 카드
     const v = m.value || {}; const icon = ({ restarting: '🔄', offline: '🔌', online: '🟢' })[v.kind] || 'ℹ️';
     const a = wsState.active;
@@ -1531,7 +1575,10 @@ function onWsEvent(m) {
   if (typeof m.seq === 'number') ch.seq = m.seq;
   if (m.runId) ch.runId = m.runId;
   const _chan = a2a ? '' : wsChanLabel(m), _chanFull = a2a ? '' : wsChanFull(m);   // 출처 뱃지(에이전트 통합 채널 내 대화 구분). 모니터(a2a)는 _src 뱃지
-  const push = (kind, label, body, dim, full) => wsPushRow(chId, { kind, label, body: body || '', dim, t: nowHM(), chan: _chan, chanFull: _chanFull, src: _src, full: (full && typeof full === 'object') ? full : null });
+  // Preserve source-stamped timestamp through replay (server.eux record: timestamp clobber forbidden).
+  // m.at (epoch ms, source-stamped at emit) is the original wall-clock; fall back to nowHM() only when absent.
+  const _msgT = (typeof m.at === 'number') ? new Date(m.at).toTimeString().slice(0, 8) : nowHM();
+  const push = (kind, label, body, dim, full) => wsPushRow(chId, { kind, label, body: body || '', dim, t: _msgT, chan: _chan, chanFull: _chanFull, src: _src, full: (full && typeof full === 'object') ? full : null });
   switch (t) {
     case 'RUN_STARTED': push('run', '▶ RUN_STARTED', m.runId || '', true); break;
     case 'RUN_FINISHED': push('ok', '✓ RUN_FINISHED', wsOutcome(m.outcome), true); break;
