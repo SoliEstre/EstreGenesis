@@ -1,12 +1,14 @@
-<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.x (draft); status: design-draft; date: 2026-05-28; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
+<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.x (draft); status: design-draft v0.2 (deep-research integrated, 2026-05-28); date: 2026-05-28; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
 
-# Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft)
+# Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.2)
 
-> **EstreGenesis optional module — design draft.** Where the base seed runs tasks **in declared order**, Superscalar borrows processor-architecture techniques to drive an agent's **own sub-agents** more aggressively: issue several independent tasks at once (*superscalar*), run ready tasks regardless of declared order (*out-of-order / OoO*), and — opt-in — start the likely branch of a gate *before* it resolves (*speculation / branch prediction*). The payoff is **latency hiding**: the real bottleneck in agent work is human review/approval time, not token throughput — so doing useful independent work during that wait shortens wall-clock time. (This is the natural apex of v1.6.0's *agent-time vs human-time* split.)
+> **EstreGenesis optional module — design draft v0.2 (deep-research integrated).** Where the base seed runs tasks **in declared order**, Superscalar borrows processor-architecture techniques to drive an agent's **own sub-agents** more aggressively: issue several independent tasks at once (*superscalar*), run ready tasks regardless of declared order (*out-of-order / OoO*), and — opt-in — start the likely branch of a gate *before* it resolves (*speculation / branch prediction*). The payoff is **latency hiding**: the real bottleneck in agent work is human review/approval time, not token throughput — so doing useful independent work during that wait shortens wall-clock time. (Natural apex of v1.6.0's *agent-time vs human-time* split.)
 >
-> **It costs tokens.** OoO reordering is cheap and safe; speculation trades tokens (and possibly discarded work) for latency. So speculation is **off by default**, asked per-use with its trade-off shown, and scoped/toggleable.
+> **What v0.2 adds.** A 3-axis deep-research review (processor architecture / agent harness / work communication & management) validated the 1st scope (OoO baseline + gated speculation) as aligned with computer-architecture canon (Smith-Pleszkun 1988 ROB, Tomasulo 1967) and industry-verified patterns (Claude Code worktree isolation, Anthropic multi-agent ≈90.2% lift). This draft folds in the Stage-1 hardening — `issue_width` formula, read-only speculation scope, Toyota Andon transparency, deterministic budgets, MAST failure-mode anti-patterns — and stages future-work hooks (Stage 2/3 — register renaming, memory disambiguation, value prediction). See §9 for foundations and references.
 >
-> **Independent module.** Unlike Constellation (a heavy live-board runtime: WS server + dashboard + resident processes), Superscalar rides the agent's **native sub-agent mechanism** (e.g. the Task tool) — low overhead, no server. Constellation is **not required**; if it happens to be running it can optionally visualize the scoreboard. Adopt Superscalar when a project has enough independent parallel work to repay the orchestration overhead.
+> **Costs tokens.** OoO reordering is cheap and safe; speculation trades tokens (and possibly discarded work) for latency. Speculation is **off by default**, asked per use with its trade-off + downstream-sensitivity shown, and scoped/toggleable.
+>
+> **Independent module.** Unlike Constellation (a heavy live-board runtime), Superscalar rides the agent's **native sub-agent mechanism** (e.g. the Task tool + `git worktree` — Claude Code's `isolation: worktree` is the direct industrial analog) — low overhead, no server. Constellation is **not required**; if present it can optionally visualize the scoreboard and may empirically aid detection of MAST FM-1.3/2.6 cases (§7).
 >
 > _Plain-language note: "superscalar / out-of-order / speculation" are CPU terms; each section restates them plainly so any agent — not just ones that know the metaphor — can execute it._
 
@@ -14,60 +16,183 @@
 
 ## 1. Concept mapping
 
-| Processor | Superscalar (agent) | Note |
-|---|---|---|
-| Superscalar issue (many instr/cycle) | dispatch several sub-agents at once | issue width = max concurrent sub-agents |
-| Out-of-order execution | run tasks whose deps are met, ignoring declared order | needs a dependency graph (DAG) |
-| Reorder buffer (ROB) | each task in its own **git worktree/branch**; result held until retire | isolation = architectural-state safety |
-| In-order retire/commit | PM (main) reviews + merges results **in declared order** | user-visible order preserved |
-| Hazard detection (RAW/WAR/WAW) | dependency + file-conflict analysis before dispatch/merge | misjudged deps → broken merge |
-| Branch prediction | predict a gating decision (approval/test/A·B) and start the likely path early | **speculation — opt-in** |
-| Misprediction flush | discard the worktree/branch | flush cost = tokens already spent |
-| Speculative store buffer | speculative writes stay in the isolated worktree, never `main` | the irreversibility barrier |
+| Processor | Superscalar (agent) | Stage | Notes |
+|---|---|---|---|
+| Superscalar issue (many instr/cycle) | dispatch several sub-agents at once | 1 | `issue_width` formula, §2 |
+| Out-of-order execution | run tasks whose deps are met, ignoring declared order | 1 | needs a dependency graph (DAG) |
+| Reorder buffer (ROB) | each task in its own **git worktree/branch**; result held until retire | 1 | isolation = architectural-state safety |
+| In-order retire/commit | PM (main) reviews + merges results **in declared order** | 1 | user-visible order preserved |
+| Hazard detection (RAW/WAR/WAW) | dependency + file-conflict analysis before dispatch/merge | 1 | misjudged deps → broken merge |
+| Branch prediction | predict a gating decision (approval/test/A·B) and start the likely path early | 1 | **speculation — opt-in, gated** |
+| Misprediction flush | discard the worktree/branch | 1 | flush cost = tokens already spent |
+| Speculative store buffer | speculative writes stay in the isolated worktree, never `main` | 1 | the irreversibility barrier |
+| **Register renaming** (Tomasulo) | same-file conflicts run in parallel via *alias branches* (`.alt-N` suffix), PM merges | 2 | removes WAR/WAW *without* serialization |
+| **Memory disambiguation** | dispatch on path-guess; verify at retire (rollback if guess was wrong) | 2 | low-priority lanes that resolve to no-conflict become free wins |
+| **Value prediction** | predict the gating outcome from `.agent/_lessons/` history (later) | 3 | v1 uses user-supplied confidence |
 
-## 2. Core — out-of-order scheduling (the safe, default-eligible part)
+Stages: **1** = this draft / immediate ship · **2** = post-v0.2 patch · **3** = experimental.
+
+---
+
+## 2. Core — out-of-order scheduling (Stage 1, default-eligible)
 
 - **Dependency DAG, not declared order.** Read the WORKLIST as a graph: an edge = "B needs A's output / touches A's files." Dispatch any task whose predecessors are done; declared order is only a tie-breaker.
-- **Issue width = concurrent sub-agents**, tied to the v1.6.0 pace mode (Cautious → narrow, Sprint → wide), capped by a token budget.
+- **`issue_width` is a dynamic cap — the minimum of four signals:**
+
+  ```
+  issue_width = min(
+    Anthropic effort band(task complexity),     // simple lookup → 1 agent · comparison → 2-4 · complex research → 10+
+    pace_mode cap,                              // Cautious 2 · Proactive 4 · Burst 6 · Sprint 8
+    Little's Law: PM_review_throughput / avg_task_duration,
+    Kanban WIP ≈ (team_size + 1)
+  )
+  ```
+
+  Rationale: the binding constraint is rarely raw model capacity — it's usually **PM review throughput**. Little's Law makes that explicit; the Kanban floor prevents WIP blow-up; the Anthropic effort band keeps simple tasks from over-dispatching; pace mode (v1.6.0) is the user-chosen ceiling.
+
+  **Operational note** — Little's Law inputs use a **rolling window** (e.g. last 7 retires), never the instantaneous value (PM throughput swings with time-of-day, fatigue, task complexity). **Cold start** (no measurement data yet) — drop the Little's Law input entirely and rely on the other three until enough history accumulates.
 - **In-order retire.** Even when tasks finish out of order, the PM **merges them in declared order**, so user-visible history and dependent steps stay coherent (precise, in-order retirement).
-- **Hazard check before dispatch.** If two ready tasks touch the same files/contracts (WAW/WAR), serialize or fence them — do not parallel-dispatch.
+- **Hazard check before dispatch.** If two ready tasks touch the same files/contracts (WAW/WAR), serialize or fence (Stage 1) — or use *alias branches* (Stage 2, see §1) to parallelize without serialization.
 - **No prediction here** — every dispatched task is one the plan already calls for. This part is reversible and safe enough to enable broadly (still cost-gated, §3).
 
-## 3. Reorder buffer = worktree isolation + cost-benefit gate
+---
 
-- **Each OoO/speculative task runs in its own `git worktree` + branch** (same repo, shared `.git` — far cheaper than a full clone). That worktree is the task's private architectural state = its ROB entry.
+## 3. Reorder buffer = worktree isolation + cost-benefit gate + budget circuit breaker
+
+- **Each OoO/speculative task runs in its own `git worktree` + branch** (same repo, shared `.git` — far cheaper than full clone; Claude Code's `isolation: worktree` is the direct industrial analog). That worktree is the task's private architectural state = its ROB entry.
 - **Retire = PM review + merge, in order.** The main/PM agent verifies the branch (deps resolved · tests · no hazard) and merges. A merge conflict is a hazard the PM resolves — exactly WAW/WAR resolution.
-- **Cost-benefit gate (the go/no-go, evaluated each time):** open an isolated lane only when *estimated isolation + merge overhead < expected parallel / early-start benefit*. Inputs: worktree setup cost, task size, dependency fan-out, conflict likelihood, pace mode. Below threshold → just run in-order in place. (Agent analog of "don't bother speculating a cheap, almost-certain branch.")
-- **Irreversibility barrier:** read / analyze / isolated codegen may run in a lane; anything **outward-facing or irreversible** (external API, push, deploy, deletion, sending messages) must **not** run speculatively — it waits for retire (the commit point). Mirrors the store-buffer rule.
+- **Cost-benefit gate (per lane spin-up):** open an isolated lane only when *estimated isolation + merge overhead < expected parallel / early-start benefit*. Inputs: worktree setup cost, task size, dependency fan-out, conflict likelihood, pace mode, **downstream sensitivity** (§4). Below threshold → run in-order in place.
+- **Irreversibility barrier — speculative side-effects are LLM-specific worse than CPU.** Read / analyze / isolated codegen may run in a lane. **Speculative write-side tools require explicit allowlist** — by default *outward-facing or irreversible* operations are **forbidden** in speculative lanes:
+  - ✅ default-allowed in speculation: file read, code analysis, isolated codegen inside the worktree, sandboxed test runs.
+  - ❌ default-forbidden: external API calls, shell commands with side effects, DB writes, deploys, deletions, sends/broadcasts. (These wait for retire.)
+  - The "store buffer" auto-isolates everything in a CPU; in an LLM this barrier is *manual* — keep the allowlist tight and auditable.
+- **Deterministic budgets (circuit breaker).** Do NOT ask the LLM to estimate its own cost — MAST FM-1.5 *"Unaware of termination conditions"* is one of the most common failure modes (~12% of traces). The harness enforces hard caps:
+  - per OoO lane: `max ≤ 50k tokens` (configurable)
+  - per speculative lane: `max ≤ 30k tokens` (tighter — wasted on misprediction)
+  - total concurrent lanes: `max ≤ 200k tokens` aggregated
+  - exceeded → automatic `abort` of that lane; the user is notified via the harness's notification channel — **Constellation board chip flips red + notification** when Constellation is present, otherwise **stderr / log / non-zero exit code**. (Anthropic production operators report the same conclusion: cost-circuit-breakers are mandatory because misbehavior compounds geometrically. Empirical baselines: ~4× chat-to-agent, ~15× multi-agent — the caps above are intentionally conservative and may be tightened *or* loosened with operational data.)
+- **Lane manifest (prerequisite for §7 MAST guards).** Every lane (OoO or speculative) registers with the harness on dispatch:
 
-## 4. Speculation (opt-in, gated)
+  ```
+  { lane_id,
+    intent,                  // declared action (one-line natural-language)
+    gate_dependency,         // which gate's outcome this lane assumes (speculative only)
+    planned_commit_subject,  // for FM-1.3 duplicate-work cross-check vs sibling lanes
+    sibling_lanes }          // other active lanes for cross-check / SIGTERM targeting
+  ```
 
-- **What it is:** starting the *likely* branch of a not-yet-resolved gate (user approval, review verdict, a test outcome, an A/B choice) before it resolves, so the result is ready the instant the gate clears.
-- **Off by default.** When the agent spots a high-value speculation it **asks the user**, showing the trade-off: predicted branch + confidence · latency saved if right · token/discard cost if wrong. The user supplies the confidence (acting as the branch predictor). No automatic history-based predictor in v1 (possible later, fed by `.agent/_lessons/`).
+  The harness uses this manifest to enforce §7's FM-1.3 / FM-1.5 / FM-2.6 guards (duplicate-work cross-check, gate-resolve SIGTERM to dependent speculative lanes, announce-vs-action audit). **Without the manifest, those guards cannot fire** — treat manifest registration as part of lane dispatch, not optional metadata.
+
+---
+
+## 4. Speculation (Stage 1 — opt-in, gated, Andon-bound)
+
+- **What it is.** Starting the *likely* branch of a not-yet-resolved gate (user approval, review verdict, a test outcome, an A/B choice) before it resolves, so the result is ready the instant the gate clears.
+- **Off by default.** When the agent spots a high-value speculation, it **asks the user** with the trade-off shown:
+  - predicted branch + agent's confidence
+  - latency saved if right
+  - token / discard cost if wrong
+  - **downstream sensitivity** — *if wrong, how much of the speculative work has to be redone?* (low = read/summarize, high = interface design or contract change). Low-sensitivity work is the natural speculation target; high-sensitivity work usually waits.
+
+  The user supplies the confidence (acting as the branch predictor); no automatic history-based predictor in v1 (Stage 3, fed by `.agent/_lessons/`).
+- **Two-stage announce** (Spectre lesson — *micro-architectural* side effects in CPUs become *cognitive* side effects in LLM/user space; even discarded work leaves an anchor):
+  1. *"considering X"* — no work started; just shown on the board / told to user.
+  2. After user `ack` → *"executing X (speculative lane <name>)"* — only then does the lane spawn.
+- **Default scope = read-only tools.** Per §3, speculation may not touch outward / irreversible side effects. Even on opt-in, the safe default scope is *read · analyze · isolated codegen · sandboxed tests* — explicit toggle required to widen.
 - **Toggle + scope.** Global on/off, plus scope limits ("speculate on read/analysis only" · "never on code that will be committed" · "only within this task"). Switchable mid-project.
-- **Always transparent + isolated.** A speculative lane is announced ("predicting X → prepping in a branch; discarded if wrong") and lives in its own worktree. Misprediction = discard the branch (pipeline flush); the user never silently receives unrequested merged work.
+- **Andon 3-element transparency** (Toyota Production System / Jidoka) — **enforced by the harness** (not the lane itself — a misbehaving lane cannot opt out), mandatory for every speculative lane:
+  1. **Visual signal** — board chip colored distinctly (amber = speculative, green = retired, grey = planned, red = aborted). Speculation MUST be visible.
+  2. **Pull-the-cord (`/stop-spec`)** — single user command discards all speculative lanes immediately. Honor latency = the next instruction; never silently continue after a stop.
+  3. **Root-cause logging** — on misprediction (lane discarded), the harness appends a structured entry to **`.agent/_lessons/spec-discard/`** (a separate sub-directory so speculation history doesn't mix with general troubleshooting): branch predicted · branch actual · sensitivity · cost in tokens · cause · **`detection-source`** — `human-visual` (caught live on the board) vs `post-hoc-analysis` (caught only by retrospective log review). Feeds the §6 measurement signal and Stage-3 value prediction.
+- **Misprediction = isolated flush.** Discard the worktree/branch (the user never silently receives unrequested merged work). Spending is bounded by §3's circuit breakers; trust impact is bounded by Andon (no surprises).
 
-## 5. Options & toggles (bootstrap / migration)
+---
 
-- Bootstrap/Migration adds an **execution-scheduling** choice: `in-order` (default, safe) | `superscalar` (OoO core); under superscalar, `speculation: off (default) | ask | scoped`.
-- **Pace-mode link (v1.6.0):** issue width + speculation appetite scale with Cautious → Sprint.
-- **Token budget cap:** a ceiling on concurrent lanes + speculative spend so misprediction can't run away.
+## 5. Options, toggles, and adoption thresholds
+
+- Bootstrap / migration adds an **execution-scheduling** choice: `in-order` (default, safe) | `superscalar` (OoO core); under superscalar, `speculation: off (default) | ask | scoped`.
+- **Pace-mode link (v1.6.0):** issue-width band + speculation appetite scale with Cautious → Sprint (one input to the §2 formula, not the sole one).
+- **Token-budget caps** — see §3. Treat as hard ceilings, not soft hints.
 - Recorded in `AGENTS.md` core rules alongside language / tone / pace.
+
+**Adoption thresholds — switch behavior dynamically when these fire:**
+
+| Signal | Threshold | Action |
+|---|---|---|
+| Average merge-conflict rate | `> 15%` | `issue_width -= 2` (until rate recovers); investigate hazard mis-detection |
+| Speculative accuracy (lane retired vs discarded) | `< 60%` on last 10 speculations (rolling) | recommend `speculation: off` for next use; prompt user to recalibrate confidence input |
+| Concurrent-mode token cost vs equivalent in-order | `> 3×` (vs Anthropic baselines of ~4× chat→agent, ~15× multi-agent — be conservative) | re-evaluate cost-benefit gate inputs; tighten budget circuit breakers (§3) |
+| MAST FM-1.3 step-repetition detections | `≥ 1 per session` | strengthen duplicate-work guard (§7); reduce `issue_width` |
+
+---
 
 ## 6. Optional Constellation synergy
 
-Superscalar needs no server. But if Constellation is already running, the live board can double as the **scoreboard / ROB view** — lanes as channels, retires as merge events, speculative lanes flagged. Purely optional visualization; the scheduler logic is identical without it.
+Superscalar needs no server. But if Constellation is already running, the live board can double as the **scoreboard / ROB view** — lanes as channels, retires as merge events, speculative lanes flagged amber per Andon (§4). Beyond visualization, the board may *empirically* improve MAST FM-1.3 / FM-2.6 detection (duplicate work · announce-vs-action mismatch) because cross-lane progress is human-visible.
+
+**Measurement procedure** — every `.agent/_lessons/spec-discard/` entry (§4) records a `detection-source` field: `human-visual` (caught live by the user / PM scanning the board) vs `post-hoc-analysis` (caught only by retrospective log review). The per-session ratio of `human-visual` detections is the empirical signal for whether the board (when on) is doing the catching. Track over time; if the ratio stays high with Constellation on and drops sharply when off, the hypothesis is supported. Purely optional; the scheduler logic is identical without the board.
+
+---
 
 ## 7. Anti-patterns
 
-- Speculating on irreversible / outward effects (barrier violation).
+Built on the original five plus targeted MAST coverage (multi-agent system failure taxonomy, Cemri et al. NeurIPS 2025):
+
+- Speculating on irreversible / outward effects (barrier violation, §3).
 - Wide issue without hazard analysis → corrupted merges.
-- Silent speculation (no announce) → "why did you do unrequested work" + trust loss.
-- Speculating on low-confidence or cheap-to-wait gates → pure token waste (failed cost-benefit).
+- Silent speculation (no announce) → "why did you do unrequested work" + trust loss; Andon (§4) is the structural fix.
+- Speculating on low-confidence / cheap-to-wait / high-sensitivity gates → pure token waste (failed cost-benefit).
 - Out-of-order *retire* (merging out of declared order) → incoherent history / broken deps.
+- **Duplicate-work across lanes (MAST FM-1.3, ~13%).** Two lanes redo the same task because the DAG missed an edge. Guard: each lane's planned-commit subject is cross-checked against sibling lanes' before dispatch; conflict → abort one lane.
+- **Speculative-lane termination ignorance (MAST FM-1.5, ~12%).** A speculative lane keeps running after its gate has resolved (the branch is dead). Guard: the gate's resolver sends `SIGTERM` to dependent speculative lanes immediately; the harness enforces, not the lane.
+- **Announce-vs-action mismatch (MAST FM-2.6, ~13%).** A lane announced "predicting X" but actually does Y. Guard: on every tool call, check the lane's running annotation against its declared intent; mismatch → abort + log.
+- **Shared mutable contract → fence-only.** Common interfaces / shared function signatures / common type files cannot be parallel-issued — must be design-frozen or formally arbitrated before parallel work (concurrent-engineering "design-freeze milestone"). This is the WAW hazard at the architectural level.
+
+---
 
 ## 8. Relationship to the seed
 
 - **Base seed** = in-order execution (default).
 - **Superscalar** = optional aggressive scheduler over the agent's native sub-agents; independent of Constellation; an evolution of §Task Decomposition Strategy (v1.3.5).
 - Depth follows the seed tier as usual; lighter tiers reference only the §2 core + this file.
+
+---
+
+## 9. Foundations & references
+
+This design was validated against three bodies of work via a 3-axis deep-research review (2026-05-28).
+
+**Processor architecture (the canon):**
+- Smith, J. E. & Pleszkun, A. R. (1988). *Implementing Precise Interrupts in Pipelined Processors.* — ROB origin; the in-order-retire pattern of §3 is its direct analog.
+- Tomasulo, R. M. (1967). *An Efficient Algorithm for Exploiting Multiple Arithmetic Units.* IBM System/360 Model 91 — register renaming (Stage-2 alias-branch pattern, §1).
+- Mutlu, O. et al. (2003). *Runahead Execution.* HPCA, Test-of-Time award — analog of running a no-side-effect "read-ahead" lane during a stall.
+- Kocher, P. et al. (2018). *Spectre Attacks: Exploiting Speculative Execution.* — origin of §4's two-stage announce mitigation (micro-architectural / cognitive side effects survive rollback).
+- Hennessy, J. & Patterson, D. *Computer Architecture: A Quantitative Approach.* — general reference.
+
+**Agent orchestration (industry):**
+- Anthropic (2025). *How we built our multi-agent research system.* — ~90.2% lift, ~15× tokens, effort-scaling rule (§2), production cost-circuit-breaker pattern (§3).
+- Claude Code docs — *Run parallel sessions with worktrees*, `isolation: worktree` — the direct industrial analog of §3.
+- Cemri, M. et al. (2025). *Why Do Multi-Agent LLM Systems Fail? (MAST).* NeurIPS 2025 Datasets & Benchmarks Track Spotlight, arXiv:2503.13657 — 14 failure modes; §7 anti-patterns cover FM-1.3 / FM-1.5 / FM-2.6 explicitly.
+- Leviathan et al. (ICML 2023, arXiv:2211.17192), Hua et al. (ICLR 2025, arXiv:2410.00079), Dynamic Speculative Planning (arXiv:2509.01920), Microsoft PASTE (arXiv:2603.18897) — speculative decoding / planning literature; this module is the agent-task analog.
+
+**Work communication & management (organizational science):**
+- Goldratt, E. (1997). *Critical Chain Project Management.* — feeding chain (OoO, §2) and buffer concept (§3 budgets).
+- Toyota Production System — Jidoka / Andon — §4's three-element transparency is Andon adopted verbatim.
+- Bogus / Molenaar / Diekmann, ASCE *Journal of Construction Engineering and Management* (2005–2013) — fast-tracking sensitivity model (§4 downstream-sensitivity term).
+- Atlassian / Planview Kanban WIP limits, Little's Law, *team size + 1* — §2 formula.
+- Edmondson (Harvard Business School) — psychological safety; CCL / SHRM trust research — why silent speculation costs trust asymmetrically (§4 Andon rationale).
+
+---
+
+## 10. Future work (Stages 2 & 3)
+
+**Stage 2 — post-v0.2 patch:**
+- *Register renaming* (alias-branch pattern, §1): same-file conflicts run parallel via `.alt-N` branches, PM merges with conflict resolution. Removes WAR/WAW serialization.
+- *Memory disambiguation*: speculative dispatch on path-guess, verify at retire; cheap no-conflict cases become free wins.
+- *Per-lane checkpoint*: explicit tag-commits before merges so rollback is `git reset` in ≤ 1 second.
+- *Sensitivity-aware speculation UI*: show projected downstream rework alongside confidence (§4).
+
+**Stage 3 — experimental:**
+- *Value prediction*: feed `.agent/_lessons/spec-discard/` (the §4 misprediction log) into a confidence-estimation model so the agent can pre-suggest speculation worth doing. Andon (§4) still applies — predictor *recommends*, user still acks.
+
+(The optional Constellation visualization mentioned in §6 — including its measurement procedure — also rides on the §4 logging infrastructure once Stage 3 ships, but the *scoreboard* itself is available at Stage 1 already.)
