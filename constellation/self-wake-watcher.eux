@@ -1,5 +1,5 @@
 @component self-wake-watcher
-@intent Infinite-wait self-wake watcher for turn-based agents (Claude Code etc.) that cannot hold a WS socket across turn boundaries. Run detached in the background; it polls the agent's inbox (already a routed queue) + feedback file every ~15s and **exits when a meaningful new entry arrives or standby turns off** — process exit wakes the agent's next turn (self-wake). The woken agent processes the new entries, advances the cursor, and **re-arms this watcher** (never end the conversation while joined — always return to watch). Semantic filter is a **blocklist**: known broadcast noise (ServerNotice/AgentList/Status/ConnectionRestored/Heartbeat/Typing/UserPromptAccepted/PersistentAdapterSmoke/OnboardAck/WorkerInboxReceived/EditMessage) is absorbed (cursor advances, no wake); everything else (UserPrompt/Delegate/WorkerReport/WorkerAck/AgentHello/Handoff*) wakes — so new meaningful message names are never missed (allowlist would drop them). Pure runtime, no DOM. (Distilled from dashboard/live/examples/ws-wait.sh — Constellation infinite-wait, AGENT-CONNECT §1.9.)
+@intent Infinite-wait self-wake watcher for turn-based agents (Claude Code etc.) that cannot hold a WS socket across turn boundaries. Run detached in the background; it polls the agent's inbox (already a routed queue) + feedback file every ~15s and **exits when a meaningful new entry arrives or standby turns off** — process exit wakes the agent's next turn (self-wake). The woken agent processes the new entries, advances the cursor, and **re-arms this watcher** (never end the conversation while joined — always return to watch). Semantic filter is a **blocklist**: known broadcast noise (ServerNotice/AgentList/Status/ConnectionRestored/Heartbeat/Typing/UserPromptAccepted/PersistentAdapterSmoke/OnboardAck/WorkerInboxReceived/EditMessage) is absorbed (cursor advances, no wake); everything else (UserPrompt/Delegate/WorkerReport/WorkerAck/AgentHello/Handoff*) wakes — so new meaningful message names are never missed (allowlist would drop them). **Optional `feedback` path is auto-derived from `inbox` (board layout) when not provided; if it still resolves to null, the `armed` log emits an explicit WARN — a wake-trigger is never silently disabled.** Pure runtime, no DOM. (Distilled from dashboard/live/examples/ws-wait.sh — Constellation infinite-wait, AGENT-CONNECT §1.9.)
 @expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
 @targets vanilla
 @state
@@ -10,6 +10,7 @@ maxTicks       : number = 196      # poll count before re-arm timeout (~49min)
 tick           : number = 0        # current poll count
 @ports
 in   inbox        : string         # inbox path to watch (WS_INBOX; worker uses its own queue, not main's)
+in   feedback     : string?        # feedback.jsonl path (WS_FEEDBACK). **Auto-derived from inbox** when not set: if `inbox` matches `<board>/_board/agents/<id>/inbox.jsonl`, derive `<board>/_board/feedback.jsonl`; otherwise stays null. Null after derivation = wake-trigger (1) feedback/standby is **dead** — user-submitted decisions/freeRequest will NOT wake the watcher. arm() emits a WARN in that case (see @behavior).
 in   cursorFile   : string         # processed-cursor path (derived from inbox name if unset; per-queue, no collision)
 in   agentId      : string         # my agentId (WS_AGENT_ID) — for armed log only
 cmd  arm()        : (re)start the poll loop from current cursors — called on launch and after each wake-process cycle
@@ -18,8 +19,8 @@ deps clock        : sleep/timer    # injected poll timer (interval seconds)
 deps fs           : file reader    # read inbox/feedback line counts + cursor files
 deps stateRead    : function       # read state.json.standby (SSoT for standby on/off)
 @behavior
-arm              : read inboxCursor (cursorFile) + feedbackCursor; log armed(inbox, cursor, agentId, interval, maxTicks); enter poll loop.
-pollTick         : every `interval`s — read inbox total lines (it), feedback total (ft), standby (sb). (1) ft>feedbackCursor OR sb!=true → wake("feedback/standby"). (2) it>inboxCursor → meaningful(inboxCursor)? wake("action") : absorb (inboxCursor=it, no wake). Else continue until maxTicks → re-arm timeout (exit 0, agent re-arms).
+arm              : **derive `feedback` from `inbox`** when not explicitly provided (board layout pattern `<board>/_board/agents/<id>/inbox.jsonl` → `<board>/_board/feedback.jsonl`); read inboxCursor (cursorFile) + feedbackCursor; log `armed(inbox, cursor, agentId, interval, maxTicks, feedback)` — and if `feedback` is null after derivation, append `[WARN] feedback=null — board feedback events will NOT wake this watcher` on the same line (single log line, hard to miss). Enter poll loop. **Silent-disable principle**: any optional input that, when null, disables a wake-trigger MUST emit a WARN here, never silently.
+pollTick         : every `interval`s — read inbox total lines (it), **feedback total (ft) only if `feedback` set, else 0** (the WARN was already surfaced in arm()), standby (sb). (1) **(feedback set AND ft>feedbackCursor)** OR sb!=true → wake("feedback/standby"). (2) it>inboxCursor → meaningful(inboxCursor)? wake("action") : absorb (inboxCursor=it, no wake). Else continue until maxTicks → re-arm timeout (exit 0, agent re-arms).
 meaningful(from) : scan inbox lines from cursor; true if any line's name/type is NOT in the noise blocklist = {ServerNotice, AgentList, Status, ConnectionRestored, Heartbeat, Typing, UserPromptAccepted, PersistentAdapterSmoke, OnboardAck, WorkerInboxReceived, EditMessage}. (blocklist, not allowlist — unknown names wake.)
 postWakeContract : the woken agent MUST process new entries, set inboxCursor = current total, then call arm() again. Skipping re-arm = monitoring stops (real incident: missed delegate). Confirm re-arm every turn before ending.
 @machine
@@ -31,5 +32,6 @@ dispatch by event:
   feedback_or_standby_off : WATCHING → WOKEN (entry: wake("feedback/standby"), exit process)
   timeout          : WATCHING → REARM    (entry: log re-arm, exit 0 — agent re-arms next turn)
 derive:
-  routed     ← inbox is already a per-agent routed queue; no targetAgentId re-filter needed here
-  rearm_duty ← woken agent re-arms arm() after processing (infinite-wait invariant: never stop watching while joined)
+  routed         ← inbox is already a per-agent routed queue; no targetAgentId re-filter needed here
+  rearm_duty     ← woken agent re-arms arm() after processing (infinite-wait invariant: never stop watching while joined)
+  silent_disable ← any optional input that, when null, disables a wake-trigger MUST emit a WARN where it's resolved to null (see arm() WARN on feedback=null) — never silent. Symmetric to the watch-state invariant: an alive-but-deaf watcher is as bad as no watcher (a real incident: a downstream went dark for 4h because `WS_FEEDBACK` was missing and the armed log gave no signal).
