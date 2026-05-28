@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 마스터 시드 프롬프트 (한국어)
 
-<!-- seed-tier: Master; language: Korean; version: v2.1.0; date: 2026-05-28; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Master; language: Korean; version: v2.1.1; date: 2026-05-28; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **사용법**: 새 프로젝트를 시작할 때 이 파일 전체를 복사해 선택한 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등 어느 것이든)의 첫 대화 입력으로 붙여넣으세요. 이 프롬프트를 읽은 에이전트는 **대화형 부트스트랩 세션**을 시작해 프로젝트 셋업을 단계적으로 안내합니다.
 >
@@ -2299,7 +2299,7 @@ Constellation 은 이 repo 에 별도 모듈로 ship — **자족적**(md + `.eu
 
 - **`Constellation.md`** — 전체 가이드: 프로토콜(role/키/핸드오프/모니터), 셋업 체크리스트, 브릿지/watcher/watchdog 운영.
 - **`constellation/*.eux`** — 라이브보드 컴포넌트(채널 입력·conn bar·tabs·tool card·fab badge·collab invite)의 러프 티어 증류본, 유연한 brew 출발점.
-- raw URL 참조 — 최신(`main`): `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; 재현성은 tag 핀(`…/v2.1.0/Constellation.md`).
-- **brew 런타임**: `.eux` 는 EstreUX(`https://github.com/SoliEstre/EstreUX`, Apache-2.0, clone-and-run — 참조이며 비번들)로 brew. brew CLI 는 Constellation.md §6 참조.
+- raw URL 참조 — 최신(`main`): `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; 재현성은 tag 핀(`…/v2.1.1/Constellation.md`).
+- **brew 런타임**: EstreUX(`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0 — 참조이며 비번들). deps-0 엔진 경량 fetch: `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0`. brew/drift 명령은 Constellation.md §6 참조.
 
 > **목표**: Constellation 은 공개 EstreGenesis Claude 플러그인으로 성숙해 감. 그전까진 2.0 포함 모듈; 라이브보드 프로토콜(v0.3)은 `Constellation.md` 본문에 증류(자족).

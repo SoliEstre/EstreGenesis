@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Seed Prompt — Lite
 
-<!-- seed-tier: Lite; language: English; version: v2.1.0; date: 2026-05-28; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Lite; language: English; version: v2.1.1; date: 2026-05-28; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **How to use**: Copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent will run an **interactive bootstrap session** (or a **migration session** if your project already exists — see § Migration Guides).
 >
@@ -649,7 +649,7 @@ Wall-clock without label · single-number override extending to research tasks �
 
 **A2A bridge interface (the invariant)**: roles `board`/`main`(orchestrator, target-unspecified receiver)/`local`(workers)/`upstream`(`uk-` key)/`collab`(`ck-` key + join URL). Handshake: WS → `SERVER_HELLO` → `HELLO{agentId,role}` → A2A `AgentHello{targetAgentId:main}` → `OnboardAck` → wait `Delegate`. Workers report via `WorkerReport`; board SSoT = main. Turn-based agents (Claude Code): bridge daemon (file IO inbox/outbox) + self-wake watcher; detached residency required.
 
-**Setup (referenced, self-sufficient)**: `Constellation.md` (full protocol distilled inline + setup) + `constellation/*.eux` (component specs). Raw URL: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md` (latest; pin a tag for reproducibility). Brew runtime = EstreUX (`https://github.com/SoliEstre/EstreUX`, Apache-2.0, clone-and-run; referenced, not bundled). Goal: matures toward a published EstreGenesis Claude plugin.
+**Setup (referenced, self-sufficient)**: `Constellation.md` (full protocol distilled inline + setup) + `constellation/*.eux` (component specs). Raw URL: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md` (latest; pin a tag for reproducibility). Brew runtime = EstreUX (`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0; referenced, not bundled — fetch the deps-0 engine via `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0`). Goal: matures toward a published EstreGenesis Claude plugin.
 
 ---
 

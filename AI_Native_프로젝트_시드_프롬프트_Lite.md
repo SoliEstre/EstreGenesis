@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v2.1.0; date: 2026-05-28; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Lite; language: Korean; version: v2.1.1; date: 2026-05-28; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -649,7 +649,7 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 
 **A2A 브릿지 인터페이스 (불변부)**: role `board`/`main`(오케스트레이터, 타깃 미지정 수신)/`local`(워커)/`upstream`(`uk-` 키)/`collab`(`ck-` 키 + join URL). 핸드셰이크: WS → `SERVER_HELLO` → `HELLO{agentId,role}` → A2A `AgentHello{targetAgentId:main}` → `OnboardAck` → `Delegate` 대기. 워커는 `WorkerReport` 로 보고; 보드 SSoT=메인. turn 기반 에이전트(Claude Code): 브릿지 데몬(파일 IO inbox/outbox) + self-wake watcher; detached 상주 필수.
 
-**셋업 (참조, 자족적)**: `Constellation.md`(프로토콜 전체 본문 증류 + 셋업) + `constellation/*.eux`(컴포넌트 spec). raw URL: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md` (최신; 재현성은 tag 핀). brew 런타임 = EstreUX(`https://github.com/SoliEstre/EstreUX`, Apache-2.0, clone-and-run; 참조이며 비번들). 목표: 공개 EstreGenesis Claude 플러그인으로 성숙.
+**셋업 (참조, 자족적)**: `Constellation.md`(프로토콜 전체 본문 증류 + 셋업) + `constellation/*.eux`(컴포넌트 spec). raw URL: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md` (최신; 재현성은 tag 핀). brew 런타임 = EstreUX(`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0; 참조이며 비번들 — deps-0 엔진은 `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0` 로 경량 fetch). 목표: 공개 EstreGenesis Claude 플러그인으로 성숙.
 
 ---
 

@@ -1,4 +1,4 @@
-<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.0; version: v2.1.0; date: 2026-05-28; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
+<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.0; version: v2.1.1; date: 2026-05-28; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
 
 # Constellation — Live Multi-Agent Orchestration
 
@@ -137,7 +137,7 @@ Constellation's runtime is **distilled to `.eux` specs in `constellation/`** —
 - **`constellation/ws-{channel-input,conn-bar,tabs,tool-card,fab-badge,collab-invite}.eux`** — distilled specs of the live-board dashboard components. Brew or re-distill per your stack.
 
 **Authoring runtime:**
-- **EstreUX (the brew runtime)** — these `.eux` specs are authored and brewed with [EstreUX](https://github.com/SoliEstre/EstreUX), a separate Apache-2.0 runtime (a **clone-and-run** repo, not an npm package). EstreGenesis **references** the EUX format and tooling for building Constellation's components; it does not bundle, own, or teach the EUX format. **To brew a component**: clone EstreUX, then `node bin/estreux.mjs brew <comp>.eux` (provider `agent` — the requesting agent brews it directly, no API key) → fill the `@agent-brew` stub keeping the provenance header → `node bin/estreux.mjs drift <comp>.eux` to verify the roundtrip. Format SSoT = EstreUX `docs/eux-format-v0.md`; brew/distill/drift = EstreUX `BREW.md`. The deps-0 reference WS client is the public `constellation/gateway-client.eux` (+ `local-bridge.eux`) — not a private file.
+- **EstreUX (the brew runtime)** — these `.eux` specs are authored and brewed with [EstreUX](https://github.com/SoliEstre/EstreUX) (v0.1.0), a separate Apache-2.0 runtime. EstreGenesis **references** the EUX format and tooling for building Constellation's components; it does not bundle, own, or teach the EUX format. **To get the brew engine** (deps-0, ~21KB — no full clone or `.git` needed): `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0 ./estreux-engine`, then brew with `node ./estreux-engine/expand.mjs brew <comp>.eux` (provider `agent` — the requesting agent brews it directly, no API key) → fill the `@agent-brew` stub keeping the provenance header → `node ./estreux-engine/drift-check.mjs <comp>.eux` to verify the roundtrip. (Full-clone alternative: `node bin/estreux.mjs brew|drift <comp>.eux`. An npm `estreux` package is publish-ready, pending release → then `npx estreux brew`.) Format SSoT = EstreUX `docs/eux-format-v0.md`; brew/distill/drift = EstreUX `BREW.md`. The deps-0 reference WS client is the public `constellation/gateway-client.eux` (+ `local-bridge.eux`) — not a private file.
 
 **Protocol provenance:**
 - The live-board protocol (v0.3) is distilled **inline** in this guide and in the `.eux` specs — this guide replaces the need to fetch any upstream protocol doc. The canonical protocol is maintained upstream; Constellation tracks it and is its public distillation.
@@ -147,7 +147,7 @@ Reference from a seed via raw URL — latest on `main`:
 https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md
 https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/constellation/<component>.eux
 ```
-Pin a tag (`…/v2.1.0/…`) for reproducibility.
+Pin a tag (`…/v2.1.1/…`) for reproducibility.
 
 ---
 
