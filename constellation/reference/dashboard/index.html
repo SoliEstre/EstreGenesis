@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<!-- Constellation reference dashboard — vanilla DOM master copy (v2.2.0 design draft)
+   Part of EstreGenesis 2.2 (reference master copy).
+   Generalized from a private PM-board dashboard implementation.
+   The §2 A2A bridge interface (Constellation.md) is the only invariant; the rest may be re-skinned per stack. -->
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Constellation 라이브 보드</title>
+<script>
+// 테마 플래시 방지 — CSS/앱 로드 전에 즉시 적용
+(function () {
+  try {
+    var pref = localStorage.getItem('constellation-theme-pref') || 'auto';
+    var dark = pref === 'dark' || (pref === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+})();
+</script>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span> Constellation<span class="brand-sub"> 라이브 보드</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">대시보드</button>
+      <button class="tab" data-tab="decisions">검토 사안 <span id="decisions-badge" class="pill">0</span></button>
+    </nav>
+    <div class="filters-wrap">
+      <button class="fnav fnav-l" type="button" aria-label="필터 이전" hidden>‹</button>
+      <div class="filters" id="filters" title="Ctrl+클릭으로 다중 선택"></div>
+      <button class="fnav fnav-r" type="button" aria-label="필터 다음" hidden>›</button>
+    </div>
+    <div class="status">
+      <div class="status-line"><button id="standby-toggle" class="standby-btn" type="button" hidden></button><span id="conn" class="conn">연결 중…</span></div>
+      <span id="updated" class="updated"></span>
+    </div>
+    <button id="theme-btn" class="theme-btn" type="button" aria-label="테마 전환"></button>
+  </header>
+
+  <main>
+    <!-- 대시보드 탭 — 3구역 미션 컨트롤 (위 완료 / 중앙 고정 현재 / 아래 예정) -->
+    <section id="tab-dashboard" class="tabpane active">
+      <div class="flow">
+        <div class="zone zone-done">
+          <h2 class="zone-h">완료 내역 <span class="muted">최신 ↓ (현재 작업에 인접)</span></h2>
+          <div id="done" class="cards"></div>
+        </div>
+
+        <div id="home-marker" aria-hidden="true"></div>
+        <div class="zone zone-current" id="current-anchor">
+          <div class="zone-label cur">현재 작업 <span class="muted">스크롤해도 상/하단에 고정</span></div>
+          <div id="current"></div>
+        </div>
+
+        <div class="zone zone-planned">
+          <h2 class="zone-h">예정 작업 <span class="muted">우선순위 ↑ · 드래그/화살표로 조정</span></h2>
+          <div id="planned" class="cards"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 분할 뷰 분리선 (split 모드에서만 표시) -->
+    <div class="pane-divider" id="pane-divider" hidden role="separator" aria-orientation="vertical" title="드래그하여 좌우 비율 조절 · 더블클릭 50:50">
+      <span class="pd-grip"></span>
+    </div>
+
+    <!-- 검토 사안 탭 -->
+    <section id="tab-decisions" class="tabpane">
+      <div class="zone">
+        <h2 class="zone-h">검토·결정 필요 <span class="muted">우선순위순 · 피드백은 검토 시점까지 수정 가능</span></h2>
+        <div class="dcard dfree" id="free-req-card">
+          <div class="row"><span class="q">✍️ 자유 추가 요청</span></div>
+          <div class="ddetail">검토 사안과 무관한 요청도 여기에 — 에이전트가 채팅 프롬프트처럼 처리합니다. <span class="att-hint">📎 붙여넣기·드래그·첨부 버튼으로 이미지·코드·파일 첨부</span></div>
+          <textarea id="free-req" placeholder="무엇이든 요청을 입력… (이미지·파일 붙여넣기/드롭 가능)"></textarea>
+          <div class="att-list" id="free-req-atts" hidden></div>
+          <div class="dsubmit"><button id="free-req-send" type="button">요청 전송</button><button id="free-req-attach" class="attach-btn" type="button">📎 첨부</button><span class="saved" id="free-req-saved"></span></div>
+          <input type="file" id="free-req-file" multiple hidden />
+        </div>
+        <div id="decisions" class="cards"></div>
+      </div>
+    </section>
+  </main>
+
+  <button id="home-btn" class="home-btn" type="button" title="현재 작업으로"></button>
+  <button id="home-btn-dec" class="home-btn home-btn-dec" type="button" title="검토사안 맨 위 · 자유 요청 입력" hidden></button>
+
+  <!-- WS 실시간 채널 (작업 중 프롬프트 주입) — 우하단 플로팅 토글 + 팝업 -->
+  <button id="ws-fab" class="ws-fab" type="button" title="실시간 패널 토글">💬<span id="ws-badge" class="ws-fab-badge" hidden>0</span></button>
+  <div id="ws-pop" class="ws-pop" hidden>
+    <div class="ws-pop-head" id="ws-pop-head">
+      <span class="ws-pop-dot" id="ws-head-dot"></span><b>실시간</b><span class="ws-pop-meta" id="ws-pop-meta"></span>
+      <span class="grow"></span><span class="ws-arch-wrap"><button class="ws-arch-btn" id="ws-arch-btn" type="button" title="닫은 세션 — 클릭해 복원" hidden>🗂 0</button><div class="ws-arch-menu" id="ws-arch-menu" hidden></div></span><span class="ws-pop-close" id="ws-pop-close" title="닫기">✕</span>
+    </div>
+    <div class="ws-tabs" id="ws-tabs" role="tablist"></div>
+    <div class="ws-pop-body">
+      <div class="ws-conn" id="ws-conn"><span class="ws-dot2" id="ws-conn-dot"></span><b id="ws-agent">에이전트</b><span id="ws-conn-text">대기 중</span><span class="ws-meta" id="ws-seq"></span></div>
+      <div class="ws-h">실시간 스트림 <span class="muted">agent → 보드, AG-UI 이벤트</span><span class="grow"></span><button class="ws-dbg-btn" id="ws-dbg-btn" type="button" title="raw 이벤트 (개발자 debug drawer)">🐞 raw</button></div>
+      <div class="ws-chan-filter" id="ws-chan-filter" role="tablist" hidden></div>
+      <div class="ws-stream" id="ws-stream"><div class="ws-empty">아직 수신한 이벤트가 없어요. 에이전트가 연결되면 여기에 표시됩니다.</div></div>
+      <div class="ws-debug" id="ws-debug" hidden><div class="ws-empty">raw 이벤트 없음</div></div>
+      <div class="ws-input">
+        <div class="ws-h">작업 중 프롬프트 주입 <span class="muted">· Ctrl+Enter · 📎 첨부·드롭·붙여넣기</span></div>
+        <div id="ws-text-stack" class="ws-text-stack"></div>
+        <div class="att-list" id="ws-atts" hidden></div>
+        <div class="ws-actions">
+          <button class="send" id="ws-send" type="button">전송</button>
+          <button id="ws-attach" type="button" title="첨부">📎</button>
+          <button id="ws-pause" type="button">⏸ pause</button>
+          <button id="ws-resume" type="button">▶ resume</button>
+          <button class="cancel" id="ws-cancel" type="button">⏹ stop</button>
+        </div>
+        <input type="file" id="ws-file" multiple hidden />
+      </div>
+    </div>
+    <!-- 8방향 리사이즈 핸들 (모든 면·모서리) -->
+    <div class="ws-rsz n"  data-dir="n"></div><div class="ws-rsz s"  data-dir="s"></div>
+    <div class="ws-rsz e"  data-dir="e"></div><div class="ws-rsz w"  data-dir="w"></div>
+    <div class="ws-rsz ne" data-dir="ne"></div><div class="ws-rsz nw" data-dir="nw"></div>
+    <div class="ws-rsz se" data-dir="se"></div><div class="ws-rsz sw" data-dir="sw"></div>
+  </div>
+
+  <dialog id="att-dialog" class="att-dialog">
+    <div class="att-head">
+      <span class="att-title" id="att-title"></span>
+      <span class="att-actions">
+        <button id="att-newtab" type="button" class="att-btn">⤢ 새 탭</button>
+        <button id="att-close" type="button" class="att-btn" aria-label="닫기">✕</button>
+      </span>
+    </div>
+    <div class="att-body" id="att-body"></div>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.0; version: v2.1.1; date: 2026-05-28; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
+<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.0; version: v2.2.0; date: 2026-05-28; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
 
 # Constellation — Live Multi-Agent Orchestration
 
@@ -142,12 +142,21 @@ Constellation's runtime is **distilled to `.eux` specs in `constellation/`** —
 **Protocol provenance:**
 - The live-board protocol (v0.3) is distilled **inline** in this guide and in the `.eux` specs — this guide replaces the need to fetch any upstream protocol doc. The canonical protocol is maintained upstream; Constellation tracks it and is its public distillation.
 
+**Reference master copies (`constellation/reference/`, v2.2.0+, optional):**
+For downstreams that want a fully-working baseline alongside the rough/detail `.eux` spec, v2.2.0 introduces a `reference/` folder with concrete master copies:
+- **`constellation/reference/state-schema.md`** — the board SSoT data model (`state.json` top-level + task tracks `current/done/planned` + decisions panel + free request + per-channel history + keys + feedback), with the generic-PM vs domain-specific boundary called out so downstreams know what's a slot vs what's a contract.
+- **`constellation/reference/dashboard/`** — a vanilla DOM master copy of the live dashboard (`index.html` · `style.css` · `app.js`), generalized from a working private implementation. Renders `state.json` per the schema; copy and re-skin per stack.
+- **`constellation/reference/gateway/`** _(planned, post-v2.2.0)_ — a deps-0 reference WS adapter (the public companion to `gateway-client.eux`).
+- **`constellation/reference/runtime/`** _(planned, post-v2.2.0)_ — source masters of the four runtime components (server · local-bridge · self-wake-watcher · watchdog), paired with their v2.1.0 `.eux` distillations.
+
+These are **reference copies, not contracts** — only §2 stays byte-identical. Re-distill / brew / re-skin per project. Drift is managed by periodic re-distillation (v2.2.x patches).
+
 Reference from a seed via raw URL — latest on `main`:
 ```
 https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md
 https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/constellation/<component>.eux
 ```
-Pin a tag (`…/v2.1.1/…`) for reproducibility.
+Pin a tag (`…/v2.2.0/…`) for reproducibility.
 
 ---
 

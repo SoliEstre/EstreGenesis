@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Master Seed Prompt (English)
 
-<!-- seed-tier: Master; language: English; version: v2.1.1; date: 2026-05-28; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Master; language: English; version: v2.2.0; date: 2026-05-28; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **How to use**: When starting a new project, copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent that reads this prompt will start an **interactive bootstrap session** that guides your project setup step by step.
 >
@@ -2296,7 +2296,7 @@ Constellation ships as a separate module in this repo — **self-sufficient** (m
 
 - **`Constellation.md`** — full guide: protocol (roles/keys/handoff/monitors), setup checklist, bridge/watcher/watchdog operation.
 - **`constellation/*.eux`** — rough-tier distilled specs of the live-board components (channel input, conn bar, tabs, tool card, fab badge, collab invite) as flexible brew starting points.
-- Reference via raw URL — latest on `main`: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; pin a tag (`…/v2.1.1/Constellation.md`) for reproducibility.
+- Reference via raw URL — latest on `main`: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; pin a tag (`…/v2.2.0/Constellation.md`) for reproducibility.
 - **Brew runtime**: EstreUX (`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0 — referenced, not bundled). Fetch the deps-0 engine without a full clone: `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0`. See Constellation.md §6 for the brew/drift commands.
 
 > **Goal**: Constellation matures toward a published EstreGenesis Claude plugin. Until then it is a 2.0-included module; the live-board protocol (v0.3) is distilled inline in `Constellation.md` (self-sufficient).
