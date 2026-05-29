@@ -1564,7 +1564,7 @@ function onWsEvent(m) {
   }
   const agentId = m.agentId; if (!agentId) return;       // agent outbound 는 agentId 필수
   // A2A: 에이전트가 다른 에이전트에게 보낸 메시지(targetAgentId=타 agent) → 모니터 채널로 분리.
-  // ── source-stamp 죽은 조건 회피(MangoTalk Report 2 Finding 1): server.cjs 의 wsToBoards 는 frame 에 source role 을
+  // ── source-stamp 죽은 조건 회피(upstream Report 2 Finding 1): server.cjs 의 wsToBoards 는 frame 에 source role 을
   //    stamp 하지 않으므로 기존 `m.source === 'agent'` 조건은 항상 false → A2A 영구 미분류였음.
   //    agentId(발신) + targetAgentId(수신) 만으로 판정하고, malformed sender(=value.targetAgentId 중첩, Finding 2 케이스)도 tolerate.
   const _a2aTgt = m.targetAgentId || (m.value && m.value.targetAgentId) || null;

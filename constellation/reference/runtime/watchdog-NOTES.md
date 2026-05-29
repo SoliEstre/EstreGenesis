@@ -1,8 +1,8 @@
 # watchdog.cjs — NOTES
 
-> _참고: 본 NOTES 는 일반화 검증용 grep target 으로 upstream-환경-특수 키워드(`EstreUF`·`MangoTalk`·`SoliEstre` 등)를 메타 언급한다. 검증 trace 목적이지 코드 누출 아님 — 실제 코드 파일은 해당 패턴 0건._
+> _참고: 본 NOTES 는 upstream-환경-특수 키워드 검증 grep을 통과한 결과(검증 trace는 별도 비공개 보관 — 공개 배포물에 환경-특수 토큰 inline 금지)._
 
-Constellation `reference/runtime/` 일반화 산출물. 원본은 EstreUF common workspace 의 `dashboard/live/ws-watchdog.cjs` (v2.2.x).
+Constellation `reference/runtime/` 일반화 산출물. 원본은 upstream common workspace의 watchdog 모듈 (v2.2.x equivalent).
 
 ## §1 역할
 
@@ -13,19 +13,19 @@ Live Board 의 **인프라 liveness 보장 계층**. 두 가지 데몬을 감시
 
 감시 경로는 **이벤트(WS push) + 백업 타이머(15초 TCP probe)** 병행이다. 이벤트가 1차 — 서버는 클라이언트 연결·해제 변화 시 `AgentList` 를 자발 push 하므로 watchdog 이 능동 polling 할 필요가 없다. 타이머는 이벤트 경로가 통째로 누락된 (예: WS 연결 자체가 실패) 상황 대비 백업.
 
-## §2 일반화 범위 (EstreUF-특수 grep)
+## §2 일반화 범위 (upstream-환경-특수 grep)
 
-원본 grep 패턴: `EstreUF|estreuf|SoliEstre|MangoTalk|EstreUI|EstreUV|Estrelle|mpsolutions|허브`.
+원본 grep 패턴: upstream-환경-특수 키워드 (비공개 보관).
 
 | 위치 | 원본 | 일반화 |
 |---|---|---|
-| 헤더 doc | `EstreUF\\EstreUF common workspace\\dashboard\\live` 경로 | `<runtime dir absolute path>` 플레이스홀더 |
+| 헤더 doc | `<upstream-specific path>\dashboard\live` 경로 | `<runtime dir absolute path>` 플레이스홀더 |
 | 작업 스케줄러 태스크 이름 | `EstreLiveBoardWatchdog` | `ConstellationWatchdog` |
 | 메인 agentId 기본값 | `local-ide-agent` (env `WS_PRIMARY_AGENT`) | `main-agent` (env `MAIN_ID`) — gateway/main 의 `WS_LOCAL='main-agent'` 패턴 정합 |
 | 브릿지 경로 기본값 | `<DIR>/examples/ws-local-bridge.cjs` | `<DIR>/local-bridge.cjs` (env `BRIDGE_PATH`) — runtime/ 평탄 레이아웃 정합 |
 | 로그 파일명 | `ws-watchdog.log` | `watchdog.log` (env `LOG_PATH`) |
 
-EstreUF-특수 어휘는 더 이상 코드/주석에 없음. `local-ide-agent` 는 generic 한 `main-agent` 로 정정 (요구사항 #3 의 "WS_LOCAL='main-agent' 패턴 참고" 반영).
+upstream-특수 어휘는 더 이상 코드/주석에 없음. `local-ide-agent` 는 generic 한 `main-agent` 로 정정 (요구사항 #3 의 "WS_LOCAL='main-agent' 패턴 참고" 반영).
 
 ## §3 통합 원칙 5건 반영
 

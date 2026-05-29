@@ -223,12 +223,12 @@ The first real-world Stage 1 application is recorded here as the seed of empiric
 
 This first entry validates the §2 / §3 / §7 design at issue_width=3 with no speculation; it gives no signal yet on §4 speculation behavior or the §5 `< 60% accuracy` threshold (no speculative lanes were dispatched). Stage 2 / 3 work should aim to start collecting that signal.
 
-### Entry 02 — 2026-05-29 · MangoTalk Report 2 fixes (cost-benefit gate selects *inline*)
+### Entry 02 — 2026-05-29 · upstream live-board Report 2 fixes (cost-benefit gate selects *inline*)
 
 - **Scope**: 3-Finding patches (Constellation.md §2 AgentHello wire-shape literal · `self-wake-watcher.eux` cursor unit + self-heal · `reference/dashboard/app.js` A2A classifier).
 - **Cost-benefit gate (§3) evaluation**: 3 candidate lanes — each Edit was on a *disjoint* file (P3a / P3b / P3c, MAST FM-1.3/1.5/2.6 trivially satisfied by file split). Estimated lane sizes: P3a ~3k · P3b ~3k · P3c ~2k = total ≈ 8k. Estimated lane-spawn + manifest + retire overhead ≈ 2-3k each = ≈ 6-9k. → **Spawn overhead ≈ parallel benefit**; per §3 ("only spin up an isolated lane when isolation+merge overhead < expected parallel/early-start benefit"), the gate selected **`issue_width = 1` (inline in-order)** despite the disjoint-file pre-condition.
 - **Dispatch**: inline in P3a → P3c → P3b order (no DAG edge between them — declared order was arbitrary).
-- **Speculation**: off (all three Findings were already-decided fixes with verified MangoTalk shim code).
+- **Speculation**: off (all three Findings were already-decided fixes with verified upstream shim code).
 - **Wall-clock**: ≈ 5 min inline (P1 fetch ~30s · P2 review 1m · P3 three Edits ~3m · P4 relay ~30s). Theoretical 3-lane parallel: ≈ 4-5 min after the overhead. **Gate decision was correct** — parallel would have saved < 1 min net.
 - **Tokens** (approximate, per-phase): P1 fetch ~3k · P2 Read artifacts ~6k · P3 Edits ~6k · P4 relay ~2k → ≈ 17k total, **comfortably under** the §3 single-lane cap (50k) and aggregated cap (200k).
 - **MAST guards**: FM-1.3 / FM-1.5 / FM-2.6 — N/A (single lane); the disjoint-file property held *as a property of the work*, not of the dispatch.

@@ -1,6 +1,6 @@
 # server.cjs — Constellation reference runtime
 
-> _참고: 본 NOTES 는 일반화 검증용 grep target 으로 upstream-환경-특수 키워드(`EstreUF`·`MangoTalk`·`SoliEstre` 등)를 메타 언급한다. 검증 trace 목적이지 코드 누출 아님 — 실제 코드 파일은 해당 패턴 0건._
+> _참고: 본 NOTES 는 upstream-환경-특수 키워드 검증 grep을 통과한 결과(검증 trace는 별도 비공개 보관 — 공개 배포물에 환경-특수 토큰 inline 금지)._
 
 > deps-0 HTTP + WS 라우터 1파일. 라이브 대시보드의 핵심 거점. Node 표준 모듈만 사용(`http`/`fs`/`path`/`crypto`).
 > 동봉 `ws-core.cjs` 가 raw WS 프레이밍을 담당 (이 파일은 그 위의 라우팅·에이전트 레지스트리·기록 계층).
@@ -25,20 +25,20 @@ WS 채널 책임:
 - History — active(메모리·full) / cold(stub) / archived(`ws-history/archived/` cold 파일) 3계층
 - 메인 graceful handoff — `SetMain` → `HandoffRequested` → `HandoffReady` / 10s 타임아웃 → `commitMain`
 
-## §2 일반화 범위 (EstreUF-특수 grep 결과 · 정정 내역)
+## §2 일반화 범위 (upstream-특수 grep 결과 · 정정 내역)
 
-원본 grep 대상: `EstreUF` · `estreuf` · `SoliEstre` · `MangoTalk` · `EstreUI` · `EstreUV` · `Estrelle` · `mpsolutions` · `허브` · `EstreUX` · `local-ide-agent`.
+원본 grep 대상: upstream-환경-특수 키워드 (비공개 보관).
 
 | 위치 | 원본 | generic 화 |
 | --- | --- | --- |
 | header 주석 | `Live Dashboard server` | `Constellation Live Dashboard server` + 통합 원칙 5건 명시 |
 | INTEGRATION_DOCS `/BREW.md` | `path.join('..','..','..','EstreUX','BREW.md')` (외부 sibling 참조) | `'BREW.md'` (이 디렉토리 동봉 — 다운스트림이 자기 위치에서 제공) |
 | `WS_PRIMARY_ID` 기본값 | `'local-ide-agent'` | `'main-agent'` — gateway/main 의 `WS_LOCAL='main-agent'` 정정과 일관 |
-| `wsCollabOnboardMd` md 본문 | `EstreUF 라이브보드` ×2 · 메인 하드코딩 `local-ide-agent` | `Constellation 라이브보드` ×2 · 메인은 `${WS_PRIMARY_ID}` 로 동적 |
+| `wsCollabOnboardMd` md 본문 | `upstream 라이브보드` ×2 · 메인 하드코딩 `local-ide-agent` | `Constellation 라이브보드` ×2 · 메인은 `${WS_PRIMARY_ID}` 로 동적 |
 | 부팅 로그 | `Live dashboard → …` | `Constellation live dashboard → …` |
-| `#168/시드2.0: EstreGenesis·업스트림 증류` 주석 | EstreUF 내부 이슈 번호 노출 | "증류 자료 (대표 .eux + brew 가이드)" 로 generic 화 |
+| `#168/시드2.0: EstreGenesis·업스트림 증류` 주석 | upstream 내부 이슈 번호 노출 | "증류 자료 (대표 .eux + brew 가이드)" 로 generic 화 |
 
-정정 후 `EstreUF|estreuf|SoliEstre|MangoTalk|EstreUI|EstreUV|Estrelle|mpsolutions|허브|EstreUX|local-ide-agent` grep **0건**, `node --check` SYNTAX_OK.
+정정 후 upstream-환경-특수 키워드 grep **0건**, `node --check` SYNTAX_OK.
 
 > 보존된 식별자: `Constellation`(컨스텔레이션 자체 브랜드, 사용자 지시), `EstreGenesis` 는 다운스트림 운영 노트(§5)에서만 1회 (이 reference 런타임이 그쪽으로 distill 되는 흐름 설명용).
 
@@ -74,7 +74,7 @@ WS 채널 책임:
 
 ## §4-bis A2A ack 계층 (WS-PROTOCOL §13.13)
 
-> 본 절은 메인 라이브보드 production(SoliEstre/MangoTalk-ProductionMaster) 에서 도입 중인 *송달 3등급 + msgId dedup + liveness probe* 명세를 EG reference 로 spec reflect 한 것. 현 `server.cjs` 코드 본문은 아직 미반영(자연 보강 후보) — invariant 만 먼저 박제하고, 구현 PR 시 §6 차이표(미반영 → 반영) 갱신.
+> 본 절은 upstream 라이브보드 production(private orchestration repo) 에서 도입 중인 *송달 3등급 + msgId dedup + liveness probe* 명세를 EG reference 로 spec reflect 한 것. 현 `server.cjs` 코드 본문은 아직 미반영(자연 보강 후보) — invariant 만 먼저 박제하고, 구현 PR 시 §6 차이표(미반영 → 반영) 갱신.
 
 ### 송달 3등급 — 책임 분리
 
@@ -175,11 +175,11 @@ RFC6455 의 `0x9` PING / `0xA` PONG 컨트롤 프레임은 transport keepalive (
 
 ### 시드 증류 흐름 (참고)
 
-이 server.cjs 는 EstreUF 라이브보드 원본(`dashboard/live/server.cjs`)에서 일반화돼 Constellation reference runtime 에 안착. 향후 EstreGenesis 가 이 reference 를 시드 2.0 의 라이브보드 런타임 거점으로 증류, 다운스트림은 그 시드로 자기 워크스페이스에 brew.
+이 server.cjs 는 upstream 라이브보드 원본(`dashboard/live/server.cjs`)에서 일반화돼 Constellation reference runtime 에 안착. 향후 EstreGenesis 가 이 reference 를 시드 2.0 의 라이브보드 런타임 거점으로 증류, 다운스트림은 그 시드로 자기 워크스페이스에 brew.
 
 ## §6 메인 production 과 의도적 차이 (ack 계층 spec 시점)
 
-| 항목 | 메인 production (`SoliEstre/MangoTalk-ProductionMaster` `constellation/dist/vanilla/live-board-server.js` master 기준 2026-05-29) | EG reference (`server.cjs` + 본 NOTES §4-bis) | 정합 상태 |
+| 항목 | upstream production (private orchestration repo, `constellation/dist/vanilla/live-board-server.js` equiv. 2026-05-29) | EG reference (`server.cjs` + 본 NOTES §4-bis) | 정합 상태 |
 | --- | --- | --- | --- |
 | §13.13 ack 계층 spec | dist/vanilla 본문 **미반영** — `delivered` 토큰은 routing 결과 flag 로만 사용(line 833·841·862·873·881), `wsIsAckable`/`msgId`/`AckProcessed` 부재 | NOTES §4-bis 에 invariant 박제(spec reflection). 코드 본문 정정은 메인 production 패치 도착 후 자연 보강 | spec先·code 後 (계획) |
 | msgId 형식 | (미반영, code 後 보강) | **표준 = `m-{base36ts}-{seq}`** — Node bridge 실구현 (`'m-' + Date.now().toString(36) + '-' + (++seq)`). Hermes Python 어댑터는 stack 관용 `f'm-{uuid.uuid4().hex[:12]}'` 도 허용(Node 표준이 SSoT) | **DECIDED 2026-05-29** (DELTA seq 13) |

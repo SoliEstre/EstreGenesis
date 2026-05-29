@@ -1,6 +1,6 @@
 # Constellation Gateway Client (Main Reference Implementation)
 
-이 디렉토리는 **Constellation v2.2.x reference/gateway/main/** 트랙을 위한 *generic deps-0 Node 자율 런타임 어댑터* 의 참조 구현입니다. 허브의 운영 중인 `ws-agent-client.cjs`(WS-PROTOCOL §13.11 의 deps-0 reference clent) 를 그대로 옮기되, host-side 통합 원칙(echoHeader 헬퍼·telemetry 제외·silent-disable WARN·2축 분담)을 보강했습니다.
+이 디렉토리는 **Constellation v2.2.x reference/gateway/main/** 트랙을 위한 *generic deps-0 Node 자율 런타임 어댑터* 의 참조 구현입니다. upstream 운영 중인 `ws-agent-client.cjs`(WS-PROTOCOL §13.11 의 deps-0 reference clent) 를 그대로 옮기되, host-side 통합 원칙(echoHeader 헬퍼·telemetry 제외·silent-disable WARN·2축 분담)을 보강했습니다.
 
 `gateway/hermes/`(Python asyncio 자율 런타임 결합 케이스) 와 **두 시각 공존** 구조 — 다운스트림이 자기 stack 에 맞게 *generic 골격*(여기) 또는 *실 결합 사례*(hermes) 를 골라 참조합니다.
 
@@ -15,7 +15,7 @@
 
 ## 2. 🔍 일반화 범위 (Generalization Boundary)
 
-원본은 허브의 운영 중 `dashboard/live/examples/ws-agent-client.cjs` 입니다. **EstreUF-특수 어휘 누출 0건** — 원본이 이미 generic 구조라(`AGENT_ID` 기본값 `ref-agent` · `THREAD_ID` `ref-thread` · 데모 task 5단계 일반 PM workflow · 환경변수 기반 설정), 도메인 어휘를 *제거할 게 없었습니다*. v2.2.x 보강분은:
+원본은 upstream 운영 중인 gateway-client 예제 모듈입니다. **upstream-환경-특수 어휘 누출 0건** — 원본이 이미 generic 구조라(`AGENT_ID` 기본값 `ref-agent` · `THREAD_ID` `ref-thread` · 데모 task 5단계 일반 PM workflow · 환경변수 기반 설정), 도메인 어휘를 *제거할 게 없었습니다*. v2.2.x 보강분은:
 
 ### ✅ 보존된 핵심 골격 (Preserved Core)
 

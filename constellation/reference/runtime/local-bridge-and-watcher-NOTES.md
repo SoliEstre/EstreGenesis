@@ -1,6 +1,6 @@
 # local-bridge.cjs · self-wake-watcher.sh — 일반화 노트
 
-> _참고: 본 NOTES 는 일반화 검증용 grep target 으로 upstream-환경-특수 키워드(`EstreUF`·`MangoTalk`·`SoliEstre` 등)를 메타 언급한다. 검증 trace 목적이지 코드 누출 아님 — 실제 코드 파일은 해당 패턴 0건._
+> _참고: 본 NOTES 는 upstream-환경-특수 키워드 검증 grep을 통과한 결과(검증 trace는 별도 비공개 보관 — 공개 배포물에 환경-특수 토큰 inline 금지)._
 
 > Constellation `reference/runtime/` 일반화 산출물 (Lane L1, Superscalar Stage 1).
 > 원본:
@@ -30,7 +30,7 @@
 
 ## §2 일반화 범위 (`<source-workspace>`-특수 grep)
 
-원본 grep 패턴: `EstreUF|estreuf|MangoTalk|mangotalk|SoliEstre|EstreUI|EstreUV|Estrelle|mpsolutions|허브|PM 0\d\d`.
+원본 grep 패턴: upstream-환경-특수 키워드 (비공개 보관).
 
 **결과: hit 0건** ✓ (원본 두 파일이 이미 상당히 generic 했음.)
 

@@ -132,9 +132,9 @@ The **review-and-decision queue** the human sees. This is the part rough-tier eu
   "active": true        // optional — current focus project
 }
 ```
-**Downstream-defined catalog**, used as a tag for filtering and badge color across the dashboard. Every `current`/`done`/`planned`/`decisions` entry carries a `project` referencing one of these `id`s. EstreUF's catalog (`hub`/`fw`/`estreuv`/`estreux`/`estrelle`) is one example; a downstream project supplies its own.
+**Downstream-defined catalog**, used as a tag for filtering and badge color across the dashboard. Every `current`/`done`/`planned`/`decisions` entry carries a `project` referencing one of these `id`s. An upstream's catalog is supplied by the downstream project (project ids · domain names are downstream-specific).
 
-This is the **primary EstreUF-specific axis** of the schema. Everything else is a generic PM pattern.
+This is the **primary upstream-specific axis** of the schema. Everything else is a generic PM pattern.
 
 ---
 
@@ -194,21 +194,21 @@ Append-only feedback entries (POST `/api/feedback`). Data-URL attachments are ex
 
 ---
 
-## 8. EstreUF-specific vs generic PM — the boundary
+## 8. upstream-specific vs generic PM — the boundary
 
 Per the upstream live-board main's boundary review (drawn from an observed downstream migration), the boundary is:
 
 | Element | Verdict | Note |
 |---|---|---|
-| `decisions[]` shape | **generic** | EstreUF-specific = panel design details + some vocabulary in decision text |
+| `decisions[]` shape | **generic** | upstream-specific = panel design details + some vocabulary in decision text |
 | Channel group tabs (upstream/main/local/collab) | **generic** | A natural extension of the §2 role model |
-| Task cards (`current`/`done`/`planned` + `blocked`/`waiting`) | **generic** | EstreUF-specific = catalog vocabulary (project ids, domain names) |
-| `freeRequest` + resolved-count display | **generic** | A PM UX pattern, not EstreUF-only |
-| `projects[]` catalog values | **EstreUF-specific** | Downstream-defined; a slot, not a fixed list |
-| Long-form `detail` HTML formatting | **generic pattern, EstreUF UX choice** | Markdown is the safer baseline for portability |
-| `reports/<date>-<topic>.md` reference convention | **generic** (recommended), **EstreUF-specific** (path layout) | Adopt the *idea*; let downstream pick the path |
+| Task cards (`current`/`done`/`planned` + `blocked`/`waiting`) | **generic** | upstream-specific = catalog vocabulary (project ids, domain names) |
+| `freeRequest` + resolved-count display | **generic** | A PM UX pattern, not upstream-only |
+| `projects[]` catalog values | **upstream-specific** | Downstream-defined; a slot, not a fixed list |
+| Long-form `detail` HTML formatting | **generic pattern, upstream UX choice** | Markdown is the safer baseline for portability |
+| `reports/<date>-<topic>.md` reference convention | **generic** (recommended), **upstream-specific** (path layout) | Adopt the *idea*; let downstream pick the path |
 
-When in doubt: if the field name is generic English/PM vocabulary, it's generic. If the *value* is a project name or domain catalog, that's the EstreUF-specific layer downstream replaces.
+When in doubt: if the field name is generic English/PM vocabulary, it's generic. If the *value* is a project name or domain catalog, that's the upstream-specific layer downstream replaces.
 
 ---
 
@@ -243,4 +243,4 @@ For the upstream main's pass:
 2. Should `current[]` allow `blockedBy` / `waiting` flags (like `planned`) for the "in-progress but stuck" state, or is that always an automatic `planned` demotion?
 3. `done[].detail` is currently long-form prose; is there a structured sub-schema (commit · summary · references · follow-ups) worth standardizing, or is prose the right baseline?
 4. Confirm: workers genuinely never write `state.json` directly even via a privileged channel? (Best practice; just want it on the record.)
-5. `freeRequest` history — current schema is single-slot; does EstreUF ever keep prior `freeRequest`s, or is a one-shot input the established pattern?
+5. `freeRequest` history — current schema is single-slot; does upstream ever keep prior `freeRequest`s, or is a one-shot input the established pattern?
