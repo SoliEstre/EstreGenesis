@@ -196,3 +196,25 @@ This design was validated against three bodies of work via a 3-axis deep-researc
 - *Value prediction*: feed `.agent/_lessons/spec-discard/` (the §4 misprediction log) into a confidence-estimation model so the agent can pre-suggest speculation worth doing. Andon (§4) still applies — predictor *recommends*, user still acks.
 
 (The optional Constellation visualization mentioned in §6 — including its measurement procedure — also rides on the §4 logging infrastructure once Stage 3 ships, but the *scoreboard* itself is available at Stage 1 already.)
+
+---
+
+## 11. Dogfood log (Stage 1 baselines)
+
+The first real-world Stage 1 application is recorded here as the seed of empirical data for Stage 2/3 tuning. Each entry is one issue-window worth of measurements.
+
+### Entry 01 — 2026-05-29 · Constellation Phase C reference generalization
+
+- **Scope**: upstream live-board main generalized 4 runtime files (`server.cjs` · `local-bridge.cjs` · `watchdog.cjs` · `self-wake-watcher.sh`) into `constellation/reference/runtime/` for Constellation v2.2.2.
+- **Dispatch**: 3 sub-agent lanes (L1 = local-bridge + self-wake-watcher · L2 = watchdog · L3 = server), main as supervisor + ROB.
+- **`issue_width`** = 3 (binding constraint: Kanban floor `team_size + 1`).
+- **Speculation**: off (Phase C scope was already-decided work — no branch to predict).
+- **Retire order**: in-order C2 → C3 → C4 over declared sequence; single batch review at the end.
+- **MAST guards**: FM-1.3 / FM-1.5 / FM-2.6 all trivially satisfied — each lane owned a disjoint file set with no shared mutable contract (natural WAW avoidance from the file-scope split).
+- **Token budgets** (per §3): L1 62k · L2 38k · L3 58k. The 50k per-lane cap was narrowly exceeded twice (L1 by 24%, L3 by 16%); aggregated 158k stayed comfortably under the 200k total cap.
+  - *Calibration note*: the cap may need to widen to ~65k for codegen-heavy lanes; flag for re-tuning once a few more entries accumulate.
+- **Andon §4**: visual signal applied (lane chips orange → green at retire). No spec-discard entries (speculation off).
+- **Wall-clock**: ≈ 8 min total (≈ 6 min lanes in parallel + ≈ 2 min supervisor spot-check). Theoretical serial baseline ≈ 3 × 6 min = 18 min → roughly 2.25× wall-clock compression (sub-linear because retire is single-threaded).
+- **Outcome**: clean commit `7fee20e` (`v2.2.2`); no rework; NOTES §1 disclaimer added as a single follow-up to handle grep-pattern meta-mentions (caught at supervisor spot-check, not lane work).
+
+This first entry validates the §2 / §3 / §7 design at issue_width=3 with no speculation; it gives no signal yet on §4 speculation behavior or the §5 `< 60% accuracy` threshold (no speculative lanes were dispatched). Stage 2 / 3 work should aim to start collecting that signal.
