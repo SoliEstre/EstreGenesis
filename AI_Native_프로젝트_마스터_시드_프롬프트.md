@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 마스터 시드 프롬프트 (한국어)
 
-<!-- seed-tier: Master; language: Korean; version: v2.3.0; date: 2026-05-29; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Master; language: Korean; version: v2.3.0; date: 2026-05-29; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
 
 > **사용법**: 새 프로젝트를 시작할 때 이 파일 전체를 복사해 선택한 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등 어느 것이든)의 첫 대화 입력으로 붙여넣으세요. 이 프롬프트를 읽은 에이전트는 **대화형 부트스트랩 세션**을 시작해 프로젝트 셋업을 단계적으로 안내합니다.
 >
