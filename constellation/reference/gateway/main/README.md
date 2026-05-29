@@ -132,7 +132,7 @@ optional 환경변수 누락 시 *silent* 폴백 대신 한 줄 WARN. 새 option
    - host 가 `extra.msgId` 명시하면 그대로 사용(host 결정 우선).
    - 본 어댑터의 현 `send()` 가 `id` 만 부여하고 `msgId` 미부여 → 자연 보강 후보. 패치 시 line 67~74 의 `Object.assign` 에 `msgId: type==='CUSTOM' ? ('m-'+now().toString(36)+'-'+(++seq)) : undefined` 형태로 추가.
 2. **onInbound msgId dedup** — `inbound.msgId` 있고 영속 watermark(set) 에 이미 있으면 drop. host inbox 에 적재 전 1차 게이트. 같은 msgId 재수신은 server replay or 발신자 재전송 결과.
-   - watermark 영속화는 어댑터 책임 범위 — Node 에선 `fs.appendFileSync('.msgid-watermark', msgId+'\n')` (gitignore). host 가 어댑터 in-process 사용 시 메모리 set + 종료 시 flush 패턴도 허용.
+   - watermark 영속화는 어댑터 책임 범위. **표준 = in-memory 1차** (메인 bridge 실구현 `_seenMsgIds` Set; deps0 정합; **DECIDED 2026-05-29 via DELTA seq 13**). FS 영속 — Node 에선 `fs.appendFileSync('.msgid-watermark', msgId+'\n')` (gitignore) — 은 **Stage 2 후속** (재시작 중복폭증 방지, Report §5 함정; 현 메인 production 미구현). host 가 어댑터 in-process 사용 시 메모리 set + 종료 시 flush 패턴이 1차 표준.
 3. **Ack(delivered) 수신 처리** — `inbound.name === 'Ack' && inbound.value.kind === 'delivered'` 면 어댑터의 `_pendingAck` set 에서 `inbound.value.ackFor` 제거(watermark 갱신). **호스트에게 전달 안 함**(과확인 피로) — board telemetry 처럼 조용히 흡수.
 4. **AckProcessed emit (host 결정)** — `out.replyTo(inbound, 'AckProcessed', { ackFor: inbound.msgId })` 헬퍼 제공. echoHeader(targetAgentId/contextId/parentId/threadId) 자동 채움. 호스트가 작업 이행 완료 후 명시 emit.
 5. **무응답 시 ping 보내라 — 재전송 금지(1차)** — `_pendingAck` 에 남아 있고 일정 window(예: 30s) 경과 시:

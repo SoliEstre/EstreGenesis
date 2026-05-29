@@ -182,6 +182,7 @@ RFC6455 의 `0x9` PING / `0xA` PONG 컨트롤 프레임은 transport keepalive (
 | 항목 | 메인 production (`SoliEstre/MangoTalk-ProductionMaster` `constellation/dist/vanilla/live-board-server.js` master 기준 2026-05-29) | EG reference (`server.cjs` + 본 NOTES §4-bis) | 정합 상태 |
 | --- | --- | --- | --- |
 | §13.13 ack 계층 spec | dist/vanilla 본문 **미반영** — `delivered` 토큰은 routing 결과 flag 로만 사용(line 833·841·862·873·881), `wsIsAckable`/`msgId`/`AckProcessed` 부재 | NOTES §4-bis 에 invariant 박제(spec reflection). 코드 본문 정정은 메인 production 패치 도착 후 자연 보강 | spec先·code 後 (계획) |
-| msgId 형식 | (미반영) | 명세는 발신 시 자동 부여. 예 `m-<id>` 또는 `<runId>-<seq>` — 메인 production 패치 도착 시 형식 표준화 [DECISION NEEDED] | 미정 |
+| msgId 형식 | (미반영, code 後 보강) | **표준 = `m-{base36ts}-{seq}`** — Node bridge 실구현 (`'m-' + Date.now().toString(36) + '-' + (++seq)`). Hermes Python 어댑터는 stack 관용 `f'm-{uuid.uuid4().hex[:12]}'` 도 허용(Node 표준이 SSoT) | **DECIDED 2026-05-29** (DELTA seq 13) |
+| `_pendingAck` / dedup 영속화 | 메인 bridge `_seenMsgIds` in-memory Set | **표준 = in-memory 1차** (deps0 정합·경량). FS 영속(`.msgid-watermark`)은 **Stage 2 후속** — 재시작 중복폭증 방지(Report §5 함정), 현 production 미구현 | **DECIDED 2026-05-29** (DELTA seq 13) |
 | auto-pong | (미반영, 의도적) | NOTES §4-bis #3 — "auto-pong 안 함" 명시 invariant | 정합 |
 | ping/pong 의미 | 현 server.cjs 의 `: ping\n\n` 은 SSE keepalive — application-level §13.13 Ping/Pong 과 별개 | NOTES §4-bis "Ping/Pong 의미 정정" 절에서 명시 분리 | 정합 |

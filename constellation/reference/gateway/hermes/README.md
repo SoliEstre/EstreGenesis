@@ -114,7 +114,7 @@ DISCONNECTED ──(connect)──> CONNECTING ──(socket opened)──> CONN
 
 1.  **`send_event` 의 msgId 자동 부여**:
     *   `event_type` 이 `CUSTOM` 이고 `payload.get('msgId')` 부재 시 자동 부여 권장 (`f"m-{uuid.uuid4().hex}"` 또는 monotonic counter). bare framing (HELLO/RUN_*/TEXT_*/TOOL_*) 은 부여 안 함.
-    *   현 `_outbox.put_nowait(event)` 직전 단계 — `event.setdefault('msgId', f'm-{uuid.uuid4().hex[:12]}')` 형태로 자연 보강.
+    *   현 `_outbox.put_nowait(event)` 직전 단계 — `event.setdefault('msgId', f'm-{uuid.uuid4().hex[:12]}')` 형태로 자연 보강. **(Python stack 관용 옵션 — 표준은 Node bridge `'m-' + Date.now().toString(36) + '-' + (++seq)` 이고 Python 어댑터는 stack 관용 허용; DECIDED 2026-05-29 via DELTA seq 13.)**
 
 2.  **`_receiver_loop` 의 msgId dedup**:
     *   `event.get('msgId')` 있고 영속 watermark set 에 이미 있으면 `continue` (host handler 호출 안 함).
