@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v2.2.0; date: 2026-05-28; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Lite; language: Korean; version: v2.3.0; date: 2026-05-29; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -21,7 +21,7 @@
 
 사용자 첫 메시지가 모호하면 모드 확정 전 한 가지만 재질문. 확인 없이 스캐폴딩 금지.
 
-### 핵심 원칙 (9)
+### 핵심 원칙 (11)
 
 1. **문서가 진실** — 코드 전에 설계. 모든 결정은 파일에 기록.
 2. **멀티에이전트 레디 Day 1부터** — Claude + Gemini + Cursor 혼합해도 깨지지 않음. `AGENTS.md` 가 모든 서비스의 SSoT.
@@ -32,6 +32,8 @@
 7. **Repo residency before doc shape** — `.agent/`를 scaffold하기 전에 현재 workspace가 source repo인지, private agent-docs sidecar repo인지, multi-project orchestration repo인지, upstream-bound work를 가진 scope인지 결정.
 8. **Agent-time vs human-time 추정** — 본 시드가 사용 중일 때 작업자는 AI 에이전트. 모든 duration 추정은 프로젝트의 **페이스 모드** (Cautious 2~4× — 무료 티어/로컬 LLM, Proactive 5~6×, Burst 6~8×, Sprint 9~10×) 와 **작업 유형** (실행 중심은 모드 범위 상단, 디버깅 중간, 연구·전략은 인간 검토가 율속이라 모드 무관 ~1×) 의 곱. 모든 추정은 **agent active** 와 **human review/approval** 분리, `.agent/_lessons/` 실측치로 보정. 모드는 Phase 0 에서 설정, 프로젝트 진행 중 전환 가능. § Agent-Time 추정 정책 참조.
 9. **라이브 오케스트레이션 (Constellation)** — 멀티에이전트 코디네이션을 파일 기반(`.agent/_coordination/`)에서 실시간 라이브보드(WS + A2A)로 격상 가능. A2A 브릿지 인터페이스가 불변부, 깊이는 시드 티어 따라감. UI 컴포넌트는 `.eux` 로 작성해 EstreUX 로 brew (EstreUX 는 별도 참조 런타임 — 본 시드가 소유하는 기능 아님). 선택적. § Constellation 참조.
+10. **실행 스케줄링 (Superscalar)** — 여러 lane이 독립으로 분리 가능하고 cost-benefit 게이트(~30-60k 토큰 지평 crossover)가 통과되면 병렬 dispatch가 직렬보다 유리. `issue_width`는 **Anthropic effort band**, **pace_mode 상한**, **Little's Law**(PM 리뷰 throughput / 평균 작업 길이), **Kanban WIP ≈ 팀 크기+1**, **autonomy_available_workers**(비-오토모드 워커는 dispatchable lane으로 셀 수 없음 — 매 dispatch마다 권한 창이 throughput을 무너뜨림)로 제한. 선택적. `Superscalar.md` 참조.
+11. **자율 실행 (절대)** — 정해진-다음-단계는 묻지 말고 순서대로 진행. 게이트는 오직: (a) 손실 / 외부 발행 (push · deploy · send · delete), (b) 새 중대 분기 결정 시점 (RRP / 설계 — *결정 시점* 만; 그 결과로 잡힌 `Phase A/B/C` 계획은 *결정된 실행*이라 재게이트 아님), (c) 재기동 필요 deploy (적용은 자율, *재기동 타이밍* 만 조율), (d) 명시적 사용자 steering. 정해진-다음-단계를 멈춰 묻는 것 자체가 자율 운영 위반.
 
 ### 대화 규칙
 
@@ -79,7 +81,22 @@
 >
 > 기본값: 2 (Proactive). 프로젝트 진행 중 전환 가능 ("switch to sprint", "drop to cautious") — 기존 추정치 재산정.
 
-이후 **모든 대화**를 선택 언어와 말투로 진행하고, 모든 duration 추정에 페이스 모드 적용. 기록·문서·커밋은 선택 언어로. 세 결정 모두 Phase 7에서 `AGENTS.md` 에 기록.
+페이스 모드 답변 후 Phase 0의 네 번째 질문:
+
+> **실행 스케줄링 — serial 또는 parallel? Speculation — off 또는 on?**
+>
+> 이는 독립 sub-task를 직렬(한 번에 하나)로 dispatch할지 동시(병렬 lane)로 dispatch할지(Superscalar, 핵심 원칙 #10), 그리고 에이전트가 게이트 해소 전 likely branch를 추측-시작할 수 있는지 정합니다.
+>
+> 1. **`serial` (기본; single-lane)** — sub-task가 선언된 순서로 하나씩 실행. 안전·예측 가능. pace_mode가 **burst** 또는 **sprint**가 아니면 권장.
+> 2. **`parallel` (Superscalar; 동시 자율 lane dispatch)** — 독립 sub-task가 격리된 `git worktree` lane에서 병렬 dispatch, PM(메인)이 선언된 순서대로 retire. dispatch마다 cost-benefit 게이트(~30-60k 토큰 지평 crossover) 적용.
+>
+> Speculation (오직 `parallel` 모드에서만 의미):
+> - **`off` (기본)** — 아직 게이트 해소 안 된 branch를 미리 시작하지 않음.
+> - **`on` (예측-then-retire)** — 사용자의 명시적 2단계 announce + `ack` 후, pending 게이트의 likely branch를 read-only-scoped lane에서 시작 가능 (오예측 시 폐기).
+>
+> 기본값: 둘 다 `off`. pace_mode가 **burst** 또는 **sprint**면 `parallel` on 권장.
+
+이후 **모든 대화**를 선택 언어와 말투로 진행하고, 모든 duration 추정에 페이스 모드 적용. 기록·문서·커밋은 선택 언어로. 네 결정 모두 Phase 7에서 `AGENTS.md` 에 기록.
 
 ---
 
@@ -688,16 +705,17 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 - 4.6 30분+ 블로커 → `.agent/_lessons/NNN_*.md`. **AI 에이전트는 사용자 지시 없이도 자발적으로 교훈 기록.**
 
 ## 5. 핵심 규칙
-1. 언어·말투·페이스 모드: 문서·커밋 메시지는 [Phase 0 선택 언어], 에이전트 응답은 [Phase 0 선택 말투], duration 추정은 [Phase 0 페이스 모드] (agent active + human review 분리, 모드 범위 안에서 작업 유형별 조정; 프로젝트 진행 중 전환 가능).
-2. 문서화 (3자리 순번 & Index): 작업 내역은 `.agent/[파트]/001_Task.md`. 파일 add/change 시 역할 README 갱신.
-3. Git: 커밋 형식 §7. `git commit -a` 금지 (항상 `git add` → `git commit`).
-4. 코디네이션 우선: STATE.md 확인 → 작업 → CHANGELOG.md 기록.
-5. 트러블슈팅 경험은 `.agent/_lessons/` 누적.
-6. 3계층 문서 분리 유지: `.agent/`(에이전트) / `docs/`(개발자) / `executive-docs/`(사업).
-7. **인덱스 동기화 (필수)**: 시드의 § 인덱스 ↔ 본문 동기화 참조.
-8. **외부 표면 N-way sync (필수)**: 시드의 § 외부 인터페이스 N-way sync; 등록부 표를 여기에 유지.
-9. **마크다운 `~` escape (필수)**: 시드의 § 마크다운 `~` escape 참조.
-10. **RAG 친화 인덱스 풍부성 (권장)**: 시드의 § RAG 인덱스 최적화 참조.
+1. **자율 실행 (절대)** — 정해진-다음-단계는 순서대로 진행. 게이트는 (a) 손실/외부 발행, (b) 새 중대분기 결정 시점, (c) 재기동-deploy 타이밍, (d) 명시 steering 만. 정해진-다음-단계를 멈춰 묻는 것 자체가 위반. 자세한 내용: 핵심 원칙 #11 + `Superscalar.md`.
+2. 언어·말투·페이스 모드: 문서·커밋 메시지는 [Phase 0 선택 언어], 에이전트 응답은 [Phase 0 선택 말투], duration 추정은 [Phase 0 페이스 모드] (agent active + human review 분리, 모드 범위 안에서 작업 유형별 조정; 프로젝트 진행 중 전환 가능).
+3. 문서화 (3자리 순번 & Index): 작업 내역은 `.agent/[파트]/001_Task.md`. 파일 add/change 시 역할 README 갱신.
+4. Git: 커밋 형식 §7. `git commit -a` 금지 (항상 `git add` → `git commit`).
+5. 코디네이션 우선: STATE.md 확인 → 작업 → CHANGELOG.md 기록.
+6. 트러블슈팅 경험은 `.agent/_lessons/` 누적.
+7. 3계층 문서 분리 유지: `.agent/`(에이전트) / `docs/`(개발자) / `executive-docs/`(사업).
+8. **인덱스 동기화 (필수)**: 시드의 § 인덱스 ↔ 본문 동기화 참조.
+9. **외부 표면 N-way sync (필수)**: 시드의 § 외부 인터페이스 N-way sync; 등록부 표를 여기에 유지.
+10. **마크다운 `~` escape (필수)**: 시드의 § 마크다운 `~` escape 참조.
+11. **RAG 친화 인덱스 풍부성 (권장)**: 시드의 § RAG 인덱스 최적화 참조.
 
 ## 5.8 N-way sync 등록부
 | 기능 | 표면들 | 트리거 |

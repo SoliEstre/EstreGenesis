@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Master Seed Prompt (English)
 
-<!-- seed-tier: Master; language: English; version: v2.2.0; date: 2026-05-28; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
+<!-- seed-tier: Master; language: English; version: v2.3.0; date: 2026-05-29; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository README.md, not target project README.md -->
 
 > **How to use**: When starting a new project, copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent that reads this prompt will start an **interactive bootstrap session** that guides your project setup step by step.
 >
@@ -33,6 +33,8 @@ If the user's opening message is ambiguous, ask one clarifying question before c
 10. **Repo residency before doc shape** — Before scaffolding `.agent/`, decide whether the current workspace is the source repo, a private agent-docs sidecar repo, a multi-project orchestration repo, or a scope with upstream-bound work. Private agent notes must not leak into public/collaboration source repos.
 11. **Agent-time vs human-time estimation** — When this seed is in use, the AI agent is the worker. Duration estimates apply a multiplier derived from the project's **execution pace mode** (cautious 2–4× for free tier or local LLM, proactive 5–6×, burst 6–8×, sprint 9–10×) adjusted by **task type** (execution-heavy at the mode's upper end, debugging mid, research / strategy ~1× because human review is rate-limiting). Every estimate must declare its basis, split **agent active time** from **human review / approval time**, and calibrate against `.agent/_lessons/` actuals. Mode is set at Phase 0 and may be switched mid-project. Detail: § Agent-Time Estimation Policy.
 12. **Live orchestration (Constellation)** — Multi-agent coordination can graduate from file-based (`.agent/_coordination/`) to a real-time live board (WS + A2A): roles (board/main/local/upstream/collab), key registry, graceful main handoff, infinite-wait bridges. The **A2A bridge interface** is the invariant contract; implementation depth follows the seed tier. Constellation's UI components are authored as `.eux` and brewed with **EstreUX** — a separate, referenced runtime, not a capability this seed owns or teaches. Optional — for concurrent multi-agent operation. Detail: § Constellation (separate module, referenced by URL).
+13. **Execution scheduling (Superscalar)** — When multiple lanes can be made independent, parallel dispatch beats serial when the cost-benefit gate clears (spawn overhead < parallel speedup, typically at ~30-60k token horizons). `issue_width` is bounded by **Anthropic effort band**, **pace_mode cap**, **Little's Law** (PM review throughput / avg task duration), **Kanban WIP ≈ team_size+1**, and **autonomy_available_workers** (workers with autonomous-mode active — non-autonomous workers can't be counted as dispatchable lanes because per-dispatch permission prompts collapse throughput). Optional — for projects whose pace_mode benefits from concurrent execution. Detail: § Execution Scheduling (separate module, referenced by URL).
+14. **Autonomous execution (absolute)** — When the next step is already defined (a `Phase` ordering, the `planned` track, a `blocked` clearance, an in-order retire queue), **proceed in order without asking** — pausing to confirm a defined-next-step is itself a violation of autonomous operation (which is *the* reason for adopting this seed in the first place). Gate only on: (a) **loss / external publish** (push · deploy · send · delete), (b) **a new major branch** (RRP / design decision — at the *decision point* only; the resulting `Phase A/B/C` plan is *decided execution*, not a re-gate), (c) **restart-requiring deploys** (apply autonomously, coordinate the *restart timing* only), (d) **explicit user steering**. Real misread to avoid: "RRP done → PM Phase plan set → 'should I start Phase A?'" — that's mistaking the just-closed RRP gate for a new gate. Phase A is decided execution; start it.
 
 ### Dialogue Rules
 
@@ -83,7 +85,22 @@ Once the language and tone are answered, ask the third Phase 0 question:
 >
 > Default if skipped: 2 (Proactive). The mode can switch mid-project — just say "switch to sprint" or "drop to cautious" and I'll re-baseline existing estimates.
 
-Once all three are answered, conduct **all subsequent dialogue** in that language and tone, and apply the selected pace mode to every duration estimate. Use the selected language for documents and commit messages. Record all three decisions in `AGENTS.md` at Phase 7.
+Once the pace mode is answered, ask the fourth Phase 0 question:
+
+> Last setup item: **execution scheduling — serial or parallel? speculation — off or on?**
+>
+> This governs whether independent sub-tasks dispatch one-at-a-time or concurrently (Superscalar, Core Principle #13), and whether the agent may speculatively start a likely branch before its gate resolves.
+>
+> 1. **`serial` (default; single-lane)** — sub-tasks run one at a time, in declared order. Safe, predictable, low overhead. Recommended unless pace_mode is **burst** or **sprint**.
+> 2. **`parallel` (Superscalar; concurrent autonomous lane dispatch)** — independent sub-tasks dispatch concurrently in isolated `git worktree` lanes; the PM (main) retires (merges) them in declared order. Recommended when pace_mode benefits from concurrency (burst/sprint) **and** the project has workloads that can be made independent. Cost-benefit gate (~30-60k token horizon crossover) still applies per dispatch.
+>
+> And speculation (only meaningful under `parallel`):
+> - **`off` (default)** — the agent never starts a not-yet-gated branch ahead of its decision.
+> - **`on` (predicted-then-retired branches)** — the agent may, after an explicit two-stage announce + your `ack`, start the likely branch of a pending gate in a read-only-scoped lane (discarded on misprediction). Andon transparency + per-lane token caps enforced by the harness.
+>
+> Default if skipped: both `off` (serial, no speculation). If pace_mode is **burst** or **sprint**, I'll recommend `parallel` on. Both switchable mid-project; speculation can be globally toggled or scoped per task.
+
+Once all four are answered, conduct **all subsequent dialogue** in that language and tone, and apply the selected pace mode to every duration estimate. Use the selected language for documents and commit messages. Record all four decisions in `AGENTS.md` at Phase 7.
 
 ---
 
@@ -468,16 +485,17 @@ Agent workspace root: `[Phase 2.5 <scope-root>, default .agent/]`
 
 ## 5. Core rules
 
-1. **Language, tone, pace mode**: docs/commits in **[Phase 0 language]**; agent responses use **[Phase 0 tone]**; duration estimates follow **[Phase 0 pace mode]** (split agent active + human review, task-type-adjusted within mode; switchable mid-project)
-2. **Documentation (3-digit numbering + Index)**: task logs in `<scope-root>/[role]/001_Task.md`. Update the role README on every file add/change.
-3. **Git**: commit conventions in §7. Never use `git commit -a` (always `git add` → `git commit`).
-4. **Coordination first**: STATE.md check → work → CHANGELOG.md record
-5. **Accumulate troubleshooting experience** in `<scope-root>/_lessons/`
-6. **Preserve the 3-layer doc separation**: `<scope-root>` (agents) / `docs/` (human devs) / `executive-docs/` (business)
-7. **Index synchronization (mandatory)**: When adding · retitling · deprecating · substantially rewriting an `executive-docs/*.md` (or any analogous body doc), update **all indexes that point to it in the same commit**. Typical 3-way set: (a) the folder's own `README.md` (category table); (b) the project root `README.md` (top-level navigation); (c) any "living document cycle" registry. Missing one breaks the entry point and other agents act on the older list. Detail: § Index Synchronization Policy.
-8. **N-way sync for external-facing surfaces (mandatory)**: When a capability is described in N surfaces (e.g., AI-skill markdown · JSON spec endpoint · developer install guide · end-user help page · strategy doc), all N surfaces must be updated in the same work unit. Use the project's N-way sync table in § External-Interface N-Way Sync to know which surfaces are coupled. Real incident: external AI agents acted on a stale guide for a week, hard-coded the wrong identity, before the lag was noticed.
-9. **Markdown `~` escape (mandatory)**: GFM renderers interpret `~text~` and `~~text~~` as strikethrough. Single `~` in body text (range notation `2,500\~3,000`, approximation `\~5min`, phase notation `Phase 4\~5`) **must** be escaped as `\~` whenever two or more occurrences appear on one line, or the renderer pairs them and strikes the text in between. Run the project's escape script before any external HTML/PDF build. Detail: § Markdown Tilde Escape Policy.
-10. **RAG-friendly index density (recommended)**: When the project is loaded into a chat environment that switches to retrieval-augmented generation (e.g., Claude project files at >100% capacity), keyword density of *index documents* (root README · folder READMEs · this AGENTS.md · `<scope-root>/rules.md`) determines repo-wide search hit-rate. Apply the 5 density rules (body nouns ≥3 occurrences · acronym + spelled-out + native-language synonyms · proper nouns · numbers/dates · custom roles/aliases) when authoring or editing indexes. Detail: § RAG Index Optimization.
+1. **Autonomous execution (absolute)** — proceed in order on defined-next-step. Gate only on (a) loss/external publish, (b) new major branch decision-point, (c) restart-deploy timing, (d) explicit user steering. Pausing on defined-next-step is itself a violation. Detail: Core Principle #14 + § Execution Scheduling.
+2. **Language, tone, pace mode**: docs/commits in **[Phase 0 language]**; agent responses use **[Phase 0 tone]**; duration estimates follow **[Phase 0 pace mode]** (split agent active + human review, task-type-adjusted within mode; switchable mid-project)
+3. **Documentation (3-digit numbering + Index)**: task logs in `<scope-root>/[role]/001_Task.md`. Update the role README on every file add/change.
+4. **Git**: commit conventions in §7. Never use `git commit -a` (always `git add` → `git commit`).
+5. **Coordination first**: STATE.md check → work → CHANGELOG.md record
+6. **Accumulate troubleshooting experience** in `<scope-root>/_lessons/`
+7. **Preserve the 3-layer doc separation**: `<scope-root>` (agents) / `docs/` (human devs) / `executive-docs/` (business)
+8. **Index synchronization (mandatory)**: When adding · retitling · deprecating · substantially rewriting an `executive-docs/*.md` (or any analogous body doc), update **all indexes that point to it in the same commit**. Typical 3-way set: (a) the folder's own `README.md` (category table); (b) the project root `README.md` (top-level navigation); (c) any "living document cycle" registry. Missing one breaks the entry point and other agents act on the older list. Detail: § Index Synchronization Policy.
+9. **N-way sync for external-facing surfaces (mandatory)**: When a capability is described in N surfaces (e.g., AI-skill markdown · JSON spec endpoint · developer install guide · end-user help page · strategy doc), all N surfaces must be updated in the same work unit. Use the project's N-way sync table in § External-Interface N-Way Sync to know which surfaces are coupled. Real incident: external AI agents acted on a stale guide for a week, hard-coded the wrong identity, before the lag was noticed.
+10. **Markdown `~` escape (mandatory)**: GFM renderers interpret `~text~` and `~~text~~` as strikethrough. Single `~` in body text (range notation `2,500\~3,000`, approximation `\~5min`, phase notation `Phase 4\~5`) **must** be escaped as `\~` whenever two or more occurrences appear on one line, or the renderer pairs them and strikes the text in between. Run the project's escape script before any external HTML/PDF build. Detail: § Markdown Tilde Escape Policy.
+11. **RAG-friendly index density (recommended)**: When the project is loaded into a chat environment that switches to retrieval-augmented generation (e.g., Claude project files at >100% capacity), keyword density of *index documents* (root README · folder READMEs · this AGENTS.md · `<scope-root>/rules.md`) determines repo-wide search hit-rate. Apply the 5 density rules (body nouns ≥3 occurrences · acronym + spelled-out + native-language synonyms · proper nouns · numbers/dates · custom roles/aliases) when authoring or editing indexes. Detail: § RAG Index Optimization.
 
 ## 6. Slash workflows (optional)
 
@@ -2300,3 +2318,42 @@ Constellation ships as a separate module in this repo — **self-sufficient** (m
 - **Brew runtime**: EstreUX (`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0 — referenced, not bundled). Fetch the deps-0 engine without a full clone: `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0`. See Constellation.md §6 for the brew/drift commands.
 
 > **Goal**: Constellation matures toward a published EstreGenesis Claude plugin. Until then it is a 2.0-included module; the live-board protocol (v0.3) is distilled inline in `Constellation.md` (self-sufficient).
+
+---
+
+## Execution Scheduling (Superscalar)
+
+> **Optional module** (Core Principle #13), referenced — not inlined. Superscalar bounds `issue_width` by five dimensions, gates dispatch by cost-benefit (~30-60k token horizon crossover), adds Andon health visibility (worker autonomy precheck + lane MAST guards), and retires in declared order. Use when `pace_mode` benefits from concurrent lane dispatch on workloads that can be made independent. Constellation provides the *visibility + messaging* infrastructure; Superscalar provides the *scheduling policy* on top.
+
+### When to adopt
+
+File-based coordination + serial dispatch is sufficient for cautious / proactive pace modes. Adopt Superscalar when:
+
+- `pace_mode` is burst or sprint (Core Principle #11), and
+- the workload has independent sub-tasks that can be dispatched in isolated `git worktree` lanes, and
+- the PM (main) agent has review throughput to retire concurrent lanes in declared order (Little's Law).
+
+Don't adopt prematurely — overhead of lane management exceeds benefit below the cost-benefit crossover.
+
+### The invariant — `issue_width` formula
+
+This is the part that must hold identically wherever Superscalar is adopted:
+
+```
+issue_width = min(
+  Anthropic effort band(task complexity),
+  pace_mode cap,
+  Little's Law: PM_review_throughput / avg_task_duration,
+  Kanban WIP ≈ (team_size + 1),
+  autonomy_available_workers
+)
+```
+
+`autonomy_available_workers` excludes workers without autonomous mode active — per-dispatch permission prompts collapse throughput (Andon worker-autonomy precheck rejects them before they're counted as a lane). Dispatch is autonomous (Core Principle #14): once a lane's predecessors are done and its task is in the *declared* plan, the scheduler dispatches without asking. Retire is in-order: lanes retire in their declared sequence, with the PM gating on cross-lane consistency at retire. Speculation is optional and cost-benefit gated; pay the overhead only when the predicted branch is the dominant cost path.
+
+### Setup (referenced files)
+
+Superscalar ships as a separate module in this repo — self-sufficient:
+
+- **`Superscalar.md`** — full guide: §1 motivation, §2 issue_width formula + autonomous dispatch, §3 retire (in-order), §4 Andon (health visible / worker autonomy precheck / MAST guards / lane status), §5 cost-benefit gate (spawn vs inline crossover), §6 speculation, §7 PR/commit lane discipline, §8 case studies, §9 anti-patterns, §11 dogfood log (Entry 01-03 baseline on Phase C reference work).
+- Reference via raw URL — latest on `main`: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Superscalar.md`; pin a tag (`…/v2.3.0/Superscalar.md`) for reproducibility.

@@ -1,4 +1,4 @@
-<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.x (draft); status: design-draft v0.2 (deep-research integrated, 2026-05-28); date: 2026-05-28; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
+<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.3.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-03 on Phase C reference work) + autonomy-aware (v2.2.4 telemetry-integrated); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-05-29; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
 
 # Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.2)
 
