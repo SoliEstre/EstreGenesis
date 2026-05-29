@@ -61,6 +61,8 @@ One WS text frame = one JSON event (raw WebSocket, RFC 6455 — no library requi
    ```
 
    Both `name` and `targetAgentId` live at the **top level** (siblings of `type`), **not nested in `value`**. A misread of the slash shorthand has been observed to nest both inside `value`, which silently breaks (a) server routing (it reads top-level `targetAgentId`), (b) bridge auto-`OnboardAck` (it reads top-level `name === "AgentHello"`), and (c) dashboard A2A classification (it reads top-level `targetAgentId`/`agentId`) — all three simultaneously, with no error. The slash shorthand is fine in prose; just never let it leak into emit-side code.
+
+   The `role` field above is a **self-report hint**, not a routing source. The server takes it as a `roleHint` but the *authoritative* role classification combines the connection key (`uk-` / `ck-` / none) + the current main's resolution, and is broadcast on every `AgentList` update. Downstream routing should consume `AgentList` to learn an agent's role, not the AgentHello `value.role` field directly — treat it as a label for the human reader and for the server's initial classification, not as truth.
 4. Main replies `OnboardAck` (welcome/guide/modes/policy). Then **wait for `Delegate`** — workers do not self-start (`Delegate` is never automated; the PM decides from the worklist).
 
 **Messaging**:
