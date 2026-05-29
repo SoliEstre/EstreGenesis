@@ -283,3 +283,20 @@ The classic ROGER vs WILCO split applies: a `read` is ROGER ("I have received yo
 - *Mismatch surfaced* — every silent-but-degraded path emits a one-line WARN; the board surfaces escalations, not steady-state acks.
 
 These three properties together make the live-board's failure modes *visible* without making its happy path *noisy*. §13.13 is the messaging-layer instance of that pattern; §13.11 is the emission-cadence instance; the v2.2.4 server-stamped-truth + leniency-WARN patches are the structural instances.
+
+### 13.14 Reference-build redaction discipline — env-specific identifier grep before public ship
+
+Any artifact destined for a *public* surface (this repo's `Constellation.md` / `Superscalar.md` / `constellation/reference/*` / seeds / README) MUST pass an env-specific token grep before commit. The constellation/reference tree is the highest-risk surface because it is *distilled from a private operating environment* — real service names, private repo paths, internal catalog ids, and provenance commits can leak through quotation, grep-target meta lines, or sample-data left in `.eux` `@intent` provenance.
+
+**The pattern.** Maintain a private redaction list in `<scope-root>/_lessons/redaction-tokens.md` (gitignored) with project-specific tokens — service names, private repo names, catalog ids, internal issue numbers, workspace path roots, employee aliases. Before any commit touching public-shipped files: `rg <tokens> <public surfaces>` must return zero. Refuse the commit if not.
+
+**Anti-patterns observed.**
+
+- *Meta-grep leak* — a NOTES file that documents the redaction grep itself by *quoting the tokens* (e.g. "원본 grep 대상: `<token1>`·`<token2>`·…"). The grep target list IS the leak. Fix: name the *category* ("upstream-환경-특수 키워드"), not the tokens; keep the actual token list in the private `redaction-tokens.md`.
+- *Provenance quote leak* — an `.eux` `@intent` line that names "originally distilled by the *<env name>* live-board main" or similar. Fix: replace the env name with `upstream live-board main` (the role is what matters, not the org).
+- *Origin-mistake echo* — a reference NOTES table that names "(`<private-org>/<repo>` head=...)" as the production source. Fix: `private orchestration repo` placeholder; the org/repo path is not load-bearing for the reference reader.
+- *Catalog-id sample leak* — an example catalog (`(hub/fw/<projectA>/<projectB>/<projectC>)`) where the bracketed ids are real downstream project codenames. Fix: state the *shape* of the catalog ("Downstream-defined catalog; project ids are downstream-specific") and drop the inline sample.
+
+**Why it composes with §13.13 / §13.11 / §13.9.** §13.13's `delivered` ack is silent by design; §13.11.1's progress emission is the visibility channel; §13.9's role branching preserves peer scopes. None of those help when the *content* of the emission is itself a leak — env-specific tokens travel as freely on a silent-acked, role-correct, board-emitted message as on a private one. §13.14 is the *content* discipline matching those *transport* / *cadence* / *role* disciplines: the live-board ecosystem is only as private as its lowest-attention public artifact.
+
+**On past archives.** Existing `_proposals/*` and historical `_lessons/*` may pre-date this discipline and contain env-specific tokens noted as "public" at their original ship time. If the upstream policy has since narrowed scope, those archives become candidates for a separate redaction commit on the next maintenance cycle — they are lower priority than fresh artifacts (which travel further), but they remain in scope for the same grep gate.
