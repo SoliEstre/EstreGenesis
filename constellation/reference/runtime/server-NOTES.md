@@ -72,6 +72,48 @@ WS 채널 책임:
 
 **추가 보강 = 1건 (silent-disable WARN)**. 그 외는 v2.2.x 시점에 이미 자연 충족.
 
+## §4-bis A2A ack 계층 (WS-PROTOCOL §13.13)
+
+> 본 절은 메인 라이브보드 production(SoliEstre/MangoTalk-ProductionMaster) 에서 도입 중인 *송달 3등급 + msgId dedup + liveness probe* 명세를 EG reference 로 spec reflect 한 것. 현 `server.cjs` 코드 본문은 아직 미반영(자연 보강 후보) — invariant 만 먼저 박제하고, 구현 PR 시 §6 차이표(미반영 → 반영) 갱신.
+
+### 송달 3등급 — 책임 분리
+
+| 등급 | 의미 | 책임 |
+| --- | --- | --- |
+| **delivered** | 서버가 A2A relay 성공(=상대 소켓 send 까지 갔다) | **server** (이 파일) — A2A relay 직후 발신자에게 `Ack{kind:'delivered', ackFor: msgId}` 자동 회신 |
+| **read** | 수신 에이전트 inbox/큐에 적재 | bridge / gateway-client — 수신 후 호스트가 명시 emit 권장(옵션) |
+| **processed** | 수신 에이전트가 *이행* 까지 완료 | agent (host 상위) — `AckProcessed{ackFor: msgId}` 명시 emit. ROGER/WILCO 분리(수신 ≠ 이행) |
+
+송달=delivered 가 transport-level "내가 보내긴 보냈다" 의 약속이고, processed 까지 가야 application-level "그쪽이 이행했다" 의 약속이라는 **2단 분리** 가 §13.13 의 핵심. 
+
+### server invariants
+
+1. **`wsIsAckable(msg)` 분류 함수** — A2A relay 가 ack 자동 회신 대상인지 판정.
+   - ack 자동 회신 대상 ✓: `msgId` 있고, application 메시지(`CUSTOM` 또는 AG-UI bare framing) 이고, ping/ack 류 자체가 아님, telemetry 아님(`wsIsTelemetry` 정합).
+   - 자동 회신 대상 ✗: `Ack` / `AckProcessed` / `Ping` / `Pong` 류 (**ack 는 ack 안 함** — ACK storm 방지) · telemetry(`threadId/runId === 'codex-watch'` 등) · `msgId` 없는 frame · 서버→보드 전용 CUSTOM(`AgentList`/`History`/`ChannelHistory`/`MainChanged` 등).
+2. **A2A relay 성공 → `Ack{delivered}` 자동 회신**
+   - relay 가 `wsAgents.get(tgt)` 로 대상 찾고 `d.send(msg)` 성공한 직후, 발신자(`conn`)에게 `wscore.event('CUSTOM', { name:'Ack', value:{ ackFor: msg.msgId, kind:'delivered' } })` 회신.
+   - `ackFor` 는 원 메시지 `msgId` 그대로. 발신자가 자기 outbox `_pendingAck` 에서 watermark dedup 키로 사용.
+   - **보드 미표시 권장** — 매 메시지마다 ack 표시는 과확인 피로 → 보드 라우터는 `name==='Ack'` 를 drop(통합 원칙 #1 envelope CUSTOM-wrap 와 정합하되, telemetry 처럼 *조용한 표지* 로만 운영).
+3. **auto-pong 안 함** — 서버가 `Ping` 받았다고 자동으로 `Pong` 보내지 않는다. 연결 생존(`ws.readyState===1`) ≠ turn 생존(에이전트가 메시지를 *처리* 하고 있다)이라 false-alive 회피. ping/pong 은 에이전트 레벨 — 발신자가 `targetAgentId` 로 ping 보내면 서버는 relay 만 하고, 수신 에이전트(또는 bridge)가 pong 보낸다.
+4. **AckCumulative `upToSeq`** (옵션) — telemetry 채널처럼 누적 ack 가 필요한 곳: 발신자가 `AckCumulative{upToSeq: N}` 한 번으로 N 이하 전부 ack 한 것으로 간주. 단일 메시지 ack 아님. 현 서버는 통과(transport-level relay), 누적 집계는 application 책임.
+5. **무응답 처리** — server 는 "보냈다" 까지만 책임. 발신자가 일정 시간 ack 무응답 시:
+   1. **재전송 대신 ping(probe)** 보내라 — `targetAgentId` 로 single conservative probe(RFC1122 호환). 복수 시도 금지, 보수적 window.
+   2. ping 도 무응답 → 발신자가 자기 inbox 자가 조회(`RequestChannelHistory` 등) → msgId watermark 비교 → 유실분만 재전송.
+   3. 그래도 무응답 → **사람 보고** (Two Generals 종결 — 자동 무한 재시도 안 함).
+
+### Ping/Pong 의미 정정 (RFC6455 vs 운영)
+
+RFC6455 의 `0x9` PING / `0xA` PONG 컨트롤 프레임은 transport keepalive (방화벽 idle 차단 방지) 용이고, server.cjs SSE `: ping\n\n` 도 SSE keepalive. **§13.13 의 application-level `Ping`/`Pong`** 은 별개:
+
+- application `Ping{ttl, re}` / `Pong` — *liveness probe* (재전송 도구 **아님**). ack 무응답 시 "너 살아있냐" 1회 보수적 확인. `ttl` = 응답 deadline, `re` = retry counter (정상 0, probe 재시도 시 증가).
+- transport keepalive(WebSocket ping/pong 또는 SSE ping line) 와 의미 충돌 안 함 — RFC 컨트롤 프레임은 서버/소켓 라이브러리가 자동 처리, application Ping/Pong 은 CUSTOM payload 로 명시 emit.
+
+### dedup watermark 영속성
+
+- 수신 에이전트(host 상위)는 `msgId` watermark 를 **영속** 저장 (예: bridge inbox 처리 cursor 옆에 `.msgid-watermark`). 재시작 후에도 같은 msgId 다시 받으면 drop.
+- ping 만 TTL 적용(짧은 window, 만료 후 새 ping 다시 발화 허용). 일반 msgId 는 watermark 가 영구.
+
 ## §5 다운스트림 운영 노트
 
 ### 디렉토리 layout (서버가 가정하는 형상)
@@ -134,3 +176,12 @@ WS 채널 책임:
 ### 시드 증류 흐름 (참고)
 
 이 server.cjs 는 EstreUF 라이브보드 원본(`dashboard/live/server.cjs`)에서 일반화돼 Constellation reference runtime 에 안착. 향후 EstreGenesis 가 이 reference 를 시드 2.0 의 라이브보드 런타임 거점으로 증류, 다운스트림은 그 시드로 자기 워크스페이스에 brew.
+
+## §6 메인 production 과 의도적 차이 (ack 계층 spec 시점)
+
+| 항목 | 메인 production (`SoliEstre/MangoTalk-ProductionMaster` `constellation/dist/vanilla/live-board-server.js` master 기준 2026-05-29) | EG reference (`server.cjs` + 본 NOTES §4-bis) | 정합 상태 |
+| --- | --- | --- | --- |
+| §13.13 ack 계층 spec | dist/vanilla 본문 **미반영** — `delivered` 토큰은 routing 결과 flag 로만 사용(line 833·841·862·873·881), `wsIsAckable`/`msgId`/`AckProcessed` 부재 | NOTES §4-bis 에 invariant 박제(spec reflection). 코드 본문 정정은 메인 production 패치 도착 후 자연 보강 | spec先·code 後 (계획) |
+| msgId 형식 | (미반영) | 명세는 발신 시 자동 부여. 예 `m-<id>` 또는 `<runId>-<seq>` — 메인 production 패치 도착 시 형식 표준화 [DECISION NEEDED] | 미정 |
+| auto-pong | (미반영, 의도적) | NOTES §4-bis #3 — "auto-pong 안 함" 명시 invariant | 정합 |
+| ping/pong 의미 | 현 server.cjs 의 `: ping\n\n` 은 SSE keepalive — application-level §13.13 Ping/Pong 과 별개 | NOTES §4-bis "Ping/Pong 의미 정정" 절에서 명시 분리 | 정합 |

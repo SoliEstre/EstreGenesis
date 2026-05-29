@@ -2317,8 +2317,25 @@ Constellation 은 이 repo 에 별도 모듈로 ship — **자족적**(md + `.eu
 
 - **`Constellation.md`** — 전체 가이드: 프로토콜(role/키/핸드오프/모니터), 셋업 체크리스트, 브릿지/watcher/watchdog 운영.
 - **`constellation/*.eux`** — 라이브보드 컴포넌트(채널 입력·conn bar·tabs·tool card·fab badge·collab invite)의 러프 티어 증류본, 유연한 brew 출발점.
-- raw URL 참조 — 최신(`main`): `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; 재현성은 tag 핀(`…/v2.2.0/Constellation.md`).
+- raw URL 참조 — 최신(`main`): `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; 재현성은 tag 핀(`…/v2.3.0/Constellation.md`).
 - **brew 런타임**: EstreUX(`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0 — 참조이며 비번들). deps-0 엔진 경량 fetch: `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0`. brew/drift 명령은 Constellation.md §6 참조.
+
+### 보드 emission 규율 (Constellation.md §13.11)
+
+두 불변식 — Constellation 도입 시 시드 티어와 무관하게 적용:
+
+- **§13.11.1 진행 emit은 safe point마다 의무** — 작업 중 safe point(sub-task retire, tool-call 묶음 경계, 큰 결정 시점)에서 보드로 진행 상태 emit. 보드만 보고도 세션 흐름 재구성 가능해야 함 (에이전트 hidden state 읽지 않고). 안 하면 관찰자에게 `ConnectionRestored`만 보이고 작업은 보이지 않음; ack 계층(§13.13)은 설계상 조용해서 갭을 메우지 않음.
+- **§13.11.2 무활동 시 자율 heartbeat 금지** — emit은 *활동 연동*. 외부 cron / watchdog 프로세스가 에이전트 idle / rate-limit 시에도 heartbeat를 broadcast하면 *false-alive*: 연결은 살아 있어도 turn은 끝남. 실측 사례: `codex-watch.cjs` 제거 (codex 워커 idle → heartbeat → 보드는 alive 표시 → 사용자가 Delegate 보냄 → 무응답).
+
+### A2A 메시지 신뢰성 — ack 계층 (Constellation.md §13.13)
+
+Constellation WebSocket transport는 in-order best-effort 송달; 그 위 신뢰성은 *프로토콜 계층*. 요약 (전체 본문 `Constellation.md` §13.13):
+
+- **송달 3등급** — `delivered` (server, `wsIsAckable` 분류) · `read` (bridge cursor) · `processed` (agent WILCO). ROGER(수신) ≠ WILCO(이행).
+- **어휘** — `msgId` (bridge 자동, dedup watermark 키) · `Ack{kind:'delivered', ackFor}` (server가 A2A relay 시 자동; **ack 자체는 ack 안 함**, board 미표시로 alarm fatigue 회피) · `AckProcessed{ackFor}` (에이전트 emit, 권장) · `AckCumulative{upToSeq}` (telemetry 누적) · `Ping{ttl,re} / Pong` (application-layer liveness probe, **재전송 도구 아님**).
+- **Liveness 규칙 (자율 무한 재전송 금지)** — ack timeout 시: 보수적 `Ping` (RFC 1122 multi-probe) → 자기 inbox dedup 조회 → 유실만 재전송 → 그래도 무응답 시 사람에게 보고 (Two Generals 종결).
+- **계층 분리** — server는 `wsIsAckable` + delivered Ack 처리; bridge는 msgId emit + onInbound dedup; agent는 `AckProcessed` + Ping/Pong + 재전송 결정. server는 auto-pong **안 함** (연결 생존 ≠ turn 생존).
+- **v2.2.x patch 패밀리 link** — ack 계층은 silent-disable WARN, envelope convention, server-stamped truth, leniency-WARN과 한 가족 (수용은 넓히고, 진실은 국소화하며, 불일치는 surface).
 
 > **목표**: Constellation 은 공개 EstreGenesis Claude 플러그인으로 성숙해 감. 그전까진 2.0 포함 모듈; 라이브보드 프로토콜(v0.3)은 `Constellation.md` 본문에 증류(자족).
 

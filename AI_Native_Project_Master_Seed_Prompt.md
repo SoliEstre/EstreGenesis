@@ -2314,8 +2314,25 @@ Constellation ships as a separate module in this repo — **self-sufficient** (m
 
 - **`Constellation.md`** — full guide: protocol (roles/keys/handoff/monitors), setup checklist, bridge/watcher/watchdog operation.
 - **`constellation/*.eux`** — rough-tier distilled specs of the live-board components (channel input, conn bar, tabs, tool card, fab badge, collab invite) as flexible brew starting points.
-- Reference via raw URL — latest on `main`: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; pin a tag (`…/v2.2.0/Constellation.md`) for reproducibility.
+- Reference via raw URL — latest on `main`: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md`; pin a tag (`…/v2.3.0/Constellation.md`) for reproducibility.
 - **Brew runtime**: EstreUX (`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0 — referenced, not bundled). Fetch the deps-0 engine without a full clone: `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0`. See Constellation.md §6 for the brew/drift commands.
+
+### Board emission discipline (Constellation.md §13.11)
+
+Two invariants — both apply when adopting Constellation regardless of seed tier:
+
+- **§13.11.1 Progress emission is mandatory at safe points** — emit progress to the board at every safe point (sub-task retire, tool-call cluster boundary, major decision). The board must be sufficient to reconstruct a session's flow without reading the agent's hidden state. Without it, observers see `ConnectionRestored` but no work; ack layer (§13.13) is silent by design and won't fill the gap.
+- **§13.11.2 No autonomous heartbeat during idle** — emission is *activity-coupled*. External cron / watchdog processes that broadcast heartbeat while the agent is idle / rate-limited produce *false-alive*: connection survives, turn does not. Real incident: `codex-watch.cjs` was removed after observing this exact failure (codex worker idle → heartbeat → board shows alive → user sends Delegate → no response).
+
+### A2A message reliability — the ack layer (Constellation.md §13.13)
+
+Constellation's WebSocket transport gives in-order best-effort delivery; reliability above that is a *protocol layer*. Summary (full body in `Constellation.md` §13.13):
+
+- **Three delivery grades** — `delivered` (server, `wsIsAckable` classifier) · `read` (bridge cursor) · `processed` (agent WILCO). ROGER (received) ≠ WILCO (executed).
+- **Vocabulary** — `msgId` (bridge-auto, dedup watermark key) · `Ack{kind:'delivered', ackFor}` (server-auto on A2A relay; **ack itself is not ack'd**, board-hidden to avoid alarm fatigue) · `AckProcessed{ackFor}` (agent-emitted, optional) · `AckCumulative{upToSeq}` (telemetry) · `Ping{ttl,re} / Pong` (application-layer liveness probe, **not a retransmit tool**).
+- **Liveness rule (no autonomous infinite retry)** — on ack timeout: send conservative `Ping` (RFC 1122 multi-probe), then check own inbox for dedup, retransmit only what's missing, escalate to a human if still silent (Two Generals termination).
+- **Layer split** — server handles `wsIsAckable` + delivered Ack; bridge handles msgId emission + onInbound dedup; agent handles `AckProcessed` + Ping/Pong + retry decisions. Server does **not** auto-pong (connection survival ≠ turn survival).
+- **v2.2.x patch-family link** — ack layer composes with silent-disable WARN, envelope convention, server-stamped truth, leniency-WARN: *acceptance broadened, truth localized, mismatch surfaced.*
 
 > **Goal**: Constellation matures toward a published EstreGenesis Claude plugin. Until then it is a 2.0-included module; the live-board protocol (v0.3) is distilled inline in `Constellation.md` (self-sufficient).
 

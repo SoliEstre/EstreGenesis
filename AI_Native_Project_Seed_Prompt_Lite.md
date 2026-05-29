@@ -668,6 +668,8 @@ Wall-clock without label · single-number override extending to research tasks �
 
 **Setup (referenced, self-sufficient)**: `Constellation.md` (full protocol distilled inline + setup) + `constellation/*.eux` (component specs). Raw URL: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md` (latest; pin a tag for reproducibility). Brew runtime = EstreUX (`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0; referenced, not bundled — fetch the deps-0 engine via `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0`). Goal: matures toward a published EstreGenesis Claude plugin.
 
+**Board emission discipline + A2A ack layer (Constellation.md §13.11 / §13.13)** — when adopting Constellation: emit progress to the board at every safe point (`§13.11.1` — board must reconstruct lane flow without agent hidden state); never run an autonomous heartbeat during idle (`§13.11.2` — false-alive; real incident: `codex-watch.cjs` removed). A2A reliability is a *protocol layer* above WS transport: `msgId` (bridge auto, dedup watermark) + server-auto `Ack{kind:'delivered'}` (board-hidden, alarm-fatigue gated; ack is not ack'd) + optional `AckProcessed` (agent WILCO) + `AckCumulative` (telemetry) + Ping/Pong as application liveness probe — **not a retransmit tool**. On ack timeout: conservative `Ping` (RFC 1122 multi-probe) → check own inbox for dedup → retransmit only what's missing → escalate to human (Two Generals termination). Layer split: server (`wsIsAckable` + delivered Ack, no auto-pong) / bridge (msgId + onInbound dedup) / agent (`AckProcessed` + Ping/Pong + retry decisions). Full spec: `Constellation.md` §13.
+
 ---
 
 ## File Templates

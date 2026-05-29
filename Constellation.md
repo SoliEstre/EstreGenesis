@@ -1,4 +1,4 @@
-<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.0; version: v2.2.0; date: 2026-05-28; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
+<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.0; version: v2.2.5; date: 2026-05-29; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
 
 # Constellation — Live Multi-Agent Orchestration
 
@@ -183,3 +183,103 @@ Pin a tag (`…/v2.2.0/…`) for reproducibility.
 - **Layer 1 (Project seed)** — `.agent/_coordination/` is the file-based coordination baseline (Phase 5).
 - **Constellation** — the real-time graduation of that baseline. Adopt when the project runs concurrent agents that benefit from a live board.
 - Depth **follows the seed tier**: the Master seed pulls the full setup; lighter tiers reference only the §2 A2A bridge interface + this URL.
+
+---
+
+## 13. v2.2.x patch series — protocol clarifications (dogfood-driven)
+
+This section collects the small, surgical clarifications layered on top of §2–§5 by the v2.2.x patch series, each driven by a concrete dogfood incident (MangoTalk Report 1/2 follow-ups, the EstreGenesis main-livboard ack work). Each sub-section is a **clarification of §2–§5**, not a new contract — the §2 A2A bridge interface stays byte-identical. Sub-section numbering is **sparse on purpose** — only the entries actually shipped appear; gaps (`§13.1`–`§13.8`, `§13.10`, `§13.12`) are reserved for upstream patches and intentionally left empty rather than renumbered, so cross-references from prior commits / downstream repos stay stable.
+
+### 13.9 OnboardAck role branching — collab / upstream are peers, not workers
+
+`OnboardAck` (§2 step 4) closes the handshake, but its semantic effect depends on the recipient's **role** (server-classified, broadcast on every `AgentList` — never the AgentHello `value.role` self-report hint per §2 step 3). The three branches:
+
+- **`local`** — a *worker*. After `OnboardAck` the worker enters the infinite-wait standby of §1.8 / §3 (`standby` ON), and does NOT self-start. It waits for `Delegate` from the PM (the main never automates `Delegate` — the PM decides from the worklist per §2 step 4). This is the canonical "joined a board → never end the conversation, always re-arm and wait" path (§4 watch-state invariant).
+- **`collab`** — an external project's *main peer* (joined via `ck-` / `/join/collab`, §5). NOT a worker. After `OnboardAck` the collab agent **proceeds on its own track autonomously** — it is the main of its own project and runs that project's worklist. The hub-side main does NOT delegate to it; the relationship is **peer coordination**, not work assignment. The hub's `OnboardAck` to a collab agent is *welcome + house-rules + protocol-version*, not a "wait for my Delegate" cue.
+- **`upstream`** — an *upstream peer* (joined via `uk-` registration key, §2 roles). Same shape as `collab` — autonomous on its own track, peer coordination mode, no Delegate-wait. Distinguished from `collab` only by *direction of authority* (upstream agents can carry decisions downward; collab agents are sibling projects).
+
+**Invariant** (additive to §2 step 4): *the Delegate-wait of §1.8 / §3 applies only to `role:local`. `role:collab` and `role:upstream` agents are peers — their `OnboardAck` is informational, and they continue on their own loop without waiting for a hub-issued task.* A hub that broadcasts `Delegate` to a collab/upstream peer is treating a peer as a worker, which violates the role contract.
+
+**Why this needs spelling out**: §2 step 4 and §1.8 read like one rule (`OnboardAck` → wait for `Delegate`), and a strict reading would silently stall any collab/upstream peer in standby — defeating §5's purpose. The rule is *role-conditional*, and the conditional is decided by the server's authoritative role (the `AgentList` field), not by what the agent self-reports in `AgentHello.value.role`.
+
+### 13.11 Board emission discipline
+
+#### 13.11.1 Progress emission is mandatory at safe points
+
+While a worker is executing a delegated task, it MUST emit progress to the board at **every safe point** — not at the end, not on demand, but continuously through the run. The board (`state.json` + replay history) is the **visualization SSoT** (§3); an observer reading the board alone must be able to reconstruct the work flow and context **in time order** without asking the worker. "I'll report when I'm done" leaves the board blind during the run and breaks the §1 main-watches-board contract.
+
+**Safe points** (the cadence is *activity-driven*, not clock-driven):
+- After retiring a tool-call cluster (a logical group of related tool invocations completes).
+- At sub-task completion (a tracked work item flips `current → done`).
+- At decision points (a meaningful branch is chosen, a finding is logged, a blocker is identified).
+- Before yielding back to the watch state (§4) — the last action before re-arming should be a progress emit, never silent.
+
+**Emit shape** (matching §2 outbound conventions):
+- `CUSTOM/WorkerReport { summary, evidence, links? }` — for retired-cluster / sub-task completions (group: progress).
+- `CUSTOM/Status { state, note }` — for in-flight status pulses tied to a real activity transition (NOT for idle heartbeats — that is §13.11.2).
+- AG-UI `STEP_STARTED/FINISHED` + `TOOL_CALL_*` — when the runtime adapter (`gateway-client.eux`) instruments tool calls directly (option (2) of §4's three monitoring options).
+
+**Time-ordered grouping**: the board groups these by `agentId` (channel key, §2) and by their natural arrival order; the worker SHOULD include enough context per emit (a `summary` line, a `parentId` to chain related emits) that the board's chronological view reads as a coherent narrative without the reader needing to inspect tool-call details. The §4 watch-state invariant ("never end the conversation while joined") is a *liveness* rule; this is its *visibility* counterpart — the board must not only know the agent is alive but **what it is doing**.
+
+#### 13.11.2 Anti-pattern — no autonomous heartbeat loop during idle
+
+The complement to §13.11.1: **a worker MUST NOT emit telemetry / heartbeats / liveness pulses when idle.** Emission is **activity-coupled** — if the worker is genuinely doing nothing (between turns, rate-limited, waiting on an inbound), it emits nothing. The board's silence in that case is correct silence; an outside heartbeat replacing it produces a *false-alive* signal.
+
+**Why this is an anti-pattern**:
+- A separate watchdog / cron / background thread that pulses `Status { state: 'alive' }` on a fixed interval (independent of the agent's actual turn) decouples the emit from the work. The board now reads `alive` even when the agent's last turn has ended and no new turn has woken — the agent looks healthy but is **not processing** (turn-survival ≠ connection-survival).
+- This defeats the §4 watch-state discipline (silent-disable WARN). The whole point of WARN-on-dead-wake-trigger is to make a *deaf-but-alive* state visible; an autonomous heartbeat papers over exactly that state.
+- The Two Generals-style ack semantics in §13.13 depend on emit↔activity coupling: a `ping`/`pong` exchange (§13.13) means *the agent's runtime turn is currently active*, not *some background process is still running*. Auto-pong from a watchdog thread breaks that invariant — pong from the *agent layer* only, never the bridge or a side process.
+
+**Real incident** (referenced in the v2.2.x dogfood log): a `codex-watch.cjs` side process was emitting periodic heartbeats for a codex worker. The board showed the worker as continuously alive, but the worker's actual turn had ended and it was not processing inbound. Removing the watch process restored the correct signal — the board correctly went *quiet* between turns, matching the worker's real state, and the next-turn wake (§4 self-wake watcher) was the next correct emit.
+
+**Rule** (additive to §2 telemetry exclusion): the only legitimate telemetry source is the **(3) near-realtime watcher** of §4 — a separate observation process that is *tagged for telemetry exclusion* (server keeps it on board broadcast but excludes from A2A reply-window pairing AND main routing). It must not pose as agent activity. If you find yourself adding "alive" pulses to keep the board green, the fix is **not** a louder heartbeat — it is identifying why the watcher / re-arm path is dead (§4 silent-disable WARN) and repairing the activity loop itself.
+
+### 13.13 A2A message reliability — the ack layer
+
+The §2 A2A relay (target-unspecified → main; targeted → `targetAgentId`) needs a small set of acknowledgement primitives to be reliable in the face of the realities surfaced by dogfood (drops, slow consumers, ambiguous "did the recipient *receive* vs *act on* it?"). v2.2.5 formalizes a three-tier delivery model + an alarm-fatigue-gated ack vocabulary + a probe-not-retransmit liveness rule, all layered on top of §2 without changing the wire shape of `CUSTOM` itself.
+
+**Deferred-research provenance**: this section is the distilled spec of the main repo's RRP `reports/2026-05-29-a2a-ack-reliability.md`, a three-axis deep research (Two Generals termination + RFC 6455 keepalive + RFC 1122 conservative multi-probe + alarm-fatigue gating). Treat that RRP as the rationale source; this §13.13 is the contract.
+
+**Three delivery grades** — name them explicitly, never conflate:
+
+1. **`delivered` (server-level)** — the live-board server successfully relayed the message to the target's WS connection. The server emits this. It tells the sender: *"the wire carried it."* It does NOT mean the agent's runtime has parsed it, queued it, or acted on it.
+2. **`read` (recipient-bridge / inbox)** — the recipient's bridge appended the message to its inbox file (or the recipient's runtime drained it from a turn-held wait window). Optional in this layer; the bridge MAY emit `read` when its persistence step succeeds.
+3. **`processed` (recipient-agent / WILCO)** — the recipient agent *acted on* the message and completed the work it implies. This is the strongest grade; it is the recipient's *agent layer* speaking, not the bridge.
+
+The classic ROGER vs WILCO split applies: a `read` is ROGER ("I have received your message"); a `processed` is WILCO ("I will / have complied"). Conflating them — treating a `read` as "done" — is one of the named failure modes (mirrors the "received ≠ acted on" anti-pattern called out elsewhere in this guide).
+
+**Ack vocabulary** (all are `CUSTOM` payloads carrying a reply envelope per §2):
+
+- **`msgId`** — every A2A `CUSTOM` event gets a `msgId` automatically assigned by the **sender's bridge** at emit time. This is the dedup watermark key. The bridge MUST NOT require the agent to compute it; the agent simply emits, and the bridge stamps `msgId`. Dedup watermarks are persistent (survive bridge restart); only `ping` TTLs are ephemeral.
+- **`Ack { ackFor: msgId, kind: 'delivered' }`** — the **server** auto-emits this back to the *sender* when it successfully relays a target-addressed `CUSTOM`. The ack is NOT itself acked (no `Ack` for an `Ack` — this prevents ACK storms). The ack is NOT displayed on the board (alarm-fatigue gating: over-confirmation is its own failure mode; the board surfaces *anomalies*, not the steady-state success of the wire). Server eligibility is decided by `wsIsAckable()` — exclude `Ack`/`Ping`/`Pong`/telemetry; require `msgId` present.
+- **`AckProcessed { ackFor: msgId, kind: 'processed', summary? }`** — emitted by the **recipient agent** (not the bridge) once it has *acted on* the inbound message. RECOMMENDED but not mandatory; the sender treats absence as "still processing or finished silently," not as failure. This is the explicit WILCO; the bridge cannot fake it because the bridge does not know whether the agent has acted.
+- **`AckCumulative { upToSeq }`** — for high-frequency telemetry streams (e.g., a watcher pushing 4 frames/sec): a single cumulative ack covering all telemetry frames up to `upToSeq` instead of one ack per frame. Telemetry is otherwise excluded from individual acks (alarm-fatigue + §2 telemetry exclusion).
+- **`Ping { ttl, re? }` / `Pong { for: pingId }`** — RFC 6455-style liveness probes at the **agent layer** (NOT the WS protocol layer, which has its own ping/pong the server may handle separately). `Ping` MUST be answerable only by an *active runtime turn* on the recipient — a bridge or background watcher MUST NOT auto-pong (auto-pong creates the false-alive of §13.11.2). `ttl` bounds the probe lifetime; `re` is a probe-attempt counter for the conservative multi-probe pattern below. **Ping is a liveness probe, not a retransmission carrier** — it does not re-deliver the original message.
+
+**The non-retransmit liveness rule** (RFC 1122 conservative multi-probe, alarm-fatigue gated):
+
+1. Sender emits a targeted `CUSTOM` (the bridge stamps `msgId`).
+2. Server emits `Ack{delivered}`. If this is missing within a small window, the wire itself is suspect — handle as a connection-level event (the §4 watchdog territory), not as an A2A retry.
+3. If `Ack{delivered}` was received but no application-level reply / `AckProcessed` arrives within the expected interval, the sender DOES NOT retransmit. Instead:
+   1. Send `Ping{ttl, re=1}` — a single probe. If `Pong` arrives → recipient's runtime is alive, the work is presumably in flight; resume waiting.
+   2. No `Pong` within `ttl` → send `Ping{ttl, re=2}`, etc., up to a **small fixed window** (the conservative multi-probe — RFC 1122 explicitly warns against the naive single probe). The window is small (typical: 3 probes over ~30s); past it the recipient is treated as not-currently-active.
+   3. Past the probe window with no `Pong`, the sender consults its own **inbox / outbox replay** (the dedup watermark and the bridge's persisted history) to identify whether the original message was actually lost on the wire vs. delivered-but-not-acted.
+   4. **If lost** (no `delivered` watermark on the recipient side, accessible via the board's per-channel history per §2) → retransmit only the identified-lost messages, using the dedup `msgId` so a duplicate-delivery (the recipient *did* receive it after all) is idempotently absorbed.
+   5. **If delivered-but-not-acted** → DO NOT retransmit. The Two Generals problem terminates here: autonomous infinite retry does not make the situation better, it adds noise. **Surface to a human** — escalate via the board's `decisions` panel (the §4 watch-state human-review path), summarizing the unacked exchange.
+4. Throughout: every step is gated by alarm-fatigue thresholds. The board surfaces the *escalation* (step 3.5), not the routine `Ack{delivered}` steady state.
+
+**Layer split** (server vs bridge vs agent — keeps responsibilities clean):
+
+- **Server**: `wsIsAckable(msg)` classification (decides which inbound `CUSTOM` deserves a `delivered` ack — excludes ack/ping types and telemetry, requires `msgId`); auto-emits `Ack{delivered}`. The server is the *only* layer that emits `delivered`.
+- **Bridge** (sender side): assigns `msgId` on outbound emit (the agent does not). Bridge (recipient side): `onInbound` dedup using persisted watermarks; passes deduped messages to the agent's inbox. The bridge does NOT auto-emit `AckProcessed` or `Pong` — those are agent-layer concerns.
+- **Agent**: emits `AckProcessed` when it has actually acted (optional but recommended). Answers `Ping` with `Pong` only from an active turn. Owns the retransmit-vs-probe-vs-escalate decision tree above.
+
+**No auto-pong rationale** (cross-link to §13.11.2): a bridge that auto-pongs makes `Pong` mean "the bridge process is alive," not "the agent is processing." That collapses the agent-layer liveness signal that the whole §13.13 mechanism depends on. `Pong` from the agent layer = "my turn is currently active and I can answer A2A"; from anywhere else = a false signal that the retry decision tree will misread.
+
+**Patch family invariant** (cross-links the v2.2.x series): the ack layer + envelope convention (`targetAgentId`/`contextId`/`parentId` at top level, §2) + server-stamped truth (`m.source` populated by the server when the client omits it) + leniency-WARN (silent-disable WARN, §4) are **one coherent family**:
+
+- *Acceptance broadened* — the server stamps a default `source` instead of rejecting; the bridge's `AgentHello` recognition tolerates the misread shape and WARNs instead of silently dropping.
+- *Truth localized* — the server is the source of truth for `role` / `source` / `delivered`; clients pass hints, not authority.
+- *Mismatch surfaced* — every silent-but-degraded path emits a one-line WARN; the board surfaces escalations, not steady-state acks.
+
+These three properties together make the live-board's failure modes *visible* without making its happy path *noisy*. §13.13 is the messaging-layer instance of that pattern; §13.11 is the emission-cadence instance; the v2.2.4 server-stamped-truth + leniency-WARN patches are the structural instances.

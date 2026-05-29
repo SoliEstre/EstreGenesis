@@ -668,6 +668,8 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 
 **셋업 (참조, 자족적)**: `Constellation.md`(프로토콜 전체 본문 증류 + 셋업) + `constellation/*.eux`(컴포넌트 spec). raw URL: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md` (최신; 재현성은 tag 핀). brew 런타임 = EstreUX(`https://github.com/SoliEstre/EstreUX`, v0.1.0, Apache-2.0; 참조이며 비번들 — deps-0 엔진은 `npx giget gh:SoliEstre/EstreUX/spike#v0.1.0` 로 경량 fetch). 목표: 공개 EstreGenesis Claude 플러그인으로 성숙.
 
+**보드 emission 규율 + A2A ack 계층 (Constellation.md §13.11 / §13.13)** — Constellation 도입 시: 작업 중 safe point마다 보드로 진행 emit (`§13.11.1` — 보드만 보고도 lane 흐름 재구성 가능해야 함, 에이전트 hidden state 읽지 않고); 무활동 시 자율 heartbeat 금지 (`§13.11.2` — false-alive; 실측 사례: `codex-watch.cjs` 제거). A2A 신뢰성은 WS transport 위 *프로토콜 계층*: `msgId`(bridge 자동, dedup watermark) + server 자동 `Ack{kind:'delivered'}`(보드 미표시, alarm fatigue 게이팅; ack은 ack 안 함) + 선택 `AckProcessed`(agent WILCO) + `AckCumulative`(telemetry) + Ping/Pong은 application liveness probe — **재전송 도구 아님**. ack timeout 시: 보수적 `Ping`(RFC 1122 multi-probe) → 자기 inbox dedup 조회 → 유실만 재전송 → 그래도 무응답 시 사람 보고 (Two Generals 종결). 계층 분리: server(`wsIsAckable` + delivered Ack, no auto-pong) / bridge(msgId + onInbound dedup) / agent(`AckProcessed` + Ping/Pong + 재전송 결정). 전체 spec: `Constellation.md` §13.
+
 ---
 
 ## 파일 템플릿

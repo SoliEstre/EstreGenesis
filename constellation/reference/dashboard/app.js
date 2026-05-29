@@ -1462,20 +1462,27 @@ function wsPushRow(agentId, row) {
 }
 
 function wsName(id) { const c = wsState.channels.get(id); return (c && c.name) || id; }
-// v0.3 오케스트레이션 — 모니터 2채널 + 탭 그룹
+// v0.3 오케스트레이션 — 모니터 3채널(Up↔Main / Main↔Local / Main↔Collab) + 탭 그룹
 const WS_MON_UP = '__mon_up__';        // 🔀 업스트림 ↔ 메인
 const WS_MON_LOCAL = '__mon_local__';  // 🔀 메인 ↔ 로컬
+const WS_MON_COLLAB = '__mon_collab__';  // 🔀 메인 ↔ 협업(collab peer, §13.9 — collab/upstream = peer not worker)
 let WS_LOCAL = 'main-agent';           // placeholder; updated dynamically from AgentList (the agentId whose role==='main') — §2 role model
 function wsRoleOf(id) { const c = wsState.channels.get(id); return (c && c.role) || (id === WS_LOCAL ? 'main' : 'local'); }
-function wsMonChannel(src, dst) { return (wsRoleOf(src) === 'upstream' || wsRoleOf(dst) === 'upstream') ? WS_MON_UP : WS_MON_LOCAL; }
-function wsMonName(id) { return id === WS_MON_UP ? '🔀 Up↔Main' : '🔀 Main↔Local'; }
-function wsIsMon(id) { return id === WS_MON_UP || id === WS_MON_LOCAL; }
+function wsMonChannel(src, dst) {
+  const sr = wsRoleOf(src), dr = wsRoleOf(dst);
+  if (sr === 'upstream' || dr === 'upstream') return WS_MON_UP;
+  if (sr === 'collab' || dr === 'collab') return WS_MON_COLLAB;   // §13.9 collab peer: Main↔Collab 별도 모니터
+  return WS_MON_LOCAL;
+}
+function wsMonName(id) { return id === WS_MON_UP ? '🔀 Up↔Main' : id === WS_MON_COLLAB ? '🔀 Main↔Collab' : '🔀 Main↔Local'; }
+function wsIsMon(id) { return id === WS_MON_UP || id === WS_MON_LOCAL || id === WS_MON_COLLAB; }
 function wsIsGroup(id) { return typeof id === 'string' && id.indexOf('group:') === 0; }
 function wsGroupMembers(gkey) {
   const r = gkey === 'group:up' ? 'upstream' : gkey === 'group:main' ? 'main' : gkey === 'group:collab' ? 'collab' : 'local';
   const mem = [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id)).map(([id]) => id);
   if (gkey === 'group:up' && wsState.channels.has(WS_MON_UP)) mem.push(WS_MON_UP);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_LOCAL)) mem.push(WS_MON_LOCAL);
+  if (gkey === 'group:main' && wsState.channels.has(WS_MON_COLLAB)) mem.push(WS_MON_COLLAB);   // group:main 병합에 Main↔Collab 취합(§13.9 collab peer)
   return mem;
 }
 function onWsEvent(m) {
@@ -1652,9 +1659,14 @@ function onWsEvent(m) {
       else if (m.name === 'Cancel') push('user', '⏹ Stop', '작업 중단 요청', false);
       else if (m.name === 'AgentHello') { const v = m.value || {}; push('user', '👋 합류', (v.agentName || v.agentId || '') + (v.env ? ' · ' + v.env : '') + (v.idle ? ' · 대기' : ''), false, v); }   // 신규 워커 self-intro(§13.9)
       else if (m.name === 'OnboardAck') { const v = m.value || {}; push('ok', '🤝 온보딩', [v.welcome, v.guide, v.policy].filter(Boolean).join(' · '), false, v); }   // 메인 온보딩 응답
-      else if (m.name === 'Delegate') { const v = m.value || {}; push('user', '📋 위임', (v.task ? '[' + v.task + '] ' : '') + (v.summary || v.reason || ''), false, v); }   // 메인 → 워커 작업 위임
-      else if (m.name === 'WorkerReport') { const v = m.value || {}; push('text', '📤 보고', (v.from ? v.from + ' · ' : '') + (v.re || v.done || v.summary || v.note || ''), false, v); }   // 워커 → 메인 진행 보고
-      else if (m.name === 'WorkerAck') { const v = m.value || {}; push('ok', '📥 ack', (v.re || v.ack || v.summary || v.note || ''), false, v); }   // 워커/메인 수용 응답
+      else if (m.name === 'Delegate') { const v = m.value || {}; push('user', '📋 위임', (v.task ? '[' + v.task + '] ' : '') + (v.summary || v.reason || v.notice || ''), false, v); }   // 메인 → 워커 작업 위임 — fallback에 notice 추가(공지류 v2.2.x batch)
+      else if (m.name === 'WorkerReport') { const v = m.value || {}; push('text', '📤 보고', (v.from ? v.from + ' · ' : '') + (v.re || v.done || v.summary || v.note || v.notice || ''), false, v); }   // 워커 → 메인 진행 보고 — fallback에 notice 추가
+      else if (m.name === 'WorkerAck') { const v = m.value || {}; push('ok', '📥 ack', (v.re || v.ack || v.summary || v.note || v.notice || ''), false, v); }   // 워커/메인 수용 응답 — fallback에 notice 추가
+      else if (m.name === 'Ack') { const v = m.value || {}; push('ok', '✅ delivered', [v.kind, v.ackFor].filter(Boolean).join(' · ') || (v.re || v.summary || v.notice || ''), true, v); }   // §13.13 server delivered ack — board 미표시(alarm fatigue 게이팅), hidden=true로 hover/drawer만 접근
+      else if (m.name === 'AckProcessed') { const v = m.value || {}; push('ok', '✅ processed', [v.kind || 'processed', v.ackFor].filter(Boolean).join(' · ') || (v.re || v.summary || v.notice || ''), true, v); }   // §13.13 agent processed ack(WILCO) — board 미표시
+      else if (m.name === 'AckCumulative') { const v = m.value || {}; push('ok', '✅ cumulative', 'upToSeq=' + (v.upToSeq != null ? v.upToSeq : '?'), true, v); }   // §13.13 telemetry 누적 ack — board 미표시
+      else if (m.name === 'Ping') { const v = m.value || {}; push('text', '🛰 ping', (v.re ? 're=' + v.re : '') + (v.ttl != null ? ' · ttl=' + v.ttl : '') + (v.notice ? ' · ' + v.notice : ''), true, v); }   // §13.13 liveness probe(RFC1122 보수적 multi-probe, 재전송 도구 아님) — board 미표시
+      else if (m.name === 'Pong') { const v = m.value || {}; push('text', '🛰 pong', (v.re ? 're=' + v.re : '') + (v.notice ? ' · ' + v.notice : ''), true, v); }   // §13.13 liveness 응답(application-layer, transport keepalive 아님) — board 미표시
       else if (m.name === 'ConnectionRestored') {   // /restart 후 게이트웨이 재연결 공지(§5) — dedup 후 status 카드
         const v = m.value || {};
         const key = String(v.sessionId || v.session || v.at || m.timestamp || '');
@@ -1666,7 +1678,7 @@ function onWsEvent(m) {
         }
       }
       else if (m.name === 'Attachment') { wsPushRow(chId, { kind: 'attach', src: _src, att: m.value || {}, t: nowHM(), chan: _chan, chanFull: _chanFull }); }   // §6 첨부 카드(image/audio/video/file)
-      else { const v = m.value; const disp = (v == null) ? '' : (typeof v === 'string' ? v : (v.text || v.message || v.summary || v.label || '')); push('text', `✦ ${m.name || 'CUSTOM'}`, disp, true, v); }   // raw JSON 미노출(§1) — 원본은 hover 팝업 + debug drawer
+      else { const v = m.value; const disp = (v == null) ? '' : (typeof v === 'string' ? v : (v.text || v.message || v.notice || v.summary || v.label || '')); push('text', `✦ ${m.name || 'CUSTOM'}`, disp, true, v); }   // raw JSON 미노출(§1) — 원본은 hover 팝업 + debug drawer; fallback에 notice 추가(공지류 v2.2.x batch)
       break;
     case 'STATE_SNAPSHOT': case 'STATE_DELTA': push('step', `≡ ${t}`, m.scope || '', true); break;
     default: push('text', t || '?', '', true);
@@ -1683,7 +1695,7 @@ function wsRenderTabs() {
   const has = (id) => wsState.channels.has(id);
   const groups = [
     { key: 'group:up', cls: 'up', label: '업스트림', tabs: byRole('upstream').concat(has(WS_MON_UP) ? [WS_MON_UP] : []) },
-    { key: 'group:main', cls: 'main', label: '메인', tabs: byRole('main').concat(has(WS_MON_LOCAL) ? [WS_MON_LOCAL] : []) },
+    { key: 'group:main', cls: 'main', label: '메인', tabs: byRole('main').concat(has(WS_MON_LOCAL) ? [WS_MON_LOCAL] : []).concat(has(WS_MON_COLLAB) ? [WS_MON_COLLAB] : []) },
     { key: 'group:local', cls: 'local', label: '로컬', tabs: byRole('local') },
     { key: 'group:collab', cls: 'collab', label: '협업', tabs: byRole('collab') },
   ];

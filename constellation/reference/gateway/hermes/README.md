@@ -73,8 +73,10 @@ DISCONNECTED ──(connect)──> CONNECTING ──(socket opened)──> CONN
 
 1.  **정적 큐(Queue) 버퍼 활용**:
     *   네트워크의 순간 단절 시 에이전트의 출력(`TEXT_MESSAGE_CONTENT` 등)이 유실되지 않도록, 반드시 전송 실패 시 송신 큐에 다시 밀어 넣는 **At-Least-Once 발신 보장 규칙**을 코어 단에 바인딩해야 합니다.
-2.  **Ping/Pong 킵얼라이브**:
-    *   클라이언트 단에서 20초 주기 내외의 지속적인 `Ping` 신호를 게이트웨이에 던져주어, 유휴 상태(Idle)가 장기화될 때 방화벽이나 라우터가 소켓을 강제 차단하지 못하도록 방지해야 합니다.
+2.  **Ping/Pong 의미 — transport vs application 분리**:
+    *   **transport keepalive** (`websockets.connect(ws_url, ping_interval=20.0, ping_timeout=10.0)`): RFC6455 `0x9`/`0xA` 컨트롤 프레임으로 방화벽 idle 차단 방지. `websockets` 라이브러리가 자동 처리.
+    *   **application-level `Ping`/`Pong`** (WS-PROTOCOL §13.13): **liveness probe** 용 CUSTOM payload — *재전송 도구 아님*. ack 무응답 시 "상대 살아있냐" 1회 보수적 확인(RFC1122 single conservative probe). `Ping{ttl, re}` / `Pong` 의 `ttl` = 응답 deadline, `re` = retry counter(정상 0).
+    *   둘은 의미 충돌 없음 — transport keepalive 는 라이브러리가, application Ping/Pong 은 host 가 명시 emit.
 3.  **독립적 Receiver와 Sender 분리**:
     *   하나의 소켓 커넥션에 대해 비동기 수신용 태스크(`_receiver_loop`)와 송신용 태스크(`_sender_loop`)를 동시 실행(`asyncio.wait` / Go's `select` / Rust's `tokio::select!`)하여, 송신이 밀리더라도 인바운드 컨트롤 메시지(예: `Cancel` 또는 사용자 입력 인터럽트)가 지연 없이 도착할 수 있게 설계해야 합니다.
 
@@ -93,3 +95,69 @@ DISCONNECTED ──(connect)──> CONNECTING ──(socket opened)──> CONN
     *   `threadId`/`runId` 가 telemetry 스트림(예: `codex-watch`) 인 inbound 이벤트를 호스트 inbox·drain 로직에서 빼고 싶으면 `ConstellationClient(..., telemetry_thread_ids={"codex-watch"})` 로 등록하세요. 어댑터의 `_receiver_loop` 가 자동으로 drop 합니다 (`gateway-client.eux` `derive.routable`).
 *   **아웃바운드 필터 주입**:
     *   `send_event(event_type, **payload)` 호출 단계에 정규식 비밀번호 필터 함수를 래핑하여, LLM이 출력한 로데이터에서 민감 키워드를 마스킹 처리한 후 게이트웨이로 최종 이벤트를 방출하도록 확장하십시오.
+
+---
+
+## 6. 📮 A2A ack 계층 (WS-PROTOCOL §13.13)
+
+> 본 절은 메인 라이브보드 production 의 §13.13 송달 3등급(delivered/read/processed) 명세를 EG reference 의 Python 어댑터 영역으로 spec reflect. 현 `ws_agent_client.py` 코드 본문은 미반영(자연 보강 후보) — invariant 만 박제.
+
+### 송달 3등급 (Three-tier Delivery Acknowledgement)
+
+| Tier | Source | Adapter Action |
+| --- | --- | --- |
+| **delivered** | server (live board) — A2A relay 성공 직후 `Ack{ackFor, kind:'delivered'}` 자동 회신 | `_receiver_loop` 에서 흡수, host 미전달, `_pending_ack` set 갱신 |
+| **read** | adapter / host (옵션 emit) | `client.reply_to(inbound, 'AckRead', ackFor=inbound.get('msgId'))` 옵션 |
+| **processed** | host (작업 이행 후) — ROGER/WILCO 분리 | `client.reply_to(inbound, 'AckProcessed', ackFor=inbound.get('msgId'))` 명시 emit |
+
+### Adapter Invariants (Python)
+
+1.  **`send_event` 의 msgId 자동 부여**:
+    *   `event_type` 이 `CUSTOM` 이고 `payload.get('msgId')` 부재 시 자동 부여 권장 (`f"m-{uuid.uuid4().hex}"` 또는 monotonic counter). bare framing (HELLO/RUN_*/TEXT_*/TOOL_*) 은 부여 안 함.
+    *   현 `_outbox.put_nowait(event)` 직전 단계 — `event.setdefault('msgId', f'm-{uuid.uuid4().hex[:12]}')` 형태로 자연 보강.
+
+2.  **`_receiver_loop` 의 msgId dedup**:
+    *   `event.get('msgId')` 있고 영속 watermark set 에 이미 있으면 `continue` (host handler 호출 안 함).
+    *   watermark 영속화 — Python 에선 `pathlib.Path('.msgid-watermark').open('a').write(msgId + '\n')` 패턴. 메모리 set + 종료 시 flush 도 허용.
+    *   `telemetry_thread_ids` 와 직교 — telemetry 는 애초에 ack 대상이 아니므로 그쪽 가드 통과한 frame 중 `msgId` 있는 것만 dedup.
+
+3.  **`Ack(delivered)` 흡수**:
+    *   `event.get('type') == 'CUSTOM' and event.get('name') == 'Ack' and event.get('value', {}).get('kind') == 'delivered'` 면 `_pending_ack.discard(event['value']['ackFor'])` 후 `continue`. host handler 호출 안 함 (과확인 피로 회피).
+
+4.  **`reply_to(inbound, 'AckProcessed', ackFor=...)` 헬퍼**:
+    *   기존 `reply_to` 가 이미 echoHeader 자동 채움 — `payload.setdefault('ackFor', inbound.get('msgId'))` 추가만 하면 invariant 충족. 호스트가 작업 이행 완료 후 호출.
+
+5.  **무응답 시 application Ping (재전송 금지)**:
+    *   `_pending_ack` 에 일정 window(예: 30s) 이상 남아 있으면 — **재전송 안 함**(보수적 single probe RFC1122). 대신 `client.send_event('CUSTOM', name='Ping', value={'ttl': 30, 're': 0}, targetAgentId=...)` 1회.
+    *   `Pong` 받으면 watermark 갱신만, 추가 조치 안 함(상대가 처리 중일 수 있음).
+    *   `Ping` 도 timeout → host 가 inbox 자가 조회 → 유실분만 재전송 → 그래도 무응답 → **사람 보고** (Two Generals 종결).
+
+6.  **auto-pong 안 함**:
+    *   `_receiver_loop` 가 application-level `Ping` 받았다고 자동 `Pong` 보내지 않음. 연결 생존(`websockets.connect` ping_interval) ≠ turn 생존(host busy 가능). host 가 safe point 에서 명시 `reply_to(ping, 'Pong')`.
+    *   **단, transport keepalive Pong** (`websockets` lib 의 자동 `0xA` 응답) 은 별개 — 그건 RFC6455 컨트롤 프레임이고 라이브러리 책임.
+
+### Porting 가이드라인 (Rust/Go/C# 등)
+
+§4 #1 At-Least-Once 큐 보장 + §6 invariants 5~6 의 conservative-probe-not-retransmit 정책은 transport 손실 회복의 *2단 분리* 다:
+
+| Layer | 책임 | 패턴 |
+| --- | --- | --- |
+| Outbox queue (at-least-once 송신) | 어댑터 | 송신 실패 시 큐로 re-queue (현 `_outbox.put_nowait(event); raise exc`) |
+| msgId dedup + ack 추적 (정확히 한 번 처리) | 어댑터 + host | watermark + `_pending_ack` set |
+| 무응답 → liveness probe (재전송 결정) | host | conservative single Ping, then human escalation |
+
+Rust 에선 `tokio::sync::mpsc` + `HashSet` watermark, Go 에선 `chan` + `sync.Map`, C# 에선 `Channel<T>` + `ConcurrentDictionary` 패턴이 같은 분리를 자연스럽게 표현.
+
+---
+
+## 7. 📊 메인 production 과 의도적 차이 (ack 계층 spec 시점)
+
+| 항목 | 메인 production (`dist/vanilla/*.js` master 2026-05-29) | EG reference (`ws_agent_client.py` + 본 README §6) | 정합 상태 |
+| --- | --- | --- | --- |
+| msgId 자동 부여 (CUSTOM) | **미반영** (`agent-gateway-client.js` grep 0건) | §6 #1 spec 박제 — `m-` prefix 권장 | spec先·code 後 |
+| `_receiver_loop` watermark dedup | **미반영** | §6 #2 spec 박제 — `.msgid-watermark` 영속 set | spec先·code 後 |
+| Ack(delivered) 흡수 → `_pending_ack` | (미반영) | §6 #3 — host 미전달, set 갱신만 | spec先·code 後 |
+| `reply_to(in, 'AckProcessed', ackFor=...)` | (미반영) | §6 #4 — 헬퍼 1줄 확장(`payload.setdefault('ackFor', ...)`) | spec先·code 後 |
+| application Ping/Pong (liveness probe) | (미반영, transport keepalive 와 별개) | §6 #5·#6, §4 #2 의미 정정 | spec先·code 後 |
+
+> 메인 production §13.13 패치 PR 도착 후 본 README + `ws_agent_client.py` 본문 자연 보강. Python·Node 두 어댑터의 invariant 표현 차이(asyncio.Set vs Node Set, fs.appendFileSync vs pathlib.Path) 는 stack 관용 — 의미는 동일.

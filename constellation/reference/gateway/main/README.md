@@ -114,12 +114,50 @@ optional 환경변수 누락 시 *silent* 폴백 대신 한 줄 WARN. 새 option
 
 ---
 
+## 5-bis. 📮 A2A ack 계층 (WS-PROTOCOL §13.13) — gateway-client 책임
+
+> 본 절은 메인 라이브보드 production 의 §13.13 송달 3등급(delivered/read/processed) 명세를 EG reference gateway-client 영역으로 spec reflect. 현 `ws-agent-client.cjs` 코드 본문은 미반영(자연 보강 후보) — invariant 만 박제.
+
+### 송달 3등급 (책임 분리)
+
+| 등급 | 책임 주체 | 본 어댑터 |
+| --- | --- | --- |
+| **delivered** | server (라이브보드) — A2A relay 성공 직후 `Ack{ackFor, kind:'delivered'}` 자동 회신 | 수신만(host 가 `_pendingAck` 에서 watermark dedup) |
+| **read** | gateway-client / bridge (옵션 emit) | `out.replyTo(inbound, 'AckRead', { ackFor: inbound.msgId })` 옵션 |
+| **processed** | host (작업 이행 후) | `out.replyTo(inbound, 'AckProcessed', { ackFor: inbound.msgId })` — ROGER/WILCO 분리 (수신 ≠ 이행) |
+
+### gateway-client invariants
+
+1. **outbound msgId 자동 부여** — `send(type, extra)` 가 `type === 'CUSTOM'` 이고 `extra.msgId` 비어 있으면 자동 부여(권장 형식 `m-<id>` — `'m-' + Date.now().toString(36) + '-' + (++seq)`). bare framing(HELLO/RUN_*/TEXT_*/TOOL_*) 은 msgId 부여 안 함 (transport 계층).
+   - host 가 `extra.msgId` 명시하면 그대로 사용(host 결정 우선).
+   - 본 어댑터의 현 `send()` 가 `id` 만 부여하고 `msgId` 미부여 → 자연 보강 후보. 패치 시 line 67~74 의 `Object.assign` 에 `msgId: type==='CUSTOM' ? ('m-'+now().toString(36)+'-'+(++seq)) : undefined` 형태로 추가.
+2. **onInbound msgId dedup** — `inbound.msgId` 있고 영속 watermark(set) 에 이미 있으면 drop. host inbox 에 적재 전 1차 게이트. 같은 msgId 재수신은 server replay or 발신자 재전송 결과.
+   - watermark 영속화는 어댑터 책임 범위 — Node 에선 `fs.appendFileSync('.msgid-watermark', msgId+'\n')` (gitignore). host 가 어댑터 in-process 사용 시 메모리 set + 종료 시 flush 패턴도 허용.
+3. **Ack(delivered) 수신 처리** — `inbound.name === 'Ack' && inbound.value.kind === 'delivered'` 면 어댑터의 `_pendingAck` set 에서 `inbound.value.ackFor` 제거(watermark 갱신). **호스트에게 전달 안 함**(과확인 피로) — board telemetry 처럼 조용히 흡수.
+4. **AckProcessed emit (host 결정)** — `out.replyTo(inbound, 'AckProcessed', { ackFor: inbound.msgId })` 헬퍼 제공. echoHeader(targetAgentId/contextId/parentId/threadId) 자동 채움. 호스트가 작업 이행 완료 후 명시 emit.
+5. **무응답 시 ping 보내라 — 재전송 금지(1차)** — `_pendingAck` 에 남아 있고 일정 window(예: 30s) 경과 시:
+   - **재전송 안 함**(보수적 single probe RFC1122 호환). 대신 `Ping{ttl, re}` 1회 보냄.
+   - `Pong` 받으면 watermark 갱신 후 추가 조치 안 함(연결은 살아 있고 상대가 처리 중일 수 있음 — 더 기다림).
+   - `Ping` 도 timeout → host 가 자기 inbox 자가 조회(`RequestChannelHistory`) → 유실 메시지만 재전송 → 그래도 무응답 → **사람 보고** (Two Generals 종결).
+6. **auto-pong 안 함** — 어댑터가 `Ping` 받았다고 자동으로 `Pong` 보내지 않는다. 연결 생존 ≠ turn 생존(host 가 busy 일 수 있음). host 가 safe point 에서 명시적으로 `out.replyTo(ping, 'Pong')`.
+
+### TELEMETRY_THREAD_IDS 와의 관계
+
+기존 `WS_TELEMETRY_THREADS` 환경변수 (gateway-client.eux `derive.routable`) 는 호스트 inbox 적재 전 drop. **ack 계층과 직교** — telemetry 는 애초에 ack 대상이 아니라 server 가 `wsIsAckable` 에서 제외하고, 어댑터도 telemetry threadId 면 `_pendingAck` 추적도 안 한다.
+
+### v2.2.x 추가 보강 목록에 본 절 정합 항목 추가 (요약)
+
+8 보강(`§13.13 ack 계층 spec reflection`) — `out` 헬퍼에 `processed(inbound)` / `read(inbound)` 추가 + `send()` 에 msgId 자동 부여 + `onInbound` 에 watermark dedup gate. (현 코드는 미반영, 메인 production 패치 도착 후 자연 보강.)
+
+---
+
 ## 6. 🔗 Constellation 정합
 
 - `gateway-client.eux` `@machine` (`connState` / `turnState`) ↔ 본 어댑터의 Axis A / Axis B.
 - `Constellation.md §4` watch-state discipline silent-disable WARN ↔ §9 WARN 라인.
 - `server.cjs wscore.event('CUSTOM', {name, value})` envelope convention ↔ `out` 객체 / `replyTo` 의 CUSTOM-wrap (HELLO 만 bare transport framing).
 - WS-PROTOCOL §13.8 reply-window pairing ↔ `replyTo` 의 echoHeader (heuristic 폴백 없이 명시 pairing).
+- WS-PROTOCOL §13.13 ack 계층 ↔ 5-bis 절 invariants(msgId 자동 부여 / dedup watermark / Ack(delivered) 흡수 / AckProcessed host emit / Ping is liveness probe not retransmit / no-auto-pong).
 
 ---
 
@@ -142,3 +180,17 @@ WS_TELEMETRY_THREADS=codex-watch node ws-agent-client.cjs
 # CI / smoke (1회 run 후 종료)
 node ws-agent-client.cjs --once
 ```
+
+---
+
+## 8. 📊 메인 production 과 의도적 차이 (ack 계층 spec 시점)
+
+| 항목 | 메인 production (`dist/vanilla/agent-gateway-client.js` master 2026-05-29) | EG reference (`ws-agent-client.cjs` + 본 README §5-bis) | 정합 상태 |
+| --- | --- | --- | --- |
+| msgId 자동 부여 | **미반영** (grep 0건) | §5-bis #1 spec 박제 — `m-` prefix 권장. 패치 시 `send()` line 67~74 자연 보강 | spec先·code 後 |
+| onInbound dedup | **미반영** | §5-bis #2 spec 박제 — `.msgid-watermark` 영속 set | spec先·code 後 |
+| Ack(delivered) 흡수 | (미반영) | §5-bis #3 — host 미전달, `_pendingAck` 갱신만 | spec先·code 後 |
+| AckProcessed emit | (미반영) | §5-bis #4 — `out.replyTo(in, 'AckProcessed', ...)` 헬퍼 권장 | spec先·code 後 |
+| application Ping/Pong | (미반영, RFC keepalive 와 별개) | §5-bis #5·#6 — liveness probe, no-auto-pong | spec先·code 後 |
+
+> 메인 production 패치 도착 후 본 README 갱신 + `ws-agent-client.cjs` 본문 보강 (자연 충족 + invariant 명시 주석).

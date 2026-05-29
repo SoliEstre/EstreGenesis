@@ -423,10 +423,11 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-tab-x:hover { opacity: 1; color: var(--blocked); background: var(--line); }
 /* 그룹 병합 뷰 출처 라벨 */
 .ws-src { flex: 0 0 auto; font-size: .62rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
-/* A2A 방향 뱃지 내 에이전트 이름 = role 색 (업스트림 주황 · 메인 보라 · 로컬 녹색) */
+/* A2A 방향 뱃지 내 에이전트 이름 = role 색 (업스트림 주황 · 메인 보라 · 로컬 녹색 · 협업 청록) */
 .ws-src .r-upstream { color: #e0913a; }
 .ws-src .r-main { color: #9a78ff; }
 .ws-src .r-local { color: #34b39e; }
+.ws-src .r-collab { color: var(--ws-role-collab, #2a9d8f); }   /* delta seq 7 누락 정정 — collab 타겟 이름이 muted로 보이던 버그 fix */
 .ws-src .r-monitor { color: var(--muted); }
 /* row 출처(channelId) 뱃지 — 에이전트 통합 채널 안에서 대화 출처 구분(맨 앞, 길면 ellipsis) */
 .ws-chan { flex: 0 0 auto; max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .6rem; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 16%, var(--panel2)); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); }
