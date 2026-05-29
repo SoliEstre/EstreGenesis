@@ -46,7 +46,21 @@ One WS text frame = one JSON event (raw WebSocket, RFC 6455 — no library requi
 **Handshake**:
 1. WS connect (per the path above) → server sends `SERVER_HELLO { sessionId, protocolVersion: "0.3", serverTime }` → `AgentList` (role first, so monitors can classify) → `History` (replay).
 2. Send `HELLO { agentId, agentName, role, capabilities{inbound[],outbound[]} }`. New IDE chat = new `agentId`. (A board sends no HELLO.)
-3. Send A2A `CUSTOM/AgentHello { targetAgentId: <main>, value: { agentId, env, capabilities, idle } }` to introduce yourself.
+3. Send a **`CUSTOM` event with `name="AgentHello"`** to introduce yourself. Exact wire shape — write the literal frame; **do NOT interpret the `CUSTOM/Name` slash shorthand** used elsewhere as a human-facing label as the on-wire structure:
+
+   ```jsonc
+   { "type": "CUSTOM",
+     "name": "AgentHello",
+     "targetAgentId": "<main agentId>",
+     "value": { "agentId": "<self agentId>",
+                "agentName": "<display name>",
+                "role": "local" | "upstream" | "collab",
+                "env": "<runtime hint>",
+                "capabilities": [ "..." ],
+                "idle": true } }
+   ```
+
+   Both `name` and `targetAgentId` live at the **top level** (siblings of `type`), **not nested in `value`**. A misread of the slash shorthand has been observed to nest both inside `value`, which silently breaks (a) server routing (it reads top-level `targetAgentId`), (b) bridge auto-`OnboardAck` (it reads top-level `name === "AgentHello"`), and (c) dashboard A2A classification (it reads top-level `targetAgentId`/`agentId`) — all three simultaneously, with no error. The slash shorthand is fine in prose; just never let it leak into emit-side code.
 4. Main replies `OnboardAck` (welcome/guide/modes/policy). Then **wait for `Delegate`** — workers do not self-start (`Delegate` is never automated; the PM decides from the worklist).
 
 **Messaging**:

@@ -1556,10 +1556,14 @@ function onWsEvent(m) {
     return;
   }
   const agentId = m.agentId; if (!agentId) return;       // agent outbound 는 agentId 필수
-  // A2A: 에이전트가 다른 에이전트에게 보낸 메시지(source agent + targetAgentId=타 agent) → 모니터 채널로 분리
-  const a2a = (m.source === 'agent' && m.targetAgentId && m.targetAgentId !== agentId);
-  const chId = a2a ? wsMonChannel(agentId, m.targetAgentId) : wsChanKey(m);   // §13.5 모니터 2채널(role 기반) / §4 channelId scoped 키
-  const _src = a2a ? { from: agentId, to: m.targetAgentId } : null;   // A2A 방향(src→dst, 각 이름 role 색) — 본문이 아닌 별도 뱃지
+  // A2A: 에이전트가 다른 에이전트에게 보낸 메시지(targetAgentId=타 agent) → 모니터 채널로 분리.
+  // ── source-stamp 죽은 조건 회피(MangoTalk Report 2 Finding 1): server.cjs 의 wsToBoards 는 frame 에 source role 을
+  //    stamp 하지 않으므로 기존 `m.source === 'agent'` 조건은 항상 false → A2A 영구 미분류였음.
+  //    agentId(발신) + targetAgentId(수신) 만으로 판정하고, malformed sender(=value.targetAgentId 중첩, Finding 2 케이스)도 tolerate.
+  const _a2aTgt = m.targetAgentId || (m.value && m.value.targetAgentId) || null;
+  const a2a = !!(_a2aTgt && _a2aTgt !== agentId);
+  const chId = a2a ? wsMonChannel(agentId, _a2aTgt) : wsChanKey(m);   // §13.5 모니터 2채널(role 기반) / §4 channelId scoped 키
+  const _src = a2a ? { from: agentId, to: _a2aTgt } : null;   // A2A 방향(src→dst, 각 이름 role 색) — 본문이 아닌 별도 뱃지
   // §6 project metadata: 공통 필드 또는 AgentHandoffStart/ProjectMetadata value 에서 추출
   const meta = a2a ? null : { routeId: agentId, channelId: m.channelId, threadId: m.threadId };
   if (meta) {
