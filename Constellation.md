@@ -19,7 +19,7 @@ upstream agents          local IDE main agent              other local IDE agent
                           external collab agents (join URL)
 ```
 
-- **main** — orchestrator; the priority recipient of target-unspecified messages. Default = the local IDE bridge in the environment that started the live-board server (`local-ide-agent`). Reassignable by graceful handoff (§2).
+- **main** — orchestrator; the priority recipient of target-unspecified messages. Default = the local IDE bridge in the environment that started the live-board server (`main-agent` by default; override via `WS_PRIMARY_AGENT` env). Reassignable by graceful handoff (§2).
 - **local** — other local IDE agents (workers). A new chat in the same IDE is a new agent.
 - **upstream** — upstream agents; connect with a main-issued registration key (`uk-`) → `upstream` role.
 - **collab** — external collaborators; connect with a collab key (`ck-`) via a join URL → `collab` role, `group:collab`.
