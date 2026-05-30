@@ -45,6 +45,31 @@ const INBOX = process.env.WS_INBOX ? path.resolve(process.env.WS_INBOX) : path.j
 const OUTBOX = process.env.WS_OUTBOX ? path.resolve(process.env.WS_OUTBOX) : path.join(DIR, 'ws-outbox.jsonl');
 const url = TOKEN ? `${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : WS_URL;
 
+// --- single-instance guard (WS_AGENT_ID 당 브릿지 1개 — 중복 인스턴스 → flap 방지) ---
+// 동일 agentId 브릿지가 2+ 이면 서버 register(HELLO) 의 prior-close + 각 브릿지 reconnect backoff 가
+// 무한 flap(connect↔close)을 일으켜 ServerNotice 폭주 + 메인 연결 불안정(실측 incident 2026-05-30:
+// 장시간 세션 + 재시작 orphan 누적으로 동일 agentId 브릿지 12개 → inbox 2538줄 노이즈).
+// PID lockfile 로 단일화: 선행 생존 브릿지를 종료하고 락 획득, 프로세스 종료 시 해제(stale 락은 자가복구).
+const LOCK = path.join(DIR, '.' + String(AGENT_ID).replace(/[^\w.-]/g, '_') + '-bridge.lock');
+(function singleInstanceGuard() {
+  try {
+    if (fs.existsSync(LOCK)) {
+      const prev = parseInt(String(fs.readFileSync(LOCK, 'utf8')).trim(), 10);
+      if (prev && prev !== process.pid) {
+        let alive = false;
+        try { process.kill(prev, 0); alive = true; } catch {}   // signal 0 = 존재 확인(미생존이면 throw)
+        if (alive) {
+          console.warn('[bridge][WARN] 동일 agentId(' + AGENT_ID + ') 선행 브릿지 PID ' + prev + ' 생존 — 중복 flap 방지 위해 종료.');
+          try { process.kill(prev); } catch {}
+        }
+      }
+    }
+    fs.writeFileSync(LOCK, String(process.pid));
+  } catch (e) { console.warn('[bridge][WARN] single-instance lock 실패(무시):', String((e && e.message) || e)); }
+})();
+function releaseLock() { try { if (parseInt(String(fs.readFileSync(LOCK, 'utf8')).trim(), 10) === process.pid) fs.unlinkSync(LOCK); } catch {} }
+process.on('exit', releaseLock);
+
 let ws = null, connected = false, backoff = 500, seq = 0, runId = null;
 const now = () => Date.now();
 // §13.13 A2A ack 계층 (client 측): 발신 msgId 부여(서버 delivered ack 대상·dedup 키) + 수신 dedup.
