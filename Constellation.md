@@ -313,3 +313,62 @@ A complementary discipline to §13.14 — that one guards *content* (env-specifi
 **Compose with both**: A + B is the safest combination — A catches drift in local commits and B catches drift from non-hooked contributors / CI-only environments. The added cost is small (the same `node --check` invocation, twice). For solo projects without CI infrastructure, A alone is the practical baseline.
 
 **Beyond `.cjs`**: the same gate principle applies to any reference-build artifact whose load-failure breaks downstream bootstrap — `.py` (`python -m py_compile`), `.rs` (`cargo check`), brewed `.eux` outputs (`node bin/estreux.mjs drift`), etc. The point is *fail at commit time, not at adopter time*.
+
+### 13.16 Runtime operational runbook — launch idempotency, orphan handling, channel cleanup
+
+The complement to §13.15 (build-time gate) — this is the *runtime-time* discipline for keeping a Constellation deployment stable across restarts, account switches, IDE crashes, and developer machine reboots. The driver was a real downstream incident (per `_proposals/003`): a long live-board session with two external interruptions accumulated 12 same-`agentId` bridge processes; absent any single-instance protection they kicked each other off in an infinite `register(HELLO)` → close → reconnect loop, flooding the board + inbox with ~2,500 `ServerNotice` events until manual OS-level kill.
+
+The bridge's PID lockfile guard (per `_proposals/003` Fix 1, `local-bridge.cjs:L53`) is the in-process line of defense. This runbook covers the **out-of-process layers**: how launcher scripts, restart-orphan cleanup, and channel cleanup compose with it.
+
+#### 13.16.1 Launch idempotency
+
+Any wrapper that starts a Constellation runtime process (`local-bridge.cjs` · `server.cjs` · `watchdog.cjs` · `self-wake-watcher.sh`) MUST be safe to re-invoke. The bridge's own lockfile already handles the worst case (an existing same-`agentId` bridge is killed before the new one acquires the lock), but a launcher that *also* checks the lockfile and the listening port preemptively produces less alarming logs and avoids the brief flap window during the bridge's startup race.
+
+Reference launcher behavior (per `agentId`):
+
+1. Read `constellation/reference/runtime/.<agentId>-bridge.lock` (sanitized filename — see `local-bridge.cjs:L53`).
+2. If the PID is alive (`process.kill(pid, 0)` succeeds), the launcher's policy decides:
+   - **default**: kill the prior PID, log `replacing prior bridge PID N`, start new bridge.
+   - **strict**: refuse to start, log the existing PID — operator decides.
+3. For `server.cjs`: gate on the listening port (e.g. 27878) — only one server per port; if `EADDRINUSE` would otherwise be raised, surface it explicitly before launch.
+
+Launcher scripts are project-specific (PowerShell · bash · npm script · systemd unit) — they ship as runbook examples, not as canonical reference. The lockfile path + behavior contract is the invariant.
+
+#### 13.16.2 Restart-orphan handling — `stop-all` / `status` helpers
+
+Background runtime processes survive IDE / harness restarts at the OS level but the harness loses task tracking, so the harness's normal task API can't reach them. Manual cleanup helpers are required:
+
+- **`status`** — list every alive Constellation process: PID · agentId (or role) · lockfile path · bound port · parent process · start time. Sources: scan `constellation/reference/runtime/.*-bridge.lock` files + check the listening port; cross-reference `node` processes by exact script path (`local-bridge.cjs` · `server.cjs` · `watchdog.cjs`).
+- **`stop-all`** — kill every Constellation process and remove its lockfile. **Filter precisely**: `Name=node.exe` (or `node`) AND command-line contains the absolute path of one of the four reference scripts. **NEVER** use a broad `*constellation*` command-line glob — it catches IDE shell wrappers and unrelated processes (real-incident anti-pattern: a Windows `Stop-Process | Where {$_.CommandLine -like '*constellation*'}` accidentally killed the parent terminal because the IDE's Constellation channel name was in its title).
+
+The pair makes recovery deterministic: `status` to see what's alive, `stop-all` to start clean, then launchers re-start whatever the deployment needs.
+
+#### 13.16.3 Channel noise cleanup — `CloseChannel`
+
+A flap incident leaves the affected channel's history file (`ws-history/<agentId>.jsonl`) and the agent's inbox saturated with `ServerNotice{kind:'online'}` + `Status` events. **Browser refresh does NOT clear them** — the noise is recorded server-side, not cached client-side. New operators reaching for refresh as a first instinct will be confused.
+
+The cleanup primitive is `CUSTOM/CloseChannel{value:{agentId}}` (board → server):
+
+1. Server deletes `ws-history/<agentId>.jsonl` and removes the in-memory channel state.
+2. Server broadcasts `ChannelClosed` so other boards drop the tab.
+3. Next time the same `agentId` registers, the channel re-starts clean.
+
+For inbox cleanup, the operator truncates the affected `<scope>/inbox.jsonl` (gitignored, never tracked) — the bridge's `cursor` is byte-offset based, so a truncate-to-zero resets the agent's pending queue without losing in-flight WS events. (Truncate must happen *while the bridge is stopped* — `stop-all` first, then truncate, then re-launch.)
+
+#### 13.16.4 Server-side HELLO churn dampening (open for production decision)
+
+The bridge lockfile is the line of first defense, but the server (`server.cjs`) can add a second: detect duplicate `agentId` HELLOs arriving at a rate that suggests a flap and decide *who* to keep.
+
+Proposed behavior (per `_proposals/003` Fix 2 — currently **open** at the upstream live-board production layer, not yet adopted in `reference/runtime/server.cjs`):
+
+- Per-`agentId` ring buffer of the last `N` HELLO timestamps (e.g. `N=5`).
+- If the most recent `K` HELLOs (e.g. `K=3`) span less than `M` ms (e.g. `M=10000`) → `flap` WARN + a `cooldown` window.
+- During cooldown, a new HELLO from the same `agentId` is rejected with `ServerNotice{kind:'flap-rejected', incumbentPid: <prev>}`; the incumbent connection survives.
+
+Open for production decision — the upstream live-board main has not yet committed to this addition, since the bridge-side lockfile (§13.16.1) covers the common case. Documented here so any downstream taking the same incident as a driver can adopt the pattern independently if its bridge layer can't be locked (foreign runtime, no fs write access, etc.).
+
+#### 13.16.5 Composition with §13.13 / §13.14 / §13.15
+
+- **§13.13** ack layer is silent by design — it does NOT generate the `ServerNotice` flood that §13.16 cleans up. The flood is a *transport-layer* artifact (HELLO churn from same-`agentId` register), so §13.16 fixes are also transport-layer (lockfile + launcher + orphan kill); they're orthogonal to the application-layer ack mechanism.
+- **§13.14** (env-specific token redaction) applies to runbook examples too: `stop-all` / `status` stubs MUST NOT inline real agentIds, port numbers, or workspace paths from the upstream's environment; use `${AGENT_ID}` / `${PORT}` / `${WORKSPACE}` substitution. The lockfile filename's `agentId` sanitization (`replace(/[^\w.-]/g, '_')` per `local-bridge.cjs:L53`) is the in-code form of the same discipline.
+- **§13.15** (build-time syntax gate) catches a non-loading master that would otherwise reach adopters; §13.16 (runtime ops) catches the *operational* equivalent — a loadable but mis-launched master that produces a flap storm at adopter sites. Build gates ship the right bytes; runtime gates ship the right *process topology*.
