@@ -355,17 +355,17 @@ The cleanup primitive is `CUSTOM/CloseChannel{value:{agentId}}` (board → serve
 
 For inbox cleanup, the operator truncates the affected `<scope>/inbox.jsonl` (gitignored, never tracked) — the bridge's `cursor` is byte-offset based, so a truncate-to-zero resets the agent's pending queue without losing in-flight WS events. (Truncate must happen *while the bridge is stopped* — `stop-all` first, then truncate, then re-launch.)
 
-#### 13.16.4 Server-side HELLO churn dampening (open for production decision)
+#### 13.16.4 Server-side HELLO churn dampening (adopted at upstream production; reference impl pending)
 
-The bridge lockfile is the line of first defense, but the server (`server.cjs`) can add a second: detect duplicate `agentId` HELLOs arriving at a rate that suggests a flap and decide *who* to keep.
+The bridge lockfile is the line of first defense, but the server (`server.cjs`) adds a second: detect duplicate `agentId` HELLOs arriving at a rate that suggests a flap and decide *who* to keep.
 
-Proposed behavior (per `_proposals/003` Fix 2 — currently **open** at the upstream live-board production layer, not yet adopted in `reference/runtime/server.cjs`):
+Adopted behavior (per `_proposals/003` Fix 2 — accepted at the upstream live-board production layer; reference implementation in `constellation/reference/runtime/server.cjs` is queued for a follow-up cp after the production code lands):
 
-- Per-`agentId` ring buffer of the last `N` HELLO timestamps (e.g. `N=5`).
-- If the most recent `K` HELLOs (e.g. `K=3`) span less than `M` ms (e.g. `M=10000`) → `flap` WARN + a `cooldown` window.
+- Per-`agentId` ring buffer of the last `N` HELLO timestamps (default `N=5`).
+- If the most recent `K` HELLOs (default `K=3`) span less than `M` ms (default `M=10000`) → `flap` WARN + a `cooldown` window.
 - During cooldown, a new HELLO from the same `agentId` is rejected with `ServerNotice{kind:'flap-rejected', incumbentPid: <prev>}`; the incumbent connection survives.
 
-Open for production decision — the upstream live-board main has not yet committed to this addition, since the bridge-side lockfile (§13.16.1) covers the common case. Documented here so any downstream taking the same incident as a driver can adopt the pattern independently if its bridge layer can't be locked (foreign runtime, no fs write access, etc.).
+Why both layers ship: the bridge-side lockfile (§13.16.1) covers the common case where the bridge can be process-locked, but it requires fs write access from the bridge process. Foreign-runtime bridges (a non-Node adapter, a sandboxed worker, no-fs sandboxed CI runner, etc.) cannot always lock — the server-side dampener is the universal back-stop. They compose: a locked bridge avoids the flap before it starts; the server-side dampener catches it when the bridge can't lock.
 
 #### 13.16.5 Composition with §13.13 / §13.14 / §13.15
 
