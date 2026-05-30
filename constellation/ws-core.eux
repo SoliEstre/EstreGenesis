@@ -1,0 +1,62 @@
+@component ws-core
+@intent deps-0 raw WebSocket (RFC 6455) transport core for the Constellation live board. Sits below `server.cjs` — handles HTTP upgrade, SHA1+GUID handshake, frame parse/write, masking removal, heartbeat ping/pong, optional token validation, and the `WSConn` connection object. The server implements higher-level policy (HELLO/relay/broadcast) on top. Pure transport — no application semantics: msgId, Ack/AckProcessed, dedup watermark are application-layer concerns belonging to bridge + agent per §13.13 layer split (server/bridge/agent), and this module neither generates nor inspects them. **v0.1 제약**: single-frame messages assumed — opcode 0x0 continuation frames (fragmented across frames) NOT supported; TCP chunk accumulation IS handled (large single-frame messages assembled across reads). (Distilled from `constellation/reference/runtime/ws-core.cjs` at v2.3.x — drift fix from v2.2.x reference ship per main delegate seq 23/25.)
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
+@targets vanilla
+@state
+# Module-level
+_seq         : number = 0           # outbound event sequence counter (event() monotonic across process)
+GUID         : string = const       # RFC 6455 magic '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+# Per-connection (WSConn instance)
+socket       : net.Socket           # underlying TCP socket
+buf          : Buffer = empty       # TCP chunk accumulator (across `data` events)
+alive        : boolean = true       # connection liveness
+id           : string               # 6-byte hex (randomBytes) — connection id
+meta         : object = {}          # server fills after HELLO (agentId, role, collab/upstream flags)
+onmessage    : (msgObj) => void     # server-installed text-frame handler
+onclose      : () => void           # server-installed close hook
+devAuth      : boolean              # true when token env unset (dev mode no-auth)
+_hb          : Timer                # 20s ping interval handle
+@ports
+in   req        : http.IncomingMessage   # HTTP request with upgrade headers + url + sec-websocket-key
+in   socket     : net.Socket             # raw TCP socket from `upgrade` event
+in   LIVE_BOARD_WS_TOKEN : string?       # env optional auth token (alias WS_TOKEN); unset = dev no-auth
+in   query.token : string?               # `?token=...` query-string token (alternative to Bearer)
+in   header.authorization : string?      # `Authorization: Bearer <token>` (alternative to query)
+cmd  handleUpgrade(req, socket) → WSConn|null   : validate upgrade headers + sec-websocket-key + token → write `HTTP/1.1 101 Switching Protocols` + `Sec-WebSocket-Accept` → new WSConn; null on auth fail (401 written before destroy) or missing upgrade/key (socket.destroy without 4xx)
+cmd  event(type, fields) → object               : envelope builder `{type, id:'evt_'+hex5, seq:++_seq, timestamp:Date.now(), source:'server', ...fields}` — canonical for all server→client wire messages
+cmd  getToken() → string                        : read env `LIVE_BOARD_WS_TOKEN || WS_TOKEN`; '' on dev mode
+cmd  acceptKey(key) → string                    : SHA1(key+GUID)base64 — RFC 6455 §1.3 handshake response
+cmd  encodeFrame(payload, opcode) → Buffer      : unmasked server frame (FIN=1; len <126 inline / 126+u16BE / 127+u64BE)
+cmd  decodeFrame(buf) → {opcode,payload,totalLen}|null : parse single frame from accumulator; null when payload not yet complete (caller retries on next chunk)
+out  conn.send(objOrString) → boolean           : JSON.stringify if object → text frame 0x1; false if !alive or socket write throws
+out  conn.close()                               : send close frame 0x8 + socket.end + _dead (idempotent)
+out  conn.onmessage(msgObj)                     : server-installed handler invoked per text-frame JSON.parse success
+out  conn.onclose()                             : server-installed handler invoked once at _dead
+deps crypto                                     : node:crypto (sha1 hash + randomBytes); non-Node targets (Bun / Deno / Workerd) substitute equivalents
+deps net.Socket                                 : raw TCP from node http upgrade; non-Node targets substitute equivalent stream w/ `on('data')` + `write()` + `end()` semantics
+@behavior
+handleUpgrade : require `Upgrade: websocket` header (else socket.destroy + return null); require `Sec-WebSocket-Key` (else same); parse `new URL(req.url, 'http://localhost')` for query token; validateAuth via env token + (`?token=` OR `Authorization: Bearer <token>`) either match passes; empty env = dev mode `{ok:true, dev:true}`; on auth fail write `HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n` + destroy + null; on success write 101-handshake response with `Sec-WebSocket-Accept: <acceptKey(key)>`; new WSConn(socket); set `conn.devAuth = auth.dev`; return WSConn.
+WSConn.constructor : wire `socket.on('data', _recv)` + `socket.on('close', _dead)` + `socket.on('error', _dead)`; `setInterval(_hb)` every 20000ms sending empty ping (opcode 0x9); init `buf=empty`, `alive=true`, `id=randomBytes(6).hex`, `meta={}`.
+WSConn._recv(chunk) : `buf = Buffer.concat([buf, chunk])`; loop `decodeFrame(buf)` until null — slice off `totalLen` from buf; opcode dispatch: `0x8` close → `this.close()` and return; `0x9` ping → reply pong (opcode 0xA, same payload), continue; `0xA` pong → ignore; `0x1` text OR `0x0` (single-frame, continuation across frames NOT supported) → `JSON.parse(payload utf8)`; on parse error `continue` (silent — single bad message doesn't kill the connection); on success call `this.onmessage(msg)` if set.
+WSConn.send : if object, `JSON.stringify`; else use string; `_frame(Buffer.from(s,'utf8'), 0x1)`.
+WSConn._frame : if `!alive` return false; try `socket.write(encodeFrame(payload, opcode))` return true; on throw return false (silent drop — caller handles via send return value).
+WSConn.close : if `!alive` return; try `socket.write(encodeFrame(empty, 0x8))` + `socket.end()`; `_dead`.
+WSConn._dead : once-only guard (`if (!alive) return`); set `alive=false`; `clearInterval(_hb)`; call `onclose()` if set.
+event : `Object.assign({type, id:'evt_'+crypto.randomBytes(5).toString('hex'), seq:++_seq, timestamp:Date.now(), source:'server'}, fields||{})`. Module-level `_seq` is monotonic for this process; resets only on server restart.
+acceptKey : `crypto.createHash('sha1').update(key + GUID).digest('base64')`.
+decodeFrame : RFC 6455 §5 parse — `opcode = buf[0] & 0x0f`; `masked = (buf[1] & 0x80) !== 0`; `len = buf[1] & 0x7f`, `off = 2`; if `len === 126` read `u16BE` at offset 2 (need ≥4); if `len === 127` read `u64BE` at offset 2 (need ≥10, convert via `Number(BigInt)`); if masked, read 4-byte mask key (need extra 4); if `buf.length < off + len` return null (payload not yet complete); `payload = buf.slice(off, off + len)`; if masked, XOR `payload[i] ^ mask[i % 4]`; return `{opcode, payload, totalLen: off + len}`.
+encodeFrame : `header[0] = 0x80 | opcode` (FIN bit always set); `len < 126` → `header[1] = len` (2-byte header); `len < 65536` → `header[1] = 126` + `u16BE` at offset 2 (4-byte header); else → `header[1] = 127` + `u64BE` at offset 2 (10-byte header); `Buffer.concat([header, payload])`.
+@machine
+# WSConn liveness state
+states: ALIVE(initial) · DEAD
+dispatch:
+  TCP_CLOSE       : ALIVE → DEAD   (entry: clearInterval _hb; call onclose() if set)
+  TCP_ERROR       : ALIVE → DEAD   (same — error treated as close, transport-level recovery is caller's responsibility)
+  CLOSE_FRAME_IN  : ALIVE → DEAD   (entry: write close 0x8 then _dead)
+  CLOSE_EXPLICIT  : ALIVE → DEAD   (caller invokes conn.close() — same as CLOSE_FRAME_IN)
+derive:
+  send_gate ← `_frame` returns false when `!alive` (silent drop, no throw — caller checks return value)
+  hb_lifecycle ← `_hb` interval starts in constructor, cleared in `_dead` (no leak after close)
+  fragmented_unsupported ← opcode 0x0 cross-frame continuation NOT handled; single-frame assumption — caller may log if observed (silent miss otherwise). TCP chunk accumulation via `buf` IS handled (large single-frame messages reassemble across reads).
+  application_layer_orthogonal ← msgId / Ack / AckProcessed / dedup watermark (§13.13) live in bridge + agent layers; ws-core is pure transport and neither generates nor inspects them. Hooks deferred to first production §13.13 PR per main delegate seq 23 (transport-application separation preserves §13.13 layer split).
+  envelope_canonicalness ← server-side application messages MUST use `event('CUSTOM', {name, value})` per server.eux @intent envelope convention; bare top-level types (SERVER_HELLO / HELLO / Heartbeat / PersistentAdapterSmoke) are reserved for transport framing only. Mixing produces silent drops on strict-envelope dashboards — that pitfall is the convention's reason for existing.
