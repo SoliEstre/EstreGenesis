@@ -1,2 +1,6 @@
 /assets/
 .claude/settings.local.json
+
+# Constellation reference runtime — single-instance lockfile (per _proposals/003 Fix 1, local-bridge.cjs L53)
+# Per-agentId PID lockfile written by the single-instance guard; never tracked.
+constellation/reference/runtime/.*-bridge.lock
