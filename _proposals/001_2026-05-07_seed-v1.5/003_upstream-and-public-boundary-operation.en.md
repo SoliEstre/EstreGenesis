@@ -6,7 +6,7 @@
 
 Proposal 002 names the residency and folder shapes. This proposal fills in the operating rules those shapes need: when upstream split applies, how upstream folders are named, how mirrored docs stay consistent, how file origin is classified, how source folders inside agent-docs repos are guarded, how negotiations are archived, and how public docs avoid leaking private identifiers.
 
-The pattern is generic. EstreUI is one real case, but upstream operation is not EstreUI-specific.
+The pattern is generic. an upstream framework is one real case, but upstream operation is not upstream-specific.
 
 ## Pattern 1 — Upstream applicability
 
@@ -146,5 +146,5 @@ Catalog mapping:
 
 ## Reverse references
 
-- EstreUI upstream-named split and mirror case: bundle author's private host project plus public EstreUI repo context.
+- upstream-named split and mirror case: bundle author's private host project plus public upstream repo context.
 - Source sidecar, workspace-boundary, and `.gitignore` guard cases: seed maintainer review of this bundle, 2026-05-07.

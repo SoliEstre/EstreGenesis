@@ -1,10 +1,10 @@
 # Bundle 001 — Seed v1.5 Proposals
 
 > Submitted: 2026-05-07
-> Bundle author: SoliEstre (via an EstreUI-adopting host project that applied seed v1.4)
+> Bundle author: SoliEstre (via an upstream-adopting host project that applied seed v1.4)
 > 한국어 버전은 아래로 → [한국어 버전](#묶음-001--시드-v15-제안)
 
-This bundle proposes the additions queued for **seed v1.5**. The three documents began from an EstreUI-adopting host project that applied the seed and accumulated patterns the seed body did not yet name. Maintainer review then generalized the bundle: before the seed chooses `.agent/` folders, it must decide whether the current workspace is the source repo, a private agent-docs sidecar repo, a multi-project orchestration repo, or a scope with upstream-bound work.
+This bundle proposes the additions queued for **seed v1.5**. The three documents began from an upstream-adopting host project that applied the seed and accumulated patterns the seed body did not yet name. Maintainer review then generalized the bundle: before the seed chooses `.agent/` folders, it must decide whether the current workspace is the source repo, a private agent-docs sidecar repo, a multi-project orchestration repo, or a scope with upstream-bound work.
 
 ## Inclusion summary
 
@@ -18,14 +18,14 @@ The bundle is internally cross-cited: 001 establishes the bootstrap and adoption
 
 ## Reverse reference policy (this bundle)
 
-Cases are drawn from a **private host project** that adopts EstreUI. Per `_proposals/README.md`'s privacy default:
+Cases are drawn from a **private host project** that adopts an upstream framework. Per `_proposals/README.md`'s privacy default:
 
 - Commit hashes are quoted as-is — they do not navigate without repo access.
 - Identifiers from the host project (class names, service names, domain names) are sanitized to generic role names (`HostSessionManager`, `EmbedSDK`, `host.example.com`, etc.).
 - The host repo is **not** named or linked. The seed maintainer can request the repo path from the bundle author out-of-band when a walkthrough is needed.
-- EstreUI itself is named directly — it is a public repo owned by the same author and is where the library-side commits cited in 003 live.
+- the upstream framework itself is named directly — it is a public repo owned by the same author and is where the library-side commits cited in 003 live.
 
-When a cited commit hash exists in the public EstreUI repo, that is stated explicitly so the seed maintainer can navigate. When a cited commit hash exists only in the private host repo, the citation is hash-only without a repo target.
+When a cited commit hash exists in the public upstream repo, that is stated explicitly so the seed maintainer can navigate. When a cited commit hash exists only in the private host repo, the citation is hash-only without a repo target.
 
 Closure note: the reverse-link pattern remains proposal lineage only. It was not absorbed as a seed runtime requirement; source repo → agent-docs repo backlinks should stay opt-in for explicit private/internal cases. The v1.5 seed body uses `source-map.md`, `public-boundary.md`, and the `.gitignore` source guard instead.
 
@@ -48,9 +48,9 @@ When a document moves to 🟢 / 🟠 / 🔴, fill the absorbed-commit column (fo
 # 묶음 001 — 시드 v1.5 제안
 
 > 제출: 2026-05-07
-> 묶음 작성자: SoliEstre (시드 v1.4 를 적용한 EstreUI 적용 호스트 프로젝트 경유)
+> 묶음 작성자: SoliEstre (시드 v1.4 를 적용한 an upstream framework 적용 호스트 프로젝트 경유)
 
-본 묶음은 **시드 v1.5** 에 들어갈 추가 사항을 제안합니다. 3 문서는 처음에는 EstreUI 를 적용한 호스트 프로젝트가 시드를 적용하면서 누적한 패턴에서 출발했습니다. 이후 유지자 검토를 거치며 일반화되었습니다. 시드는 `.agent/` 폴더를 고르기 전에 현재 workspace가 source repo인지, private agent-docs sidecar repo인지, multi-project orchestration repo인지, upstream-bound work를 가진 scope인지 먼저 결정해야 합니다.
+본 묶음은 **시드 v1.5** 에 들어갈 추가 사항을 제안합니다. 3 문서는 처음에는 an upstream framework 를 적용한 호스트 프로젝트가 시드를 적용하면서 누적한 패턴에서 출발했습니다. 이후 유지자 검토를 거치며 일반화되었습니다. 시드는 `.agent/` 폴더를 고르기 전에 현재 workspace가 source repo인지, private agent-docs sidecar repo인지, multi-project orchestration repo인지, upstream-bound work를 가진 scope인지 먼저 결정해야 합니다.
 
 ## 포함 요약
 
@@ -64,14 +64,14 @@ When a document moves to 🟢 / 🟠 / 🔴, fill the absorbed-commit column (fo
 
 ## 리버스 링크 정책 (본 묶음)
 
-사례는 EstreUI 를 적용한 **비공개 호스트 프로젝트** 에서 가져옴. `_proposals/README.md` 의 프라이버시 기본 정책에 따라:
+사례는 an upstream framework 를 적용한 **비공개 호스트 프로젝트** 에서 가져옴. `_proposals/README.md` 의 프라이버시 기본 정책에 따라:
 
 - commit hash 는 raw 인용 — repo 접근 없이는 navigation 안 됨.
 - 호스트 프로젝트 식별자 (클래스명, 서비스명, 도메인명) 는 generic role 명으로 sanitize (`HostSessionManager`, `EmbedSDK`, `host.example.com` 등).
 - 호스트 repo 는 **이름·링크 노출 X**. walkthrough 필요 시 시드 유지자가 묶음 작성자에게 repo 경로를 외부 채널로 문의.
-- EstreUI 자체는 직접 명명 — 같은 작성자 소유 공개 repo 이며 003 에 인용된 라이브러리 측 commit 이 존재하는 곳.
+- an upstream framework 자체는 직접 명명 — 같은 작성자 소유 공개 repo 이며 003 에 인용된 라이브러리 측 commit 이 존재하는 곳.
 
-인용 commit hash 가 EstreUI (공개) 에 있는 경우 명시 — 시드 유지자가 navigate 가능. 비공개 호스트 repo 에만 있는 hash 는 repo target 없이 hash 만 인용.
+인용 commit hash 가 an upstream framework (공개) 에 있는 경우 명시 — 시드 유지자가 navigate 가능. 비공개 호스트 repo 에만 있는 hash 는 repo target 없이 hash 만 인용.
 
 Closure note: 리버스 링크 패턴은 proposal lineage 로만 유지합니다. 시드 runtime 요구사항으로는 흡수하지 않았고, source repo → agent-docs repo backlink 는 private/internal case 에서 사용자가 명시적으로 원할 때만 opt-in 으로 다룹니다. v1.5 시드 본문은 대신 `source-map.md`, `public-boundary.md`, `.gitignore` source guard 를 사용합니다.
 

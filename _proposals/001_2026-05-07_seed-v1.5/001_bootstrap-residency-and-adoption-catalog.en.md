@@ -117,7 +117,7 @@ Rows A-G are the existing seed standards, expressed through `<scope-root>`. Rows
 
 ## Real adoption case
 
-An EstreUI-adopting host project applied seed v1.4 and adopted only `_lessons/` and `PM/` at first. It captured the other standard areas in a trigger table with rejection rationales tied to the project's current operating shape:
+An upstream-adopting host project applied seed v1.4 and adopted only `_lessons/` and `PM/` at first. It captured the other standard areas in a trigger table with rejection rationales tied to the project's current operating shape:
 
 - Single-agent operation → `_coordination/` / `_questions/` would not earn their cost.
 - Compact AGENTS.md → `rules.md` separation would obscure rather than clarify.

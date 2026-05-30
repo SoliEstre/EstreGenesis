@@ -6,7 +6,7 @@
 
 제안 002는 residency와 folder shape를 명명합니다. 본 제안은 그 shape가 작동하려면 필요한 운영 규칙을 채웁니다. upstream split이 언제 적용되는지, upstream folder 이름을 어떻게 정하는지, mirrored docs를 어떻게 일관되게 유지하는지, file origin을 어떻게 분류하는지, agent-docs repo 내부 source folder를 어떻게 보호하는지, 협의 기록을 어떻게 archive하는지, public docs가 private identifier를 어떻게 누출하지 않는지 다룹니다.
 
-이 패턴은 generic합니다. EstreUI는 실제 사례 중 하나지만, upstream operation은 EstreUI 전용이 아닙니다.
+이 패턴은 generic합니다. upstream 프레임워크는 실제 사례 중 하나지만, upstream operation은 upstream 전용이 아닙니다.
 
 ## Pattern 1 — Upstream 적용 조건
 
@@ -146,5 +146,5 @@ Catalog mapping:
 
 ## 리버스 참조
 
-- EstreUI upstream-named split 및 mirror 사례: bundle 작성자의 private host project 및 public EstreUI repo context.
+- upstream 프레임워크 upstream-named split 및 mirror 사례: bundle 작성자의 private host project 및 public upstream 프레임워크 repo context.
 - Source sidecar, workspace-boundary, `.gitignore` guard 사례: 본 bundle에 대한 seed maintainer review, 2026-05-07.

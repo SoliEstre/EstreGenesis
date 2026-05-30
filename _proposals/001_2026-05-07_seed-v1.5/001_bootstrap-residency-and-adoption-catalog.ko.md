@@ -117,7 +117,7 @@ A-G는 기존 seed standard를 `<scope-root>`로 표현한 것입니다. H-U는 
 
 ## 실제 적용 사례
 
-EstreUI 적용 host project는 seed v1.4 적용 당시 `_lessons/`와 `PM/`만 먼저 도입했습니다. 다른 표준 영역은 프로젝트의 현재 운영 shape에 묶인 rejection rationale과 함께 trigger table에 기록했습니다.
+upstream 프레임워크 적용 host project는 seed v1.4 적용 당시 `_lessons/`와 `PM/`만 먼저 도입했습니다. 다른 표준 영역은 프로젝트의 현재 운영 shape에 묶인 rejection rationale과 함께 trigger table에 기록했습니다.
 
 - 단일 agent operation → `_coordination/` / `_questions/`가 비용 회수 못 함.
 - compact AGENTS.md → `rules.md` 분리는 명확화보다 모호화.

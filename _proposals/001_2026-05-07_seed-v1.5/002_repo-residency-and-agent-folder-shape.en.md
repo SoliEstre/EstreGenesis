@@ -120,7 +120,7 @@ The seed should ask whether to use `.agent/<unit-project-name>/` only when multi
 
 ## Scenario 4 — Upstream split inside a chosen scope
 
-Use when the developer operates or can update an upstream repo, and the current project is where upstream-bound changes are first implemented or tested. This is not EstreUI-specific.
+Use when the developer operates or can update an upstream repo, and the current project is where upstream-bound changes are first implemented or tested. This is not upstream-specific.
 
 Default folder name:
 
@@ -183,9 +183,9 @@ Migration Guides should link here when an existing repo has scattered agent note
 
 ## Real adoption case
 
-An EstreUI-adopting host project uses the upstream split with a user-named upstream folder: `.agent/estreui/` plus `.agent/project/`. That is a concrete case, not the general default. Generic projects should use `.agent/upstream/` unless the user chooses a clearer upstream name.
+An upstream-adopting host project uses the upstream split with a user-named upstream folder: `.agent/estreui/` plus `.agent/project/`. That is a concrete case, not the general default. Generic projects should use `.agent/upstream/` unless the user chooses a clearer upstream name.
 
 ## Reverse references
 
-- EstreUI upstream split case: bundle author's private host project plus public EstreUI repo context.
+- upstream split case: bundle author's private host project plus public upstream repo context.
 - Sidecar repo and workspace-boundary cases: seed maintainer review of this bundle, 2026-05-07.
