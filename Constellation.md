@@ -169,6 +169,8 @@ For downstreams that want a fully-working baseline alongside the rough/detail `.
 
 These are **reference copies, not contracts** — only §2 stays byte-identical. Re-distill / brew / re-skin per project. Drift is managed by periodic re-distillation (v2.2.x patches).
 
+**Scope note — `.eux` is not UI-only (downstream-validated, 2026-05-30).** EstreUX's `.eux` format is canonical for UI distillation in Constellation, but a downstream dogfood A/B (see `Superscalar.md` §11 Entry 04) demonstrated the same `.eux` shape applies to *backend services and mobile-app codebases* at ~93% line-level fidelity to source (sub-scope: 96% on web / admin, 93% on main-app, 86% on a core-service single-component as the low end; per-scope variance is the dominant variable). Security findings landed at line-byte precision (interceptor-disable site · POS frame offset / BMP layout · enc-payload field positions). The Stage 1 ROI separation (Entry 04: token-positive / time-weak; broad handover-grade > Superscalar discipline > naive fast extraction) applies symmetrically across UI and non-UI distillation. EstreGenesis ships only the Constellation-side UI distillation references in `constellation/`; back-end / app distillation is a downstream operating pattern, not an EG-shipped artifact — but the `.eux` format is the same, and the brew tooling (`@agent-brew`, drift-check) operates unchanged on non-UI components.
+
 Reference from a seed via raw URL — latest on `main`:
 ```
 https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md
