@@ -26,7 +26,7 @@
  *          에이전트를 깨우지 못해(self-wake-watcher 로 다음 턴 유도) 그 사이 inbox 는 다음 턴에 처리.
  *
  * ▣ Envelope CUSTOM-wrap convention:
- *   application 메시지 = {type:'CUSTOM', name, value}. transport framing(HELLO/RUN_*/TEXT_*/TOOL_*) = bare.
+ *   application 메시지 = {type:'CUSTOM', name, value}. transport framing(HELLO · RUN_* · TEXT_* · TOOL_*) = bare.
  *   본 브릿지는 inbound 에서 `type==='CUSTOM'` 만 inbox 에 적재하고(서버→보드 전용 CUSTOM 제외),
  *   outbound 에서는 outbox 한 줄을 bare framing 또는 CUSTOM 으로 자동 매핑한다(아래 emit 참조).
  *
@@ -115,7 +115,7 @@ function onInbound(m) {
     const wid = (m.value && m.value.agentId) || m.agentId;
     let modes = {};
     try {
-      const sp = path.join(DIR, '..', 'state.json');
+      const sp = path.join(DIR, 'state.json');   // 평탄 reference/runtime 레이아웃: bridge·state.json 동일 DIR
       delete require.cache[require.resolve(sp)];
       modes = (require(sp).modes) || {};
     } catch {
