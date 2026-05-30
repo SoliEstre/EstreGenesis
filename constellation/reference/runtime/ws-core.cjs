@@ -32,6 +32,7 @@ function validateAuth(req, url) {
 // ---- frame codec (RFC 6455 §5) ----
 function decodeFrame(buf) {
   if (buf.length < 2) return null;
+  const fin = (buf[0] & 0x80) !== 0;                            // FIN 비트 — fragmented(continuation) 판정용
   const opcode = buf[0] & 0x0f;
   const masked = (buf[1] & 0x80) !== 0;
   let len = buf[1] & 0x7f, off = 2;
@@ -47,7 +48,7 @@ function decodeFrame(buf) {
     for (let i = 0; i < len; i++) out[i] = payload[i] ^ m[i & 3];
     payload = out;
   }
-  return { opcode, payload, totalLen: off + len };
+  return { fin, opcode, payload, totalLen: off + len };
 }
 function encodeFrame(payload, opcode) {                          // 서버 송신 = unmasked
   const len = payload.length;
@@ -67,6 +68,7 @@ class WSConn {
     this.id = crypto.randomBytes(6).toString('hex');
     this.meta = {};                                             // server 가 HELLO 후 채움 (agentId 등)
     this.onmessage = null;                                      // (msgObj) => void
+    this._frag = null;                                          // fragmented frame chunk 누적 { chunks: [] }
     this.onclose = null;
     socket.on('data', (d) => this._recv(d));
     socket.on('close', () => this._dead());
@@ -82,11 +84,18 @@ class WSConn {
       if (f.opcode === 0x8) { this.close(); return; }           // close
       if (f.opcode === 0x9) { this._frame(f.payload, 0xA); continue; }  // ping → pong
       if (f.opcode === 0xA) continue;                           // pong
-      if (f.opcode === 0x1 || f.opcode === 0x0) {               // text (단일 프레임 가정)
-        let msg; try { msg = JSON.parse(f.payload.toString('utf8')); } catch { continue; }
-        if (this.onmessage) this.onmessage(msg);
+      if (f.opcode === 0x1 || f.opcode === 0x2) {               // text/binary 시작 프레임
+        if (f.fin) this._deliver(f.payload);                    // 단일 프레임
+        else this._frag = { chunks: [f.payload] };              // fragmented 시작(FIN=0) — 큰 첨부 등
+      } else if (f.opcode === 0x0 && this._frag) {              // continuation 프레임
+        this._frag.chunks.push(f.payload);
+        if (f.fin) { const full = Buffer.concat(this._frag.chunks); this._frag = null; this._deliver(full); }  // 마지막 → 조립
       }
     }
+  }
+  _deliver(payload) {                                           // 단일/조립 완료 payload → JSON 파싱 → onmessage (파싱 실패는 silent — 단일 bad 메시지가 연결 안 죽임)
+    let msg; try { msg = JSON.parse(payload.toString('utf8')); } catch { return; }
+    if (this.onmessage) this.onmessage(msg);
   }
   send(obj) {                                                   // JSON object/string → text frame
     const s = typeof obj === 'string' ? obj : JSON.stringify(obj);
