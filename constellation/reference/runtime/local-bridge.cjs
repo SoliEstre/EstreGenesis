@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * ws-local-bridge.cjs — 로컬 IDE 에이전트(Claude Code 세션)를 위한 WS 브릿지.
+ * local-bridge.cjs — turn-based local IDE 에이전트를 위한 WS 브릿지.
  *
  * "진짜 나"는 작업 루프에서 WS 소켓을 직접 들고 있지 못하므로(도구 호출 기반·턴 종료 시 멈춤),
  * 이 상주 프로세스가 대리한다:
- *   - 대시보드 '로컬 IDE' 채널 inbound(UserPrompt/Command/Cancel) → ws-inbox.jsonl append
+ *   - 대시보드 '로컬 IDE' 채널 inbound(UserPrompt/Command/Cancel) → inbox.jsonl append
  *       → 에이전트가 작업 루프 safe point 에서 tail 로 읽어 반영
- *   - ws-outbox.jsonl 새 줄 → WS outbound 송신
+ *   - outbox.jsonl 새 줄 → WS outbound 송신
  *       → 에이전트가 진행/응답을 append 하면 대시보드 로컬 IDE 탭에 실시간 표시
  *
  * ⚠ 범위 = control/A2A bridge (2026-05-26 Codex 워커 피드백 D):
@@ -21,7 +21,7 @@
  *          에이전트를 깨우지 못해(self-wake watcher 로 다음 턴 유도) 그 사이 inbox 는 다음 턴에 처리. 브릿지는 큐만 유지.
  *
  * 실행: node local-bridge.cjs    (ws://127.0.0.1:7878/ws, agentId=main-agent 또는 env WS_AGENT_ID)
- * 파일: 같은 디렉토리의 ws-inbox.jsonl(읽기) / ws-outbox.jsonl(쓰기) — gitignore
+ * 파일: 같은 디렉토리의 inbox.jsonl(읽기) / outbox.jsonl(쓰기) — gitignore
  *
  * outbox 한 줄 형식(JSON, 평문도 허용=say):
  *   {"say":"마크다운 텍스트"}      → TEXT_MESSAGE_*  (대화 표시, md 렌더)
@@ -37,12 +37,12 @@ const path = require('path');
 const WS_URL = process.env.WS_URL || 'ws://127.0.0.1:7878/ws';
 const TOKEN = process.env.LIVE_BOARD_WS_TOKEN || process.env.WS_TOKEN || '';
 const AGENT_ID = process.env.WS_AGENT_ID || 'main-agent';   // generic default (server.cjs WS_PRIMARY_ID + dashboard WS_LOCAL 과 일관); 다운스트림 env 로 주입
-const AGENT_NAME = process.env.WS_AGENT_NAME || 'Local IDE (Claude)';
+const AGENT_NAME = process.env.WS_AGENT_NAME || 'Local IDE Agent';
 const THREAD_ID = process.env.WS_THREAD_ID || (AGENT_ID === 'main-agent' ? 'main' : AGENT_ID);   // 메인 thread = 'main', 워커 thread = 자기 agentId
 const DIR = __dirname;
 // 기본은 메인 큐(__dirname). 워커는 WS_INBOX/WS_OUTBOX 로 별도 큐를 지정해 합류(메인과 파일 충돌 회피, §1.8 갭 보완).
-const INBOX = process.env.WS_INBOX ? path.resolve(process.env.WS_INBOX) : path.join(DIR, 'ws-inbox.jsonl');
-const OUTBOX = process.env.WS_OUTBOX ? path.resolve(process.env.WS_OUTBOX) : path.join(DIR, 'ws-outbox.jsonl');
+const INBOX = process.env.WS_INBOX ? path.resolve(process.env.WS_INBOX) : path.join(DIR, 'inbox.jsonl');
+const OUTBOX = process.env.WS_OUTBOX ? path.resolve(process.env.WS_OUTBOX) : path.join(DIR, 'outbox.jsonl');
 const url = TOKEN ? `${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : WS_URL;
 
 // --- single-instance guard (WS_AGENT_ID 당 브릿지 1개 — 중복 인스턴스 → flap 방지) ---
@@ -83,7 +83,7 @@ function send(type, extra) {
   try { ws.send(JSON.stringify(msg)); return true; } catch { return false; }
 }
 
-// ---- inbound → ws-inbox.jsonl (에이전트가 읽음) ----
+// ---- inbound → inbox.jsonl (에이전트가 읽음) ----
 function onInbound(m) {
   if (m.type === 'SERVER_HELLO') { console.log('[bridge] SERVER_HELLO proto', m.protocolVersion); return; }
   if (m.type !== 'CUSTOM') return;
@@ -104,7 +104,7 @@ function onInbound(m) {
   if (m.name === 'AgentHello' || _agentHelloByValue) {
     const wid = (m.value && m.value.agentId) || m.agentId;
     let modes = {};
-    try { const sp = path.join(DIR, '..', 'state.json'); delete require.cache[require.resolve(sp)]; modes = (require(sp).modes) || {}; } catch {}
+    try { const sp = path.join(DIR, 'state.json'); delete require.cache[require.resolve(sp)]; modes = (require(sp).modes) || {}; } catch {}
     // §13.9 role 별 OnboardAck 분기 (2026-05-29): collab/upstream = 외부 프로젝트 메인/대등 협력자(peer) — 워커 아님.
     //   value.role = self-report hint (authoritative = server AgentList). 없으면 local(워커) 기본.
     const roleHint = (m.value && m.value.role) || 'local';
@@ -115,7 +115,7 @@ function onInbound(m) {
         welcome: _peer
           ? ('협력 합류 환영 — 대등 협업(peer). 허브 메인(' + AGENT_ID + ')과 조율합니다.')
           : ('합류 환영 — 메인(' + AGENT_ID + ')이 온보딩합니다.'),
-        guide: 'dashboard/live/AGENT-CONNECT.md §1.5~1.8 · WS-PROTOCOL.md §13',
+        guide: 'AGENT-CONNECT.md · WS-PROTOCOL.md',
         modes,
         role: roleHint,
         policy: _peer
@@ -128,7 +128,7 @@ function onInbound(m) {
   }
 }
 
-// ---- ws-outbox.jsonl 새 줄 → WS 송신 (에이전트가 append) ----
+// ---- outbox.jsonl 새 줄 → WS 송신 (에이전트가 append) ----
 let outboxCursor = 0;
 function pollOutbox() {
   let stat; try { stat = fs.statSync(OUTBOX); } catch { return; }   // 파일 없으면 대기
