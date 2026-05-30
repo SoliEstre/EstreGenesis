@@ -350,12 +350,15 @@ server.on('upgrade', (req, socket) => {
   conn.onmessage = (msg) => {
     if (msg && msg.type === 'HELLO') {                          // 에이전트 등록 (agentId 별, 동일 id 재접속 시 기존 대체)
       conn.meta.role = 'agent';
-      conn.meta.agentId = msg.agentId || ('agent-' + conn.id.slice(0, 4));
+      const _hadId = !!(msg.agentId && String(msg.agentId).trim());   // agentId 명시 여부 — 누락(익명)은 매 재연결 새 탭 폭증(아래 랜덤 fallback)이라 등록 거부
+      conn.meta.anonymous = !_hadId;
+      conn.meta.agentId = _hadId ? msg.agentId : ('agent-' + conn.id.slice(0, 4));
       conn.meta.clientId = msg.clientId;
       conn.meta.agentName = msg.agentName || conn.meta.agentId;
       { const k = msg.key || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') conn.meta.collab = true; else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) conn.meta.upstream = true; }   // #168 HELLO 키 role 판정(collab/upstream)
       conn.meta.roleHint = msg.role || '';                       // local/upstream 힌트(최종 판정은 키·main)
-      console.log('[ws HELLO] agent=%s upstreamKey(hello)=%s → role=%s', conn.meta.agentId, msg.upstreamKey ? String(msg.upstreamKey).slice(0, 14) + '…' : '(none)', wsAgentRole(conn));   // role 전환 audit
+      console.log('[ws HELLO]%s agent=%s ip=%s ua=%s upstreamKey=%s → role=%s', _hadId ? '' : ' [ANON]', conn.meta.agentId, conn.remoteAddr || '?', (conn.ua || '').slice(0, 50) || '-', msg.upstreamKey ? String(msg.upstreamKey).slice(0, 14) + '…' : '(none)', wsAgentRole(conn));   // role 전환 audit + 출처(ip/ua)
+      if (!_hadId) { console.log('[ws HELLO][ANON] 익명 HELLO 등록 거부(AgentList/relay/탭 제외) raw=%s', JSON.stringify(msg).slice(0, 240)); return; }   // 익명(agentId 누락) = 보드 탭 미생성·relay 제외, 출처 로깅만
       const prev = wsAgents.get(conn.meta.agentId);
       if (prev && prev !== conn) { try { prev.close(); } catch {} }
       wsAgents.set(conn.meta.agentId, conn);
@@ -363,6 +366,7 @@ server.on('upgrade', (req, socket) => {
       return;
     }
     if (conn.meta.role === 'agent') {                           // 에이전트 outbound
+      if (conn.meta.anonymous) return;                           // 익명 클라(agentId 누락) 메시지 무시 — relay/기록/탭 일절 안 함
       if (wsHandleOrch(conn, msg)) return;                       // 오케스트레이션 CUSTOM(RegisterUpstreamKey/RevokeUpstreamKey/SetMain/HandoffReady)
       if (msg && msg.type === 'CUSTOM' && (msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // liveness/transient — relay·board·기록 안 함
       if (msg && msg.agentId == null) msg.agentId = conn.meta.agentId;

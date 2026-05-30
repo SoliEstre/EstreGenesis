@@ -127,6 +127,8 @@ function handleUpgrade(req, socket) {
   );
   const conn = new WSConn(socket);
   conn.devAuth = auth.dev;
+  conn.remoteAddr = String(socket.remoteAddress || '').replace(/^::ffff:/, '');   // 접속자 IP(IPv4-mapped 정리) — 익명 출처 식별용
+  conn.ua = req.headers['user-agent'] || '';                                       // 브라우저 UA(non-browser WS 클라는 빈 문자열)
   return conn;
 }
 
