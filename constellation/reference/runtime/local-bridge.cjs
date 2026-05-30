@@ -20,7 +20,7 @@
  * ⚠ 한계(준실시간): 에이전트가 '작업 중'(대화 턴 진행)일 때만 inbox 를 확인 → 유휴(턴 종료) 시 외부가
  *          에이전트를 깨우지 못해(self-wake watcher 로 다음 턴 유도) 그 사이 inbox 는 다음 턴에 처리. 브릿지는 큐만 유지.
  *
- * 실행: node ws-local-bridge.cjs    (ws://127.0.0.1:7878/ws, agentId=local-ide-agent)
+ * 실행: node local-bridge.cjs    (ws://127.0.0.1:7878/ws, agentId=main-agent 또는 env WS_AGENT_ID)
  * 파일: 같은 디렉토리의 ws-inbox.jsonl(읽기) / ws-outbox.jsonl(쓰기) — gitignore
  *
  * outbox 한 줄 형식(JSON, 평문도 허용=say):
@@ -36,9 +36,9 @@ const path = require('path');
 
 const WS_URL = process.env.WS_URL || 'ws://127.0.0.1:7878/ws';
 const TOKEN = process.env.LIVE_BOARD_WS_TOKEN || process.env.WS_TOKEN || '';
-const AGENT_ID = process.env.WS_AGENT_ID || 'local-ide-agent';
+const AGENT_ID = process.env.WS_AGENT_ID || 'main-agent';   // generic default (server.cjs WS_PRIMARY_ID + dashboard WS_LOCAL 과 일관); 다운스트림 env 로 주입
 const AGENT_NAME = process.env.WS_AGENT_NAME || 'Local IDE (Claude)';
-const THREAD_ID = process.env.WS_THREAD_ID || (AGENT_ID === 'local-ide-agent' ? 'local-ide' : AGENT_ID);
+const THREAD_ID = process.env.WS_THREAD_ID || (AGENT_ID === 'main-agent' ? 'main' : AGENT_ID);   // 메인 thread = 'main', 워커 thread = 자기 agentId
 const DIR = __dirname;
 // 기본은 메인 큐(__dirname). 워커는 WS_INBOX/WS_OUTBOX 로 별도 큐를 지정해 합류(메인과 파일 충돌 회피, §1.8 갭 보완).
 const INBOX = process.env.WS_INBOX ? path.resolve(process.env.WS_INBOX) : path.join(DIR, 'ws-inbox.jsonl');
