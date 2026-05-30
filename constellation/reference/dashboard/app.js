@@ -1022,13 +1022,25 @@ function wsTextareaFor(key) {
 }
 let wsRoTa = null;        // 그룹·모니터(읽기 전용) 안내 입력란(공유)
 function wsRoTextarea() { if (wsRoTa) return wsRoTa; wsRoTa = el('textarea'); wsRoTa.className = 'ws-ta'; wsRoTa.disabled = true; wsRoTa.placeholder = '모니터·그룹 뷰는 읽기 전용 — 개별 에이전트 탭에서 입력하세요'; wsRoTa.style.height = WS_TA_MIN + 'px'; const stack = $('#ws-text-stack'); if (stack) stack.appendChild(wsRoTa); return wsRoTa; }
-function wsActiveTextarea() { const a = wsState.active; return (a && !wsIsGroup(a) && !wsIsMon(a)) ? wsTextareaFor(a) : null; }
+function wsActiveTextarea() {
+  const a = wsState.active;
+  if (!a || wsIsMon(a)) return null;   // 모니터 = 읽기전용
+  if (wsIsGroup(a)) { const rep = wsGroupRep(a); return rep ? wsTextareaFor(rep) : null; }   // 그룹 = 대표 워커 입력란
+  return wsTextareaFor(a);
+}
 function wsShowTextarea(key) {
   const stack = $('#ws-text-stack'); if (!stack) return;
   for (const t of wsState.textareas.values()) t.classList.remove('active');
   if (wsRoTa) wsRoTa.classList.remove('active');
-  if (key && (wsIsGroup(key) || wsIsMon(key))) { wsRoTextarea().classList.add('active'); }
-  else if (key) { const ta = wsTextareaFor(key); ta.classList.add('active'); wsRecalcTaH(); if (wsState.popOpen) ta.focus({ preventScroll: true }); }
+  if (!key) return;
+  if (wsIsMon(key)) { wsRoTextarea().classList.add('active'); return; }   // 모니터 = 읽기전용
+  if (wsIsGroup(key)) {
+    const rep = wsGroupRep(key);
+    if (rep) { const ta = wsTextareaFor(rep); ta.classList.add('active'); wsRecalcTaH(); if (wsState.popOpen) ta.focus({ preventScroll: true }); }
+    else { wsRoTextarea().classList.add('active'); }   // 그룹 멤버 없으면 읽기전용 fallback
+    return;
+  }
+  const ta = wsTextareaFor(key); ta.classList.add('active'); wsRecalcTaH(); if (wsState.popOpen) ta.focus({ preventScroll: true });
 }
 function wsURL() { return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`; }
 function connectWS() {
@@ -1142,7 +1154,13 @@ function wsReplayHistory(events, cold, archived) {
   wsState.replaying = false;
   if (archived && archived.length) wsSaveHidden();
   if (!wsState.active && wsState.channels.size) {
-    if (wsState.channels.has(WS_LOCAL) && !wsState.channels.get(WS_LOCAL).hidden) wsState.active = WS_LOCAL;   // 기본 활성 = 메인(로컬 IDE) 우선
+    let saved = null; try { saved = localStorage.getItem(WS_ACTIVE_KEY); } catch {}   // 새로고침 시 마지막 탭 복원 (탭별 draft 는 wsSaveDrafts 가 별도 영속)
+    const savedOk = saved && (
+      (wsState.channels.has(saved) && !wsState.channels.get(saved).hidden) ||
+      (wsIsGroup(saved) && wsGroupMembers(saved).length)
+    );
+    if (savedOk) wsState.active = saved;
+    else if (wsState.channels.has(WS_LOCAL) && !wsState.channels.get(WS_LOCAL).hidden) wsState.active = WS_LOCAL;   // 기본 활성 = 메인(로컬 IDE) 우선
     else { for (const [id, c] of wsState.channels) { if (!c.hidden && !wsIsMon(id)) { wsState.active = id; break; } } if (!wsState.active) wsState.active = wsState.channels.keys().next().value; }
   }
   wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge();
@@ -1485,6 +1503,12 @@ function wsGroupMembers(gkey) {
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_COLLAB)) mem.push(WS_MON_COLLAB);   // group:main 병합에 Main↔Collab 취합(§13.9 collab peer)
   return mem;
 }
+function wsGroupRep(gkey) {
+  // 그룹 탭의 *대표 워커* — group:up→업스트림 / group:main→메인 으로 입력·라우팅 한 화면에서. group:main 이면 WS_LOCAL(메인) 우선, 그 외 그룹은 비-모니터 첫 멤버.
+  if (gkey === 'group:main' && wsState.channels.has(WS_LOCAL)) return WS_LOCAL;
+  for (const cid of wsGroupMembers(gkey)) { if (!wsIsMon(cid)) return cid; }
+  return null;
+}
 function onWsEvent(m) {
   const t = m.type;
   if (t === 'SERVER_HELLO') {
@@ -1727,8 +1751,10 @@ function wsRenderTabs() {
   }
   wsRenderArchived();   // 닫은 세션 버튼·드롭다운 동기
 }
+const WS_ACTIVE_KEY = 'constellation-ws-active';   // 새로고침 시 마지막 선택 탭 복원용 (탭별 입력 draft 와 별개; §13.14 generic key)
 function wsSetActive(id) {
   wsState.active = id;
+  try { localStorage.setItem(WS_ACTIVE_KEY, id || ''); } catch {}   // 영속 — wsReplayHistory 초기 active 결정부에서 복원
   if (wsIsGroup(id)) { for (const cid of wsGroupMembers(id)) { const c = wsState.channels.get(cid); if (c) c.unseen = 0; wsMaybeRequestHistory(cid); } }
   else { const ch = wsState.channels.get(id); if (ch) ch.unseen = 0; wsMaybeRequestHistory(id); }   // C: cold stub 이면 내용 on-demand 로드
   wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge();
@@ -1740,15 +1766,22 @@ function wsSetActive(id) {
 function wsCommon() { return { id: 'b-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), source: 'board', timestamp: Date.now() }; }
 function wsSend(obj) {
   const ws = wsState.ws; if (!ws || ws.readyState !== 1 || !wsState.active) return false;
-  if (wsIsGroup(wsState.active) || wsIsMon(wsState.active)) return false;   // 그룹·모니터 = 읽기 전용
-  const ch = wsState.channels.get(wsState.active);
-  const route = (ch && ch.routeId) || wsState.active;   // §4: 채널 키가 channelId 여도 라우팅은 routeId(agentId)
+  if (wsIsMon(wsState.active)) return false;   // 모니터 = 읽기 전용
+  let routeKey = wsState.active;
+  if (wsIsGroup(routeKey)) { const rep = wsGroupRep(routeKey); if (!rep) return false; routeKey = rep; }   // 그룹 = 대표 워커로 라우팅 (group:up→업스트림 대표 · group:main→메인)
+  const ch = wsState.channels.get(routeKey);
+  const route = (ch && ch.routeId) || routeKey;   // §4: 채널 키가 channelId 여도 라우팅은 routeId(agentId)
   const extra = {};
   if (ch && ch.channelId) extra.channelId = ch.channelId;   // 에코·history 가 같은 채널키로 복원되도록
   if (ch && ch.threadId) extra.threadId = ch.threadId;
   try { ws.send(JSON.stringify({ ...wsCommon(), targetAgentId: route, ...extra, ...obj })); return true; } catch { return false; }
 }
-function wsLocalRow(kind, label, body) { const a = wsState.active; if (a && !wsIsGroup(a) && !wsIsMon(a)) wsPushRow(a, { kind, label, body, dim: false, t: nowHM() }); }
+function wsLocalRow(kind, label, body) {
+  const a = wsState.active; if (!a || wsIsMon(a)) return;
+  let pushKey = a;
+  if (wsIsGroup(a)) { const rep = wsGroupRep(a); if (!rep) return; pushKey = rep; }   // 그룹 = 대표에 push (그룹 뷰가 대표 워커 행을 보여줌)
+  wsPushRow(pushKey, { kind, label, body, dim: false, t: nowHM() });
+}
 function wsSendPrompt() {
   const ta = wsActiveTextarea(); if (!ta) return;
   const text = ta.value.trim(); if (!text && !wsAtts.length) return;
