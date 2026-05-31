@@ -44,8 +44,8 @@
 #   WS_FEEDBACK     보드 feedback (기본 feedback.jsonl) — 부재 시 WARN 후 무시
 #   WS_STATE        보드 state.json (기본 state.json) — standby 키 읽기용
 #   WS_AGENT_ID     내 agentId (기본 main-agent) — armed 로그 표시용
-#   WS_WAIT_TICKS   폴 횟수 (기본 196 ≈ 49분 = 15초×196)
-#   WS_WAIT_INTERVAL 폴 간격 초 (기본 15)
+#   WS_WAIT_TICKS   폴 횟수 (기본 588 ≈ 49분 = 5초×588)
+#   WS_WAIT_INTERVAL 폴 간격 초 (기본 5)
 
 cd "$(dirname "$0")" || exit 1
 INBOX="${WS_INBOX:-inbox.jsonl}"
@@ -54,8 +54,8 @@ FB="${WS_FEEDBACK:-feedback.jsonl}"
 FCUR=".$(basename "${FB%.jsonl}")-cursor"
 STATE_FILE="${WS_STATE:-state.json}"
 WID="${WS_AGENT_ID:-main-agent}"
-INTERVAL=${WS_WAIT_INTERVAL:-15}
-MAX=${WS_WAIT_TICKS:-196}
+INTERVAL=${WS_WAIT_INTERVAL:-5}
+MAX=${WS_WAIT_TICKS:-588}
 
 # silent-disable WARN — optional 설정 누락 표면화
 if [ -z "$WS_INBOX" ]; then
