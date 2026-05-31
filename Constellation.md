@@ -687,3 +687,125 @@ The EG v0.1 draft enumerated six open questions for joint reconciliation; Q1 (ed
 - **§13.18** (Non-branching choices — recommend + proceed) — the §13.19.6 tier sequence (ordering → preemption → mediation → human) is itself a non-branching choice path for the typical case. An agent encountering a quasi-deadlock does NOT escalate to the human just to ask "which tier?" — the tier order IS the recommendation, and the agent proceeds. The user pivots only if the wrong tier is being applied for the situation.
 
 **Provenance**: main upstream Delegate seq 111, msgId `m-mpthvj53-110`, 2026-05-31 (joint consensus on the 4-stage + 3-tier-ack shape, including `diff_adjusted_5`). Inputs cited in §13.19.1: main RRP `reports/2026-05-31-deadlock-resolution-rrp.md` (P3 — distributed-systems literature + WS-PROTOCOL impl excerpt) and EG draft v0.1 `constellation/reference/docs/deadlock-resolution-draft.md` at commit `82ab55e` (P1 — orchestration-shaped 1차지식 angle). Companion main impl tracker: `server.cjs` (P2) — to receive the §13.19.8 vocabulary + server filters incrementally as the spec lands downstream.
+
+### 13.20 Blocker tracking + periodic nudge discipline — making "waiting on external work" observable and time-bounded
+
+Discipline (not a rule of nature): when §13.16.6 element 5 (planned-queue scan) classifies *every* item as `blocked`, the agent is about to enter **true-exhaustion idle wait** — the legitimate exception to "work continues" that §13.16.6 reserves for the case where no progressable item exists. The failure mode §13.20 prevents is what happens *after* that classification fires honestly: the agent waits on external parties (main / hub / a specific peer) who could resolve the blocker, but who do not progress on their side either — and the wait silently extends across cycles without anyone (the agent, the human, the responsible party) seeing the cumulative cost. §13.16.6 element 5 catches "I have planned work I am skipping"; §13.20 catches "I am waiting on external work that is not progressing". They are paired turn-end controls at different layers — element 5 is the *individual-agent* layer (am I idling while I have work?), §13.20 is the *team-coordination* layer (am I idling while the team is also stalled on my behalf?). The §13.20 layer is the silent-stall surface that §13.16.6's individual-agent discipline cannot reach by construction (an agent that correctly has nothing to do is correctly idle; the team's failure to unblock it is not surfaced by the agent's queue scan alone).
+
+#### 13.20.1 Status & provenance
+
+- **Status**: discipline (P1 — EG 1차지식 contract). Pairs with §13.16.6 (turn-end ritual) at the team-coordination layer and composes with §13.19 (deadlock resolution) for the linear-but-stalled blocker class (distinct from §13.19's cyclic-wait class — see §13.20.6).
+- **Provenance**: user board UserPrompt `p-mptj6cxj`, 2026-05-31. The originating directive specified three discipline elements: (1) blocker-manifest emission before idle wait, (2) periodic nudge cadence during idle wait, (3) escalating intensity tied to nudge-count when the responsible party keeps deferring ("자꾸 해줘야 할거 까먹으면"). All three are formalized below as §13.20.2–§13.20.5.
+- **Failure mode this addresses**: agent enters "true-exhaustion idle wait" honestly (planned queue empty by classification, every item `blocked` per §13.16.6 element 5), then sits across multiple rearm cycles while the external blocker remains unaddressed by the responsible party. From the agent's perspective the wait is legitimate (no progressable item exists in its own queue); from the *team's* perspective the wait is a silent stall (the responsible party either forgot, deprioritized, or never received a clear-enough nudge to act). The blocker-manifest emission converts the silent stall into a live-board-visible artifact; the periodic nudge cadence converts it into a time-bounded contract; the escalation tiers convert the "responsible party kept forgetting" failure into a human-attention surface before the cumulative cost becomes irrecoverable.
+
+#### 13.20.2 Blocker manifest — the data structure
+
+Every blocker tracked by §13.20 carries the following fields (carried as a `BlockerManifest` `CUSTOM` frame on the wire, persisted in the agent's outbox + `ws-history` per §2, and surfaced on the live board per §13.20.7):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `subject` | enum: `main` \| `hub` \| `<peer-agentId>` | The responsible party — the agent the blocker is waiting on. |
+| `reason` | string | What work is needed and *why* it blocks EG (e.g. "main needs to land §13.20 board-panel implementation in server.cjs+app.js+style.css for the blocker-manifest visualization to surface"). |
+| `eg_side_action_waiting` | string | What EG will do *once unblocked* — the deferred work that is parked behind this blocker. Must be concrete enough that the responsible party can verify the unblock-receipt by observing EG's follow-through. |
+| `request_history` | `Array<{ msgId, ts }>` | Ordered list of msgIds for every prior nudge / request emission on this blocker. Each entry pairs the msgId (server-bridge-stamped per §13.13) with its emission timestamp (ISO-Z). |
+| `request_count` | integer | `request_history.length` — convenience field; the canonical count is the array length. Used to drive the §13.20.5 escalation tier. |
+| `first_requested_at` | ISO-Z | Timestamp of `request_history[0]` — used for age computation on the board panel. |
+| `last_nudged_at` | ISO-Z | Timestamp of `request_history[length-1]` — used to decide whether the next rearm cycle's nudge cadence threshold (§13.20.4) has elapsed. |
+| `tier` | enum: `1-polite` \| `2-explicit` \| `3-deadline` \| `4-human` | Current §13.20.5 escalation tier; advances with `request_count` per the cycle-and-content rules below. |
+
+The manifest is *per-blocker*, not per-agent — an agent waiting on three distinct blockers carries three `BlockerManifest` entries, each with its own `subject` / `request_history` / `tier`. The manifest is persisted across turns in `ws-history` (no separate state store; the wire-shape-carries-truth invariant from §13.13 / §13.19 is preserved).
+
+#### 13.20.3 Pre-idle emit rule — "make the wait observable before entering it"
+
+When §13.16.6 element 5 (planned-queue scan) classifies every queue item as `blocked` and the agent is therefore authorized to enter true-exhaustion idle wait, the agent MUST — before emitting the idle-wait state and re-arming the watcher — perform two emissions in this order:
+
+1. **Emit the `BlockerManifest` `CUSTOM` frame to the board**, carrying every active blocker per §13.20.2. The frame is a *snapshot*, not a delta — it republishes the full set every time, so the board panel (§13.20.7) renders authoritatively from the latest snapshot without needing reconciliation logic. The frame is emitted via the agent's standard outbox path (not bridge-auto, per the §13.13 no-auto-ack discipline carried forward).
+2. **Append a 1-line summary in the agent's chat thread / response text**: `"Idle: N blockers (subject1 #count1, subject2 #count2, ...)"` — minimal, single-line, surfaces the *fact* of the wait + the *shape* of the blocker set, without consuming user attention with manifest detail (the detail lives on the board panel for the user to drill into if they choose).
+
+Both emissions are mandatory; neither is optional based on agent volition. Skipping the manifest emission while entering idle wait is the §13.20 violation — the wait then becomes the silent-stall failure mode this section exists to prevent. Skipping the chat-thread summary is the §13.11 board-emission discipline failure recast at the §13.20 surface — the wait becomes invisible at the response-text channel where the human's attention naturally lands first.
+
+**Composition with §13.16.6 element 5**: element 5 classifies the queue and authorizes idle wait when classification returns "all blocked"; §13.20.3 is the *additional* discipline that fires *only when* element 5's classification authorizes the wait. If element 5 returns "at least one progressable item" the agent takes that item and §13.20.3 does not fire this turn (no idle wait to make observable). The two rules are sequenced, not alternative: element 5 first (do I have work I can do?), then §13.20.3 if and only if element 5 cleared idle-wait entry (make the wait observable).
+
+#### 13.20.4 Periodic nudge cadence — `BlockerNudge` every N rearm cycles
+
+During the idle wait that §13.20.3 made observable, the agent does NOT just wait passively. At every watcher rearm cycle (the ~45 min effective-elapsed window per §13.16.6, corrected for agent-active per §13.19.3), the agent re-evaluates each `BlockerManifest` entry and emits a `BlockerNudge` `CUSTOM` frame to the responsible party (`subject` field) when the per-blocker nudge cadence threshold has elapsed.
+
+**Default cadence**: `CONSTELLATION_BLOCKER_NUDGE_CYCLES = 1` — emit one nudge per blocker per rearm cycle (i.e. roughly every ~45 min effective-elapsed, every cycle, the responsible party receives a nudge for every still-active blocker). The env knob is configurable; deployment policy may raise it to 2 or 3 cycles between nudges for low-urgency blockers (the urgency assessment is application-layer — §13.20 specifies the *mechanism*, not the per-blocker urgency calibration).
+
+**`BlockerNudge` payload** (carried as `CUSTOM` per §2 envelope, persisted per §13.13):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `for` | msgId | `request_history[0]` — the original request msgId, so the responsible party can re-trace the chain. |
+| `blockerSubject` | string | Mirror of `BlockerManifest.subject` — explicit so the recipient can match against multiple in-flight blockers. |
+| `reason` | string | Brief restatement of the blocker reason (1 line); the responsible party does not have to re-read the original request to recall what work is needed. |
+| `elapsedSinceLastNudge` | duration | Effective-elapsed (per §13.19.3 agent-active correction) since `last_nudged_at`. |
+| `requestCount` | integer | Current `request_history.length` — surfaces the cumulative cost to the responsible party, naming the count plainly. |
+| `tier` | enum (§13.20.5) | The escalation tier this nudge is being emitted at; carried explicitly so the responsible party can interpret tone correctly. |
+| `intensity_phrase` | string | Tier-appropriate phrasing (see §13.20.5 ladder) — explicit so the wire carries the politeness gradient, not just the recipient's local interpretation. |
+
+The nudge appends its own msgId to `request_history` on emission, advancing `request_count` for the next cycle's tier evaluation. The cadence is *per-blocker*, not *per-agent* — an agent with three blockers may nudge three separate parties on three separate cycle boundaries depending on each blocker's `last_nudged_at`.
+
+**Distinction from autonomous heartbeat (§13.11.2)**: a `BlockerNudge` is NOT an unprompted heartbeat. The heartbeat ban in §13.11.2 prohibits autonomous emissions *unconditional on wait-state events*; the `BlockerNudge` is conditional on an active blocker manifest entry and on the cycle-cadence threshold elapsing. It is the same exception class as §13.19's deadlock primitives (§13.11 cross-link confirms this — deadlock primitives are not heartbeats because they fire on actual wait-state events; same reasoning applies to §13.20 blocker nudges).
+
+#### 13.20.5 Nudge escalation tiers — 4-tier ladder (polite → explicit → deadline → human)
+
+The nudge intensity escalates with `request_count`, parallel to §13.19.6's deadlock-resolution ladder but specialized for the *linear-blocker-stall* class rather than the *cyclic-wait* class. Tier transitions are driven by *both* cycle count (`request_count`) AND content (the responsible party's response shape: silence vs partial progress vs deflection).
+
+| Tier | Trigger (cycle-count default) | Phrasing template | Cost |
+|------|-------------------------------|-------------------|------|
+| **1 — polite** | `request_count` ∈ {1, 2} | "Ping — still waiting on `<reason>`. Any update on availability?" | Minimal — Ping-style status query, no commitment ask. |
+| **2 — explicit** | `request_count` ∈ {3, 4, 5} | "Following up: this is request #N. ETA query — when can you address `<reason>`? Either commit to an ETA via `ReviewSLAAck` or let me know it needs to be re-routed." | Names the count plainly; asks for either an SLA commitment or an explicit "cannot do it" signal. |
+| **3 — deadline** | `request_count` ∈ {6, 7, 8, 9} | "Request #N on `<reason>`. I am setting a hard ETA at `<cycle K from now>`. If no progress by then, I will route this to the human via the decisions panel." | Sets the deadline, names the consequence, names the cycle threshold. |
+| **4 — human** | `request_count` ≥ 10 OR responsible party explicit deflection at any earlier tier | Emit `EscalationRequest` per §13.19.6 tier 4 to board `decisions` panel: `"External blocker stalled for N cycles, please advise: subject=<X>, reason=<Y>, attempted_nudges=<N>"`. The chat thread receives a 1-line acknowledgment of the escalation; the wait now sits on the human's `decisions` panel, not on the responsible party's silence. | Human attention — same alarm-fatigue gate as §13.19.10 Q4 (3-5 escalations/24h cap per human). |
+
+**Content-based tier transitions** (override the cycle-count default when applicable):
+
+- **Responsible party explicit silence** (no `Ack{delivered}` server-emission missing for a nudge — the wire confirms inbound was carried but no recipient-agent response of any kind, including `ReviewSLAAck`, came back) over 2 consecutive cycles: advance one tier even if `request_count` hasn't reached the next default threshold. Silence is a stronger signal than slow-response, and the ladder should reflect that.
+- **Responsible party partial progress** (a `ReviewSLAAck` was emitted but the SLA has subsequently been renegotiated 2 times per §13.19.10 Q6 cap): *do NOT advance* the tier — the renegotiation cap fires first (§13.19 escalates to `NEEDS_HUMAN`), which is the §13.20 tier-4 equivalent reached via the §13.19 path. §13.20 defers to §13.19's renegotiation-cap mechanism rather than double-counting.
+- **Responsible party deflection** (an explicit "cannot do this, route elsewhere" response): skip tiers 2/3 and emit a tier-4 `EscalationRequest` immediately — the deflection IS a `NEEDS_HUMAN` condition (the blocker needs human re-routing, not more nudges to the deflecting party).
+
+**Tone discipline across the ladder**: the phrasing templates above are minimums, not maximums — an agent may add context (cite the original `for: msgId`, restate the EG-side action waiting, name the cumulative wall-clock cost) so long as the tier's *commitment ask* is preserved (tier 1 = no commitment ask; tier 2 = ETA ask; tier 3 = hard deadline + escalation warning; tier 4 = escalation in flight). The phrasing should escalate in *clarity*, not in *aggression* — the failure mode being addressed is forgetfulness / deprioritization on the responsible party's side, not adversarial behavior, so the ladder's purpose is to make the cumulative cost legible, not to coerce.
+
+#### 13.20.6 Composition with §13.19 deadlock resolution
+
+§13.20 and §13.19 occupy adjacent but distinct surfaces. The decision rule:
+
+- **§13.19 applies** when the wait pattern shows a **cyclic dependency** — A waits on B, B waits on A (strict deadlock) or A waits on B who waits on C who waits on A (cycle of depth N). The detection signal is the wait-edge DFS returning a cycle (§13.19.3). Resolution flows through the §13.19.5 primitives (preemption / leader override / mediation) and the §13.19.6 ladder.
+- **§13.20 applies** when the wait pattern is **linear-but-stalled** — A waits on B, B is not waiting on A or on any cycle member; B simply hasn't progressed the work despite having the authority and inputs to do so. The wait-edge graph shows a single edge, no cycle. Resolution flows through §13.20.4 nudges and the §13.20.5 ladder.
+
+**Shared infrastructure** — both sections use the §13.13 ack layer as the substrate:
+
+- The §13.13 server-emitted `Ack{delivered}` confirms wire-transport on both nudges and deadlock primitives.
+- The §13.19.7 `ReviewSLAAck` commitment ack is the *correct response* to a `BlockerNudge` tier-2 ETA query — the responsible party honors the §13.20 ladder by emitting a `ReviewSLAAck` with a concrete `eta`, converting the blocker from "stalled" into "scheduled". A `ReviewSLAAck` response to a `BlockerNudge` resets the §13.20 tier to 1 (the responsible party has now committed; the cumulative-cost ladder pauses while the SLA window is honored) and re-engages the §13.19.4 (B) SLA-OR-WORK discipline.
+- The §13.20 tier-4 escalation routes through the *same* §13.19.6 tier-4 path (board `decisions` panel via §13.17). The wire-level `EscalationRequest` is the §13.19 vocabulary; §13.20 reuses it rather than introducing a parallel escalation type. The `decisions` panel entry distinguishes blocker-stall (§13.20) from cyclic-deadlock (§13.19) via a `class` field in the `EscalationRequest` payload (`class: 'blocker-stall' | 'cyclic-deadlock'`) — same panel, two reasons to be there, both legible to the human.
+
+**Misclassification cost** — symmetric to §13.19.2's asymmetric misclassification cost rule: treating a cycle as a linear blocker (using §13.20 nudges when §13.19 preemption was needed) wastes time (nudges cannot break a structural cycle); treating a linear blocker as a cycle (firing §13.19 preemption against a single non-cyclic party) burns the §13.19 strong-primitive budget on a wait that ordinary nudge discipline would have resolved. The detection signal (wait-edge DFS cycle present or absent) is the canonical disambiguator; agents do not guess between the two paths based on intuition.
+
+#### 13.20.7 Live-board visualization request — external blocker manifest panel
+
+A board-side affordance is requested of main (parallel outbox `Delegate` routed alongside this section, per the originating user board UserPrompt's instruction): add a **separate panel** to the live board for the external blocker manifest emitted by §13.20.3. The panel is distinct from the existing review-items / `decisions` panel (§13.17) because the data shape and the user-attention pattern are different:
+
+- **Review-items / `decisions` panel** (§13.17): per-question / per-decision rows; the user picks each item and resolves it via free-form or structured response. The pattern is *user takes action to resolve*.
+- **Blocker manifest panel** (§13.20.7): per-agent grouped rows showing each agent's active blockers — subject / reason / age (from `first_requested_at`) / nudge count (from `request_count`) / current tier (from `BlockerManifest.tier`). The user *reads* the panel to observe team-coordination health; the user does NOT typically take action on each row directly (tier-4 escalations are what surface to the `decisions` panel for action — the blocker panel is the *upstream* observability surface that lets the user see escalations coming before they fire).
+
+Implementation surface (the ask, routed to main):
+
+- `server.cjs` — accept the `BlockerManifest` `CUSTOM` frame, persist the latest snapshot per agent (overwrite-on-receive: the snapshot is authoritative; no reconciliation), and serve it on a new endpoint (`GET /api/blockers` or equivalent).
+- `app.js` — fetch the blockers, render the panel as a grouped list (agent → blockers). Update on the same cadence as other live-board panels (SSE / poll per current board conventions).
+- `style.css` — visual treatment for the tier escalation gradient (tier 1 neutral, tier 2 attention, tier 3 warning, tier 4 alert) so the panel telegraphs urgency without requiring the user to read every row's tier field.
+
+**Sequencing**: this section establishes the discipline EG-side and the request main-side; main lands the impl on its own cadence. Until the panel ships, the `BlockerManifest` frame still emits to the board (the wire vocabulary lands first per §13.13's wire-shape-carries-truth invariant), and the human can observe the blocker state via `ws-history` directly. The board panel is the *visualization upgrade*, not a precondition for the discipline.
+
+#### 13.20.8 Cross-links
+
+- **§13.11** (Board emission discipline) — every `BlockerManifest` snapshot emission and every `BlockerNudge` emission is a board "safe point" (§13.11.1) and MUST be emitted to the board, not bilateral-only. §13.11.2's autonomous-heartbeat ban does NOT apply: blocker manifests / nudges fire on actual wait-state events (the queue-scan classification of "all blocked"), same exception class §13.19 deadlock primitives invoke.
+- **§13.13** (A2A ack layer) — the substrate. `BlockerNudge` emissions get server-auto `Ack{delivered}`; the responsible party's `ReviewSLAAck` response (§13.19.7) is the correct tier-2 commitment ack and resets the §13.20 ladder per §13.20.6.
+- **§13.16.6** (Turn-end ritual element 5 — planned-queue scan) — the upstream trigger. §13.20 fires if and only if element 5 classifies every queue item as `blocked`. The two rules are sequenced: queue scan first (do I have work I can do?), blocker-manifest emission second (if and only if the queue scan authorized idle wait).
+- **§13.17** (Main-chat structured-choice prompts FORBIDDEN — route via board) — tier-4 human escalation in §13.20.5 routes via the board `decisions` panel, NOT via inline `AskUserQuestion`. The escalation question becomes a first-class A2A artifact, same as §13.19 tier-4 escalations.
+- **§13.18** (Non-branching choices — recommend + proceed) — the §13.20.5 tier sequence (polite → explicit → deadline → human) is itself a non-branching choice path. An agent does NOT ask the human "which nudge tier should I use?" — the tier ladder IS the recommendation; the agent proceeds and pivots only if the user steers.
+- **§13.19** (Deadlock resolution) — adjacent surface. §13.19 handles cyclic-wait deadlocks; §13.20 handles linear-but-stalled blockers. The decision rule is wait-edge DFS cycle presence (§13.20.6). Shared infrastructure: `ReviewSLAAck` (§13.19.7), `EscalationRequest` to `decisions` panel (§13.19.6 tier 4), the agent-active correction for cycle-cadence timing (§13.19.3 / §13.16.6).
+
+**Tone**: discipline — not rule of nature. The Constellation A2A wire + §13.13 ack layer + §13.16.6 turn-end ritual together make blocker tracking *possible*; §13.20 is the discipline that makes it *operative* at the team-coordination layer. §13.16.6 element 5's planned-queue scan is the individual-agent counterpart (am I idling while I have work?); §13.20 is the team-coordination counterpart (am I idling while the team is also stalled on my behalf, and is the cumulative cost legible to the human?). Both are required; neither absorbs the other.
+
+**Provenance**: user board UserPrompt `p-mptj6cxj`, 2026-05-31. Originating directive: blocker-manifest emission before idle wait, periodic nudge cadence during idle wait, escalating intensity tied to nudge-count when the responsible party keeps deferring. The three directive elements are formalized as §13.20.2 (manifest data structure), §13.20.4 (nudge cadence), §13.20.5 (escalation tiers). Companion live-board impl tracker: `server.cjs` + `app.js` + `style.css` (P2) — to receive the §13.20.7 blocker panel implementation incrementally as the spec lands downstream via parallel outbox `Delegate` to main.
