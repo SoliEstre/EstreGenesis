@@ -4,3 +4,10 @@
 # Constellation reference runtime — single-instance lockfile (per _proposals/003 Fix 1, local-bridge.cjs L53)
 # Per-agentId PID lockfile written by the single-instance guard; never tracked.
 constellation/reference/runtime/.*-bridge.lock
+
+# Local agent-workspace artifacts at repo root (bootstrap policy).
+# Public reference docs and the constellation/ tree stay tracked; agent-local rule sheets / config / scratch dirs do not.
+/AGENTS.md
+/.agent/
+/.agent-*
+/agents.json
