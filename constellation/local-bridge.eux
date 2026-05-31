@@ -20,7 +20,7 @@ deps ws        : websocket       # injected WS client (the bridge owns the socke
 deps fs        : file IO         # inbox append + outbox tail (cursor-based)
 deps token     : string          # optional LIVE_BOARD_WS_TOKEN
 @behavior
-connect          : open WS as agentId; on open send HELLO (capabilities.inbound: UserPrompt/Command/Cancel/Priority) + Status + ServerNotice(online, reconnect broadcast). Auto-reconnect with backoff on close (onerror is no-op; onclose owns reconnect).
+connect          : open WS as agentId; on open send HELLO ({pid: process.pid, capabilities.inbound: UserPrompt/Command/Cancel/Priority}) + Status + ServerNotice(online, reconnect broadcast). Auto-reconnect with backoff on close (onerror is no-op; onclose owns reconnect). The `pid` field enables the server-side §13.16.4 flap dampener to populate `incumbentPid` in the `ServerNotice{kind:'flap-rejected'}` payload with a real value rather than null — operator can identify which bridge instance is the incumbent during a churn event.
 onInbound(m)     : SERVER_HELLO → log protocolVersion, return (not CUSTOM). ignore AgentList/History/CloseChannel (server→board). For other CUSTOM: append {at,name,value,source} to inbox. UserPrompt w/ promptId → send UserPromptAccepted(queued_for_next_safe_point). **AgentHello recognition broadened**: trigger auto-`OnboardAck` when `msg.name === 'AgentHello'` **OR** `msg.value?.type === 'AgentHello'` — the latter is the value-nested malformed shape a client may produce by misreading the `CUSTOM/AgentHello` slash shorthand. Accept it, but emit `console.warn('[bridge] AgentHello value-nested shape — client envelope mismatch; should use top-level name=AgentHello + top-level targetAgentId per Constellation.md §2')` (single line, silent-disable principle: acceptance broadened, mismatch surfaced). Then auto OnboardAck(targetAgentId=sender, contextId=msg.contextId||msg.threadId, parentId=msg.id, welcome/guide/modes(from state.json)/policy); Delegate NOT automated (left in inbox for main PM).
 pollOutbox       : every 500ms tail outbox from cursor (reset if file shrank/replaced); ship each new line via emit.
 emit(line)       : parse JSON (plain text → {say}). {say}→TEXT_MESSAGE_START/CONTENT/END · {run:"start"}→RUN_STARTED · {run:"finish"}→RUN_FINISHED · {step}→STEP_STARTED · {stepDone}→STEP_FINISHED · {tool}→TOOL_CALL_START · {type,...}→raw event.
@@ -30,8 +30,10 @@ gracefulExit(sig): on SIGINT/SIGTERM send ServerNotice(offline, "restart pending
 states: DISCONNECTED(initial) · CONNECTING · CONNECTED
 dispatch by event:
   start  : DISCONNECTED → CONNECTING   (entry: open WS)
-  OPEN   : CONNECTING → CONNECTED       (entry: HELLO + Status + ServerNotice online; backoff=500)
+  OPEN   : CONNECTING → CONNECTED       (entry: HELLO + Status + ServerNotice online; backoff=500; HELLO carries {agentId, pid: process.pid} for §13.16.4 incumbentPid)
   CLOSE  : CONNECTED → CONNECTING       (entry: backoff reconnect, cap 8000)
 derive:
   connected_gate ← emit() only ships when connected (pre-connect appends would be lost; cursor inits at EOF)
   bridge_scope   ← control/A2A only; tool-call/run mirroring is the agent's explicit responsibility (no auto-capture)
+@incident
+bridge_pid (2026-06-01, main upstream Delegate seq 165, msgId m-mpua03au-164, ship trigger d385561): HELLO 봉투에 `pid: process.pid` 동봉 — 서버 측 §13.16.4 wsHelloFlapCheck 가 emit 하는 `ServerNotice{kind:'flap-rejected'}` 의 `incumbentPid` 가 현재 null (HELLO 에 pid 부재) → 실값으로 채워 churn event 중 incumbent 브릿지 식별 가능하게 함. Key 자체는 이미 존재(null 허용); 이번 패치는 값 공급. EG/bridge 후속 사이클.

@@ -357,17 +357,21 @@ The cleanup primitive is `CUSTOM/CloseChannel{value:{agentId}}` (board → serve
 
 For inbox cleanup, the operator truncates the affected `<scope>/inbox.jsonl` (gitignored, never tracked) — the bridge's `cursor` is byte-offset based, so a truncate-to-zero resets the agent's pending queue without losing in-flight WS events. (Truncate must happen *while the bridge is stopped* — `stop-all` first, then truncate, then re-launch.)
 
-#### 13.16.4 Server-side HELLO churn dampening (adopted at upstream production; reference impl pending)
+#### 13.16.4 Server-side HELLO churn dampening (adopted at upstream production · reference impl shipped d385561)
 
 The bridge lockfile is the line of first defense, but the server (`server.cjs`) adds a second: detect duplicate `agentId` HELLOs arriving at a rate that suggests a flap and decide *who* to keep.
 
-Adopted behavior (per `_proposals/003` Fix 2 — accepted at the upstream live-board production layer; reference implementation in `constellation/reference/runtime/server.cjs` is queued for a follow-up cp after the production code lands):
+Adopted behavior (per `_proposals/003` Fix 2 — shipped at the upstream live-board production layer in commit d385561, 2026-06-01; reference cp of `server.cjs` into `constellation/reference/runtime/` remains a separate follow-up cycle):
 
 - Per-`agentId` ring buffer of the last `N` HELLO timestamps (default `N=5`).
 - If the most recent `K` HELLOs (default `K=3`) span less than `M` ms (default `M=10000`) → `flap` WARN + a `cooldown` window.
 - During cooldown, a new HELLO from the same `agentId` is rejected with `ServerNotice{kind:'flap-rejected', incumbentPid: <prev>}`; the incumbent connection survives.
+- Cooldown duration: default 30000ms (30s) — long enough to absorb a flap burst, short enough that a legitimate restart waits ~30s before its HELLO is honored.
+- Env knobs (per d385561): `CONSTELLATION_FLAP_RING_N` (default 5), `CONSTELLATION_FLAP_RING_K` (default 3), `CONSTELLATION_FLAP_SPAN_MS` (default 10000), `CONSTELLATION_FLAP_COOLDOWN_MS` (default 30000). Operator-tunable per deployment if a specific bridge restart pattern needs a different sensitivity profile (e.g., a slow-restart bridge needing N=10 / span=20000).
 
 Why both layers ship: the bridge-side lockfile (§13.16.1) covers the common case where the bridge can be process-locked, but it requires fs write access from the bridge process. Foreign-runtime bridges (a non-Node adapter, a sandboxed worker, no-fs sandboxed CI runner, etc.) cannot always lock — the server-side dampener is the universal back-stop. They compose: a locked bridge avoids the flap before it starts; the server-side dampener catches it when the bridge can't lock.
+
+(EG-side follow-up surfaced by seq 165: bridge HELLO must carry `pid: process.pid` so the `incumbentPid` field in the `ServerNotice{kind:'flap-rejected'}` carries a real value rather than `null` — being implemented in a parallel workstream against `constellation/local-bridge.eux` + the reference runtime cp.)
 
 #### 13.16.5 Composition with §13.13 / §13.14 / §13.15
 

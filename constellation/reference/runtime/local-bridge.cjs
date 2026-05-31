@@ -166,7 +166,7 @@ function connect() {
   ws.onopen = () => {
     connected = true; backoff = 500;
     send('HELLO', {
-      clientId: AGENT_ID + '-bridge', agentName: AGENT_NAME, protocolVersion: '0.1', runId: null,
+      clientId: AGENT_ID + '-bridge', agentName: AGENT_NAME, protocolVersion: '0.1', runId: null, pid: process.pid,
       capabilities: { inbound: ['UserPrompt', 'Command', 'Cancel', 'Priority'], outbound: ['RUN_STARTED', 'RUN_FINISHED', 'STEP_STARTED', 'STEP_FINISHED', 'TEXT_MESSAGE_START', 'TEXT_MESSAGE_CONTENT', 'TEXT_MESSAGE_END', 'TOOL_CALL_START', 'CUSTOM'] },
     });
     console.log('[bridge] connected — HELLO as', AGENT_ID, '(' + AGENT_NAME + ')');
