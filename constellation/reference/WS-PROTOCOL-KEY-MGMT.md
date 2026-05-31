@@ -279,16 +279,21 @@ Notify an agent that its upstream key's label was renamed. The agent SHOULD upda
 
 | Message | Who may send | Server check |
 |---|---|---|
-| `KeyIssue` | main only | `conn.meta.role === 'main'` (set at HELLO time when `agentId === WS_PRIMARY_AGENT` or the conn carries the configured admin token) |
-| `KeyList` | main only | same |
-| `KeyRevoke` | main only | same |
-| `KeyLabel` | main only | same |
-| `AgentNameChanged` | **server only** (outbound) | n/a (server-initiated) |
+| `KeyIssue` | main only | `isMain(conn)` — see role determination below |
+| `KeyList` | main only | `isMain(conn)` |
+| `KeyRevoke` | main only | `isMain(conn)` |
+| `KeyLabel` | main only | `isMain(conn)` |
+| `AgentNameChanged` | **server only** (outbound) | n/a (server-initiated); recipients are live conns of any non-main role (`local` / `collab` / `upstream`) whose `meta.upstreamKey === key` |
 
-Non-main senders attempting any `Key*` request receive `name:"KeyError", value:{ code:"PERMISSION_DENIED", re_msgId }` and the request is dropped. The error frame **does** carry `ackFor` so the sender's `_pendingAck` watermark advances (§13.13 invariant — error is still a relay-level "delivered").
+Non-main senders (`local` / `collab` / `upstream`) attempting any mutating `Key*` request receive `name:"KeyError", value:{ code:"PERMISSION_DENIED", re_msgId }` and the request is dropped. The error frame **does** carry `ackFor` so the sender's `_pendingAck` watermark advances (§13.13 invariant — error is still a relay-level "delivered"). Non-main roles remain eligible to **receive** `AgentNameChanged` broadcasts (§3.5) — they just cannot **mutate** keys.
 
-**Role determination** (current `server.cjs` reference):
-- `wsAgentRole(conn)` returns `'main' | 'agent' | 'collab' | 'observer'` based on (a) HELLO `role` field, (b) `agentId === WS_PRIMARY_AGENT`, (c) connection metadata. `'main'` is the only role that gates these RPCs.
+**Role determination** (canonical — matches `server.cjs:167` `wsAgentRole(c)`):
+- `wsAgentRole(conn)` returns one of `'main' | 'local' | 'collab' | 'upstream'`:
+  - `'collab'`  — HELLO carried a collab-tier key (`meta.collab === true`)
+  - `'upstream'` — HELLO carried an upstream key (`meta.upstream === true`)
+  - `'main'`    — `agentId === WS_PRIMARY_AGENT` (the orchestrator hub; default `'main-agent'`, overridable via `WS_PRIMARY_AGENT` env)
+  - `'local'`   — none of the above (default fallback; e.g., dashboard tabs, anonymous agents)
+- **`isMain(conn)`** = `wsAgentRole(conn) === 'main'` — the **only** role permitted to issue `KeyIssue` / `KeyList` / `KeyRevoke` / `KeyLabel`. All other roles (`local`, `collab`, `upstream`) fail the gate.
 - Implementation note: when this draft lands, `server.cjs` adds a single `if (!isMain(conn)) return keyError(conn, msg, 'PERMISSION_DENIED')` gate at the top of the `Key*` dispatcher branch.
 
 ---

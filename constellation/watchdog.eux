@@ -1,7 +1,7 @@
 @component watchdog
 @intent Always-on liveness watchdog (deps-0) for the live board. Guards the WS **server** and the **main bridge**, auto-restarting either if it dies — the infrastructure guarantee behind "always connected": if this stays detached-resident, the board survives individual session ends. Watches by holding a `board`-role WS connection (connect succeeds = server alive); on WS drop/connect-fail it re-checks TCP, restarts server.cjs if down, and reconnects with backoff; when the pushed AgentList lacks the main agent it restarts the bridge. A 15s backup timer revives the server if WS stays disconnected. Non-interrupt principle: never touches a live server/bridge — only spawns a replacement when one is dead, with a per-target SPAWN_COOLDOWN to avoid duplicate spawns during startup. Restarts are detached (survive the watchdog's own death). Pure runtime, no DOM. (Distilled from dashboard/live/ws-watchdog.cjs — Constellation residency layer.)
 @expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
-@targets vanilla
+@targets runtime
 @state
 wsConnected     : boolean = false   # board-role WS to server is up (= server alive)
 backoff         : number = 1000     # reconnect backoff ms (cap 8000)
