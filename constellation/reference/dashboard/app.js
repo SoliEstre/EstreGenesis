@@ -1068,7 +1068,7 @@ function wsOutcome(o) { return !o ? '' : (o.type === 'cancelled' ? `취소됨${o
 // 채널 scoping(§4): 키 = channelId(있으면, threadId 다르면 :threadId) 우선, 없으면 agentId.
 // routeId = 사용자 입력 라우팅용 agentId(server 는 agentId 로 등록 → channelId 키여도 routeId 로 송신).
 function wsChanKey(m) {
-  // 채널 = 에이전트 단위(agentId). channelId/threadId 는 채널을 쪼개지 않고 row 출처 뱃지로 표시(사용자 결정 2026-05-26)
+  // 채널 = 에이전트 단위(agentId). channelId/threadId 는 채널을 쪼개지 않고 row 출처 뱃지로 표시
   return m.agentId || m.targetAgentId || m.channelId;
 }
 function wsChanLabel(m) {   // row 출처 뱃지 — 에이전트 통합 채널 안에서 대화 출처(channelId/threadId) 구분, 길면 축약

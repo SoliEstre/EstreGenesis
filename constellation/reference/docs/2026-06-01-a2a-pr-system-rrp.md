@@ -11,7 +11,7 @@
 
 - **Version**: v0.1 (initial RRP — first complete shape; awaits main upstream reaction).
 - **Date**: 2026-06-01.
-- **Provenance**: EG-side user decision turn, 2026-06-01. Companion to the §13.14 / §13.15 mirror gap (these two sections currently exist in this repo's `Constellation.md` but are NOT mirrored in the `<hub-repo>` `WS-PROTOCOL.md` — the manual-PR tax described in §1 below is the immediate driver, and the same §13.14/§13.15 mirror PR is the canonical dogfood case described in §9).
+- **Context**: Companion to the §13.14 / §13.15 mirror gap (these two sections currently exist in this repo's `Constellation.md` but are NOT mirrored in the `<hub-repo>` `WS-PROTOCOL.md` — the manual-PR tax described in §1 below is the immediate driver, and the same §13.14/§13.15 mirror PR is the canonical dogfood case described in §9).
 - **Authoring lane**: EG (per §13.9 peer/upstream role with respect to the `<hub-repo>` main; this RRP is one half of a coordinated proposal — the other half is whatever the `<hub-repo>` main wants to add at joint formalization time).
 - **Joint-formalization workflow**: this draft → main upstream review (`<hub-repo>` side; comments via outbox `Delegate` or live-board `decisions` panel per §13.17) → reconciled merge → committed as new `§13.22` (or whichever number main assigns) in `Constellation.md`. The dogfood PR (§9) is the *forcing function*: landing the §13.22 protocol allows the §13.14/§13.15 mirror PR itself to be the first PR routed through the new system, proving the protocol works at the moment it lands.
 - **Sensitivity**: every concrete design decision in §3–§8 is marked "(open for main review)". The §9 open questions enumerate the specific decisions where main's reaction is most load-bearing.

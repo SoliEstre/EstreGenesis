@@ -225,7 +225,7 @@ const HIST_CAP = 200;                                // 채널당 보관 이벤�
 const wsHistByChan = new Map();                      // 채널키 → events[]
 const wsBuf = new Map();                             // 채널키 → { msg:Map, tool:Map } 스트리밍 누적 버퍼
 const _histT = new Map();                            // 채널키 → debounce 타이머
-function wsMsgChan(m) { return String((m && (m.agentId || m.targetAgentId || m.channelId)) || '_'); }   // 채널 = 에이전트 단위(agentId 우선). channelId 는 출처 뱃지로만(사용자 결정 2026-05-26)
+function wsMsgChan(m) { return String((m && (m.agentId || m.targetAgentId || m.channelId)) || '_'); }   // 채널 = 에이전트 단위(agentId 우선). channelId 는 출처 뱃지로만
 function wsHistFile(ck) { return path.join(HISTDIR, ck.replace(/[^a-zA-Z0-9_.@:-]/g, '_').slice(0, 80) + '.jsonl'); }
 function wsBufFor(ck) { let b = wsBuf.get(ck); if (!b) { b = { msg: new Map(), tool: new Map() }; wsBuf.set(ck, b); } return b; }
 function wsSaveChan(ck) {
