@@ -28,7 +28,7 @@ cmd  event(type, fields) → object               : envelope builder `{type, id:
 cmd  getToken() → string                        : read env `LIVE_BOARD_WS_TOKEN || WS_TOKEN`; '' on dev mode
 cmd  acceptKey(key) → string                    : SHA1(key+GUID)base64 — RFC 6455 §1.3 handshake response
 cmd  encodeFrame(payload, opcode) → Buffer      : unmasked server frame (FIN=1; len <126 inline / 126+u16BE / 127+u64BE)
-cmd  decodeFrame(buf) → {opcode,payload,totalLen}|null : parse single frame from accumulator; null when payload not yet complete (caller retries on next chunk)
+cmd  decodeFrame(buf) → {fin,opcode,payload,totalLen}|null : parse single frame from accumulator; null when payload not yet complete (caller retries on next chunk)
 out  conn.send(objOrString) → boolean           : JSON.stringify if object → text frame 0x1; false if !alive or socket write throws
 out  conn.close()                               : send close frame 0x8 + socket.end + _dead (idempotent)
 out  conn.onmessage(msgObj)                     : server-installed handler invoked per text-frame JSON.parse success

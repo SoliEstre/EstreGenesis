@@ -12,7 +12,7 @@ in   host       : string            # 127.0.0.1
 in   port       : number            # 7878
 in   serverPath : string            # server.cjs path
 in   bridgePath : string            # examples/ws-local-bridge.cjs path
-in   mainId     : string            # main agentId to expect in AgentList (WS_PRIMARY_AGENT; default local-ide-agent)
+in   mainId     : string            # main agentId to expect in AgentList (WS_PRIMARY_AGENT; default main-agent)
 out  restartServer() : detached-spawn server.cjs when server is down (cooldown-gated)
 out  restartBridge() : detached-spawn the main bridge when AgentList lacks mainId (cooldown-gated)
 deps ws         : websocket         # board-role connection used as a liveness probe

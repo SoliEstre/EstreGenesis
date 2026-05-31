@@ -10,9 +10,9 @@ runId        : string = null     # current run id (set by outbox {run:"start"})
 outboxCursor : number = 0        # byte offset already shipped from outbox (init = EOF so pre-existing lines are skipped)
 @ports
 in   wsUrl     : string          # ws://host:7878/ws (+ ?token= if set)
-in   agentId   : string          # registration id (WS_AGENT_ID; main = local-ide-agent; worker = own id)
+in   agentId   : string          # registration id (WS_AGENT_ID; main = main-agent; worker = own id)
 in   agentName : string          # display name
-in   threadId  : string          # channel/thread id (WS_THREAD_ID; default: local-ide-agent→'local-ide', else AGENT_ID; worker must set its own to avoid showing as local-ide)
+in   threadId  : string          # channel/thread id (WS_THREAD_ID; default: main-agent→'local-ide', else AGENT_ID; worker must set its own to avoid showing as local-ide)
 in   inbox     : string          # inbox file path the agent reads (WS_INBOX; worker = own queue)
 in   outbox    : string          # outbox file path the agent appends to (WS_OUTBOX; worker = own queue)
 out  inboxAppend(rec) : append routed inbound {at,name,value,source} to inbox file for the agent
