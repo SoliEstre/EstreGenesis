@@ -284,8 +284,40 @@ The `drift-check --contract` gate SHOULD enforce:
 4. **`@derive` size budget**: self-wake-watcher's `cursor_unit` derive and server's `source_stamp_truth` derive both embed real incident history (4h outage, Report 2 Finding 1) in the derive clause. Does v1 want a budget (e.g., derive ≤ N lines) with overflow going to `@incident` / `@rationale` sub-clauses, or is incident-driven derive a deliberate part of the format?
 5. **UI `@machine` recommendation tier**: 3/6 EG UI files (ws-channel-input, ws-conn-bar, ws-fab-badge, ws-tabs) have implicit state but no `@machine`. Should v1 (a) recommend `@machine` for any UI component with more than one observable state, (b) leave it fully optional for ui, or (c) introduce a lighter-weight `@state` directive for UI components that don't need full dispatch tables?
 
+## Verify (drift-check 6-gate matrix — 2026-05-31)
+
+**Summary**: 12 files surveyed against v1 spec — **5 PASS · 7 WARN · 0 FAIL** (no CI blockers). All FAIL-tier gates (G1 ports presence, G2 machine STRICT for protocol) pass for the entire constellation. WARN-tier issues cluster around (a) `@source` adoption gap (0/12, expected — WARN-tier in v1), (b) `cmd`-under-`in` label mislabeling on three UI files (auto-fixable per §3.6 rule 1), (c) ambiguous empty `out`/`deps` without explicit `# none` comment on `ws-conn-bar`, (d) non-standard `@machine` dispatch format on `ws-tool-card`. The 6 gates as evaluated: (1) per-profile required `@ports` sub-clauses; (2) `@machine` states+initial-marker (STRICT for protocol, soft-WARN for backend, OPTIONAL for ui); (3) every `states` enum value reachable via `dispatch` + entry-actions traceable; (4) `@derive` clauses cite a code anchor or named incident (WARN tier); (5) `@envelope` raw literal scan vs matching `.cjs` (server.cjs · ws-core.cjs · watchdog.cjs · local-bridge.cjs); (6) `@ports` `cmd` return-shape parity vs implementation (verified for ws-core `decodeFrame`/`handleUpgrade` against `ws-core.cjs` lines 34/51/117-122).
+
+| File | Profile | G1 ports | G2 machine | G3 coverage | G4 derive | G5 envelope | G6 return | Overall |
+|------|---------|----------|------------|-------------|-----------|-------------|-----------|---------|
+| gateway-client.eux | protocol | PASS | PASS | PASS | WARN | N/A | PASS | **WARN** |
+| local-bridge.eux | protocol | PASS | PASS | PASS | WARN | PASS | PASS | **WARN** |
+| self-wake-watcher.eux | backend | PASS | PASS | PASS | PASS | N/A | PASS | **PASS** |
+| server.eux | backend | PASS | PASS | PASS | PASS | PASS | PASS | **PASS** |
+| watchdog.eux | backend | PASS | PASS | PASS | WARN | PASS | WARN | **WARN** |
+| ws-channel-input.eux | ui | PASS | N/A | N/A | N/A | N/A | WARN | **WARN** |
+| ws-collab-invite.eux | ui | PASS | PASS | PASS | N/A | N/A | WARN | **WARN** |
+| ws-conn-bar.eux | ui | PASS | N/A | N/A | N/A | N/A | WARN | **WARN** |
+| ws-core.eux | protocol | PASS | PASS | PASS | PASS | PASS | PASS | **PASS** |
+| ws-fab-badge.eux | ui | PASS | N/A | N/A | N/A | N/A | PASS | **PASS** |
+| ws-tabs.eux | ui | PASS | N/A | N/A | N/A | N/A | PASS | **PASS** |
+| ws-tool-card.eux | ui | PASS | PASS | WARN | N/A | N/A | PASS | **WARN** |
+
+**Counts**: PASS=5 · WARN=7 · FAIL=0 · TOTAL=12.
+
+**Blockers** (FAIL-tier — would block CI): **none**. The constellation is v1-clean against all STRICT gates (G1 universally satisfied; G2 STRICT satisfied for all 3 protocol files; no `@deps` standalone; no forbidden `@render`/`@persist`; placeholder `@targets vanilla` on `watchdog.eux` + `ws-core.eux` is already noted as migration debt in §6.2 and is not gated by these 6 gates — that gate lives in the §4 G5 matrix-table of the spec, separately from this verify run).
+
+**WARN summary** (recommended fixes, ordered by impact):
+- **G4 derive anchors** (3 files: gateway-client, local-bridge, watchdog) — promote inline `@intent` provenance notes to explicit `@source` or anchor refs; not blocking but improves drift-check fidelity.
+- **G6 cmd-label drift** (3 UI files: ws-channel-input, ws-collab-invite, ws-conn-bar) — `cmd` lines listed under `in:` label; auto-fix per §3.6 rule 1 (move to dedicated `cmd:` sub-clause).
+- **G6 watchdog cmd/out mixing** — `restartServer`/`restartBridge` declared as `out:` but are internal-spawned commands; clarify per v1 sub-clause semantics in §3.6.
+- **G3 ws-tool-card dispatch format** — non-standard `phase→action` notation rather than formal `state + event → state'`; reformulate per §3.7.
+- **G4/G5 N/A rows** — runtime adapters (gateway-client agent-side, UI components) have no matching `.cjs` envelope to scan; these are vacuous-PASS but recorded as N/A to keep the matrix honest.
+
+**Spec cross-reference**: gate definitions per `constellation/reference/docs/eux-format-v1.md` §4 (6-gate matrix) + §3.6 (`@ports` validation rules) + §3.7 (`@machine` STRICT tier dispatch).
+
 ## Provenance
 
 - **Main P1 draft**: Delegate seq 70 (`l-mpt1ja6p-70`, msgId `m-mpt1ja6p-69`, board inbound 2026-05-31).
 - **EG analysis**: 12 `constellation/*.eux` files, 3-lane parallel Workflow on 2026-05-31.
-- **Drift-check verification**: companion section below (Verify phase output) — pending.
+- **Drift-check verification**: 6-gate Verify matrix run 2026-05-31 (see §Verify above) — 5 PASS · 7 WARN · 0 FAIL.
