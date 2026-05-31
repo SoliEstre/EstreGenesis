@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Seed Prompt — Compact
 
-<!-- seed-tier: Compact; language: English; version: v2.3.0; date: 2026-05-29; counterpart: AI_Native_프로젝트_시드_프롬프트_Compact.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
+<!-- seed-tier: Compact; language: English; version: v2.4.0; date: 2026-05-31; counterpart: AI_Native_프로젝트_시드_프롬프트_Compact.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
 
 > Paste as first message to any AI coding agent. **Self-contained** — no references to other tiers; for authors who already know the AI Native pattern. The library's other tiers (Master, Lite) ship the same patterns at different depth; pick **one tier per project repo** — mixed tiers produce dead links. Inline scripts here are described as algorithm specs (the agent generates them following the spec); if the agent should copy-paste-ready full source instead, use the Master or Lite tier in this library.
 

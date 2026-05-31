@@ -1,4 +1,4 @@
-<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.0; version: v2.2.5; date: 2026-05-29; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
+<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.0; date: 2026-05-31; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
 
 # Constellation — Live Multi-Agent Orchestration
 

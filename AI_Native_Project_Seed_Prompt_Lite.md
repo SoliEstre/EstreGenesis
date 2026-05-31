@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Seed Prompt — Lite
 
-<!-- seed-tier: Lite; language: English; version: v2.3.0; date: 2026-05-29; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
+<!-- seed-tier: Lite; language: English; version: v2.4.0; date: 2026-05-31; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
 
 > **How to use**: Copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent will run an **interactive bootstrap session** (or a **migration session** if your project already exists — see § Migration Guides).
 >
