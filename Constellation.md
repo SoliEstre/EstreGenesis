@@ -506,3 +506,177 @@ It does **not** fire on **fork-of-architecture** decisions — those still go th
 - **Seed Principle #16** (autonomous execution — absolute): the seed's existing gate set (loss/external-publish · new major-fork decision · restart-deploy timing · explicit user steering) already implies non-branching choices proceed without escalation, but the originating incident shows the implication wasn't operative. §13.18 is the explicit operational form of Principle #16 for the *choice-emission* surface; Principle #16's strengthened sentence ("recommendation present + non-branching = proceed without escalating; parallelism is the default presumption when feasible") is the seed-side mirror of this section.
 
 **Provenance**: main upstream policy #411 — Delegate seq 85, msgId `m-mpt50wd3-84`, 2026-05-31. Originating incident: agent recommended option D, then emitted A/B/C/D? structured choice → user surfaced the violation. Companion seed-side strengthening: Principle #16 across Master EN/KO + Lite EN/KO + Compact EN/KO (added clarification, not a new gate).
+
+### 13.19 Deadlock resolution — formal spec (prevention · detection · auto-resolution · escalation, layered above §13.13)
+
+The Constellation A2A wire (§2) + ack layer (§13.13) is sufficient for the *strict-deadlock* termination via Two Generals + conservative multi-probe + board-`decisions` escalation, but it does NOT cover the larger class of *quasi-deadlocks* (behavioral waits that degrade over wall-clock without any structural cycle — the deferred-review pattern that surfaced in the 2026-05-31 EG↔main incident). §13.19 is the formal spec that closes that gap, layered above §13.13 (NOT replacing it), adding a 4-stage discipline (prevention → detection → auto-resolution → escalation) plus a 3-tier ack layering (transport · commitment · application) that interpolates cleanly between §13.13's two acks.
+
+#### 13.19.1 Status & provenance
+
+- **Status**: formal spec (P1 — EG 1차지식 contract). Supersedes the v0.1 draft framing.
+- **Inputs** (cited, not republished):
+  - **Main upstream RRP** (P3 — distributed-systems literature & WS-PROTOCOL impl excerpt): `reports/2026-05-31-deadlock-resolution-rrp.md` at the hub repository. Contributes the rigor side — Chandy-Misra-Haas edge-chasing tradeoffs, Mitchell-Merritt priority-bump starvation guard, RFC-style probe budgets, Two Generals composition.
+  - **EG draft v0.1** (P1 — 1차지식 source for the orchestration-shaped angle): `constellation/reference/docs/deadlock-resolution-draft.md`, commit `82ab55e`. Contributes wait-pattern classification (strict / quasi / healthy), the `ReviewSLAAck` commitment ack, the 4 resolution primitives, the agent-active correction for turn-based timeouts, and the §13.13/§13.16.6 composition arguments. The v0.1 framing as a "DRAFT" is retired by this section; v0.1 stands as the EG-side input record.
+  - **Joint consensus** — main upstream Delegate seq 111, msgId `m-mpthvj53-110` (2026-05-31). Reconciled the EG v0.1 with the main RRP into the 4-stage + 3-tier-ack shape this section formalizes, including the `diff_adjusted_5` (edge-chasing N-extension deferred · livelock-as-quasi-variant · turn-cap-and-renegotiate unified · starvation guard accepted · termination-signal `waitingOn` mandatory).
+- **Layering invariant**: §13.19 sits *above* §13.13 (ack layer) and *uses* §13.16.6 (agent-active correction). It does NOT modify §2 (the A2A wire shape) or §13.13's three ack grades (`delivered`/`read`/`processed`); it adds a commitment-tier ack (`ReviewSLAAck`) *between* `delivered` and `processed`, plus a small `CUSTOM` message vocabulary (§13.19.8) for detection, resolution, and escalation. Strict-deadlock termination still routes through §13.13 step 3.5 (board `decisions` panel via §13.17 path).
+
+#### 13.19.2 Wait-pattern classification — strict / quasi / healthy (livelock = quasi variant)
+
+A2A wait situations are not a single phenomenon — the appropriate resolution depends on which class is in play. Three named classes plus one explicitly subsumed variant:
+
+- **Strict deadlock** — a cycle in the A2A message-dependency graph where neither party can make forward progress without the other releasing first. The wait is *structural*; no amount of patience or SLA-renegotiation resolves it. Detection: cycle in the wait-edge DFS (§13.19.3). Resolution tier: strong primitives — preemption (§13.19.5) or escalation (§13.19.6). Rare in the current Constellation topology because the §13.9 role split (workers don't issue `Delegate` back) minimizes cycle topology.
+- **Quasi-deadlock** — a wait where one party COULD progress immediately by completing a deferred action, but defers across cycles. The wait is *behavioral*, not structural. Detection: a wait edge older than the agreed `ReviewSLAAck` budget with no cycle. Resolution tier: SLA-ack discipline (§13.19.4) + priority re-ordering (§13.19.6 tier 1). Most common class in the current EG↔main deployment — this is what the 2026-05-31 deferred-review incident actually was.
+- **Healthy wait** — a wait of bounded duration where the counterparty is making expected progress (worker on `Delegate` standby per §13.11.2; A2A sender waiting on a recipient currently in a long-running foreground turn). Detection: bounded by §13.13 `Ping`/`Pong` keepalive and §13.16.6 `WAKE`/`REARM` markers — the recipient turn is active. Resolution tier: **none — the protocol is functioning**. Misclassifying healthy wait as deadlock is itself a failure mode (alarm-fatigue per §13.13).
+- **Livelock — explicitly classified as a quasi-deadlock variant** (consensus diff_adjusted_5 #2): mutual deferral where both parties repeatedly *attempt* to yield to the other (e.g. each emits `PreemptRequest` against the other in alternating turns, with each release immediately re-blocked by the other side's symmetrical request). Livelock has no structural cycle by the strict-graph definition (each party is technically making local "progress" by issuing yields), but its wall-clock behavior is identical to quasi-deadlock (deferred work fails to retire). Detection and resolution route through the quasi-deadlock path: SLA-bound the yield-request count, escalate to mediation/leader-override (§13.19.6 tier 2/3) before the yield-spiral indefinitely consumes turns.
+
+Misclassification cost is asymmetric: treating *strict* as *quasi* loses time (SLA renegotiation cannot close a structural cycle); treating *quasi* as *strict* burns alarm-fatigue budget (preemption/escalation primitives fire against a wait that ordinary commitment discipline would have resolved); treating either as *healthy* is the silent-degrade class that the §13.13 conservative-multi-probe + this section's SLA discipline exist to prevent.
+
+#### 13.19.3 Detection — wait-edge DFS (2-agent sufficient) + wait-class timeouts + §13.16.6 agent-active correction
+
+Detection layer composes three signals; each is necessary, none is sufficient alone.
+
+**(1) Wait-edge graph DFS — 2-agent depth sufficient** (consensus diff_adjusted_5 #1). The Constellation A2A wire already carries cycle-detection metadata: every `CUSTOM` carries a sender-bridge-stamped `msgId` (§13.13); replies carry `re_msgId` (or `parentId`); an agent in `WAITING` for `re_msgId = X` declares a wait edge on the sender of `X`. At each agent's turn-start (and at the watcher's rearm path), run a depth-limited DFS over the local `ws-history/<agentId>.jsonl` (§2 / §13.16.3) restricted to **wait-edge depth ≤ 2**, identifying whether the local agent participates in a 2-cycle (A waits on B, B waits on A). The edge-chasing N-agent extension (Chandy-Misra-Haas / Mitchell-Merritt path-pushing across arbitrary depth) is **explicitly deferred** — for the current Constellation topology (typically ≤ ~10 active peers, with the §13.9 orchestration tree pinning most edges to non-cycle shapes), 2-agent DFS is sufficient. The N-extension is a future-work hook (deploy when a 3-or-more cycle is empirically observed in dogfood), not part of this spec's required behavior.
+
+**(2) Wait-class timeout** — per §13.19.2 class:
+
+| Wait class | Timeout source | Notes |
+|------------|----------------|-------|
+| Healthy (Delegate-standby) | unbounded | §13.9 / §13.11.2 — no autonomous heartbeat fires while parked |
+| Healthy (in-turn recipient) | one `Ping`/`Pong` round-trip + §13.16.6 agent-active correction | §13.13 keepalive |
+| Quasi-deadlock candidate | review-SLA budget (negotiated per A2A message; default ~24h / 2 cycles, set by `ReviewSLAAck.eta`) | §13.19.4 |
+| Strict-deadlock candidate | 2× longest healthy-wait timeout in the cycle | §13.19.5 strong-primitive tier |
+
+**(3) §13.16.6 agent-active correction — mandatory** (consensus, applies to every timeout above). The harness `SIGSTOP`s background tasks while the agent's foreground turn is active and `SIGCONT`s them when the turn ends. A naive wall-clock timeout therefore overcounts: a 60 min wall-clock window with 25 min of foreground turn activity has true watcher-elapsed of ~35 min. The formal expression (carried over from §13.16.6, repeated here for the detection rule):
+
+```
+effective_elapsed = wall_clock_elapsed − Σ agent_active_duration (during wait window)
+```
+
+All §13.19.3 timeout decisions use `effective_elapsed`, never raw wall-clock. The agent-active duration is observable via the watcher's `WAKE`/`REARM` markers (§13.16.6), the recipient's `ws-history` emission timestamps, or (if added) an explicit `CUSTOM/TurnActive`/`TurnEnded` pair on the wire — the choice between observable sources is implementation-level, not spec-level. What is spec-level: the timeout MUST be corrected; an uncorrected wall-clock comparator is non-compliant with §13.19.
+
+**Termination signals as detection input** (consensus diff_adjusted_5 #5 — mandatory). Three termination signals MUST be carried in the wire vocabulary as `CUSTOM` payloads:
+
+- `DONE { for: msgId, summary? }` — recipient completed the work the inbound implies; equivalent to `AckProcessed` at the application layer (§13.13) but with explicit "no further action expected" semantics.
+- `BLOCKED { for: msgId, reason, waitingOn: msgId | external-dependency-id }` — recipient cannot progress *this turn*; the `waitingOn` field is **mandatory and IS the wait-edge graph input** for §13.19.3 DFS. An agent that emits `BLOCKED` without `waitingOn` produces an undetectable wait — non-compliant.
+- `NEEDS_HUMAN { for: msgId, question | summary }` — recipient cannot decide autonomously; escalates immediately to the §13.19.6 tier-4 path (via §13.17 `decisions` panel).
+
+#### 13.19.4 Prevention layer — priority ordering + ReviewSLAAck + termination signals
+
+Prevention fires *before* a wait becomes either quasi-deadlock or strict cycle. Three rules:
+
+**(A) Priority ordering via §13.9 orchestration tree** — `main > collab > upstream > local`. When two agents could each plausibly defer to the other, the lower-priority party yields *by default* without negotiation. This is cheap (no extra wire traffic), non-coercive (both parties agree on §13.9 as the shared SSoT), and prevents most quasi-deadlocks before they form. The orchestration tree is a *prevention* control, not just a resolution control — the lower-priority party emitting their work first removes the wait-edge before it exists.
+
+**(B) `ReviewSLAAck { ackFor: msgId, eta, kind: 'SLA-OR-WORK', note? }` between `Ack{delivered}` and `AckProcessed`** — the commitment-tier ack (§13.19.7). On A2A inbound that implies a *deferred response* (review request, decision request, opinion request — anything not "immediately processed and acked"), the recipient agent MUST emit `ReviewSLAAck` as part of its inbound processing, **before** entering the deferred-work cycle. `eta` is either ISO-Z wall-clock or `cycles: N`. The `SLA-OR-WORK` semantics: *"I will either complete this work within `eta`, OR if I cannot, I will emit a renegotiate-SLA message BEFORE `eta` expires explaining the new ETA and reason. I will NOT silently let the SLA elapse."* Silent expiry is a §13.19.6 escalation trigger; renegotiation before expiry is normal (subject to the §13.19.10 Q6 frequency limit).
+
+**(C) Termination signals are emission-mandatory** (per §13.19.3) — `DONE` / `BLOCKED{reason, waitingOn}` / `NEEDS_HUMAN`. An agent that processes an inbound and produces *no* termination signal leaves the wait edge ambiguous (is the recipient still working? is it blocked? has it silently finished?). Ambiguity is the precondition of every wait-class misclassification in §13.19.2; mandatory termination signals remove the ambiguity at the source.
+
+Prevention is the *cheap* layer — none of (A)/(B)/(C) requires a primitive emission beyond what the agent would emit anyway as part of inbound handling. The expensive layers (detection, auto-resolution, escalation) fire only when prevention fails.
+
+#### 13.19.5 Auto-resolution primitives — preemption + deadline + asymmetric leader + starvation guard
+
+When prevention fails and detection (§13.19.3) flags a candidate wait class, four primitives apply *autonomously* (no human in the loop) before §13.19.6 escalation:
+
+**(1) Cooperative preemption — `PreemptRequest { releasing: msgId, reason }`** — the lower-priority party voluntarily releases the wait edge, returning to standby. The higher-priority party proceeds; the released item is retried after the unblocking work completes. This is the symmetric, cheap form — both parties agree on the §13.9 tree, so the lower-priority emission is uncontested.
+
+**(2) Asymmetric leader override — `PreemptForce { reclaiming: msgId, reason }`** — the higher-priority party emits a forced reclaim. The lower-priority party MUST release; the live-board logs the forced reclaim for human audit (`decisions` panel persistence, §13.13). `PreemptForce` is the *strong* form and should be rare — its use implies the lower-priority party refused to yield cooperatively, which is itself a discipline failure surfaced to the human watching the board. The asymmetry follows §13.9: a `PreemptForce` *up* the tree (lower-priority issuing against higher) is non-compliant; the wire-level filter (server-side, per §13.19.8 permission table) rejects it.
+
+**(3) Deadline enforcement** — when `ReviewSLAAck.eta` elapses (corrected per §13.16.6) WITHOUT either a `DONE` / `BLOCKED` / `NEEDS_HUMAN` from the recipient OR a renegotiate-SLA, the sender is authorized to invoke (1) or (2) per §13.9 priority. The deadline is *enforced* in the sense that elapsed-without-renegotiation IS a §13.19.2 quasi-deadlock signal — the sender does not need additional evidence; the SLA contract was the evidence.
+
+**(4) Starvation guard — Mitchell-Merritt-style priority bump** (consensus diff_adjusted_5 #4 — accepted from main RRP). When the same low-priority party has had its `PreemptRequest` denied (or its `ReviewSLAAck` renegotiated by a higher-priority counterparty) **N times in succession** (default `N = 3`), the low-priority party's effective priority is bumped one tier for the duration of the contested wait. This prevents the lowest-priority agent from being indefinitely starved by a chain of higher-priority preemptions — the classic priority-inversion failure mode. The bump is *contest-local* (only the specific wait edge is bumped, not the agent's global tier) and *transient* (resets when the contested wait clears). Implementation: the sender tracks the denial count in its outbox state; on the Nth denial, the next emission carries `priorityBump: true` and the receiving side treats it at the bumped tier for the auto-resolution decision. The default `N = 3` is calibrated against the §13.17 human-escalation cognitive-bandwidth ceiling (§13.19.10 Q4) — three denials is enough to surface a genuine starvation case without firing on transient mutual deferrals that would have cleared anyway.
+
+#### 13.19.6 Escalation — 4-tier ladder (ordering → preemption → mediation → human via §13.17 decisions panel)
+
+When prevention fails and the §13.19.5 primitives do not break the wait within their budgets, escalation proceeds in **strict tier order** (no skipping; each tier must be attempted before the next). This is itself a §13.18 non-branching choice path — the agent does not ask the human "which tier?" — it advances mechanically.
+
+| Tier | Primitive | Trigger condition | Cost |
+|------|-----------|-------------------|------|
+| 1 | **Priority ordering** (§13.19.4 A re-applied as resolution) | Quasi-deadlock detected; both parties still operating per §13.9 tree | Free — emit nothing new; lower-priority resumes its deferred work |
+| 2 | **Preemption** (§13.19.5 (1) cooperative, (2) forced if needed) | Tier 1 doesn't break the wait within one rearm interval | One `PreemptRequest` or `PreemptForce` emission |
+| 3 | **Mediation** — `MediationProposal { cycleMembers[], proposedReleaseOrder[] }` | Tier 2 fails or peer-to-peer cycle (collab ↔ collab) where neither party is higher-priority | One mediator emission + acks from cycle members (`MediationAck`) |
+| 4 | **Human escalation via §13.17** — `EscalationRequest { cycle, attemptedPrimitives[], summary }` to board `decisions` panel | Tier 3 fails OR `NEEDS_HUMAN` termination signal observed at any earlier tier | Human attention — the scarcest resource (alarm-fatigue gate, see §13.19.10 Q4) |
+
+Tier 4 routes via §13.17 (live-board `decisions` panel, NOT inline `AskUserQuestion` in main-chat). The escalation becomes a first-class A2A artifact re-readable across turns; the human picks a release order (or restructures the dependency to remove the cycle) and emits a `decisions`-panel resolution that affected agents pick up via `UserPrompt`.
+
+#### 13.19.7 3-tier ack layering — transport / commitment / application
+
+§13.13 specifies two principal ack grades (`Ack{delivered}` server-auto + `AckProcessed` agent-emitted). §13.19 interpolates a third — `ReviewSLAAck` — between them, producing a clean three-tier layering:
+
+| Tier | Ack | Emitter | Meaning | When |
+|------|-----|---------|---------|------|
+| 1 (transport) | `Ack { ackFor, kind: 'delivered' }` | **Server** (auto) | "The wire carried it." | Immediately on relay (§13.13). NOT itself acked; NOT displayed on the board (alarm-fatigue). |
+| 2 (commitment) | `ReviewSLAAck { ackFor, eta, kind: 'SLA-OR-WORK' }` | **Recipient agent** | "I will respond within `eta`, OR I will renegotiate before expiry." | On inbound parse for deferred-response messages (§13.19.4 B). Mandatory for messages whose response is not synchronous with inbound handling. |
+| 3 (application) | `AckProcessed { ackFor, kind: 'processed', summary? }` | **Recipient agent** | "I have acted on the inbound; the work is complete." | On completion of the implied work (§13.13). The WILCO; conflating with `delivered` (or with `ReviewSLAAck`) is a named failure mode. |
+
+The tier-2 interpolation closes the gap that originated the 2026-05-31 incident: under the §13.13-only layering, a sender saw `delivered` (server) and then *nothing* until `AckProcessed` (recipient) — silent deferral across cycles fit inside that gap. The tier-2 ack makes deferral *explicit and SLA-bounded*, converting silent-degrade into either contract-honored (no friction) or contract-renegotiated (visible reason) or contract-breached (§13.19.6 escalation trigger).
+
+**Bridge MUST NOT auto-emit `ReviewSLAAck`** — same rationale as the §13.13 no-auto-pong rule. A bridge that auto-acks at tier 2 would collapse the commitment signal that the whole §13.19 mechanism depends on. `ReviewSLAAck` is *only* the recipient agent's emission, from an active runtime turn; from anywhere else it is a false commitment that downstream layers will misread.
+
+#### 13.19.8 Message vocabulary — new CUSTOM types
+
+All carry the standard §2 envelope (`targetAgentId` / `contextId` / `parentId`); `msgId` is sender-bridge-stamped per §13.13.
+
+| Name | Direction | Required fields | Optional fields | Server filter |
+|------|-----------|-----------------|-----------------|---------------|
+| `ReviewSLAAck` | recipient → sender | `ackFor: msgId`, `eta: ISO-Z \| cycles: N`, `kind: 'SLA-OR-WORK'` | `note` | Validates `ackFor` references a real inbound `msgId`; rejects bridge-emitted (recipient-agent only) |
+| `DeadlockProbe` | observer → board / peer | `cycleMembers[]`, `waitEdges[]`, `class: 'strict' \| 'quasi'` | `summary`, `proposedResolution` | None — informational |
+| `PreemptRequest` | lower-priority → higher-priority | `releasing: msgId`, `reason` | | Validates §13.9 direction (lower → higher only) |
+| `PreemptForce` | higher-priority → lower-priority | `reclaiming: msgId`, `reason` | | Validates §13.9 direction (higher → lower only); logged to `decisions` panel for audit |
+| `MediationProposal` | mediator → cycle members | `cycleMembers[]`, `proposedReleaseOrder[]` | `rationale` | None |
+| `MediationAck` | cycle member → mediator | `for: mediationMsgId`, `accept: bool` | `note` | None |
+| `EscalationRequest` | cycle member → board `decisions` panel | `cycle`, `attemptedPrimitives[]`, `summary` | `proposedQuestion` | Auto-surfaced to `decisions` panel (§13.17) |
+| `DONE` | recipient → sender | `for: msgId` | `summary` | None |
+| `BLOCKED` | recipient → sender | `for: msgId`, `reason`, `waitingOn: msgId \| external-id` | | Validates `waitingOn` present — rejects without it (consensus diff_adjusted_5 #5) |
+| `NEEDS_HUMAN` | recipient → sender + board `decisions` | `for: msgId`, `question \| summary` | | Auto-surfaced to `decisions` panel |
+
+Persistence: every entry above persists in the agent's outbox/inbox and in `ws-history/<agentId>.jsonl` per §2; the wait-edge graph is reconstructable from `ws-history` alone (no separate persisted state), preserving the §13.13 wire-shape-carries-truth invariant.
+
+#### 13.19.9 State machine
+
+```
+       inbound deferred-response message
+                       │
+                       ▼
+                   WAITING ──────────────────┐
+                       │                     │
+                       │ (recipient emits     │ (effective_elapsed > SLA
+                       │  ReviewSLAAck)       │  without ReviewSLAAck)
+                       ▼                     ▼
+                  SLA_AGREED ──────► QUASI_DEADLOCK
+                       │                     │
+                       │ (recipient           │ (§13.19.6 tier 1-3)
+                       │  processes)          ▼
+                       ▼              ESCALATED ──► (human via §13.17) ──► CLEARED
+                  REVIEWING                  ▲
+                       │                     │ (cycle detected
+                       │ (DONE /              │  in wait-edge DFS)
+                       │  AckProcessed)       │
+                       ▼                     │
+                    CLEARED          STRICT_DEADLOCK
+                                             │
+                                             └─► (§13.19.6 tier 2-4)
+```
+
+Strict-deadlock detection (cycle in wait-edge DFS, §13.19.3) can fire from any of `WAITING` / `SLA_AGREED` / `REVIEWING` — transition to `STRICT_DEADLOCK` and follow §13.19.6 from tier 2 (priority ordering already failed by definition; cooperative or forced preemption is the entry point). Livelock (§13.19.2 variant) transitions through `QUASI_DEADLOCK` with the additional yield-spiral count carried as state; the starvation guard (§13.19.5 (4)) fires on the Nth denial within this state.
+
+#### 13.19.10 Q2 / Q3 / Q4 / Q6 decisions
+
+The EG v0.1 draft enumerated six open questions for joint reconciliation; Q1 (edge-chasing N-extension) was answered "deferred" by consensus diff_adjusted_5 #1 and Q5 (turn-based vs continuous-process model) is absorbed by §13.19.3 agent-active correction. The remaining four are decided here as part of the formal spec (not deferred to deployment-time policy):
+
+**Q2 — CNP (Contract Net Protocol) fit: REJECTED as wire vocabulary; PRESERVED as discipline borrowing.** The v0.1 draft observed that §13.19.4's `ReviewSLAAck` borrows CNP's *spirit* (announce → bid → award → result). The formal CNP protocol's *bid* phase, however, has no obvious Constellation primitive — CNP supports multi-bidder negotiation (`announce → many bids → one award`), whereas the §13.9 orchestration tree pins recipients to specific peers (a `Delegate` to main is not a CNP `announce` open to all peers). **Decision**: do NOT add a CNP `bid` primitive to the wire vocabulary. The bilateral SLA pattern (`ReviewSLAAck` from a single named recipient) is the only commitment-tier ack §13.19 specifies; multi-bidder review can be modeled at the application layer (PM dispatches separate `Delegate`s to each candidate worker and selects from `WorkerReport`s) without needing CNP semantics on the A2A wire. **Reasoning**: minimal wire vocabulary is itself a §13.13 invariant ("envelope convention + ack layer is one coherent family"); adding a `bid` type to support a deployment shape that does not currently exist would violate the YAGNI gate that §13.13 took pains to establish.
+
+**Q3 — Mediator placement: HYBRID — board adapter as default, third-party mediator agent as opt-in deployment policy.** The v0.1 draft sketched two topologies (dedicated mediator agent vs board-adapter cycle detector). **Decision**: the **board adapter is the default**, runs a lightweight cycle detector on the watcher's rearm path (composing with §13.16.6 / §13.16.7), and emits `MediationProposal` when a 2-cycle is detected. This is cheaper (no extra agent slot) and composes naturally with the existing server-emitted `Ack{delivered}` and board `decisions` panel. **However**, when the deployment includes a peer cycle (collab ↔ collab, where the §13.9 tree has no asymmetric leader to override), a **third-party mediator agent** MAY be spawned for that specific cycle and the board adapter MAY defer to it; the spawn is a deployment-policy choice, not a wire-level requirement. **Reasoning**: the cost of server-coupling (board adapter knows about the §13.19 application protocol) is acceptable because the board adapter already knows about §13.13 (it emits `Ack{delivered}`) and §13.16.7 (BOARD_STALE gate) — the §13.19 cycle detector extends a coupling that already exists, rather than introducing a new one. The third-party mediator opt-in covers the case where the peer-cycle's parties prefer not to involve the server in their dispute (e.g. for audit-isolation reasons in a future multi-tenant deployment).
+
+**Q4 — Human-fallback threshold: bounded probe count × wait-class severity, with alarm-fatigue cap at ~3-5 escalations/day per human.** The v0.1 draft used "timeout × 2" informally. **Decision**: the rigorous formal threshold is `escalate_to_human(cycle) := (tier-3 mediation failed within mediation-rearm-interval) OR (NEEDS_HUMAN signal observed) OR (effective_elapsed > 2 × class-timeout AND tier-1/2/3 all attempted)`. The *daily cap* on tier-4 emissions per human watcher is **3-5 escalations per 24h wall-clock** (configurable; default 4) — beyond that, further `EscalationRequest` emissions are queued (not suppressed) and surfaced as a *meta-escalation* batch ("4+ unresolved escalations accumulating; human attention bottleneck"). **Reasoning**: the §13.13 alarm-fatigue gating principle constrains how loud the escalation layer can be — a human watching the live board has cognitive bandwidth that itself becomes a constraint, and the empirical ceiling of ~3-5 per day is the calibration boundary at which escalation signal-to-noise stays above 1. The cap is per-human, not per-cycle: a cycle that legitimately needs human attention will get it; the cap only prevents *cycle storms* from drowning out individually-important escalations. Composition: the cap interacts with the §13.18 "recommend + proceed" discipline — non-branching choices within an escalation are still resolved by the agent without consuming the human-cap budget.
+
+**Q6 — Renegotiate-SLA frequency limit: fixed cap N=2, then human-escalate.** The v0.1 draft offered three options (fixed cap, exponential backoff, human-escalate on Nth). **Decision**: a renegotiation may occur **at most 2 times** for a given inbound `msgId` (initial `ReviewSLAAck` is not a renegotiation; the first revised `eta` is renegotiation #1; the second revised `eta` is renegotiation #2). On the 3rd attempted renegotiation, the recipient emits `NEEDS_HUMAN { for: msgId, summary: 'SLA renegotiation cap reached' }` and the sender is authorized to invoke §13.19.6 tier 4 directly. **Reasoning**: an exponential-backoff budget would itself become a quasi-deadlock vector (each renegotiation doubles the eta, so after a few rounds the eta exceeds any reasonable human review cycle and the deferral becomes effectively permanent). A fixed cap of 2 keeps the renegotiation surface honest (genuine schedule changes get accommodated twice; the third attempt is a stronger signal that the recipient lacks the context to estimate honestly, which IS a `NEEDS_HUMAN` condition). The cap unifies with consensus diff_adjusted_5 #3 (turn-cap + renegotiate-SLA unified) — the turn-cap is the upper bound on the *count* of renegotiations, not on the *time* of each individual SLA. Composition: the cap interacts with §13.19.5 (4) starvation guard — repeated denial of `PreemptRequest` and repeated `ReviewSLAAck` renegotiation are tracked in *separate* counters; the starvation guard fires on the priority-denial counter, the renegotiation cap fires on the SLA-eta counter. Neither absorbs the other.
+
+#### 13.19.11 Cross-links
+
+- **§13.9** (OnboardAck role branching — collab/upstream are peers) — supplies the priority tree (`main > collab > upstream > local`) that §13.19.4 (A) and §13.19.5 (2) depend on; the wire-level direction filter on `PreemptForce` (§13.19.8 permission table) enforces the tree at the server boundary.
+- **§13.11** (Board emission discipline) — every primitive emission in §13.19.5 / §13.19.6 is a board "safe point" (§13.11.1) and MUST be emitted to the board, not just sent A2A-bilaterally. The board is the visualization SSoT; the human watching the board must see *which primitive is in flight*. Deadlock primitives are NOT autonomous heartbeats (§13.11.2) — they fire only on actual wait-state events.
+- **§13.13** (A2A ack layer) — §13.19 layers above. The ack vocabulary is preserved (`Ack{delivered}` server, `AckProcessed` agent); §13.19.7 interpolates `ReviewSLAAck` as the tier-2 commitment ack between them. The conservative multi-probe + human-escalation tail (§13.13 step 3.5) remains the strict-deadlock fallback that §13.19.6 tier 4 routes into.
+- **§13.16.6** (Watcher liveness probe + wall-clock vs task-clock) — directly supplies the agent-active correction formula §13.19.3 uses for every timeout. The same `SIGSTOP`-during-agent-active observation that motivated the cursor-tail also motivates the deadlock-timeout correction; without it, every long agent-active turn looks like deadlock to a naive timeout.
+- **§13.17** (Main-chat structured-choice prompts FORBIDDEN) — tier-4 human escalation in §13.19.6 routes via the board's `decisions` panel, not via inline `AskUserQuestion`. The escalation question and the human's resolution become first-class A2A artifacts (re-readable across turns and agents).
+- **§13.18** (Non-branching choices — recommend + proceed) — the §13.19.6 tier sequence (ordering → preemption → mediation → human) is itself a non-branching choice path for the typical case. An agent encountering a quasi-deadlock does NOT escalate to the human just to ask "which tier?" — the tier order IS the recommendation, and the agent proceeds. The user pivots only if the wrong tier is being applied for the situation.
+
+**Provenance**: main upstream Delegate seq 111, msgId `m-mpthvj53-110`, 2026-05-31 (joint consensus on the 4-stage + 3-tier-ack shape, including `diff_adjusted_5`). Inputs cited in §13.19.1: main RRP `reports/2026-05-31-deadlock-resolution-rrp.md` (P3 — distributed-systems literature + WS-PROTOCOL impl excerpt) and EG draft v0.1 `constellation/reference/docs/deadlock-resolution-draft.md` at commit `82ab55e` (P1 — orchestration-shaped 1차지식 angle). Companion main impl tracker: `server.cjs` (P2) — to receive the §13.19.8 vocabulary + server filters incrementally as the spec lands downstream.
