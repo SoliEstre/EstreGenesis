@@ -93,7 +93,9 @@ All three message types ride the standard §13.13 envelope:
 
 ### 3.1 `SelectionPrompt` — agent → server → board
 
-The agent publishes an option prompt into its own chat thread. The board renders it as inline option chips below the most recent agent message.
+**Wire path**: `agent → server → wsToBoards (broadcast)` — the main agent emits via its server conn; the server relays via the `wsToBoards` fan-out (broadcast to all board conns subscribed to the agent's thread channel). Multi-board fan-out is handled at this point (each connected board renders the chips); resolution coordination across boards is via `SelectionResolved` per §13.
+
+The (main) agent publishes an option prompt into its own chat thread. The board renders it as inline option chips below the most recent agent message. Per §5, only `conn.meta.role === 'main'` may emit `SelectionPrompt`; non-main agent roles receive `PERMISSION_DENIED`.
 
 **`value`**:
 ```jsonc
@@ -136,6 +138,8 @@ The agent publishes an option prompt into its own chat thread. The board renders
 
 ### 3.2 `SelectionAnswer` — user → board → server → agent
 
+**Wire path**: `board → server → originating agent (via agentId routing)` — the answering board emits to its server conn; the server resolves the originating agent through the transient `promptId → agentId` map (populated at §3.1 relay) and unicasts the frame to that specific agent conn. This is **not** a broadcast — only the originating (main) agent receives the answer. After the unicast relay, the server also emits `SelectionResolved` to *other* connected boards per §13 so they can dim/remove stale chips.
+
 The user responds via the board UI (chip click + optional free-text submit). The board emits this frame; the server relays it to the originating agent.
 
 **`value`**:
@@ -176,6 +180,8 @@ The user responds via the board UI (chip click + optional free-text submit). The
 ---
 
 ### 3.3 `SelectionCancel` — board → server → agent
+
+**Wire path**: `board → server → originating agent (via agentId routing)` — same routing discipline as §3.2: the server looks up the originating agent through the transient `promptId → agentId` map and unicasts the cancel to that specific agent conn (not a broadcast). After the unicast relay, the server emits `SelectionResolved{resolution:'cancelled', reason}` to *other* connected boards per §13. For the server-side hard TTL path (§14), there is no originating board to exclude, so the broadcast goes to all connected boards.
 
 The board cancels an outstanding prompt. Three reasons; semantics differ only in the `reason` field — the protocol effect is identical (drop the prompt, notify the agent).
 
@@ -246,16 +252,16 @@ The board cancels an outstanding prompt. Three reasons; semantics differ only in
 
 | Message | Who may send | Server check |
 |---|---|---|
-| `SelectionPrompt` | **any agent role** | `conn.meta.role ∈ {'main','local','collab','upstream'}` — i.e. any authenticated agent conn (canonical role set per `server.cjs:167`, aligned with WS-PROTOCOL-KEY-MGMT §5). No admin gate. |
-| `SelectionAnswer` | **board only** (proxy for user) | `conn.meta.role !== 'agent'` — i.e. the conn did NOT send a HELLO with an `agentId` (board conns do not carry a role in the runtime; agent role assignment happens at HELLO). Equivalent: any conn that is NOT an authenticated agent. Single-board assumption holds. |
+| `SelectionPrompt` | **main agent only** | `conn.meta.role === 'main'` — only the main orchestrator agent may emit. Other agent roles (`local` / `collab` / `upstream`) receive `SelectionError{code:'PERMISSION_DENIED', re_msgId}` and the frame is dropped. Tightened from the prior "any agent role" draft per main upstream Delegate seq 113 (msgId `m-mptiputv-112`, 2026-05-31) — implementation alignment. |
+| `SelectionAnswer` | **board only** (proxy for user) | `conn.meta.role !== 'agent'` — i.e. the conn did NOT send a HELLO with an `agentId` (board conns do not carry a role in the runtime; agent role assignment happens at HELLO). Equivalent: any conn that is NOT an authenticated agent. Single-board assumption holds. Verbatim wording matches main's actual gate (`server.cjs` commit 71c1bf9). |
 | `SelectionCancel` | **board only** | same as `SelectionAnswer`. |
 
 **Role notes**:
 - The user is **not** a WS principal. The board acts as the user's proxy on the wire — `SelectionAnswer` originates in the board UI (chip click) and the board client serializes it. The server trusts the board frame as user intent.
-- `SelectionPrompt` deliberately has the loosest permissions: any agent in any role (main / local / collab / upstream) can ask the user a question. This mirrors the existing agent chat surface (any agent can post a message to its own thread).
-- The earlier draft of this table used `conn.meta.role === 'board'` as the SelectionAnswer check — that wording is incorrect against the actual runtime, which leaves board conns without any `meta.role` assignment (HELLO is the only path that sets `meta.role`, and the board does not send HELLO per §1 architecture). Using `role === 'board'` would reject every SelectionAnswer the board ever sends. The corrected check (`role !== 'agent'`, equivalent to "not an authenticated agent conn") is consistent with the existing board-frame handling elsewhere in the server.
-- **Collab answer allowance**: collab peers (§13.9) MAY *also* answer a `SelectionPrompt` if the prompt explicitly opts in via an optional `audience` field (default audience is the human user via the board; opting in to collab allows peer-agent answers — useful for cross-agent coordination prompts). When `audience` is absent the default board-only rule above applies.
-- An agent attempting `SelectionAnswer` or `SelectionCancel` receives `SelectionError{code:'PERMISSION_DENIED', re_msgId}` and the request is dropped. The error frame carries `re_msgId` for application-level correlation; per §3.4 ack-tier descope, no transport-level `Ack{delivered}` is emitted on this path. The sender treats receipt of the error frame itself as the answer.
+- `SelectionPrompt` is **main-only** (tightened from the prior "any agent role" draft per main upstream Delegate seq 113 / msgId `m-mptiputv-112` / 2026-05-31 — implementation alignment). Justification: UI 6 is the *agent → user* question surface, and only the main orchestrator should drive user-facing prompts. Local / collab / upstream workers are sub-roles operating in the main's delegation graph; they question the main (via A2A / collab channel), not the user directly. Routing arbitrary sub-agent questions to the user's board would (a) bypass the orchestrator's judgment about which questions actually warrant user attention, (b) fragment the user's chat thread with parallel prompts from workers the user did not directly engage, and (c) make the audit trail (who asked whom what) ambiguous. The main agent funnels all user-facing prompts through its own emit point, preserving the single-orchestrator UX contract. Non-main agent roles attempting `SelectionPrompt` receive `SelectionError{code:'PERMISSION_DENIED', re_msgId}` and the frame is dropped.
+- The earlier draft of this table used `conn.meta.role === 'board'` as the SelectionAnswer check — that wording is incorrect against the actual runtime, which leaves board conns without any `meta.role` assignment (HELLO is the only path that sets `meta.role`, and the board does not send HELLO per §1 architecture). Using `role === 'board'` would reject every SelectionAnswer the board ever sends. The corrected check (`role !== 'agent'`, equivalent to "not an authenticated agent conn") is consistent with the existing board-frame handling elsewhere in the server and matches main's actual implementation (`server.cjs` commit 71c1bf9) verbatim.
+- **Collab answer allowance**: collab peers (§13.9) MAY *also* answer a `SelectionPrompt` if the prompt explicitly opts in via an optional `audience` field (default audience is the human user via the board; opting in to collab allows peer-agent answers — useful for cross-agent coordination prompts). When `audience` is absent the default board-only rule above applies. Note: the `audience` opt-in affects the *answerer* side only; the *sender* side remains main-only.
+- An agent attempting `SelectionAnswer` or `SelectionCancel` receives `SelectionError{code:'PERMISSION_DENIED', re_msgId}` and the request is dropped. A non-main agent attempting `SelectionPrompt` receives the same error code. The error frame carries `re_msgId` for application-level correlation; per §3.4 ack-tier descope, no transport-level `Ack{delivered}` is emitted on this path. The sender treats receipt of the error frame itself as the answer.
 
 ---
 
@@ -472,4 +478,4 @@ The new `reason:"server-timeout"` value extends the §3.3 reason enum: `"user-di
 
 ---
 
-*Draft v0.1 — 2026-05-31. EG-side authored against main user feature #406 / seq 77 / seq 88. P2 batch addressed per Delegate seq 98 (`m-mptcdsh8-97`): Routing criterion (§10), msgId/id normalization (§11), persistence channel resolution (§12), multi-board resolve broadcast (§13), server-side hard TTL (§14). Awaiting main hub review before promotion to v1 and reference-implementation commit. Companion to `WS-PROTOCOL-KEY-MGMT.md` (independent file per §0 bundling decision).*
+*Draft v0.1 — 2026-05-31. EG-side authored against main user feature #406 / seq 77 / seq 88. P2 batch addressed per Delegate seq 98 (`m-mptcdsh8-97`): Routing criterion (§10), msgId/id normalization (§11), persistence channel resolution (§12), multi-board resolve broadcast (§13), server-side hard TTL (§14). Implementation alignment batch per main upstream Delegate seq 113 (`m-mptiputv-112` / 2026-05-31): §5 SelectionPrompt sender tightened to `role === 'main'` (was "any agent role" — replaced; main is the only legitimate user-facing-prompt emitter; non-main roles get `PERMISSION_DENIED`), §5 SelectionAnswer/Cancel gate `conn.meta.role !== 'agent'` confirmed verbatim against main's `server.cjs` commit 71c1bf9, §3.1 wire path `agent → server → wsToBoards (broadcast)` explicit, §3.2 + §3.3 wire path `board → server → originating agent (via agentId routing)` explicit. Awaiting main hub review before promotion to v1 and reference-implementation commit. Companion to `WS-PROTOCOL-KEY-MGMT.md` (independent file per §0 bundling decision).*

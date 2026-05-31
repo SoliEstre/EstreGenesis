@@ -7,7 +7,7 @@
 - main delegate **seq 77** (`m-mpt4dja7-76`) introduced the 5-item UI set
 - main delegate **seq 83** (`m-mpt4xm75-82`) confirmed split: **main implements UI 1+2 first**; **UI 3 / 4 / 5 wait for this protocol draft**
 - DB persistence path: **seq 79** (`m-mpt4mzo9-78`) — HistoryStore + node:sqlite RRP. Until that lands, key state lives in file-based `key.json` (atomic write + fsync).
-- Lineage of existing key emit: `server.cjs:214/215` (`RegisterUpstreamKey` → `UpstreamKeyIssued`, `RegisterCollabKey` → `CollabKeyIssued`). This draft **supersedes** the upstream half of that pair while keeping the collab half untouched.
+- Lineage of existing key emit: `server.cjs:214/215` (`RegisterUpstreamKey` → `UpstreamKeyIssued`, `RegisterCollabKey` → `CollabKeyIssued`). This draft **supersedes** the upstream half of that pair while keeping the collab half untouched. Per main upstream seq 113 reconciliation (msgId `m-mptiputv-112`), the legacy `RegisterUpstreamKey` handler is **retained as a transitional backward-compat alias** (not removed) — see §3.1 Retirement schedule.
 
 ---
 
@@ -62,11 +62,13 @@ All five message types ride the standard envelope already in use across §13.11 
 
 ### 3.1 `KeyIssue` — main → server
 
-Issue a new upstream key. **Supersedes** `RegisterUpstreamKey` — this is **not** a rename or alias.
+Issue a new upstream key. **Supersede target** of `RegisterUpstreamKey`. `KeyIssue` is the **canonical / preferred** call for all new code; `RegisterUpstreamKey` is retained as a **transitional backward-compat alias**, deprecated since v0.2 (see "Retirement schedule" below).
 
-**Supersede vs alias — why the distinction matters**: an earlier framing in the §9 cross-ref described `KeyIssue` as a "thin alias" over `RegisterUpstreamKey` that could be kept for one minor version. That understated the delta. `KeyIssue` is a **new implementation** that replaces the prior generic key-issue path for upstream-key registration, with the following concrete behavioral differences:
+**Reconciliation note (main upstream seq 113, msgId `m-mptiputv-112`)**: a prior framing of this section (EG commit `0ffdba0`) declared the legacy handler "removed". Main upstream's v0.2 ship instead **kept** the legacy `RegisterUpstreamKey` handler for backward compatibility ("메인은 하위호환 남김"). This section is reconciled to that runtime truth: legacy is **retained for a transitional period** and emits a server `WARN` log on each use; new code MUST target `KeyIssue`.
 
-| Aspect | `RegisterUpstreamKey` (legacy, `server.cjs:214`) | `KeyIssue` (this draft) |
+**Canonical vs transitional alias — what the table below describes**: `KeyIssue` is a **new implementation** that replaces the prior generic key-issue path for upstream-key registration. The behavioral-delta table compares the **transitional alias** (`RegisterUpstreamKey`, still accepted for backward compatibility) against the **canonical replacement** (`KeyIssue`, preferred for all new code). It is **not** a comparison between a retired call and its replacement — both calls are currently dispatchable on the server.
+
+| Aspect | `RegisterUpstreamKey` (transitional alias, `server.cjs:214`) | `KeyIssue` (canonical, this draft) |
 |---|---|---|
 | **Default TTL** | Inherited from generic key-issue path (no upstream-specific default; effectively unbounded / session-lifetime) | **14 days** (`1209600000` ms) — upstream-specific default; explicit cap configurable via env |
 | **Label-generation policy** | Free-form, no validation beyond non-empty; collisions tolerated (multiple keys could share a label) | Validated (`>0` and `≤64` chars, no control chars); uniqueness **not** enforced at server but UI 5 surfaces collisions; supports `KeyLabel` rename with `AgentNameChanged` broadcast side effect |
@@ -75,7 +77,34 @@ Issue a new upstream key. **Supersedes** `RegisterUpstreamKey` — this is **not
 | **Persistence** | Ephemeral / in-memory under the prior path | `key.json` atomic-write + fsync; migration path to `keys` SQL table (seq 79) |
 | **Permission gate** | Implicit (any caller on the server-internal path) | Explicit `isMain(conn)` check; non-main senders receive `PERMISSION_DENIED` |
 
-**Migration discipline**: the legacy `RegisterUpstreamKey` handler is **removed**, not aliased. `RegisterCollabKey` is left **untouched** (see §1 out-of-scope). A future RFC may unify under a single `Key*` namespace once DB lands.
+**Migration discipline**: `RegisterCollabKey` is left **untouched** (see §1 out-of-scope; collab key surface is a separate role). A future RFC may unify under a single `Key*` namespace once DB lands.
+
+#### Retirement schedule (transitional alias)
+
+| Phase | Status of `RegisterUpstreamKey` | Server behavior |
+|---|---|---|
+| **NOW** (v0.2, current) | **Deprecated**, accepted | Handler dispatches normally; server emits a `WARN` log on every invocation (`legacy RegisterUpstreamKey called by <agentId>; migrate to KeyIssue`). No client-visible error; no `KeyError{DEPRECATED}` frame — silent on the wire, loud in the log. |
+| **Removal** | **No fixed date**. Removal is gated on "EG repo migration verified zero-traffic on the legacy path" — i.e., the WARN log shows no hits for a full rolling window (≥7 days) across all known consumers, **and** the EG-side caller audit (grep + runtime telemetry) confirms no remaining `RegisterUpstreamKey` emit. | Handler returns `KeyError{ code: "DEPRECATED_REMOVED", message: "RegisterUpstreamKey was removed; use KeyIssue", re_msgId }`. The frame still carries `ackFor` (§13.13 invariant). |
+
+**Why no fixed-version removal**: a v0.3 hard-cut would force a coordinated EG↔main flag-day. The zero-traffic gate is safer — it lets the WARN log do the load-bearing work of confirming migration completion, and the removal lands as a non-event once telemetry says it's safe. (Per main upstream seq 113 ship discipline.)
+
+#### Migration guide — legacy → canonical
+
+Callers using `RegisterUpstreamKey` should migrate to `KeyIssue`:
+
+```jsonc
+// LEGACY (transitional alias, deprecated since v0.2 — server emits WARN on use):
+{ "type":"CUSTOM", "name":"RegisterUpstreamKey", "msgId":"m-...",
+  "value": { "alias": "phone-claude", "label": "phone-claude" } }
+
+// CANONICAL (preferred for all new code):
+{ "type":"CUSTOM", "name":"KeyIssue", "msgId":"m-...",
+  "value": { "label": "phone-claude", "ttl": 1209600000, "scope": "upstream" } }
+```
+
+Field mapping: `RegisterUpstreamKey{alias, label}` → `KeyIssue{label, ttl, scope: "upstream"}`. The `alias` field collapses into `label` (the canonical replacement has no separate alias concept — label is the single human identifier).
+
+**TTL semantics — intentional v0.2 behavioral fix** (not a regression): the legacy path had no upstream-specific TTL default and effectively ran session-lifetime. `KeyIssue` defaults to **14 days** (`1209600000` ms). This is an **intentional** v0.2 behavioral correction (the legacy default was unbounded-by-accident, not by design). Migrating callers that **want** session-lifetime semantics MUST set `ttl` explicitly — either to a chosen bounded value, or to `0` (no expiry; discouraged but supported, see §4.1 `ttl === 0` semantics). Callers that simply want a sane bounded lifetime can omit `ttl` and accept the 14d default.
 
 **Request `value`**:
 ```jsonc
@@ -480,9 +509,11 @@ The 3-mode dual-write (A→B→C) from seq 79 RRP applies symmetrically: file-on
 - **§13.13 A2A ack tier** — `Ack{delivered}` auto-fires on `Key*` relay; `AckProcessed` is optional and treated as advisory.
 - **§13.16 turn-end rearm** — orthogonal (watcher liveness, not key auth). Mentioned only so reviewers see the discipline footprint.
 - **seq 79 HistoryStore RRP** — `key.json` shape designed to migrate cleanly into a `keys` SQL table once `SqliteStore` lands. JSON remains rollback floor.
-- **`server.cjs:214/215`** — existing `RegisterUpstreamKey` / `RegisterCollabKey` lines; this draft **supersedes** the upstream half (`RegisterUpstreamKey` → `KeyIssue` — **not** an alias; see §3.1 supersede-vs-alias table for the concrete behavioral deltas: default TTL, label-generation policy, visibility scope, state machine, persistence, permission gate) and **leaves collab untouched**. The legacy `RegisterUpstreamKey` handler is **removed** at implementation time, not kept as a transitional alias — callers must update to `KeyIssue`.
+- **`server.cjs:214/215`** — existing `RegisterUpstreamKey` / `RegisterCollabKey` lines; this draft **supersedes** the upstream half (`RegisterUpstreamKey` → `KeyIssue`) and **leaves collab untouched**. Per main upstream seq 113 (msgId `m-mptiputv-112`) reconciliation, the legacy `RegisterUpstreamKey` handler is **RETAINED for a transitional backward-compat period** — deprecated since v0.2, emits a server `WARN` log on each use, scheduled for removal when EG-side migration is verified zero-traffic on the legacy path (no fixed version cut). See §3.1 canonical-vs-transitional-alias table for the concrete behavioral deltas between the two dispatchable handlers (default TTL, label-generation policy, visibility scope, state machine, persistence, permission gate) and the "Retirement schedule" sub-section for the removal gate. New code MUST target `KeyIssue`; existing legacy callers SHOULD migrate per the §3.1 migration guide.
 - **`server-NOTES.md` §3** — envelope CUSTOM-wrap table will gain 5 new rows (`KeyIssued` / `KeyListResult` / `KeyRevoked` / `KeyLabeled` / `AgentNameChanged`) when this draft is implemented.
 
 ---
 
 *Draft v0.1 — 2026-05-31. EG-side authored against main user feature #406 (seq 77/83). Awaiting main hub review before promotion to v1 and reference-implementation commit.*
+
+*Reconciliation 2026-05-31 (post-main-upstream seq 113, msgId `m-mptiputv-112`): §3.1 reframed from "supersede + remove legacy" to "supersede + transitional backward-compat alias" with retirement schedule gated on EG-side zero-traffic verification (no fixed version cut). Behavioral-delta table content preserved; relationship semantics updated. §9 cross-ref and §1 provenance reflowed to match. Supersedes the framing in EG commit `0ffdba0`.*
