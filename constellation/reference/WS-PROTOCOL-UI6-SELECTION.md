@@ -78,10 +78,14 @@ All three message types ride the standard §13.13 envelope:
 - Agent → server requests (`SelectionPrompt`) **MUST** set a non-empty `msgId`. Server uses it as `ackFor` on the relay `Ack{delivered}`. The `value.promptId` is **separate** from `msgId` and is the application-level handle the agent uses to correlate the answer.
 - Board → server frames (`SelectionAnswer`, `SelectionCancel`) **MUST** also set `msgId`. The board generates `promptId` echoes from the original prompt it is responding to (the board never invents new `promptId`s).
 
-### Ack tier (§13.13)
-- Every relay of these three frames gets an auto `Ack{ackFor:<msgId>, kind:'delivered'}` from the server — standard §13.13 invariant 2.
-- `AckProcessed{ackFor}` is **optional** for all three. The application-level signal (the answer itself, or the prompt being shown in the board UI) is the de-facto processed indicator.
-- For `SelectionPrompt` specifically, the board MAY emit `AckProcessed{ackFor:<promptId msgId>}` once it has rendered the chips in the agent's thread; the originating agent MAY use this as a "prompt is now visible to the user" timing signal, but MUST NOT block on it.
+### Ack tier (§13.13) — UI6 scope
+
+**Selection frames are descoped from §13.13's auto-`Ack{delivered}` relay rule.** Per main upstream Delegate seq 98 (msgId `m-mptcdsh8-97`) review, the existing §13.13 ack layer scopes its auto-`Ack{delivered}` emission to **A2A relay only** — the server fires the ack on agent-outbound A2A frames (cf. `WS-PROTOCOL:247` + `server.cjs:384-388` ack gate), NOT on board↔agent traffic. Selection frames transit board↔agent (board is the user's proxy; server forwards `SelectionAnswer` from the board to the originating agent), so they fall outside the existing ack-layer scope. Earlier drafts of this section asserted that *every* relay of these three frames gets an auto `Ack{delivered}` — that wording was incorrect and is corrected here:
+
+- **No auto `Ack{delivered}` on Selection frames.** The application-level answer IS the acknowledgement. `SelectionAnswer` reaching the originating agent is the confirmation that `SelectionPrompt` was delivered, rendered, and answered. `SelectionCancel` reaching the agent is the confirmation that the prompt is no longer active. No separate transport-level ack is emitted by the server on the relay path.
+- **`AckProcessed{ackFor}` remains optional** for all three (unchanged from the original draft). An agent that wants a delivery-receipt signal independent of the answer MAY emit `AckProcessed{ackFor:<msgId>}` from the board's chip-render hook, but this is purely application-level and not server-mandated.
+- **`msgId` is still set** on every Selection frame (per the standard CUSTOM envelope convention) — it is used for application-level correlation (e.g., the agent's `_pendingPrompt` map keyed by `msgId`), not for the §13.13 ack-layer watermark.
+- **Future option**: if a follow-up cycle decides to amend §13.13's scope to include board↔agent traffic, the descope above can be reversed in lockstep. UI6 alone cannot assert that amendment — it would touch every Constellation message type, not just Selection. Joint formalization required.
 
 ---
 
@@ -123,7 +127,7 @@ The agent publishes an option prompt into its own chat thread. The board renders
 
 **Errors** (server → agent, `name: "SelectionError"`, `value: { code, message, re_msgId }`):
 - `INVALID_PROMPT_ID` — `promptId` empty, too long, or duplicates an active prompt from the same agent
-- `INVALID_OPTIONS` — empty list, >16 entries, or any option fails label/description constraints
+- `INVALID_OPTIONS` — `options` >16 entries, or any option fails label/description constraints. **An empty `options:[]` is VALID provided `allowFreeText:true`** (free-text-only prompt — matches main upstream policy #414 mode (b) "비포함 프롬프트"). The error fires only when `options:[]` is paired with `allowFreeText:false` (the prompt would be unanswerable).
 - `INVALID_TEXT` — `text` empty or >2000 chars
 
 **Side effects**: none server-side (no persistence); board adds entry to its in-memory map; emit is logged via the board feedback channel (standard board frame log).
@@ -192,7 +196,7 @@ The board cancels an outstanding prompt. Three reasons; semantics differ only in
 - Look up `promptId` in the transient `promptId → agentId` map.
 - Relay to the originating agent (unicast, `source:"board"` preserved).
 - Drop the map entry.
-- If `promptId` unknown, **silently drop** (no error frame). Cancel-of-unknown-prompt is benign — the prompt may have already been answered, or this is a late retry after thread reload. The `Ack{delivered}` still fires per §13.13.
+- If `promptId` unknown, **silently drop** (no error frame). Cancel-of-unknown-prompt is benign — the prompt may have already been answered, or this is a late retry after thread reload. No auto `Ack{delivered}` is emitted on the relay path (Selection frames are descoped from §13.13's auto-ack rule — see §3.4 Ack tier).
 
 **Agent behavior on receipt**:
 - Correlate by `promptId`. Mark the prompt as `CANCELLED` in agent-side state.
@@ -242,14 +246,16 @@ The board cancels an outstanding prompt. Three reasons; semantics differ only in
 
 | Message | Who may send | Server check |
 |---|---|---|
-| `SelectionPrompt` | **any agent role** | `conn.meta.role ∈ {'main','agent','collab','observer'}` — i.e. any authenticated conn. No admin gate. |
-| `SelectionAnswer` | **board only** (proxy for user) | `conn.meta.role === 'board'` OR the conn is the live board client (single-board assumption). |
-| `SelectionCancel` | **board only** | same as above. |
+| `SelectionPrompt` | **any agent role** | `conn.meta.role ∈ {'main','local','collab','upstream'}` — i.e. any authenticated agent conn (canonical role set per `server.cjs:167`, aligned with WS-PROTOCOL-KEY-MGMT §5). No admin gate. |
+| `SelectionAnswer` | **board only** (proxy for user) | `conn.meta.role !== 'agent'` — i.e. the conn did NOT send a HELLO with an `agentId` (board conns do not carry a role in the runtime; agent role assignment happens at HELLO). Equivalent: any conn that is NOT an authenticated agent. Single-board assumption holds. |
+| `SelectionCancel` | **board only** | same as `SelectionAnswer`. |
 
 **Role notes**:
 - The user is **not** a WS principal. The board acts as the user's proxy on the wire — `SelectionAnswer` originates in the board UI (chip click) and the board client serializes it. The server trusts the board frame as user intent.
-- `SelectionPrompt` deliberately has the loosest permissions: any agent in any role can ask the user a question. This mirrors the existing agent chat surface (any agent can post a message to its own thread).
-- An agent attempting `SelectionAnswer` or `SelectionCancel` receives `SelectionError{code:'PERMISSION_DENIED', re_msgId}` and the request is dropped. The error frame **does** carry `ackFor` so the sender's `_pendingAck` watermark advances (§13.13 invariant — error is still a relay-level "delivered").
+- `SelectionPrompt` deliberately has the loosest permissions: any agent in any role (main / local / collab / upstream) can ask the user a question. This mirrors the existing agent chat surface (any agent can post a message to its own thread).
+- The earlier draft of this table used `conn.meta.role === 'board'` as the SelectionAnswer check — that wording is incorrect against the actual runtime, which leaves board conns without any `meta.role` assignment (HELLO is the only path that sets `meta.role`, and the board does not send HELLO per §1 architecture). Using `role === 'board'` would reject every SelectionAnswer the board ever sends. The corrected check (`role !== 'agent'`, equivalent to "not an authenticated agent conn") is consistent with the existing board-frame handling elsewhere in the server.
+- **Collab answer allowance**: collab peers (§13.9) MAY *also* answer a `SelectionPrompt` if the prompt explicitly opts in via an optional `audience` field (default audience is the human user via the board; opting in to collab allows peer-agent answers — useful for cross-agent coordination prompts). When `audience` is absent the default board-only rule above applies.
+- An agent attempting `SelectionAnswer` or `SelectionCancel` receives `SelectionError{code:'PERMISSION_DENIED', re_msgId}` and the request is dropped. The error frame carries `re_msgId` for application-level correlation; per §3.4 ack-tier descope, no transport-level `Ack{delivered}` is emitted on this path. The sender treats receipt of the error frame itself as the answer.
 
 ---
 
