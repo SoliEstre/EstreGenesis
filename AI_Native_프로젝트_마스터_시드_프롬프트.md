@@ -2347,6 +2347,10 @@ Constellation WebSocket transport는 in-order best-effort 송달; 그 위 신뢰
 - **todo state ≠ task liveness 혼동 금지** — `[in_progress] watcher` 는 에이전트의 *주장*; 실제 bash 백그라운드 task가 도는 것이 *진실*. 주장을 재사용하기 전에 진실을 검증.
 - **턴 종료 직전 무조건 rearm (turn-end mandatory rearm)** — probe-without-rearm 은 죽은 watcher 를 잡지만 *다음* cycle 이 죽는 건 못 막음. 매 응답 종료 직전(최종 텍스트 emit 직전), 1-shot Bash 로 inbox.log mtime + 최신 watcher task mtime probe; 최신 watcher task 누락이거나 mtime 이 rearm interval 보다 stale 하거나, 이번 턴이 multi-cycle 작업(workflow chain + commit)이었는데 명시적 rearm 없었다면 **무조건 새 background watcher spawn**. probe-and-decide 판단 아니라 *턴 종료 ritual* 로 만드는 것이 핵심 (multi-cycle 합성에 몰입한 에이전트는 정확한 시점에 probe 하는 판단을 reliably 하지 못함). 실제 fail 모드 2026-05-31: seq 70 처리 → workflow × 3 + commit × 2 loop → cycle 경계에서 명시적 rearm 없음 → seq 73(review 승인) + seq 77(새 사용자 작업) ~40분간 silent miss, 사용자가 "모니터링이 제대로 안 되네" surface 후 발견. 전체 discipline: `Constellation.md` §13.16.6.
 
+### 메인-챗 구조화 선택 프롬프트 금지 (Constellation.md §13.17)
+
+Constellation 메인-챗 윈도우에서 에이전트는 `AskUserQuestion` 류 **구조화 선택 프롬프트**(번호 옵션 · picklist · 다중선택 패널)를 본문 인라인으로 emit 금지 — 그 artifact는 보드 projection이 없고 다른 에이전트가 보지 못하므로 §3 board-as-SSoT 계약을 깬다. 메인-챗에서 자유형 텍스트 질문은 OK; 금지 대상은 **구조화 옵션 UI** 뿐. 두 가지 에스컬레이션 경로: (1) **defer-OK** → 질문을 라이브-보드 **review-items 탭**으로 라우팅(사용자가 자기 cadence로 처리; 에이전트는 watcher 재무장 후 대기 — 기본 경로); (2) **need-now** → 라이브-보드 **실시간 챗 윈도우 + 옵션 UI**로 라우팅(신규 UI6, 메인 보드 기능 대기 중). UI6 도착 전 과도기 fallback: defer-OK + 보드에 "사용자 입력 대기"라는 `WorkerReport` 1줄 emit; 대기 중에 인라인 `AskUserQuestion`으로 회귀 금지. Provenance: 메인 upstream 정책 #414 — Delegate seq 88, msgId `m-mpt5o07l-87`, 2026-05-31. 전체 discipline: `Constellation.md` §13.17.
+
 > **목표**: Constellation 은 공개 EstreGenesis Claude 플러그인으로 성숙해 감. 그전까진 2.0 포함 모듈; 라이브보드 프로토콜(v0.3)은 `Constellation.md` 본문에 증류(자족).
 
 ---

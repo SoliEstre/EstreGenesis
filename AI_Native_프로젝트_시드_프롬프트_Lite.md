@@ -672,6 +672,8 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 
 **Watcher liveness probe (Constellation.md §13.16.6)** — 외부 응답 대기(원격 `Delegate` 회신, upstream 워커 job-done, inbox rearm cycle) 상태에 들어가면, **launched 된 watcher가 곧 살아있는 watcher가 아님**. watcher 는 예상보다 자주 silent 하게 죽음(crash, 사용자 중단, rearm-ceiling 초과, harness GC) — 응답은 inbox 에 도착하지만 surface 안 됨, 에러 없이 작업 정지. 사용자가 먼저 알아챔(`"응답 왔어?"`). 규칙: 대기 중 매 독립 작업 cycle 마다(idle 시 최소 ~30분 wall-clock 마다), `inbox.log` mtime vs 현재 wall-clock 그리고 watcher task 출력의 최근 `watcher re-armed @ <Z>` 마커가 예상 rearm 간격 이내인지 검증. 둘 중 하나라도 stale = watcher dead 처리 + 명시적 re-arm(새 task ID 기록, 옛 ID dead 표시) + 사용자에게 즉시 staleness 보고. todo state(`[in_progress] watcher`)와 실제 task liveness 혼동 금지. **턴 종료 직전 무조건 rearm** — probe-without-rearm 은 죽은 watcher 를 잡지만 *다음* cycle 이 죽는 건 못 막음. 매 응답 종료 직전(최종 텍스트 emit 직전), 1-shot Bash 로 inbox.log mtime + 최신 watcher task mtime probe; 누락/stale/명시적 rearm 없는 multi-cycle 작업 → **무조건 새 background watcher spawn**. probe-and-decide 판단이 아니라 *턴 종료 ritual* 로 만들어야 함 (multi-cycle 에이전트는 정확한 시점 probe 판단을 reliably 못함). 전체 discipline: `Constellation.md` §13.16.6.
 
+**메인-챗 구조화 선택 프롬프트 금지 (Constellation.md §13.17)** — 메인-챗에 인라인 `AskUserQuestion` 류 옵션 UI는 보드 projection이 없어 멀티-에이전트 가시성을 깨뜨림 → 구조화 Q/A는 보드로 라우팅(defer-OK = review-items 탭; need-now = 라이브-보드 실시간 챗 + 옵션 UI, 신규 UI6 대기 중). 메인-챗의 자유형 텍스트 질문은 OK. UI6 도착 전 과도기 fallback = defer-OK + 보드에 `WorkerReport` "사용자 입력 대기" 1줄. Provenance: 메인 #414 (Delegate seq 88, msgId `m-mpt5o07l-87`, 2026-05-31). 본문: `Constellation.md` §13.17.
+
 ---
 
 ## 파일 템플릿
