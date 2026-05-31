@@ -399,4 +399,77 @@ Per orchestrator requirement (seq 88), **no separate persistence layer** is intr
 
 ---
 
-*Draft v0.1 — 2026-05-31. EG-side authored against main user feature #406 / seq 77 / seq 88. Awaiting main hub review before promotion to v1 and reference-implementation commit. Companion to `WS-PROTOCOL-KEY-MGMT.md` (independent file per §0 bundling decision).*
+## 10. Routing Criterion — SelectionPrompt vs Review-Items Tab
+
+Per main upstream Delegate seq 98 (msgId `m-mptcdsh8-97`) P2 review, the agent has **two** legitimate user-question surfaces, and the choice between them is not stylistic — it is determined by the answer's *temporal relationship to the current turn*. Use **SelectionPrompt** (this protocol; real-time chip-render in the live-board chat thread) when **(a)** the answer blocks the current turn (the agent cannot productively continue without it), OR **(b)** the agent expects an answer within the current session's typical response latency (seconds to a few minutes — the user is presumed actively present on the board). Use the **board review-items tab** (per §13.17 defer-OK escalation path — the legacy non-blocking question surface) when **(a)** defer-OK is acceptable (the agent has a recommendation it can proceed on, and the question is for confirmation/audit rather than a fork), OR **(b)** the question can be picked up by the user at their own cadence (hours-to-days latency is fine; the user may not be on the board right now). The two surfaces are **not interchangeable**: emitting a SelectionPrompt for a defer-OK question wastes the chat-thread real estate and applies undue pressure; routing a blocking fork to the review-items tab strands the current turn. Cross-link: §13.17 (main-chat structured-choice prompts FORBIDDEN → live-board escalation; UI6 is the *need-now* leg, review-items tab is the *defer-OK* leg).
+
+---
+
+## 11. msgId / id Board Normalization
+
+The board adapter (`wsCommon`) historically carries only `id` on its CUSTOM frames — it predates the §13.13 ack tier and was never retrofitted to mint `msgId`. UI6 frames (per §2 envelope and §13.13) require `msgId`. To bridge the gap without forcing a wsCommon rewrite, the following normalization rule applies to **all three** Selection frames on the board↔server boundary:
+
+- **Inbound (board → server)**: when an outbound Selection frame from the board carries `msgId` but no `id`, the server SHALL stamp `id := msgId` before any further processing. When the frame carries `id` but no `msgId` (legacy wsCommon path), the server SHALL treat `id` as a **fallback** for `msgId` (i.e. `msgId := id`) and proceed as if the application supplied `msgId`. When **both** are present, the server uses them as-is and does not overwrite either; if they disagree, `msgId` wins for application-level correlation and `id` is preserved for transport-level logs.
+- **Outbound (server → board / server → agent)**: every relayed Selection frame SHALL carry **both** `id` and `msgId` on the wire. If only one was set on inbound, the server fills the other from it (per the fallback rule above) before relaying.
+- **Agent-emitted SelectionPrompt**: agents are still REQUIRED to set `msgId` (per §2 sender side); the `id := msgId` fill is server-side housekeeping for board-originating frames specifically. An agent omitting `msgId` is a protocol violation, not a normalization case.
+
+Rationale: this lets the existing wsCommon board client emit Selection frames with its current `id`-only convention while the new agent-side and server-side code paths uniformly key on `msgId`. The fallback collapses the two field names into one logical identifier without breaking either side's existing assumptions.
+
+---
+
+## 12. Persistence Channel — feedback.jsonl, Not ws-history
+
+Spec earlier read ambiguously on which channel logs Selection frames. Resolution (per Delegate seq 98 P2 review): **`SelectionPrompt`, `SelectionAnswer`, and `SelectionCancel` are logged via the standard CUSTOM-frame board feedback channel (`feedback.jsonl`)** — the agent-thread chat surface that already captures every `wscore.event('CUSTOM',...)` board frame. They are **NOT** logged to `ws-history/<channelKey>.jsonl` (the A2A history tier), because:
+
+- `ws-history` is scoped to **A2A traffic** (agent↔agent relays — the 3-tier active/cold/archived store described in `server-NOTES.md`). Selection frames are **board↔agent**, not A2A, so they fall outside that scope by design.
+- `feedback.jsonl` already captures CUSTOM frames on the board's agent-thread channel — `SelectionPrompt` is an agent emit into that channel, and `SelectionAnswer` / `SelectionCancel` are board emits into the same channel. No new persistence surface is required.
+- Consistency with §6 (no separate persistence layer): the feedback channel is the existing capture path; nothing new is introduced.
+
+If forensic recovery of a prompt/answer pair is ever needed, the source of truth is `feedback.jsonl` for the agent thread in question, filtered by `name ∈ {"SelectionPrompt","SelectionAnswer","SelectionCancel"}` and correlated by `value.promptId`.
+
+---
+
+## 13. Multi-Board Resolve Broadcast — `SelectionResolved`
+
+§8 Open Question 3 (multiple boards) is hereby resolved (Delegate seq 98 P2 review). When two or more board clients are connected to the same server (e.g. user has the live board open in two browser tabs, or on phone + desktop simultaneously), every connected board renders the chips for an incoming `SelectionPrompt`. On `SelectionAnswer` from any one board, the server SHALL emit a **`SelectionResolved`** broadcast to all *other* board clients (not the answering board — that one already knows) so they can dim/remove the now-stale chips.
+
+**`SelectionResolved` frame** (server → board, broadcast):
+
+```jsonc
+{
+  "type": "CUSTOM",
+  "name": "SelectionResolved",
+  "msgId": "<server-stamped>",
+  "source": "server",
+  "value": {
+    "promptId":   "p-AbC123...",
+    "resolution": "answered" | "cancelled",
+    "reason":     "user-dismiss" | "timeout" | "thread-close" | "server-timeout"   // present only when resolution === "cancelled"
+  }
+}
+```
+
+**Server behavior**:
+- On relay of `SelectionAnswer{promptId}`: after the unicast relay to the originating agent, the server enumerates all connected board conns and emits `SelectionResolved{promptId, resolution:'answered'}` to each board **except** the board that submitted the answer.
+- On relay of `SelectionCancel{promptId, reason}`: same enumeration; broadcast `SelectionResolved{promptId, resolution:'cancelled', reason}` to all boards except the one that fired the cancel. For the server-side hard TTL path (§14), the server emits to **all** connected boards (no originating board to exclude).
+- `SelectionResolved` itself is ack-tier-descoped (consistent with §3.4 — no auto `Ack{delivered}` on the broadcast).
+
+**Board behavior**: on receipt of `SelectionResolved`, look up `promptId` in the local `selections` map; if present and state is `ISSUED`, transition to `ANSWERED` or `CANCELLED` per `resolution` and update the chip UI (dim, strike-through, or remove per board UI policy). If `promptId` is unknown, silently drop (the board may have been opened after the prompt was resolved, or the entry was already purged).
+
+---
+
+## 14. Server-Side Hard TTL
+
+§3.1 currently specifies only a **board-side soft timeout** (default 5 min, configurable per-board) that fires a `SelectionCancel{reason:'timeout'}`. This is insufficient when no board is connected (the prompt was emitted while a board was online, then all boards disconnected before answering — the server's `promptId → agentId` map entry would leak indefinitely against an agent that stays connected, until that agent disconnects per invariant 4 sweep). To bound the leak window, the server enforces a **hard TTL** on every `promptId → agentId` map entry:
+
+- **Default**: 15 min (server clock, measured from the time the server relayed the originating `SelectionPrompt`).
+- **Config**: env `CONSTELLATION_UI6_SERVER_TTL_MIN` overrides the default (integer minutes; 0 disables the hard TTL, with the caveat that map leaks then rely solely on invariant 4's agent-disconnect sweep).
+- **On expiry**: the server SHALL synthesize a `SelectionCancel`-equivalent relay to the originating agent with `value: { promptId, reason: "server-timeout" }`, then emit a `SelectionResolved` broadcast (§13) to all connected boards with `resolution:'cancelled', reason:'server-timeout'`, then drop the map entry.
+- **Relationship to the board-side soft timeout**: the soft timeout is a **UX courtesy** (give the chip a "this is stale" visual cue earlier than the hard limit); the hard TTL is a **server-side resource guarantee** (no entry lives beyond `CONSTELLATION_UI6_SERVER_TTL_MIN`). Both can fire independently; the second-arriving cancel for the same `promptId` is dropped per invariant 1 (terminal state is sticky).
+- **Implementation hint**: a single periodic sweep (e.g. every 60s) over the map suffices — exact-millisecond expiry is not required.
+
+The new `reason:"server-timeout"` value extends the §3.3 reason enum: `"user-dismiss" | "timeout" | "thread-close" | "server-timeout"`. Agent-side handling: treat it identically to `"timeout"` (the agent cannot distinguish board-side vs server-side timeout in its application logic, and shouldn't need to — both mean "no answer came in time").
+
+---
+
+*Draft v0.1 — 2026-05-31. EG-side authored against main user feature #406 / seq 77 / seq 88. P2 batch addressed per Delegate seq 98 (`m-mptcdsh8-97`): Routing criterion (§10), msgId/id normalization (§11), persistence channel resolution (§12), multi-board resolve broadcast (§13), server-side hard TTL (§14). Awaiting main hub review before promotion to v1 and reference-implementation commit. Companion to `WS-PROTOCOL-KEY-MGMT.md` (independent file per §0 bundling decision).*

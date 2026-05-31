@@ -62,7 +62,20 @@ All five message types ride the standard envelope already in use across §13.11 
 
 ### 3.1 `KeyIssue` — main → server
 
-Issue a new upstream key. Supersedes `RegisterUpstreamKey`.
+Issue a new upstream key. **Supersedes** `RegisterUpstreamKey` — this is **not** a rename or alias.
+
+**Supersede vs alias — why the distinction matters**: an earlier framing in the §9 cross-ref described `KeyIssue` as a "thin alias" over `RegisterUpstreamKey` that could be kept for one minor version. That understated the delta. `KeyIssue` is a **new implementation** that replaces the prior generic key-issue path for upstream-key registration, with the following concrete behavioral differences:
+
+| Aspect | `RegisterUpstreamKey` (legacy, `server.cjs:214`) | `KeyIssue` (this draft) |
+|---|---|---|
+| **Default TTL** | Inherited from generic key-issue path (no upstream-specific default; effectively unbounded / session-lifetime) | **14 days** (`1209600000` ms) — upstream-specific default; explicit cap configurable via env |
+| **Label-generation policy** | Free-form, no validation beyond non-empty; collisions tolerated (multiple keys could share a label) | Validated (`>0` and `≤64` chars, no control chars); uniqueness **not** enforced at server but UI 5 surfaces collisions; supports `KeyLabel` rename with `AgentNameChanged` broadcast side effect |
+| **Visibility scope** | Emitted into the generic board stream (`UpstreamKeyIssued` event, mixed with collab key events on the same channel) | Scoped to the **main hub only** as a direct response (`KeyIssued`); no board broadcast — keys are not part of the public board surface. `KeyList` is the canonical enumeration RPC, also main-only |
+| **State machine** | Implicit — key exists or it doesn't; no `REVOKED_PENDING` transient | Explicit five-state `@machine` (§4); `REVOKED_PENDING` allows graceful session-end |
+| **Persistence** | Ephemeral / in-memory under the prior path | `key.json` atomic-write + fsync; migration path to `keys` SQL table (seq 79) |
+| **Permission gate** | Implicit (any caller on the server-internal path) | Explicit `isMain(conn)` check; non-main senders receive `PERMISSION_DENIED` |
+
+**Migration discipline**: the legacy `RegisterUpstreamKey` handler is **removed**, not aliased. `RegisterCollabKey` is left **untouched** (see §1 out-of-scope). A future RFC may unify under a single `Key*` namespace once DB lands.
 
 **Request `value`**:
 ```jsonc
@@ -252,19 +265,37 @@ Notify an agent that its upstream key's label was renamed. The agent SHOULD upda
 | `ISSUED` | first HELLO observed with this key | `ACTIVE` | `lastAgent` / `lastSeenAt` stamped |
 | `ISSUED` | `KeyRevoke immediate` | `REVOKED` | no live conn to kick |
 | `ISSUED` | `KeyRevoke sessionEnd` | `REVOKED` | collapses to immediate (no active session) |
-| `ISSUED` | TTL expiry (server timer or lazy check on next HELLO) | `REVOKED` | TTL = `issuedAt + ttl` |
+| `ISSUED` | TTL expiry (lazy — next HELLO / request after expiry; see §4.1) | `REVOKED` | TTL = `issuedAt + ttl` |
 | `ACTIVE` | `KeyRevoke immediate` | `REVOKED` | server closes all live conns (close code 4003) |
 | `ACTIVE` | `KeyRevoke sessionEnd` | `REVOKED_PENDING` | new HELLOs rejected; existing conns finish |
 | `ACTIVE` | all live conns close naturally + no revoke | `ACTIVE` | stays ACTIVE (just `connectionStatus=disconnected`) |
-| `ACTIVE` | TTL expiry | `REVOKED` | all live conns also closed (4003) |
+| `ACTIVE` | TTL expiry (lazy — next request from a key-holder, or periodic sweep; see §4.1) | `REVOKED` | all live conns also closed (4003) |
 | `REVOKED_PENDING` | last live conn closes | `REVOKED` | second `KeyRevoked` frame fires to main |
 | `REVOKED_PENDING` | `KeyRevoke immediate` (escalation) | `REVOKED` | kicks remaining live conns |
 | `REVOKED` | `KeyDelete` (admin op, future) | `DELETED` | tombstone for audit |
 
+### 4.1 TTL expiry — lazy detection (canonical) + optional sweep
+
+The state-machine transitions above reference TTL expiry. The **canonical** detection model is **lazy**:
+
+- **Lazy (canonical)** — no timer is armed per key. Expiry is detected on the **next request** from a key-holder:
+  - Incoming HELLO carrying `?upstreamKey=<k>` (or `meta.upstreamKey` in HELLO body): server checks `isExpired(k)` before accepting; if true, the HELLO is rejected (close code `4003 "key expired"`), the key transitions `ISSUED|ACTIVE → REVOKED`, and the rejection is persisted to `key.json`.
+  - Already-live conn whose key just crossed the expiry boundary: the **next inbound frame** from that conn triggers the same check; the conn is closed (4003) and the key transitions to `REVOKED`.
+  - `KeyList` results computed on demand: any key with `Date.now() > issuedAt + ttl` is surfaced as `state: "REVOKED"` even if no transition write has happened yet. The transition write is then performed lazily (debounced piggyback on the next legitimate `key.json` write).
+- **Why lazy is canonical** — no timer overhead per key, no risk of a sweeper missing a heartbeat, no drift between the `key.json` truth and the server's in-memory state when the timer-vs-disk race triggers under restart. Expiry is a **read-time invariant**, not a write-time event.
+
+**Optional periodic sweep** — a sweep is **optional** and serves only cleanup, not correctness:
+- Configurable via env `WS_KEY_SWEEP_INTERVAL_MS` (default **`3600000`** — 1 hour). Set to `0` to disable.
+- The sweep scans `key.json` for entries with `state ∈ {ISSUED, ACTIVE, REVOKED_PENDING}` and `Date.now() > issuedAt + ttl`, transitions them to `REVOKED`, and writes once (atomic + fsync) covering all transitions in that pass.
+- **Correctness does not depend on the sweep**: a server with the sweep disabled is still spec-compliant because lazy detection catches every expiry on next use. The sweep exists purely to age out keys that no one is using (so `KeyList` doesn't return stale `ACTIVE` entries that will reject on next HELLO).
+- The sweep MUST NOT close live conns by itself for sweep-detected expiry — it only writes the transition. Any live conn for the now-`REVOKED` key will be closed on its next inbound frame via the lazy path. (This keeps the sweep idempotent and side-effect-bounded: it touches `key.json` only.)
+
+**`ttl === 0` semantics** (no expiry) — discouraged per §3.1, but if present, both lazy and sweep paths skip the `isExpired` check entirely. The key remains usable until explicit `KeyRevoke`.
+
 ### Guards / derive (informational, not exhaustive)
 - `guard isLive(key)` — `∃ conn in wsAgents : conn.meta.upstreamKey === key`
 - `derive connectionStatus(key)` — see §3.2
-- `derive isExpired(key)` — `Date.now() > key.issuedAt + key.ttl` (when `ttl > 0`)
+- `derive isExpired(key)` — `key.ttl > 0 && Date.now() > key.issuedAt + key.ttl` (lazy-evaluated; see §4.1)
 
 ### Invariants
 1. `ISSUED → ACTIVE` is one-way (a key never demotes back to ISSUED even after disconnect).
@@ -272,6 +303,13 @@ Notify an agent that its upstream key's label was renamed. The agent SHOULD upda
 3. `DELETED` is hidden from `KeyList` unless `includeDeleted:true`. Persistence row is **kept** for audit (not deleted from `key.json`).
 4. `KeyLabel` may fire in any non-terminal state (`ISSUED` / `ACTIVE` / `REVOKED_PENDING`). It is **rejected** on `REVOKED` / `DELETED` (`KEY_NOT_FOUND` or a dedicated `KEY_TERMINAL` code — implementer call).
 5. `AgentNameChanged` only fires from `ACTIVE` (because `REVOKED_PENDING` keeps its label until full revoke — rename of a pending-revoke key is allowed but the broadcast still fires per §3.5 delivery model).
+6. **`REVOKED_PENDING` transient — no new requests accepted from the revoked-role identity.** During the `REVOKED_PENDING → REVOKED` transient, the **only** activity permitted on the key is the **current in-flight turn** of the existing live conn — that turn is allowed to complete, and frames internal to it (turn streaming, tool results, A2A ack frames the existing session already opened) ride through. **Every other inbound frame is rejected**:
+   - Any new `SelectionAnswer`, new HELLO re-announce, or any other request originating from a conn where `wsAgentRole(conn) === <the revoked role>` AND `meta.upstreamKey === <the REVOKED_PENDING key>` → server responds with `SelectionError` (for selection-path frames) or `KeyError{ code: "KEY_REVOKE_PENDING", re_msgId }` (for other request types). The conn is **not** closed by this rejection — closure is deferred to natural session end per the `sessionEnd` contract.
+   - "New request" means any frame that opens a **new** logical interaction (new turn, new selection, new tool call series). Continuation frames of the **existing** in-flight turn (the one already running when `KeyRevoke sessionEnd` was issued) are not "new" and are allowed through.
+   - The transient terminates by **whichever comes first** of:
+     - The current in-flight turn closes naturally (the canonical exit path) → state transitions to `REVOKED`, second `KeyRevoked` frame fires to main per §3.3.
+     - A configurable **grace period** elapses (env `WS_KEY_REVOKE_PENDING_GRACE_MS`, default **`300000`** — 5 minutes). On grace expiry, the server force-closes the live conn (close code `4003 "key revoke pending grace expired"`) and transitions to `REVOKED`. The grace bound exists so a stuck or wedged session cannot indefinitely hold a `sessionEnd` revoke open.
+   - During the transient, `KeyList` continues to surface the key with `state: "REVOKED_PENDING"` so the UI can show "revoking…" status. `KeyLabel` against a `REVOKED_PENDING` key remains allowed (per invariant 4) — the rename persists and the `AgentNameChanged` broadcast still fires to the live conn for that key.
 
 ---
 
@@ -442,7 +480,7 @@ The 3-mode dual-write (A→B→C) from seq 79 RRP applies symmetrically: file-on
 - **§13.13 A2A ack tier** — `Ack{delivered}` auto-fires on `Key*` relay; `AckProcessed` is optional and treated as advisory.
 - **§13.16 turn-end rearm** — orthogonal (watcher liveness, not key auth). Mentioned only so reviewers see the discipline footprint.
 - **seq 79 HistoryStore RRP** — `key.json` shape designed to migrate cleanly into a `keys` SQL table once `SqliteStore` lands. JSON remains rollback floor.
-- **`server.cjs:214/215`** — existing `RegisterUpstreamKey` / `RegisterCollabKey` lines; this draft supersedes the upstream half (`RegisterUpstreamKey` → `KeyIssue`) and **leaves collab untouched**. Implementation MAY keep `RegisterUpstreamKey` as a thin alias for one minor version then remove.
+- **`server.cjs:214/215`** — existing `RegisterUpstreamKey` / `RegisterCollabKey` lines; this draft **supersedes** the upstream half (`RegisterUpstreamKey` → `KeyIssue` — **not** an alias; see §3.1 supersede-vs-alias table for the concrete behavioral deltas: default TTL, label-generation policy, visibility scope, state machine, persistence, permission gate) and **leaves collab untouched**. The legacy `RegisterUpstreamKey` handler is **removed** at implementation time, not kept as a transitional alias — callers must update to `KeyIssue`.
 - **`server-NOTES.md` §3** — envelope CUSTOM-wrap table will gain 5 new rows (`KeyIssued` / `KeyListResult` / `KeyRevoked` / `KeyLabeled` / `AgentNameChanged`) when this draft is implemented.
 
 ---

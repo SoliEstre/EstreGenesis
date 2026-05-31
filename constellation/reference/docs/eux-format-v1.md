@@ -7,7 +7,7 @@
 - **Date**: 2026-05-31.
 - **SSoT**: This document. The EG empirical catalog (`constellation/reference/EUX-V1-CATALOG.md`) is the ratification companion and supplies the per-file evidence.
 - **Provenance**:
-  - Main upstream **Delegate seq 70** — `m-mpt1ja6p-69` (P1 4-directive signature: `@ports` / `@machine` / `@source` / `@deps`-absorbed-into-`@ports.deps`).
+  - Main upstream **Delegate seq 70** — `m-mpt1ja6p-69` (P1 4-directive signature: `@ports` / `@machine` / `@source` / `@deps`-absorbed-into-`@ports.deps`; this "4-directive" count is the **P1 sub-slice**, not the full v1 set — see §2 canonical phrasing: v1 has 9 directives total).
   - Main upstream **Delegate seq 73** — `m-mpt2zmss-72` (5 open-question answers: backend `@machine` soft-WARN, `@source` line-precise, `@behavior` 5th directive doc-tier, `@derive` no budget with optional `@rationale`/`@incident` split, UI `@state` light vs `@machine` dispatch).
   - EG-side catalog publish — `e57af29` (`constellation/reference/EUX-V1-CATALOG.md`, 12-file analysis).
 - **Owners**: EstreUX SSoT (specification) + EstreGenesis reference (empirical evidence + drift-check `verify` contract gate).
@@ -28,6 +28,8 @@ Every `.eux` file declares (explicitly via `@targets` or implicitly via directiv
 Profile is not a free-form tag. The drift-check `--contract` gate uses the profile to choose the per-directive tier (STRICT / soft-WARN / WARN / doc-tier) — see §4 Drift-Check Matrix.
 
 ## 2. Directive Set (overview)
+
+**Canonical directive-count phrasing (v1 SSoT)**: v1 has **9 directives total: 5 formal/tier-gated (`@ports`, `@machine`, `@source`, `@behavior`, `@render`/`@persist`) + 4 structural (`@component`, `@intent`, `@expansion`, `@targets`, `@state`) — note that v0 had 8 with `@behavior` added in v1**. The structural cluster lists 5 directive names because `@state` is grouped under "structural (ui-light)" — it counts toward the structural set conceptually even though it is documented as ui-light. When a passage in this spec, the catalog, or any companion doc cites a different count (e.g., "5 formal" alone, "8 v0 directives", "4-directive P1 signature", "4 structural"), it is referring to a sub-slice (P1 core, v0 baseline, structural-minus-state, etc.) and should be read against this canonical phrasing as the SSoT.
 
 v1 defines **9 directives** total. Five are **formal** (subject to drift-check at some tier); four are **structural / documentary**.
 
@@ -139,6 +141,8 @@ The two v0 UI-only directives `@render` and `@persist` remain valid **only for t
   4. Empty `out` or `deps` sub-clause without explicit `# none` comment → **WARN** (ambiguous).
   5. `deps` cross-link target (`→ <other>.eux`) must resolve to an existing `.eux` file → **WARN**.
 
+- **Cmd-clause tier vs G6 return-shape parity (clarification)**: The §3.6 `cmd` sub-clause and the catalog's runtime check G6 (return-shape parity) operate at two **complementary levels**, not contradictory ones. The §3.6 `cmd` sub-clause is the **structural gate**: drift-check emits **WARN** on a missing/misplaced `cmd` label (rules 1–2 above) because the absence is a documentation/syntactic gap, not necessarily a runtime defect. The catalog's G6 runtime check is the **runtime parity gate**: when an implementation `.cjs` exists and the `.eux` `cmd` signature's declared return shape disagrees with the implementation's actual destructure, that is a hard contract mismatch and is treated as **STRICT** at the runtime-observation level (catalog C6 / G6). In short: structural WARN on missing-or-mislabeled `cmd`; runtime STRICT on shape-mismatched `cmd`. A file can pass §3.6 structurally (cmd present, well-placed) and still fail G6 at runtime (cmd shape diverged from `.cjs`), or vice-versa. They are intentionally separate concerns and should be read together, not collapsed.
+
 ### 3.7 `@machine` (STRICT for protocol/machine; soft-WARN for backend)
 
 - **Syntax**:
@@ -169,6 +173,18 @@ The two v0 UI-only directives `@render` and `@persist` remain valid **only for t
   - Doc-tier on `guard` and `derive` (no gate; size-unbudgeted per Q4 answer).
 - **Sub-clause semantics**:
   - `states` — finite enumeration of states, possibly across multiple state axes (e.g., `gateway-client` declares `connState 4 + turnState 4` for dual-axis). One state per axis must be marked `(initial)`.
+    - **Initial-state convention (P3 resolution for G2 ambiguity)**: when a `states: A · B · C` enum list does not mark any state with `(initial)`, drift-check applies the convention **"the first state in the list is implicit-initial"**. To override the implicit-first convention, declare an explicit `initial: <state>` annotation on a separate line beneath the states list, OR mark the chosen state with the inline `(initial)` suffix. The two forms are equivalent and either is honored. Example:
+      ```
+      states:
+        connState: DISCONNECTED · CONNECTING · CONNECTED · CLOSED
+      initial: DISCONNECTED            # optional explicit override; equivalent to first-in-list
+      ```
+      Or inline:
+      ```
+      states:
+        connState: DISCONNECTED(initial) · CONNECTING · CONNECTED · CLOSED
+      ```
+      For multi-axis machines, the `initial:` line may list one initial per axis (e.g., `initial: connState=DISCONNECTED, turnState=IDLE`). Drift-check WARN if both inline `(initial)` and explicit `initial:` are present and disagree.
   - `dispatch` — explicit `state + event → state'` transitions. Recommended for protocol; optional for backend.
   - `guard` — boolean conditions that gate transitions. Optional everywhere.
   - `derive` — derived/computed quantities or invariants (e.g., `cursor_unit` in self-wake-watcher). May embed incident history; no size budget (see Q4 answer). Use `@incident` / `@rationale` optional sub-clauses for very long derive blocks (soft).
@@ -203,7 +219,8 @@ The two v0 UI-only directives `@render` and `@persist` remain valid **only for t
 
 - **Scope**: **ui profile only**. Backend / protocol / machine profiles MUST NOT use these directives — drift-check FAIL.
 - **`@render N/A`** (or any literal `N/A` / `none` placeholder) is **forbidden** in v1 — omit the directive entirely.
-- Full v1 syntax + semantics for `@render` and `@persist` is **deferred to P2** (UI render/persist sub-spec). For v1 P1, the rules are negative-only: forbidden outside ui, no placeholder values, omit-don't-stub.
+- **`@render` is optional on ui-profile components that are template-rendered upstream**: when the parent component owns the DOM template and the child component contributes only via `@ports.cmd`/`@state`, bare omission of `@render` is v1-conformant. The catalog notes 5/6 UI files (ws-channel-input, ws-conn-bar, ws-fab-badge, ws-tabs, ws-tool-card) currently omit `@render` for exactly this reason and are NOT in violation. Only `@render N/A` placeholder or `@render` on backend/protocol/machine profile is forbidden.
+- Full v1 syntax + semantics for `@render` and `@persist` is **deferred to P2** (UI render/persist sub-spec). For v1 P1, the rules are negative-only: forbidden outside ui, no placeholder values, omit-don't-stub, and bare-omission permitted for upstream-template-rendered children.
 
 ## 4. Drift-Check 6-Gate Matrix
 
@@ -279,7 +296,7 @@ Cross-reference of which directives apply at which tier for each profile.
 ### 6.2 EG-side migration status (per `EUX-V1-CATALOG.md`)
 
 - `@deps` → `@ports.deps`: **already complete** (0/12 standalone, 8/8 deps-bearing under `@ports`).
-- `@render` / `@persist` cleanup: **complete** (0/12 retain v0 forms; but 5/6 UI files are *missing* `@render` where v1 P2 will expect it — deferred to P2).
+- `@render` / `@persist` cleanup: **complete** (0/12 retain v0 forms; 5/6 UI files are *missing* `@render`, which is **intentional and v1-conformant** — the UI profile makes `@render` optional when the UI is template-rendered upstream by a parent component; only `@render N/A` placeholder or `@render` on backend/protocol is forbidden per §3.10 + §4 G3. The P2 UI render/persist sub-spec will formalize the upstream-template-rendered convention, not impose a blanket `@render`-required rule).
 - `@targets vanilla` on non-ui: **2 violations remain** (`watchdog.eux` backend, `ws-core.eux` protocol). Migration: change to `@targets runtime`.
 - `@source` adoption: **0/12** — gradual migration; v1 WARN-tier allows time.
 - `@machine` name binding: **1 file** (`ws-core.eux`) lacks explicit name binding — migrate to `@machine WSConn`.
@@ -332,6 +349,8 @@ Cross-reference of which directives apply at which tier for each profile.
   - Per-half tier dispatch (each half gets its profile's tier rules).
   - `@rationale` requirement for declaring mixed profile (must justify why a single file spans two profiles rather than splitting).
 
+- **P3 resolution — mixed per-half fallback rule**: in the absence of formal per-half delimiters, drift-check applies the **per-half fallback** rule: a file declaring `@targets ... profile=mixed` (or implicitly classified as mixed via dual-half directive composition) is validated by **applying each profile's tier rules to its respective half**, with the file-level profile `mixed` indicating the split. Concretely: if a file contains both ui-style directives (e.g., `@render` / `@state` light) and backend/protocol-style directives (e.g., `@machine` with dispatch + `@source` provenance), drift-check (a) groups directive blocks by profile-affinity, (b) applies ui tier rules to the ui-half block, and (c) applies the backend/protocol tier rules to the backend/protocol-half block. The 6-gate matrix §4 "per-half" cells (G2, G3, G6) operate under this fallback. The `mixed` profile label is therefore a **split marker**, not a third tier-set. When formal sub-headings (`## ui-half` / `## protocol-half`) are introduced in a future P2/P3 revision, they will make the split explicit and override the directive-affinity grouping; until then, directive-affinity grouping is the v1 fallback.
+
 ### 7.6 Machine-profile detailed semantics
 
 - v1 reserves `machine` profile but no EG instances exist. P2/P3 should define:
@@ -358,7 +377,7 @@ Cross-reference of which directives apply at which tier for each profile.
 
 ## Appendix C — Versioning
 
-- **v1.0.0** — this document. P1 4-directive signature + `@behavior` 5th + 6-gate drift-check matrix.
+- **v1.0.0** — this document. P1 4-directive signature + `@behavior` 5th + 6-gate drift-check matrix. (The "4-directive" + "5th" phrasing here refers to the P1-formal sub-slice; the full v1 set is 9 directives per the §2 canonical phrasing.)
 - **v1.x** — minor clarifications, additional WARN-tier checks, no breaking changes.
 - **v2** — reserved for breaking changes (e.g., directive renames, profile additions, schema migration).
 - v1 documents are forward-compatible with v0 except for the migrations listed in §6.1. The migrations are mechanical and the catalog evidence shows the EG repo is ~95% already at v1 shape.
