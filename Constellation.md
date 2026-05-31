@@ -374,3 +374,22 @@ Why both layers ship: the bridge-side lockfile (§13.16.1) covers the common cas
 - **§13.13** ack layer is silent by design — it does NOT generate the `ServerNotice` flood that §13.16 cleans up. The flood is a *transport-layer* artifact (HELLO churn from same-`agentId` register), so §13.16 fixes are also transport-layer (lockfile + launcher + orphan kill); they're orthogonal to the application-layer ack mechanism.
 - **§13.14** (env-specific token redaction) applies to runbook examples too: `stop-all` / `status` stubs MUST NOT inline real agentIds, port numbers, or workspace paths from the upstream's environment; use `${AGENT_ID}` / `${PORT}` / `${WORKSPACE}` substitution. The lockfile filename's `agentId` sanitization (`replace(/[^\w.-]/g, '_')` per `local-bridge.cjs:L53`) is the in-code form of the same discipline.
 - **§13.15** (build-time syntax gate) catches a non-loading master that would otherwise reach adopters; §13.16 (runtime ops) catches the *operational* equivalent — a loadable but mis-launched master that produces a flap storm at adopter sites. Build gates ship the right bytes; runtime gates ship the right *process topology*.
+- **§13.16.6** (watcher liveness probe, below) extends §13.16.1-.4: the launch/orphan/cleanup fixes ensure a watcher *starts cleanly*, but they don't guarantee it *stays armed*. The probe discipline closes the gap.
+
+#### 13.16.6 Watcher liveness probe discipline
+
+When the adopter agent parks in a "wait for external response" cycle — board `UserPrompt` waiting on a remote agent's `Delegate` reply, an upstream worker's job-done event, an inbox-polling rearm chain — **a watcher/background task that polls the inbox.log silently dies more often than expected**. Symptoms: a `Ping`/`AckProcessed`/`Delegate` arrives at the inbox, but the adopter never surfaces it because the watcher's rearm chain broke (process crash, user-interrupt, exceeded rearm ceiling, harness garbage-collection of the background task).
+
+A "watch maintained" claim *without an explicit liveness check* is the silent-stall class of bug — work looks healthy because no error fires, but hours pass with the response unread. The user is typically the first to notice (`"응답 왔어?"` / `"왜 안 움직여?"`) — that is the failure mode this discipline exists to prevent.
+
+**Probe rules** (apply whenever the adopter is parked waiting on an external response):
+
+- **Inbox mtime probe** — re-tail `assets/collab/inbox.log` and check its mtime vs current wall-clock. Constellation watchers typically rearm every 40-45 min; an inbox.log untouched for >60 min while the adopter is in a wait cycle is suspect (either no inbound *or* watcher dead — disambiguate via the next rule).
+- **Rearm log probe** — the watcher's task output should contain a recent `watcher re-armed @ <Z>` marker (one per rearm cycle). If the last marker is >2× the rearm interval behind wall-clock, the watcher is parked or crashed.
+- **Cross-check inbound side** — when expecting a reply, peek at the watcher's task output (`WAKE` / `REARM` markers). Last marker hours behind wall-clock = dead watcher, not "no inbound".
+- **Re-arm explicitly when stale** — do not "hope" a dead watcher recovers. Spawn a fresh watcher cycle on the same polling target, note the new task ID, and mark the old one dead in the agent's working state.
+- **Surface staleness immediately** — tell the user the watcher went stale, how long the gap was, and the action taken (re-arm or escalate). Never continue to claim "watch maintained" silently after detecting staleness; that converts a recoverable miss into an unrecoverable one.
+
+**Discipline cadence**: probe at least once per **independent work cycle** taken during the wait, or at least every **~30 min wall-clock** if the agent is otherwise idle — whichever fires first. Do NOT conflate todo state (`[in_progress] watcher`) with task liveness (the bash background task actually running). Todo state is the agent's *claim*; task liveness is the *truth*. Verify the truth before reusing the claim.
+
+**Why this belongs in the runbook, not just agent habit**: an adopter without an explicit probe discipline will treat "watcher launched once" as sufficient and lose responses for hours. The probe is part of the *operational contract* for Constellation watchers — same tier as `stop-all` / `status` (§13.16.2) and the lockfile (§13.16.1).

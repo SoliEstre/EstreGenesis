@@ -670,6 +670,8 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 
 **보드 emission 규율 + A2A ack 계층 (Constellation.md §13.11 / §13.13)** — Constellation 도입 시: 작업 중 safe point마다 보드로 진행 emit (`§13.11.1` — 보드만 보고도 lane 흐름 재구성 가능해야 함, 에이전트 hidden state 읽지 않고); 무활동 시 자율 heartbeat 금지 (`§13.11.2` — false-alive; 실측 사례: `codex-watch.cjs` 제거). A2A 신뢰성은 WS transport 위 *프로토콜 계층*: `msgId`(bridge 자동, dedup watermark) + server 자동 `Ack{kind:'delivered'}`(보드 미표시, alarm fatigue 게이팅; ack은 ack 안 함) + 선택 `AckProcessed`(agent WILCO) + `AckCumulative`(telemetry) + Ping/Pong은 application liveness probe — **재전송 도구 아님**. ack timeout 시: 보수적 `Ping`(RFC 1122 multi-probe) → 자기 inbox dedup 조회 → 유실만 재전송 → 그래도 무응답 시 사람 보고 (Two Generals 종결). 계층 분리: server(`wsIsAckable` + delivered Ack, no auto-pong) / bridge(msgId + onInbound dedup) / agent(`AckProcessed` + Ping/Pong + 재전송 결정). 전체 spec: `Constellation.md` §13.
 
+**Watcher liveness probe (Constellation.md §13.16.6)** — 외부 응답 대기(원격 `Delegate` 회신, upstream 워커 job-done, inbox rearm cycle) 상태에 들어가면, **launched 된 watcher가 곧 살아있는 watcher가 아님**. watcher 는 예상보다 자주 silent 하게 죽음(crash, 사용자 중단, rearm-ceiling 초과, harness GC) — 응답은 inbox 에 도착하지만 surface 안 됨, 에러 없이 작업 정지. 사용자가 먼저 알아챔(`"응답 왔어?"`). 규칙: 대기 중 매 독립 작업 cycle 마다(idle 시 최소 ~30분 wall-clock 마다), `inbox.log` mtime vs 현재 wall-clock 그리고 watcher task 출력의 최근 `watcher re-armed @ <Z>` 마커가 예상 rearm 간격 이내인지 검증. 둘 중 하나라도 stale = watcher dead 처리 + 명시적 re-arm(새 task ID 기록, 옛 ID dead 표시) + 사용자에게 즉시 staleness 보고. todo state(`[in_progress] watcher`)와 실제 task liveness 혼동 금지. 전체 discipline: `Constellation.md` §13.16.6.
+
 ---
 
 ## 파일 템플릿

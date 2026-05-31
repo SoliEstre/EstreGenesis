@@ -2337,6 +2337,15 @@ Constellation WebSocket transport는 in-order best-effort 송달; 그 위 신뢰
 - **계층 분리** — server는 `wsIsAckable` + delivered Ack 처리; bridge는 msgId emit + onInbound dedup; agent는 `AckProcessed` + Ping/Pong + 재전송 결정. server는 auto-pong **안 함** (연결 생존 ≠ turn 생존).
 - **v2.2.x patch 패밀리 link** — ack 계층은 silent-disable WARN, envelope convention, server-stamped truth, leniency-WARN과 한 가족 (수용은 넓히고, 진실은 국소화하며, 불일치는 surface).
 
+### Watcher liveness probe — silent-stall 회피 (Constellation.md §13.16.6)
+
+도입 에이전트가 외부 응답 대기 cycle(원격 에이전트의 `Delegate` 회신, upstream 워커의 job-done 이벤트, inbox 폴링 rearm cycle)에 들어가면, **launched 된 watcher가 곧 살아있는 watcher인 것은 아님**. watcher는 예상보다 자주 silent하게 죽음(프로세스 crash, 사용자 중단, rearm ceiling 초과, harness GC). 응답은 inbox에 도착하지만 surface되지 않음 — 에러 없이 작업 정지. 사용자가 먼저 알아챔(`"응답 왔어?"` / `"왜 안 움직여?"`) — 이 discipline이 막으려는 실패 모드.
+
+- **watcher launch 만으로 끝내지 말고 probe** — 대기 중 매 독립 작업 cycle 마다(그리고 idle 시 최소 ~30분 wall-clock 마다), (a) `inbox.log` mtime vs 현재 wall-clock, (b) watcher task 출력의 최근 `watcher re-armed @ <Z>` 마커가 예상 rearm 간격 이내인지 검증. 둘 중 하나라도 stale = watcher dead 처리.
+- **stale 시 명시적 re-arm** — dead watcher 회복을 "기대"하지 말 것. 동일 폴링 타깃으로 새 watcher cycle spawn + 새 task ID 기록 + 옛 ID dead 표시.
+- **staleness 즉시 보고** — 사용자에게 watcher 가 stale 된 사실, gap, 취한 조치(re-arm 또는 escalate) 알림. staleness 감지 후에도 "watch 유지" 라고 silent 하게 계속 주장 금지 — 회복 가능한 miss를 회복 불가능한 miss로 바꾼다.
+- **todo state ≠ task liveness 혼동 금지** — `[in_progress] watcher` 는 에이전트의 *주장*; 실제 bash 백그라운드 task가 도는 것이 *진실*. 주장을 재사용하기 전에 진실을 검증.
+
 > **목표**: Constellation 은 공개 EstreGenesis Claude 플러그인으로 성숙해 감. 그전까진 2.0 포함 모듈; 라이브보드 프로토콜(v0.3)은 `Constellation.md` 본문에 증류(자족).
 
 ---

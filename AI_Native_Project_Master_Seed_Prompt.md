@@ -2334,6 +2334,15 @@ Constellation's WebSocket transport gives in-order best-effort delivery; reliabi
 - **Layer split** — server handles `wsIsAckable` + delivered Ack; bridge handles msgId emission + onInbound dedup; agent handles `AckProcessed` + Ping/Pong + retry decisions. Server does **not** auto-pong (connection survival ≠ turn survival).
 - **v2.2.x patch-family link** — ack layer composes with silent-disable WARN, envelope convention, server-stamped truth, leniency-WARN: *acceptance broadened, truth localized, mismatch surfaced.*
 
+### Watcher liveness probe — silent-stall avoidance (Constellation.md §13.16.6)
+
+When the adopter agent parks waiting on an external response (a remote agent's `Delegate` reply, an upstream worker's job-done event, an inbox-polling rearm cycle), **a launched watcher is not the same as a live watcher**. Watchers silently die more often than expected (process crash, user-interrupt, exceeded rearm ceiling, harness GC). The response arrives at the inbox but is never surfaced — work stalls without an error firing. The user typically notices first (`"응답 왔어?"` / `"왜 안 움직여?"`) — that is the failure mode this discipline prevents.
+
+- **Probe the watcher, don't trust its launch** — at each independent work cycle during a wait (and at least every ~30 min wall-clock when otherwise idle), verify (a) `inbox.log` mtime vs current wall-clock, (b) the watcher task's most recent `watcher re-armed @ <Z>` marker within the expected rearm interval. Stale on either = treat watcher as dead.
+- **Re-arm explicitly when stale** — do not "hope" a dead watcher recovers. Spawn a fresh watcher with the same polling target, note the new task ID, mark the old one dead.
+- **Surface staleness immediately** — tell the user the watcher went stale, the gap, and the action taken. Never continue claiming "watch maintained" silently after detecting staleness — that converts a recoverable miss into hours of lost work.
+- **Do not conflate todo state with task liveness** — `[in_progress] watcher` is the agent's *claim*; the bash background task actually running is the *truth*. Verify the truth before reusing the claim.
+
 > **Goal**: Constellation matures toward a published EstreGenesis Claude plugin. Until then it is a 2.0-included module; the live-board protocol (v0.3) is distilled inline in `Constellation.md` (self-sufficient).
 
 ---
