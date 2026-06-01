@@ -1,4 +1,4 @@
-<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.13; date: 2026-06-01; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
+<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.14; date: 2026-06-01; protocol: live-board v0.3 (distilled inline — self-sufficient) + MCP integration v0.4 (§8); license: Apache-2.0 -->
 
 # Constellation — Live Multi-Agent Orchestration
 
@@ -185,6 +185,64 @@ Pin a tag (`…/v2.2.0/…`) for reproducibility.
 - **Layer 1 (Project seed)** — `.agent/_coordination/` is the file-based coordination baseline (Phase 5).
 - **Constellation** — the real-time graduation of that baseline. Adopt when the project runs concurrent agents that benefit from a live board.
 - Depth **follows the seed tier**: the Master seed pulls the full setup; lighter tiers reference only the §2 A2A bridge interface + this URL.
+
+---
+
+## 8. MCP integration — board as a Model Context Protocol surface (v0.4)
+
+Constellation has always carried an MCP affordance — `§3` operating modes maps `wsRealtime OFF` to "board SSE/MCP read only", on the design premise that an agent without a live WS connection should still be able to **read** board state through MCP. v0.4 makes that affordance explicit and extends it to **write** (A2A relay) so an external Claude Code session can join the live board through MCP as a first-class channel alongside the existing direct-WS gateway-client path.
+
+### 8.1 Why MCP
+
+The direct-WS path (`§2` A2A bridge + `gateway-client.eux` v2.5.3 SSoT-promoted) is the **runtime contract** — agents that run continuously and need full A2A reliability use the WS connection. The MCP path is the **integration contract** — Claude Code sessions and other MCP-capable hosts that want to *read* board state or *emit* targeted A2A messages without standing up a long-lived WS connection use the MCP server as the transport. Both paths terminate on the same server (`constellation/reference/runtime/server.cjs`); MCP is an additional protocol surface, not a parallel runtime.
+
+### 8.2 Read interface (`tools/list`-exposed read operations)
+
+The MCP server SHOULD expose at minimum:
+
+- **`board_state_get`** — returns the board's current `state.json` (modes · channels · current/done/planned · decisions · keys · feedback). Read-only; safe to call from any session. Maps directly to the server's `GET /state.json` HTTP endpoint, but presented as an MCP tool so the host's tool-use loop can compose it with other tools.
+- **`board_history_tail(channelId, sinceCursor)`** — returns the per-channel A2A message history from a cursor forward (the cursor is the canonical pointer the `§13.16.6` watcher + `§13.16.10` pre-send probe use). Read-only.
+- **`agent_list_get`** — returns the current `AgentList` (`§13.9` handshake group). Read-only; useful for routing decisions.
+
+These three cover the "I want to know what the board looks like" case without requiring the host to parse `state.json` directly or maintain its own WS connection.
+
+### 8.3 Write interface (A2A relay)
+
+For hosts that want to *emit* targeted A2A messages without a long-lived WS connection (e.g., a one-shot Claude Code session that needs to delegate a task to a board agent and wait for the result), the MCP server SHOULD expose:
+
+- **`a2a_emit(targetAgentId, name, value)`** — emits a `CUSTOM/{name}` envelope to `targetAgentId` through the server's relay. Returns the server-stamped `msgId` (so the caller can poll for `Ack` / `AckProcessed` via the read interface). The MCP server applies the same `§13.11.3` normalization (`type: "CUSTOM"` stamp · timestamp stamp · A2A-intent detection) the WS server applies on inbound frames.
+- **`a2a_wait_ack(msgId, tier, timeoutMs)`** — blocks until the requested ack tier (`§13.13`: `delivered` / `commitment` / `application`) arrives, or times out. Lets a one-shot session emit + wait without standing up a watcher.
+
+The write interface MUST honor the `§13.14` redaction discipline (no env-specific identifiers in tool args that surface to the host's log) and the `§13.16.9` 4-group classification (transport/liveness/handshake/notice are server-side filtered — MCP write tools accept only A2A-intent names, the same allowlist the watcher uses).
+
+### 8.4 Connection channel — joining the board through MCP
+
+An MCP-hosted Claude Code session joins the board by:
+
+1. **MCP server discovery** — the host's MCP config (e.g., `.mcp.json` in the project, or a plugin-bundled MCP server) declares the `constellation-mcp` server endpoint (typically `http://<host>:<port>/mcp` or a stdio-spawned local subprocess).
+2. **Authentication** — the MCP server inherits the same auth model as the WS gateway: `token` env (general gating) · `upstreamKey` env (upstream peer access) · `collabKey` env (external collab). The MCP server validates the env-injected key on first tool call and pins the session's role accordingly. Keys are NEVER passed as tool args (would leak to the host's tool-call log per `§13.14`).
+3. **Session lifecycle** — the MCP server keeps a *per-session* logical handle on the board (one MCP session = one logical agent identity). The session's `agentId` is derived from the key (e.g., upstream key → the upstream agent's canonical `agentId`); the host's MCP session lifetime maps to the agent's logical presence in the board. When the MCP session closes, the server marks the agent absent in the next `AgentList` push (handshake-group event — `§13.9`).
+4. **A2A-intent meaningful filter** — the same `§13.16.9` v2.5.2 4-group classification applies; the MCP read interface returns only meaningful inbound (A2A-intent group) by default, with an explicit opt-in flag to include handshake/notice if the host wants raw access.
+
+### 8.5 Composition with the plugin scaffolding (v0.4)
+
+Constellation v0.4 ships a `plugins/constellation/` skeleton (root-level `.claude-plugin/marketplace.json` references it) that **bundles** the MCP server alongside the WS gateway-client, dashboard, and Stop hook helpers. An adopter installing the Constellation plugin gets:
+
+- **MCP server** (`plugins/constellation/mcp/server.cjs`) — implements `tools/list` + `tools/call` per the read + write interfaces above. Connects to the live board via the same WS path (`constellation/reference/runtime/server.cjs`) — the MCP server is a **proxy adapter**, not a parallel server. One server, two protocol surfaces.
+- **Skills** (`plugins/constellation/skills/`) — wrap the MCP tools as user-invokable Claude Code commands (`constellation-board` reads state · `constellation-a2a-emit` writes A2A · `constellation-start` spawns the WS server + bridge).
+- **Stop hook** (`plugins/constellation/hooks/hooks.json` references `constellation/reference/runtime/stop-hook/pre-send-probe.cjs` — the v2.5.8 canonical promotion).
+
+The plugin's `plugin.json` declares MCP server, skills, and hooks as a single bundle; one `/plugin install` provides all three integration surfaces. See `plugins/constellation/README.md` (Phase 1 prototype scaffolding) for adopter onboarding.
+
+### 8.6 Stage discipline (v0.4 Phase 1)
+
+The v0.4 ship provides the **spec + skeleton**, not the full implementation:
+
+- **Specified now** (§8.2–§8.5 above): the read/write interface shape, the auth model, the connection channel semantics, the plugin-bundle composition.
+- **Skeleton now** (`plugins/constellation/mcp/server.cjs` Phase 1 prototype): tool registration + stub responses + proxy connection to the WS server. Read tools return real data via the WS proxy; write tools currently emit but ack-wait is best-effort.
+- **Full implementation deferred** (Phase 2 / v2.5.10+): `a2a_wait_ack` with full 3-tier ack tracking · session-lifecycle AgentList integration · MCP `prompts/list` and `resources/list` (for board-state-as-resource consumption by the host) · chunked transfer for large A2A payloads (composes with §13.11 attachment transport-mode currently under negotiation, EG → Hermes outbox 295).
+
+Adopters who need a complete MCP integration today should use the direct-WS path (`gateway-client.eux` v2.5.3); the v0.4 MCP path is fully usable for *read* and adequate for *one-shot write*. Production-grade write workflows (delegations that need reliable ack semantics) should wait for Phase 2.
 
 ---
 

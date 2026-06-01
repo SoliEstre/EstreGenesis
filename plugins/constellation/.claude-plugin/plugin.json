@@ -1,0 +1,18 @@
+{
+  "name": "constellation",
+  "version": "0.1.0",
+  "description": "Live multi-agent orchestration: WebSocket server + A2A messaging + dashboard + Stop hook helper + MCP server (read board state + emit targeted A2A). Bundles the v2.5.x reference runtime, the v2.5.3 SSoT-compliant gateway-client, the v0.4 MCP integration, and the v2.5.8 cross-environment Stop hook helper. Plugin v0.1.0 = Phase 1 prototype (spec + skeleton; full MCP write-ack pending Phase 2).",
+  "author": {
+    "name": "SoliEstre",
+    "url": "https://github.com/SoliEstre/EstreGenesis"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/SoliEstre/EstreGenesis/blob/main/Constellation.md",
+  "repository": "https://github.com/SoliEstre/EstreGenesis",
+  "mcp": {
+    "constellation-mcp": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.cjs"]
+    }
+  }
+}

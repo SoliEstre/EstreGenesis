@@ -1,0 +1,30 @@
+{
+  "name": "estregenesis-plugins",
+  "owner": {
+    "name": "SoliEstre",
+    "url": "https://github.com/SoliEstre/EstreGenesis"
+  },
+  "metadata": {
+    "version": "0.1.0",
+    "description": "EstreGenesis self-hosted Claude Code plugin marketplace. Currently ships Constellation (live multi-agent orchestration with MCP integration) and Superscalar (execution-scheduling discipline) as Phase 1 prototype plugins. Plugins are Apache-2.0 licensed; the marketplace mirrors the EG repo's main branch.",
+    "license": "Apache-2.0"
+  },
+  "plugins": [
+    {
+      "name": "constellation",
+      "source": "./plugins/constellation",
+      "description": "Live multi-agent orchestration: WebSocket server + A2A messaging + dashboard + Stop hook helper + MCP server (read board state + emit targeted A2A). Bundles the v2.5.x reference runtime, the v2.5.3 SSoT-compliant gateway-client, and the v0.4 MCP integration. Plugin v0.1.0 = Phase 1 prototype (spec + skeleton; full MCP write-ack pending Phase 2).",
+      "version": "0.1.0",
+      "category": "orchestration",
+      "tags": ["multi-agent", "websocket", "a2a", "live-board", "mcp", "dashboard"]
+    },
+    {
+      "name": "superscalar",
+      "source": "./plugins/superscalar",
+      "description": "Execution-scheduling discipline for parallel sub-agent dispatch: issue_width formula (effort_band + pace_mode + Little's Law + Kanban WIP + autonomy_available_workers) + worktree-isolated reorder buffer + cost-benefit gate + opt-in speculation + adoption thresholds. Plugin v0.1.0 wraps Superscalar.md v0.4 as a model-invoked skill the agent consults before fan-out decisions.",
+      "version": "0.1.0",
+      "category": "scheduling",
+      "tags": ["parallelism", "dispatch", "discipline", "worktree", "consistency-gate"]
+    }
+  ]
+}

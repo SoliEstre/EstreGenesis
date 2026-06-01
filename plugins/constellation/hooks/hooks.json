@@ -1,0 +1,13 @@
+{
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node \"${CLAUDE_PLUGIN_ROOT}/../../constellation/reference/runtime/stop-hook/pre-send-probe.cjs\" --rearm"
+        }
+      ]
+    }
+  ]
+}
