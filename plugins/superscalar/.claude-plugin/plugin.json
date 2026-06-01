@@ -1,0 +1,12 @@
+{
+  "name": "superscalar",
+  "version": "0.1.0",
+  "description": "Execution-scheduling discipline for parallel sub-agent dispatch. Wraps Superscalar.md v0.4 as a model-invoked skill the agent consults before fan-out decisions: issue_width formula + worktree-isolated reorder buffer + cost-benefit gate + opt-in speculation + adoption thresholds + n=8 dogfood ledger + Entry 06 controlled A/B measurement showing 'parallelism is not sufficient; orchestration discipline produces consistency'.",
+  "author": {
+    "name": "SoliEstre",
+    "url": "https://github.com/SoliEstre/EstreGenesis"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md",
+  "repository": "https://github.com/SoliEstre/EstreGenesis"
+}
