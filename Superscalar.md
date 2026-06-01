@@ -1,4 +1,4 @@
-<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-05) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-01; version: v0.3.0; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
+<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-06) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-01; version: v0.4.0; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
 
 # Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.3)
 
@@ -31,6 +31,12 @@
 | **Value prediction** | predict the gating outcome from `.agent/_lessons/` history (later) | 3 | v1 uses user-supplied confidence |
 
 Stages: **1** = this draft / immediate ship · **2** = post-v0.2 patch · **3** = experimental.
+
+### Meta-note — parallelism is not sufficient; orchestration discipline produces consistency (v0.4)
+
+The Superscalar mapping above frames the policy surface as "how do you parallelise without breaking architectural-state safety", which can mislead an adopter into reading the document as a *parallelism policy*. It is not. **Parallelism alone does not produce cross-lane consistency.** A naïve max-parallel dispatch (every dimension fires concurrently, no orchestration) achieves the latency win but leaves three structural gaps that no individual lane can close: (1) **duplicate findings are not deduplicated** — the same risk surfaced by four different lanes counts as four; (2) **inter-lane contradictions are not reconciled** — when two lanes both correctly observe a contradiction (e.g., one lane says "uses algorithm X", another says "uses algorithm Y", both grounded in source), neither lane has the other's context, so the contradiction persists as a silent quality defect downstream; (3) **completeness gaps are not surveyed** — each lane reports its own gaps, but no actor produces the *union of gaps* that drives the next iteration's scope.
+
+The §3 retire stage (in-order PM merge + consistency gate + completeness critic) is what produces cross-lane consistency. It is not a *scheduling* mechanism; it is a *coordination* mechanism. Removing it (Arm A in Entry 06's controlled A/B measurement below) preserves parallelism but **eliminates grounding (+118% crossRefs in Arm B), structural deduplication, contradiction resolution, and the completeness map** — naïve parallel is a strictly *faster but less coherent* output mode, not an equivalent one. The wall-clock cost of the discipline (Arm B 2.65× Arm A in Entry 06) is the cost of *phase serialisation* (freeze → consume → cross-cut → retire), not of parallel inefficiency; the lanes inside each phase still parallelise. An adopter choosing naïve-parallel is choosing speed over coherence — a legitimate choice for first-pass reconnaissance, but the wrong choice for handover-grade audit or cross-dimension consistency work. The §5 adoption-threshold table is the surface that surfaces this trade-off explicitly.
 
 ---
 
@@ -86,6 +92,7 @@ The §5 adoption thresholds use this distinction: the `merge-conflict rate > 15%
 ## 3. Reorder buffer = worktree isolation + cost-benefit gate + budget circuit breaker
 
 - **Each OoO/speculative task runs in its own `git worktree` + branch** (same repo, shared `.git` — far cheaper than full clone; Claude Code's `isolation: worktree` is the direct industrial analog). That worktree is the task's private architectural state = its ROB entry.
+  - **Nested independent-repo limitation (v0.4, surfaced at Entry 05 case 8)**: `git worktree` worktrees the *parent* repo. When the write target lives inside a **nested *independent* git repo** that the parent does not track (e.g., a parent docs/orchestration repo with a separate app repo nested inside — a common monorepo-adjacent shape), the per-lane parent worktree **does not contain the nested repo at all**. The lanes fall back to working in the shared nested repo, each on its own *branch* → **branch isolation, not worktree isolation**. The ROB's architectural-state isolation contract is *not* met; same-file concurrent writes on the nested repo's working tree would produce a real WAW hazard *despite* the `isolation: worktree` request being honored at the parent level. Mitigations: **(a)** worktree the *nested* repo per lane (not just the parent — the harness must detect nested-repo write targets and re-worktree); **(b)** guarantee file-disjointness across the lanes + accept branch isolation as the effective boundary (write-disjoint files on a shared working tree have no WAW); **(c)** harness emits a warning when nested-repo write targets are detected so the operator can pick (a) or (b) explicitly. Until the harness implements detection, the operator is the safety net — Stage-1 dispatch with `isolation: worktree` on a project with nested independent repos must include a file-disjointness pre-check at the lane manifest stage.
 - **Retire = PM review + merge, in order.** The main/PM agent verifies the branch (deps resolved · tests · no hazard) and merges. A merge conflict is a hazard the PM resolves — exactly WAW/WAR resolution.
 - **Cost-benefit gate (per lane spin-up):** open an isolated lane only when *estimated isolation + merge overhead < expected parallel / early-start benefit*. Inputs: worktree setup cost, task size, dependency fan-out, conflict likelihood, pace mode, **downstream sensitivity** (§4). Below threshold → run in-order in place.
 - **Irreversibility barrier — speculative side-effects are LLM-specific worse than CPU.** Read / analyze / isolated codegen may run in a lane. **Speculative write-side tools require explicit allowlist** — by default *outward-facing or irreversible* operations are **forbidden** in speculative lanes:
@@ -293,10 +300,22 @@ This first entry validates the §2 / §3 / §7 design at issue_width=3 with no s
   - **Therefore**: Superscalar's value is **scope · traceability · `[estimate] → [confirmed]` confidence**, not equal-scope efficiency. *"Broad, handover-grade distillation"* → Superscalar discipline justified. *"Fast core extraction"* → naive arm A sufficient (core security / consistency findings caught at −27% tokens, −56% time, with one bug-class A actually caught more sharply than B). The §5 adoption-thresholds table gains its first quantified anchor here.
 - **Calibration signal — both arms surface their characteristic gain**: a clean first dogfood entry where the *trade-off itself* is the result. A's tighter precision on its own scope (one race-condition bug caught more sharply than B) and B's broader coverage + new bugs are both real; the choice is workload-dependent, not arm-dominant. Stage 2's adoption-threshold tuning has its first calibrated reference point.
 
-### Entry 05 — 2026-06-01 · downstream adopter Stage 1 dogfooding (n=7) — read/write lane-class cap asymmetry
+### Entry 05 — 2026-06-01 · downstream adopter Stage 1 dogfooding (n=8) — read/write lane-class cap asymmetry + nested-repo worktree limitation
 
-- **Source**: downstream adopter — real-time chat-service microservices; full seed adoption incl. the Superscalar and Constellation modules; Burst pace mode (`issue_width` cap = 6); n = 7 retired lanes over ~3 days; case-based ledger, measured values only.
-- **Case mix**: 1 board-worker A2A (PM-doc refresh, width 2) · 5 read-only research subagents (codebase context sweeps, width 2 each) · 1 workflow fan-out (seed-upgrade delta-mapping = 7 reader lanes + synthesis barrier — exceeded policy cap 6, zero downside). Speculation = 0/7 · worktree-isolation direct use = 0/7 · OoO = Y on all (ready-first dispatch). Write lanes: max width = 1 (scope-isolated single file); read-only lanes: 6.
+- **Source**: downstream adopter — real-time chat-service microservices; full seed adoption incl. the Superscalar and Constellation modules; Burst pace mode (`issue_width` cap = 6); n = 8 retired lanes over ~3 days; case-based ledger, measured values only.
+- **Case mix**: 1 board-worker A2A (PM-doc refresh, width 2) · 5 read-only research subagents (codebase context sweeps, width 2 each) · 1 workflow fan-out (seed-upgrade delta-mapping = 7 reader lanes + synthesis barrier — exceeded policy cap 6, zero downside) · **1 worktree write dispatch (case 8 — first write-lane parallelism + first worktree use; 2 parallel UI write tasks `isolation: worktree` + 1 read-only research lane, total width 3, 0 merge conflict from disjoint files; see §2b limitation below)**. Speculation = 0/8 · worktree-isolation direct use = 1/8 (case 8, with §3 caveat) · OoO = Y on all (ready-first dispatch). Write lanes: max width = 2 (case 8's two disjoint UI tasks); read-only lanes: 6.
+
+### Entry 05 sub-finding §2b — worktree isolation does not span nested independent repos (case 8, new)
+
+Case 8 (the adopter's first worktree write-lane dispatch) surfaced a structural limitation of the `isolation: "worktree"` mapping documented now at §3. The adopter's frontend was a **separate git repository nested inside the parent project repo**, not tracked by the parent — the standard monorepo-adjacent shape (parent docs/orchestration repo with a separate app repo inside). When two write lanes were dispatched with `isolation: "worktree"`, the parent-repo worktree each lane received **did not contain the nested frontend repo at all**. The lanes fell back to working in the *shared* nested frontend repo, each on its own *branch* → **branch isolation, not worktree isolation**. The shared working tree was cross-visible: one lane observed the other's uncommitted changes mid-flight.
+
+The reason it did not break here: the two lanes touched **disjoint files**, so the separate-branch merges were clean (0 merge conflict). But the ROB isolation `§3` promises was **not** actually achieved — had the lanes touched the same file, the shared working tree would have produced a real WAW hazard *despite* the `isolation: "worktree"` request being honored at the parent level.
+
+**Request to upstream (R3)**: `§3` (a) document the limitation and the two mitigations (worktree the nested repo per lane / guarantee file-disjointness + accept branch isolation as effective boundary), and (b) suggest the harness detect nested-repo write targets and warn or re-worktree. **Reflected upstream at §3 nested-repo bullet (v0.4)** — three mitigations (a/b/c) now documented; pre-detection harness work remains the open Stage-2 surface.
+
+**Secondary lesson — presence verification ≠ behavioral verification (MAST FM-2.6 adjacent)**: in case 8, one write lane's output passed a *structural* self-verification (the new UI menu element + its 4 actions rendered in the live DOM) but carried a *behavioral* bug (two of the actions applied their effect only on widget reopen, not live) that only **user behavioral testing** caught. The lesson for lane self-verification discipline: a lane verifying an interactive feature should be instructed to **exercise the action → state-change path**, not just confirm the control renders. (Adjacent to MAST FM-2.6 announce-vs-action: "implemented X" passed structurally while X's runtime effect was incomplete.) `§7`'s announce-vs-action audit could fold this in as the dual: announce-vs-action catches the dispatch-side lie ("I did X" when X wasn't done); presence-vs-behavioral catches the verify-side lie ("X is present" when X doesn't *work*).
+
+
 - **`§2` confirmations**:
   - **Latency-hiding thesis — confirmed.** All 7 lanes hid agent-time during review-wait or independent-work windows. Write-lane width never exceeded 1; the real bottleneck is review throughput + independent-work availability, not model throughput.
   - **Speculation off-by-default — held (0/7).** No case simultaneously met the three ask-triggers (high-confidence likely branch + low downstream sensitivity + meaningful latency saving). The conservative default cost nothing.
@@ -319,4 +338,81 @@ This first entry validates the §2 / §3 / §7 design at issue_width=3 with no s
   - **R1 — `§2`/`§5` lane-class cap split**: adopted in §2 (`issue_width_read` drops Little's Law + Kanban-WIP terms — they only model retire-merge contention) and §5 (merge-conflict gate binds `issue_width_write` only).
   - **R2 — policy cap vs runtime concurrency ceiling relationship**: clarified in §2's new "Policy cap vs runtime concurrency ceiling" sub-section. `issue_width_write` is a hard policy bound; `issue_width_read` is a soft preference subject to the runtime ceiling above it. Effective concurrent lanes = `min(policy_cap, runtime_ceiling)`; which dominates is mechanism-dependent (workflow fan-out → runtime dominates; agent-tool fan-out → policy dominates).
 - **Cross-reference**: `_proposals/005_2026-06-01_superscalar-dogfooding-stage1/` — full bundle (EN + KO twin + README).
-- **Calibration signal**: first dogfood entry to probe the read-lane class above policy cap; resolves a previously-silent divergence between the single-cap formula and runtime ceilings on read-only fan-outs. Stage 2 work on the write side (worktree-isolation + wide-write merge-conflict) remains unaddressed by this entry — the Entry 01-04 baselines retain primacy on those surfaces.
+- **Calibration signal**: first dogfood entry to probe the read-lane class above policy cap; resolves a previously-silent divergence between the single-cap formula and runtime ceilings on read-only fan-outs. Case 8 added the first *worktree write-lane* data point — width 2, disjoint files, 0 conflict — but the §2b limitation means worktree-isolation is still untested in the *same-repo same-file concurrent write* shape that §3 is designed for. Stage 2 work on wide-write merge-conflict + the nested-repo harness-detection feature remains unaddressed by this entry; Entry 01-04 baselines retain primacy on the parent-repo write surfaces.
+
+### Entry 06 — 2026-06-01 · controlled A/B measurement on a 9-dimension backend audit (Superscalar discipline OFF vs ON, parallelism held constant)
+
+- **Source**: a downstream backend-audit dogfood — full-source deep-dive on a 9-dimension payment-backend (Java/Spring/MyBatis multi-module), with Superscalar **discipline** isolated as the single experimental variable. **Both arms parallelised** (workflows multi-parallel dispatch); the only difference was the orchestration discipline (design-freeze → consume → cross-cut → in-order retire + consistency gate + completeness critic).
+- **`issue_width`**: both arms ran width-9 at peak (9 dimensions: 3 foundation + 5 consumer + 1 cross-cut). Speculation = 0 both arms (already-decided audit scope).
+- **Experimental control quality**: A → B sequential execution on the same hardware with no external interruptions — clean signal compared to the Entry 04 controlled re-run (which was a sequential A/B on the same dashboard, but on a different workload domain). Both arms operated on byte-identical source.
+
+#### Quantitative measurement (raw totals)
+
+| Metric | Arm A (discipline OFF, naïve max-parallel) | Arm B (discipline ON) | Δ | Reading |
+|---|---:|---:|---|---|
+| Components covered | 145 | 144 | ≈0 | Equivalent coverage — both arms reached full source |
+| Endpoints enumerated | 314 | 485 | **+54% (B)** | B's grounded enumeration was more exhaustive, especially the auth matrix |
+| Raw findings | 121 | 109 | −12 | B pre-retire; A had no dedup stage |
+| **Findings after dedup** | (not performed) | 62 unique risk-groups (47 merged, 38 cross-dim pairs) | — | **B-only artifact** — see §3.1 below |
+| **crossRefs (grounding)** | 49 | **107** | **+118% (B)** | B's headline win — grounded citations replace assumption |
+| **assumptions (speculation surface)** | 62 | **37** | **−40% (B)** | B replaced speculation with sourced fact |
+| critical-severity findings | 13 | 14 | +1 | Equivalent — same true-positive class |
+| high-severity findings | 36 | 36 | 0 | Equivalent |
+| **Cost — agents** | 9 | 10 | +1 | Retire agent added |
+| **Cost — tokens** | 1.24 M | 1.34 M | **+8% (B)** | Modest token premium |
+| **Cost — wall-clock** | **8.9 min** | 23.6 min | **2.65× (A faster)** | Phase serialisation cost, not parallel inefficiency |
+
+#### Grounding causality (per-dimension breakdown)
+
+The crossRef increase concentrated in **consumer + cross-cut dimensions** — the dimensions whose work *receives* a frozen contract from upstream foundation:
+
+| Dimension | Role | crossRefs A → B | assumptions A → B |
+|---|---|---|---|
+| foundation-1 | foundation | 5 → 5 (≈) | 7 → 4 |
+| foundation-2 | foundation | 6 → 6 (≈) | 8 → 6 |
+| foundation-3 | foundation | 5 → 6 (≈) | 6 → 5 |
+| **consumer-1 (web-api class)** | **consumer** | **5 → 24 (4.8×)** | 7 → 4 |
+| **consumer-2 (office-admin class)** | **consumer** | 6 → 9 | 7 → **3** |
+| **consumer-3 (office-front class)** | **consumer** | **7 → 18 (2.6×)** | 7 → 5 |
+| **consumer-4 (payment-integration class)** | **consumer** | **5 → 12 (2.4×)** | 6 → **2** |
+| **consumer-5 (build-deploy class)** | **consumer** | 5 → 10 (2×) | 7 → 4 |
+| **cross-cut (security)** | **cross-cut** | **5 → 17 (3.4×)** | 7 → 4 |
+
+The foundation-3 dimensions stayed roughly flat (5→5, 6→6, 5→6) — they are the contracts' *source*, with no upstream to ground onto. The consumer + cross-cut dimensions are where design-freeze's grounding effect materialises, which is the line-level confirmation that **"design-freeze produces grounding" is a causal claim, not a coincidence**.
+
+#### B-only artifacts (the structural gap of naïve parallel)
+
+Arm A *cannot produce* the following by construction (no orchestration stage exists in naïve max-parallel). Arm B's retire stage produced them deterministically:
+
+- **3.1 Dedup** — Arm B's retire stage merged 47 cross-dimension duplicate findings into 62 unique risk groups and identified two maximum-distribution risks (one observed across 7 dimensions, another across 6) — these became the security-audit top priorities purely because they were the risks seen *concurrently* by the most independent lanes. Arm A's 121 raw findings included the same risks counted up to 4× (one platform-constant risk surfaced independently in 4 dimensions, all 4 counted separately with no consolidation actor).
+- **3.2 Consistency gate — real-world contradiction resolution (★ the headline result)** — broken-reference scan returned 0 across all consumer→foundation citations. One **real contradiction** was caught and resolved: a foundation dimension declared an authentication-hash class as one algorithm (with a security-library helper), while three consumer dimensions independently observed and grounded the *opposite* algorithm (raw, salt-less hashing in production paths, with the security-library entry-point marked as dead code in foundation comments). Arm B's retire gate paired the two observations, line-grounded the conflict, and resolved the **declared algorithm = dead utility, effective algorithm = the consumer-observed one (insecure)** — a security-relevant outcome that the audit could ship on. **Arm A also surfaced both halves** (one dimension correctly observed the declared class, another correctly observed the effective class) but **no actor reconciled them**; the contradiction persisted as a silent quality defect downstream of the audit. The retire gate is what made the difference — Arm B's *consistency gate* is precisely the actor that meets the two halves at the merge boundary. **This single case is the live demonstration of the §1 meta-note**: parallelism is not sufficient; discipline produces consistency.
+- **3.3 Completeness critic** — Arm B's retire stage produced an explicit "gaps map" — 11 named completeness gaps spanning unscanned scope (e.g., a controller class of ~40 unread endpoints), unread auxiliary domains, missing schema/DDL coverage, framework-version CVE survey gaps, and one *unavoidable* gap (operational-server in-residence credential values — by definition not in source). Arm A's 9 dimensions each reported their own gaps independently, but with no actor producing the *union of gaps*, the audit had no backlog for "what does the next iteration look at?" — a handover-quality defect.
+- **3.4 Systematic prior-finding cross-reference (S1…S16)** — Arm B's retire stage line-grounded the audit against a pre-existing handover-inventory's risk register (16 entries from a prior cycle), achieving **0 refutations + 16 confirmations + 6 entries with severity escalation evidence** (the new audit grounded the inventory entries more sharply than the inventory itself stated). Arm B also surfaced **4 new findings (X1…X4) — 3 of which were cross-confirmed by 3 independent consumer dimensions** (a previous-cycle independent-discovery validation that elevated the confidence ceiling on those new findings). Arm A's cross-cut dimension touched S1…S16 but only as one lane's solo work — no cross-dimension corroboration, no integrated reconciliation between S1…S16 and the new findings.
+
+#### Cost-benefit summary
+
+| Axis | Winner | Magnitude |
+|---|---|---|
+| Component coverage | Tie | 145 ≈ 144 |
+| Endpoint enumeration | **B** | +54% |
+| Grounding (crossRefs) | **B** | **+118%** |
+| Speculation suppression (assumption count) | **B** | **−40%** |
+| Deduplication | **B** | A did not perform (no orchestration stage) |
+| Consistency (real contradiction resolution) | **B** | A surfaced both halves but did not reconcile |
+| Completeness (gap union + S-cross-reference) | **B** | A did not perform |
+| **Wall-clock** | **A** | **2.65× faster** |
+| Tokens | A | B +8% |
+
+**Reading**: Arm A (naïve max-parallel) is faster — and a legitimate choice for *first-pass reconnaissance scans* where speed dominates. Arm B (Superscalar discipline) is slower because the discipline serialises the phases (freeze → consume → cross-cut → retire) and adds a retire agent — **not** because parallelism inside each phase is throttled. The cost of the discipline is the cost of **phase serialisation**, not parallel inefficiency. Held to **equal scope** the in-phase parallelism inside Arm B is identical to Arm A's; what Arm A saves is the phase-serialisation overhead.
+
+#### Calibration signal — first cleanly-measured wall-clock signal
+
+Entry 04's measurement caveat was that the +127% wall-clock there was *sequential single-dashboard arm-execution* (not concurrent), so it confounded in-lane sub-split overhead with the headline parallel-latency-hiding benefit. **Entry 06 closes that confound**: both arms parallelised (workflows multi-parallel dispatch in both), and the A → B sequential execution removed external-interruption noise that had invalidated the original 2026-05-30 A/B. The 2.65× wall-clock signal is therefore **the cleanly-measurable cost of the discipline's phase serialisation**, with the parallelism-vs-no-parallelism axis held constant. Combined with the +8% token cost, the trade is: a 2.65× wall-clock + 8% token premium buys grounding (+118%), assumption suppression (−40%), dedup, consistency-gate contradiction resolution, completeness gap-map, and integrated S-cross-reference. For handover-grade audits and cross-dimension consistency work the trade is favourable; for fast first-pass reconnaissance the trade is unfavourable.
+
+#### Reflected upstream
+
+- **§1 meta-note (v0.4)** — "parallelism is not sufficient; orchestration discipline produces consistency" — Entry 06's hash-algorithm-contradiction case is the load-bearing anchor.
+- **§5 adoption-thresholds (no threshold change)** — Entry 06 confirms the existing thresholds remain green; the trade-off table is what gains an explicit anchor, not the gates.
+- **§11 baseline catalogue** — Entry 06 is the first cleanly-measured *discipline-vs-no-discipline* A/B with parallelism held constant; Entry 04 (in-lane sub-split A/B at fixed width) and Entry 06 (cross-lane discipline A/B at full width) together form the **two-axis empirical anchor** for `§5` adoption-threshold tuning.
+
+*Privacy: redacted per `_proposals/` default — the audit's domain (payment-backend), language/framework (Java/Spring/MyBatis), and the specific algorithm contradiction class are generic identifiers; no service names, hosts, repos, or specific identifiers cited. The full unredacted measurement bundle remains in the dogfood directory under `assets/reports/` (gitignored).*
