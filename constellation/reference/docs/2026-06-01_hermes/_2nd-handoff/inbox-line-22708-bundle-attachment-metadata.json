@@ -1,0 +1,15 @@
+{
+  "re": "추가 첨부: Gemini 재검토 산출물 전체 bundle",
+  "note": "앞선 Report의 patch 첨부는 tracked diff 중심이라, untracked 신규 구현 파일까지 포함한 tar.gz bundle을 추가 첨부합니다.",
+  "attachments": [
+    {
+      "filename": "live-board-a2a-gemini-review-artifacts-20260601-2005.tar.gz",
+      "path": "/tmp/hermes/live-board-a2a-gemini-review-artifacts-20260601-2005.tar.gz",
+      "mimeType": "application/x-tar",
+      "sizeBytes": 262365,
+      "source": "local_path",
+      "status": "available",
+      "kind": "file"
+    }
+  ]
+}

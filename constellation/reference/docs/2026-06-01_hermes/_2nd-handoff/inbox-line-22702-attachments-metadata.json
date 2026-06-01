@@ -1,0 +1,20 @@
+[
+  {
+    "filename": "live-board-a2a-gemini-review-to-estregenesis-20260601-2005.md",
+    "path": "/tmp/hermes/live-board-a2a-gemini-review-to-estregenesis-20260601-2005.md",
+    "mimeType": "text/markdown",
+    "sizeBytes": 9384,
+    "source": "local_path",
+    "status": "available",
+    "kind": "file"
+  },
+  {
+    "filename": "live-board-a2a-gemini-review-current-diff-20260601-2005.patch",
+    "path": "/tmp/hermes/live-board-a2a-gemini-review-current-diff-20260601-2005.patch",
+    "mimeType": "text/x-diff",
+    "sizeBytes": 1811,
+    "source": "local_path",
+    "status": "available",
+    "kind": "file"
+  }
+]
