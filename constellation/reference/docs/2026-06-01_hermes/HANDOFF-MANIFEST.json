@@ -1,0 +1,52 @@
+{
+  "createdAt": "2026-06-01T17:48:02+0900",
+  "root": "<hermes-workspace>/constellation",
+  "files": [
+    {
+      "path": "GEMINI-OUTPUTS-REVIEW.md",
+      "size": 12794,
+      "sha256": "e95975c0e9c8f00b47624e93f43a85475f3fb4cdc9a4094f03334b9275e33cd8"
+    },
+    {
+      "path": "UPSTREAM-AGENT-REFLECTION.md",
+      "size": 5231,
+      "sha256": "372b8c310716ef4e5a6ad8843bcc272144487e4d793f70043651b49995d3186b"
+    },
+    {
+      "path": "AUTONOMOUS-AGENT-ONBOARDING-GUIDE.md",
+      "size": 5497,
+      "sha256": "af7f92f8e3975391044b0dd771758516e6094427fde5f9b673bf7ae1b254f5c2"
+    },
+    {
+      "path": "gateway-client.eux",
+      "size": 7516,
+      "sha256": "d39dc15f8351d7b6db3b646de7ae1861f91cc53f7249c2feafd45ddaf4490ee5"
+    },
+    {
+      "path": "reference/estregenesis/Constellation.md",
+      "size": 170957,
+      "sha256": "83799142cb5f2abcdcfd249f127c8f2bfcf668914d2173edba664a029726fefe"
+    },
+    {
+      "path": "reference/gateway/hermes/README.md",
+      "size": 5927,
+      "sha256": "798f027a9f9ca4d12008c0c84c33fe68f45f8237026c6c228f68fd397a51c17f"
+    },
+    {
+      "path": "reference/gateway/hermes/ws_agent_client.py",
+      "size": 18544,
+      "sha256": "5e33c43cd90ce4bc2016b86f24d41967c5b50b0dd0b215d0b45b6d6c14327a09"
+    },
+    {
+      "path": "reference/gateway/hermes/constellation-hermes-ref-summary.md",
+      "size": 2780,
+      "sha256": "afb7ce9d3ffca6162c437f7acc8dc7c201f94eeceaebc574e6034f52b3444ee1"
+    },
+    {
+      "path": "reference/gateway/hermes/constellation-hermes-gateway-ref.zip",
+      "size": 8700,
+      "sha256": "d3c4e808e5d0cb2ce62083f876e9aae5664582f0f54191ff869ce3e2d78b3164"
+    }
+  ],
+  "_redaction_note": "Original 'root' field carried the Hermes Dev Agent's local workspace path; redacted to '<hermes-workspace>' placeholder per Constellation §13.14 reference-build redaction discipline. File-level sha256 values unchanged."
+}
