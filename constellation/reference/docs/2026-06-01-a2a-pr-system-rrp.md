@@ -1,17 +1,17 @@
-# A2A PR System — Cross-repo Pull Request orchestration via the A2A messaging layer (RRP v0.2 DRAFT)
+# A2A PR System — Cross-repo Pull Request orchestration via the A2A messaging layer (RRP v0.3 DRAFT)
 
-> **DRAFT v0.2 — Phase 1 Level 2 shipped, Level 1 path pending.**
-> Phase 1 prototype (Level 2 — provider-mediated Github PR path) shipped upstream as commit `2213a14`: `server.cjs` `_PR_CUSTOM` 5-type observer set + `wsPrMergeReject` strict `role==main` gate + `PRStatusUpdate` observer; `local-bridge` `handlePrRequest` (trusted-mirror validate → β′ mirror branch on target repo → `gh pr create` → `PRDraftReady`) + `handlePrMergeRequest` (`gh pr merge` → `PRMergeAck`); `state.json.pr_system.trusted_mirrors` registry. Dry-run default: `CONSTELLATION_PR_LIVE` env OFF (opt-in to live PR creation). Priority open questions Q1/Q2/Q3 are resolved by the Phase 1 ship (see §11).
+> **DRAFT v0.3 — Phase 1 + Phase 1b shipped, AC-dogfood-6 achieved via PR #1.**
+> Phase 1 prototype (Level 2 — provider-mediated Github PR path) shipped upstream as commit `2213a14`. Phase 1b (Level 1 — A2A-envelope-only path on the receiving-side bridge) shipped subsequently; the first Level 1 protocol-mediated PR completed end-to-end as the §10 dogfood case, landing the §13.14/§13.15 mirror at integration-branch commit `140fd64` on the target repo. Three structural defects (sourceContentRef `kind` placeholder lookup; missing `inline-section-mirror` handler; `targetPath` base ambiguity) were surfaced and resolved by the dry-run + review + `abs+exists` gates BEFORE any external publish — the gate stack's value is empirically validated. Priority open questions Q1/Q2/Q3 are resolved by the Phase 1 ship; AC-dogfood-6 is achieved by Phase 1b + the PR #1 e2e completion. See §11 + §10A (case study).
 > EG 1차지식 perspective (Constellation orchestration domain, downstream-of-main per §13.9 peer role).
-> **Still NOT a unilateral spec** — the v0.2 additions (Level 1 abstraction, β′ topology articulation, Phase 1b sub-phase) layer on top of the Phase 1 form and remain open to refinement at joint formalization. Items marked "(open for main review)" continue to be load-bearing.
+> **Still NOT a unilateral spec** — the v0.3 additions (7 RRP-body learnings from dogfood PR #1: `sourceContentRef.kind` enum, `inline-section-mirror` semantics, `targetPath` base spec, cherry-pick skip discipline, dry-run `abs+exists` verification, `trusted_mirrors` `targetRepo` alias resolve order, `PR_LIVE` env semantics + `dryRun` marker + user merge delegation) layer on top of the Phase 1 / Phase 1b form and remain open to refinement at joint formalization. Items marked "(open for main review)" continue to be load-bearing.
 > Targeted as a new sub-section in `Constellation.md` (proposed slot: §13.22, immediately after §13.21 fresh-context-defer; number to be confirmed at joint-formalization time).
 
 ---
 
 ## 1. Status & provenance
 
-- **Version**: v0.2 DRAFT (Phase 1 Level 2 shipped, Level 1 path pending). Predecessor: v0.1 (initial RRP, 2026-06-01).
-- **Date**: 2026-06-01 (v0.2 patch same day as v0.1 cut; reflects Phase 1 ship `2213a14` arriving same day).
+- **Version**: v0.3 DRAFT (Phase 1 + Phase 1b shipped; AC-dogfood-6 achieved via PR #1 e2e completion at integration-branch commit `140fd64`). Predecessors: v0.2 (Phase 1 ship + Level 1 abstraction layered, 2026-06-01); v0.1 (initial RRP, 2026-06-01).
+- **Date**: 2026-06-01 (v0.3 patch same day as v0.1 + v0.2 cuts; reflects Phase 1 + Phase 1b ship + dogfood PR #1 e2e completion arriving same day).
 - **Context**: Companion to the §13.14 / §13.15 mirror gap (these two sections currently exist in this repo's `Constellation.md` but are NOT mirrored in the `<hub-repo>` `WS-PROTOCOL.md` — the manual-PR tax described in §1 below is the immediate driver, and the same §13.14/§13.15 mirror PR is the canonical dogfood case described in §9).
 - **Authoring lane**: EG (per §13.9 peer/upstream role with respect to the `<hub-repo>` main; this RRP is one half of a coordinated proposal — the other half is whatever the `<hub-repo>` main wants to add at joint formalization time).
 - **Joint-formalization workflow**: this draft → main upstream review (`<hub-repo>` side; comments via outbox `Delegate` or live-board `decisions` panel per §13.17) → reconciled merge → committed as new `§13.22` (or whichever number main assigns) in `Constellation.md`. The dogfood PR (§9) is the *forcing function*: landing the §13.22 protocol allows the §13.14/§13.15 mirror PR itself to be the first PR routed through the new system, proving the protocol works at the moment it lands.
@@ -134,7 +134,19 @@ The `category` field is the *trusted-mirror* gate from §6: `trusted-mirror` PRs
 
 **`level` field** (v0.2 addition; default `2` for backward compatibility with Phase 1 ship). `1` selects the Level 1 virtual-PR path (A2A-envelope-only; receiving side commits + pushes directly to the integration branch; no `gh pr create`); `2` selects the Level 2 Github-PR path (provider-mediated; `gh pr create` against the target repo). The receiving side validates the requested level against its capability matrix (does it hold direct push access to `targetRepo`? does it share an operator with the sender?) and rejects mismatches; the sender may retry with the other level.
 
-The `sourceContentRef` field carries either a branch ref (per §7 option β / β′ — the standard form) or an inline `filesDiff` for small diffs (§7 option α). The `slaEta` field is the requester's *expected review SLA*, composing with §13.19.7 `ReviewSLAAck` discipline — if the reviewer cannot meet the ETA, the existing renegotiate-SLA path applies.
+The `sourceContentRef` field carries either a branch ref (per §7 option β / β′ — the standard form) or an inline `filesDiff` for small diffs (§7 option α) or an inline-section-mirror payload (v0.3 addition; see §4.1.1 enum and §6.5 semantics). The `slaEta` field is the requester's *expected review SLA*, composing with §13.19.7 `ReviewSLAAck` discipline — if the reviewer cannot meet the ETA, the existing renegotiate-SLA path applies.
+
+### 4.1.1 `sourceContentRef.kind` enum (v0.3 formalization)
+
+The `sourceContentRef` object carries a discriminator field `kind` whose value selects the content-sourcing handler the receiving bridge invokes. Three values are defined; the enum is closed (receivers MUST reject unknown values per the fail-safe rule below).
+
+| `kind` value | Payload shape | Receiver handler |
+|--------------|---------------|------------------|
+| `branch-ref` | `{ kind: 'branch-ref', sourceRepo, sourceBranch }` | `git fetch <sourceRepo> <sourceBranch>` + `git checkout FETCH_HEAD -- .` against the receiving side's checkout of the target repo. The original branch-based form per §7.β / §7.β′. |
+| `inline-files-diff` | `{ kind: 'inline-files-diff', filesDiff }` where `filesDiff` is a unified-diff string | `git apply <filesDiff>` against the receiving side's checkout of the target repo. Inline diff form per §7.α. |
+| `inline-section-mirror` | `{ kind: 'inline-section-mirror', body, targetPath, mergeStrategy }` (see §6.5 for full semantics) | Append (or per `mergeStrategy`) the literal `body` text to the file at `targetPath`, then `git add <targetPath>` ONLY (never `-A`) and commit. NO branch-fetch step. New in v0.3 — solves the §10A dogfood-1 case study's "would have committed the entire EG repo into hub main" near-disaster. |
+
+**Fail-safe default for unknown `kind`** (v0.3 invariant — derived from §10A dogfood-1 defect #2): if the receiving bridge does not recognize the `kind` value, it MUST reject the `PRRequest` with a `PRRequestRejected { reason: 'unknown-source-content-kind', kind: <received-value> }` envelope. The receiver MUST NOT fall through to a default handler. The dogfood-1 case showed why: an unrecognized `kind` falling through to the `branch-ref` handler caused `git checkout FETCH_HEAD -- .` to attempt a wholesale repository overwrite of the target repo. The fail-safe reject keeps the receiving bridge in a safe (no-op) state until the sender corrects the payload.
 
 ### 4.2 `PRDraftReady`
 
@@ -265,7 +277,42 @@ The PR-bot validates the `outOfBandApprovalRef` against the live board's `decisi
 
 **Open question for main review** (§10 Q3): should `emergency` exist at all in v0.1, or should hotfix PRs route through the `standard` flow with an accelerated user-prompt cadence?
 
-### 6.4 Where the line goes (open for main review)
+### 6.5 `inline-section-mirror` semantics (v0.3 addition)
+
+The `inline-section-mirror` `kind` (per §4.1.1) is the canonical content-sourcing form for spec-mirror PRs that append a self-contained section to an existing file on the target repo (the §10 dogfood case is the prototype). The full payload semantics:
+
+- **`body`** (string, required) — the literal text to apply. For `mergeStrategy: 'append-section'`, this is the section body that gets appended to the end of `targetPath`. Newline-terminated.
+- **`targetPath`** (string, required) — repo-relative path to the file being modified. See §6.6 for the base-spec.
+- **`mergeStrategy`** (string enum, required) — the apply mode. Currently only `'append-section'` is defined. Future enum values (open for main review): `'prepend-section'` (insert at top), `'replace-section'` (replace existing section identified by some anchor), `'insert-after-anchor'` (insert after a named anchor line).
+
+**Bridge invariants** (the v0.3 receiver MUST observe all of these):
+
+1. **`git add` isolation** — after applying the `body` to `targetPath`, the bridge MUST `git add <targetPath>` and ONLY `<targetPath>`. The bridge MUST NOT `git add -A` or `git add .`. The §10A dogfood-1 defect #2 showed why: a fallthrough to `-A` would commit every untracked file in the target-repo checkout (including the entire EG-repo checkout if the bridge happened to be running from a parent directory). File-level `git add` keeps the commit footprint deterministic and isolated.
+2. **No branch-fetch** — the `inline-section-mirror` handler MUST NOT invoke `git fetch` or `git checkout FETCH_HEAD`. The content is entirely in the `body` payload; no remote read is required. Falling through to the `branch-ref` handler's fetch step is the failure mode the fail-safe reject (§4.1.1) prevents.
+3. **PR_LIVE existence check** — before appending in `PR_LIVE` mode, the bridge MUST verify the target file exists (`fs.existsSync(path.resolve(HUB_REPO_DIR, targetPath))`). If the file does not exist, the bridge MUST reject with `PRRequestRejected { reason: 'inline-mirror-target-missing', targetPath, abs: <resolved-absolute-path> }` rather than create an orphan file at the resolved path. The §10A dogfood-1 defect #3 showed why: an unresolved `targetPath` would have created an orphan `WS-PROTOCOL.md` at the hub repo root rather than appending to the real `dashboard/live/WS-PROTOCOL.md`.
+4. **Dry-run `abs+exists` log** — when `CONSTELLATION_PR_LIVE` is OFF, the bridge MUST log `abs=<resolved-absolute-path> exists=<bool>` so path-resolution defects surface BEFORE PR_LIVE flips on. See §10.6.
+
+### 6.6 `targetPath` base specification (v0.3 addition)
+
+`targetPath` is **relative to the receiving bridge's `HUB_REPO_DIR`** — i.e., the repository root of the receiving bridge's target-repo checkout, equivalent to `git rev-parse --show-toplevel` of the bridge process's target-repo working directory. The dogfood-1 case study (§10A defect #3) made this explicit after the original (unstated) convention was ambiguous between three possible bases:
+
+| Base candidate | Status | Rationale |
+|----------------|--------|-----------|
+| `HUB_REPO_DIR` (target-repo root) | **CANONICAL** (v0.3) | Repo-relative; deterministic for both sender and receiver; matches how `git add` works; portable across operator setups. |
+| Bridge process cwd | NOT used | Process cwd is environment-dependent and not knowable to the sender. |
+| Absolute filesystem path | NOT used | Reveals operator filesystem layout; not portable; breaks cross-machine repro. |
+| Sub-tree-relative (e.g., a `dashboard/` sub-tree root) | NOT used | Two repos with the same sub-tree name would have ambiguous bases. |
+
+**Examples** (for a hub-repo checkout where the target file lives at `dashboard/live/WS-PROTOCOL.md`):
+
+- ✅ `targetPath: "dashboard/live/WS-PROTOCOL.md"` (sub-path from `HUB_REPO_DIR`).
+- ❌ `targetPath: "WS-PROTOCOL.md"` (would resolve to the hub repo root — file does not exist there; bridge rejects with `inline-mirror-target-missing`).
+- ❌ `targetPath: "/c/Users/.../hub-repo/dashboard/live/WS-PROTOCOL.md"` (absolute path; bridge rejects).
+- ❌ `targetPath: "live/WS-PROTOCOL.md"` (sub-tree-relative; bridge rejects — does not exist at `<HUB_REPO_DIR>/live/WS-PROTOCOL.md`).
+
+**Sender responsibility**: the sender MUST know the receiver's actual file layout. For trusted-mirror PRs, the layout is part of the deployment-policy registry (§6.1); for `standard` PRs, the sender is expected to either know the layout (from prior PR experience) or accept a `targetPath`-base correction loop with the receiver. The `abs+exists` dry-run log (§6.5 invariant 4) makes the corrective loop cheap (one dry-run reveals the resolved absolute path + existence, the sender corrects the sub-path, the next dry-run passes).
+
+### 6.7 Where the line goes (open for main review)
 
 The proposal: **for v0.1, only `trusted-mirror` and `standard` ship; `emergency` is deferred to phase 3.** Reasoning:
 
@@ -332,6 +379,22 @@ The requester pushes to their own fork of the target repo (a user-account fork o
 - **Level 1**: content sourcing is implicit — the receiving side reads from the source-content payload (either an inline `filesDiff` or a fetched source-repo ref the receiving side already has access to as part of its operator-shared filesystem). No mirror branch on the target repo is needed (the change goes straight to the integration branch on commit).
 
 Rationale (β′ vs β): cross-repo provider authorization complications inherent to β (the PR-bot needs read access to the source repo's branch at the provider tier) are avoided by β′ (the source content lands on the target repo's own branch before `gh pr create`, making the PR intra-target at the provider level).
+
+### 7.ε `trusted_mirrors.targetRepo` alias resolve order (v0.3 addition)
+
+The §6.1 `trusted_mirrors` registry's `targetRepo` field SHOULD use a stable **alias** (the default convention is the literal string `"hub"`) rather than the real repo identifier. This shields the public-shipped registry from leaking the real production repo path (§13.14 redaction discipline) and lets the receiving bridge resolve aliases at runtime.
+
+**Default alias convention**: receiving bridges SHOULD register `"hub"` as the default `targetRepo` for the receiving side. Senders emit `PRRequest { targetRepo: "hub", ... }` as the canonical convention; the receiver resolves `"hub"` to the real repo identifier via the lookup order below.
+
+**Resolve order** (the receiving bridge's `matchTrustedMirror` invokes these in sequence; first match wins):
+
+1. **`state.json.pr_system.target_aliases`** (operator-set, primary) — a `{ "hub": "<real-repo-identifier>", ... }` map in `state.json`. The operator sets this once per deployment; subsequent `PRRequest` resolutions are constant-time.
+2. **`git remote get-url origin`** of the receiving bridge's target-repo checkout (fallback) — if `target_aliases["hub"]` is unset, the bridge derives the real repo identifier from `git remote get-url origin` (parsed to `org/repo` form). This is the zero-config path for the common single-target-repo case.
+3. **Reject** — if neither resolves, the bridge rejects with `PRRequestRejected { reason: 'unknown-target-repo-alias', alias: <received-value> }`.
+
+The dogfood-1 case study (§10A defect #1) showed why this matters: the v0.2 form used `<hub-repo>` as a literal placeholder in the RRP examples, and the early Phase 1b implementation did a literal-string lookup against `<hub-repo>` in the registry, which never matched the real repo identifier. Adding the alias resolve order made the registry portable across operator deployments while keeping the public-shipped RRP redaction-safe.
+
+**Redaction-safe by default** (§13.14 cross-link): because the `targetRepo` field on the wire is the alias (`"hub"`) and the real repo identifier lives only in `state.json` (operator-local, not public-shipped) or is derived from `git remote get-url origin` at runtime, the A2A wire envelopes never carry the real production repo path. Public-shipped RRP examples can use `"hub"` literally without leaking.
 
 ---
 
@@ -417,7 +480,29 @@ Both directions reuse the §13.20 ladder (polite → explicit → deadline → h
 
 Every PR-lifecycle emission gets server-auto `Ack{delivered}` per §13.13. The PR-bot's `PRDraftReady` IS the `AckProcessed` for the originating `PRRequest` (or, per §4.3 open question, `AckProcessed` is emitted first and `PRDraftReady` follows). `PRReviewAck` is the application-tier ack for the review request implied by the PR being in `IN_REVIEW`. The §13.13 conservative multi-probe + human-escalation tail applies if a `PRDraftReady` does not arrive within expected window — the requester `Ping`s the PR-bot, and if no `Pong`, escalates via `decisions` panel.
 
-### 9.3 Live-board PR panel (open for main review — implementation ask)
+### 9.3 `already-in-target` cherry-pick skip discipline (v0.3 addition — Level 1 merge handler)
+
+In the Level 1 path, the receiving bridge has already committed the staged change to the target repo's **local** integration branch at `applyDiffAndCommit` time (the `PRDraftReady` commit SHA lives on local `main`, not on a separate staging branch). When `PRMergeRequest` arrives, the conventional merge-handler shape — "cherry-pick the staged commit onto the integration branch, then push" — would attempt to cherry-pick a commit that is already in the local branch's history, producing a duplicate-commit error (or, if the cherry-pick succeeded, a duplicate commit on the integration branch).
+
+**The skip rule** (v0.3 invariant for Level 1 merge handlers):
+
+```text
+on PRMergeRequest:
+    if git merge-base --is-ancestor <draftRef> <targetBranch>:
+        # draftRef is already in targetBranch's history → no cherry-pick needed
+        proceed directly to: git push origin <targetBranch>
+    else:
+        git cherry-pick <draftRef>
+        git push origin <targetBranch>
+```
+
+The receiving bridge MUST check `git merge-base --is-ancestor <draftRef> <targetBranch>` BEFORE attempting cherry-pick. If the check returns true (exit code 0), the cherry-pick step is a no-op and the bridge proceeds directly to push. If false, the bridge performs the cherry-pick normally.
+
+**Why this matters**: the §10A dogfood-1 case study's e2e completion exercised this exact path. The receiving bridge's `applyDiffAndCommit` already committed `140fd64` to its local `main` (the local target-branch checkout). When `PRMergeRequest` arrived from the same agent (self-target merge relay — the receiving side is `role==main` for the target repo), the merge handler would have failed on a literal cherry-pick of `140fd64` because that commit was already in local `main`'s history. The skip rule lets the handler proceed cleanly to `git push origin main`, which is the only operation needed at that point.
+
+**Level 2 not affected**: Level 2's merge handler invokes `gh pr merge`, which is the provider's API operation against a separate PR object — no local cherry-pick is involved. The skip rule is Level 1 only.
+
+### 9.4 Live-board PR panel (open for main review — implementation ask)
 
 Parallel to §13.20.7's blocker-manifest panel ask, this RRP proposes a **PR panel** on the live board surfacing the active PRs:
 
@@ -492,6 +577,121 @@ If any step requires manual user PR-UI interaction, the dogfood has not validate
 
 Each surfaced failure becomes a §13.22 sub-section refinement or a §10 open question's resolved answer.
 
+### 10.6 Dry-run limitations and the `abs+exists` verification log (v0.3 addition)
+
+Dry-run mode (`CONSTELLATION_PR_LIVE` env OFF — the Phase 1 / Phase 1b default per §13) traditionally short-circuited every git-mutating operation: no `git checkout FETCH_HEAD`, no `git apply`, no `git add`, no `git commit`, no `git push`. The implicit assumption was that since no real write occurs, no real validation matters either — the dry-run was treated as a no-op stub.
+
+The §10A dogfood-1 case study exposed the gap in that assumption: a `targetPath` whose resolution fails (file does not exist at the resolved absolute path) is a defect that surfaces only at PR_LIVE time, because the traditional dry-run never resolved or stat'd the path. The result was a path-resolution defect that could not be caught until PR_LIVE was enabled and a real (incorrect) operation almost ran.
+
+**The v0.3 requirement** (Phase 1b-onward): dry-run mode MUST log the path-resolution result for any `inline-section-mirror` (and any other `kind` whose handler resolves a target file). The log line shape:
+
+```text
+[dry-run] would <operation>(<size> bytes) to <targetPath> · abs=<absolute-path> · exists=<bool>
+```
+
+Concretely for `inline-section-mirror`:
+
+```text
+[dry-run] would append inline-section-mirror(1234 bytes) to dashboard/live/WS-PROTOCOL.md · abs=/c/Users/.../hub-repo/dashboard/live/WS-PROTOCOL.md · exists=true
+```
+
+The `abs` field is the result of `path.resolve(HUB_REPO_DIR, targetPath)`. The `exists` field is `fs.existsSync(<abs>)`. If `exists` is `false`, the operator + sender + reviewer can diagnose the path-resolution defect from the dry-run output alone — no PR_LIVE flip is required.
+
+**Composition with §6.5 invariant 4 + §6.6 base spec**: the `abs+exists` log is the operational test of the §6.6 base-spec ("`targetPath` is relative to `HUB_REPO_DIR`"). If the sender encoded the wrong base, the `exists=false` log surfaces it. If the operator's `HUB_REPO_DIR` is misconfigured, the `abs` log surfaces that too (the absolute path will point to the wrong directory).
+
+### 10.7 `PR_LIVE` env semantics + `dryRun: false` marker + user merge delegation (v0.3 addition)
+
+**`CONSTELLATION_PR_LIVE` env semantics**: a process-level environment variable on the **receiving bridge** that gates whether git operations are executed (`PR_LIVE=1` → execute) or stubbed (`PR_LIVE=0` or absent → dry-run). The variable is an operator-managed safety; it is NOT toggled via A2A envelopes. A2A merely **uses** the operator's setting — the sender cannot turn PR_LIVE on remotely. This preserves the autonomous-execution gate (b) external-publish: a sender requesting a real PR depends on the receiving operator having pre-authorized real execution by setting the env variable.
+
+**`dryRun` marker on outbound envelopes**: the receiving bridge SHOULD include a `dryRun: <bool>` field on `PRDraftReady` and `PRMergeAck` envelopes to disambiguate the result. `dryRun: false` means real git operations executed; `dryRun: true` means stubbed. The marker is informational (the sender can infer dryRun state from `draftRef`'s shape — a real commit SHA vs a placeholder — but the explicit field is clearer and forwards-compatible if dry-run stubs evolve to produce real-looking placeholders).
+
+**User merge delegation pattern**: when the operator/user trusts the protocol's gates (`category: trusted-mirror`, redaction grep, `abs+exists` verification, role-gated `PRMergeRequest`) for a class of PRs, the operator can pre-delegate merge authority for that class. The shape: the operator surfaces a directive like "for trusted-mirror category PRs, review and if no problem found, merge and push without per-PR confirmation." The receiving bridge's `role==main` agent then emits `PRMergeRequest` autonomously on review approval. This reduces per-PR confirmation overhead without bypassing the §13.17 decisions-panel mechanism for non-trusted-category PRs.
+
+The delegation is per-operator policy, not a protocol-level invariant — different operators may set different delegation thresholds. The protocol's job is to make the per-PR signal (category, review verdict, gate results) legible enough that the operator can confidently set the delegation policy.
+
+---
+
+## 10A. Dogfood-1 case study — first Level 1 protocol-mediated PR completion (v0.3 addition)
+
+The §10 dogfood plan's first execution completed end-to-end as a Level 1 protocol-mediated PR. This sub-section documents the e2e path traversed, the three structural defects surfaced and resolved by the gate stack, the final integration-branch commit SHA, and the AC-dogfood-6 achievement. This is the **canonical reference case** for downstream Constellation adopters considering Level 1 adoption — what to look for, what gates work.
+
+### 10A.1 e2e protocol path traversed
+
+The complete envelope chain that landed the §13.14/§13.15 mirror at integration-branch commit `140fd64`:
+
+```text
+EG agent:    PRRequest { level: 1, category: 'trusted-mirror',
+                          sourceContentRef: { kind: 'inline-section-mirror',
+                                              body: <§13.14+§13.15 bodies>,
+                                              targetPath: 'dashboard/live/WS-PROTOCOL.md',
+                                              mergeStrategy: 'append-section' },
+                          targetRepo: 'hub', targetBranch: 'main', ... }
+                 ↓ (A2A)
+Hub bridge:  matchTrustedMirror → resolve('hub') → real-repo identifier via target_aliases (or `git remote origin` fallback)
+                 ↓
+Hub bridge:  wsPrLevel1Capable check → capability OK
+                 ↓
+Hub bridge:  applyDiffAndCommit (PR_LIVE on)
+                 → append <body> to <HUB_REPO_DIR>/dashboard/live/WS-PROTOCOL.md
+                 → git add dashboard/live/WS-PROTOCOL.md  (isolated; NOT -A)
+                 → git commit (local main)
+                 → result: commit 140fd64 (30 insertions, 1 file)
+                 ↓ (A2A)
+Hub bridge:  PRDraftReady { dryRun: false, draftRef: '140fd64', ... }
+                 ↓
+EG agent:    review (redaction grep: 0 hits; path consistency: confirmed; duplicate check: clean)
+                 ↓ (A2A)
+EG agent:    PRReviewAck { verdict: 'approve', ... }
+                 ↓ (A2A)
+Hub-main role agent:  PRMergeRequest (role==main self-target relay; the receiving bridge is itself role==main for the target repo)
+                 ↓
+Hub bridge:  git merge-base --is-ancestor 140fd64 main → true (draftRef already in main local history)
+                 → cherry-pick skip (§9.3 discipline)
+                 → git push origin main
+                 ↓ (A2A)
+Hub bridge:  PRMergeAck { pushSuccess: true, commitSha: '140fd64' }
+                 ↓ (A2A)
+Hub bridge:  PRStatusUpdate { state: 'merged', draftRef: '140fd64' }
+```
+
+Final origin/main HEAD: `140fd64` (confirmed via `git ls-remote origin main`).
+
+### 10A.2 Three structural defects surfaced and resolved (gate value validated)
+
+All three defects were caught by the dry-run + review + `abs+exists` gates BEFORE any external publish. The gate stack's empirical value is: three near-disasters prevented, zero damage incurred.
+
+**Defect #1 — `<hub-repo>` placeholder lookup failure** (resolved → §7.ε alias resolve order)
+- *Symptom*: receiving bridge's `wsPrLevel1Capable` capability check + `matchTrustedMirror` lookup did literal-string compares against `<hub-repo>` placeholder text in the registry; the real repo identifier never matched, capability check failed.
+- *Root cause*: v0.2 RRP used `<hub-repo>` as a placeholder in examples; early Phase 1b registry entries inherited the literal placeholder.
+- *Resolution*: added `state.json.pr_system.target_aliases { "hub": "<real-repo-id>" }` primary lookup + `git remote get-url origin` fallback. Default alias name `"hub"` agreed; senders emit `targetRepo: "hub"` as the canonical convention.
+- *Codified at*: §7.ε.
+
+**Defect #2 — bridge missing `inline-section-mirror` handler** (resolved → §4.1.1 fail-safe + §6.5 invariants)
+- *Symptom*: Phase 1b bridge's `applyDiffAndCommit` had no branch for `sourceContentRef.kind === 'inline-section-mirror'`; the unknown-kind path fell through to the default `branch-ref` handler.
+- *Root cause*: the `branch-ref` handler invoked `git fetch + git checkout FETCH_HEAD -- .`, which against the sender's branch (EG repo's `main`) would have wholesale-overwritten the receiving bridge's target-repo checkout with EG-repo content. Effectively: an entire-EG-repo commit into hub `main`.
+- *Resolution*: added the explicit `inline-section-mirror` branch with `git add <targetPath>` isolation (file-level, never `-A`) and no branch-fetch. Codified the fail-safe rule that the receiving bridge MUST reject unknown `kind` values rather than fall through.
+- *Codified at*: §4.1.1 fail-safe default + §6.5 invariants 1 (`git add` isolation) and 2 (no branch-fetch).
+
+**Defect #3 — `targetPath` base mismatch** (resolved → §6.6 base spec + §6.5 invariant 3 + §10.6 dry-run log)
+- *Symptom*: sender sent `targetPath: "WS-PROTOCOL.md"` (literal, no sub-path); the real file lived at `dashboard/live/WS-PROTOCOL.md`. The receiving bridge's `HUB_REPO_DIR` resolution produced `<hub-repo-root>/WS-PROTOCOL.md`, which did not exist. In PR_LIVE mode without an existence check, the bridge would have created an orphan file at the repo root.
+- *Root cause*: `targetPath`'s base was unstated in v0.2 — three reasonable candidates (absolute path, bridge-cwd-relative, `HUB_REPO_DIR`-relative) were equally plausible from the spec text. Sender chose the wrong one.
+- *Resolution*: bridge logs `abs=<resolved-absolute-path> exists=<bool>` in dry-run mode (so the defect surfaces before PR_LIVE) and rejects with `inline-mirror-target-missing` in PR_LIVE mode (so the orphan-file scenario cannot land). Sender corrected payload to `dashboard/live/WS-PROTOCOL.md`. §6.6 documents the `HUB_REPO_DIR`-relative base as canonical.
+- *Codified at*: §6.5 invariant 3 (PR_LIVE existence check) + §6.6 base spec + §10.6 dry-run `abs+exists` log.
+
+### 10A.3 AC-dogfood-6 achievement
+
+The §12.3 acceptance criterion **AC-dogfood-6 (Level 1)** — "the first Level 1 mirror PR (EG → `<hub-repo>` `WS-PROTOCOL.md` §13.14/§13.15 mirror) succeeds end-to-end via A2A envelopes only — receiving (= hub) side directly applies the change to its local checkout of the target repo, commits, pushes to the integration branch, and reports the resulting commit SHA in `PRMergeAck`. No `gh pr create` is involved" — is **achieved** by the PR #1 e2e completion above. The full chain ran via A2A envelopes only; no provider PR object was created; the integration-branch commit SHA `140fd64` is reported in `PRMergeAck { pushSuccess: true, commitSha: '140fd64' }`.
+
+### 10A.4 Lessons for downstream Constellation adopters
+
+For downstream projects considering Level 1 adoption:
+
+- **Run the dry-run gate FIRST**. The `abs+exists` log surfaces path-resolution defects without any real write. Skipping dry-run to "save time" defeats the gate stack.
+- **Verify the `kind` enum coverage on the receiving bridge** before any PR_LIVE flip. The fail-safe reject for unknown `kind` values is the safety net; confirm the bridge actually implements it (not silently falls through).
+- **Set `state.json.pr_system.target_aliases` explicitly**. Don't rely on the `git remote get-url origin` fallback for multi-target deployments; the explicit alias map is constant-time and unambiguous.
+- **The redaction grep + path-consistency review on PRReviewAck is non-optional**. Even for trusted-mirror category PRs, the reviewer agent's `PRReviewAck` step ran the §13.14 redaction grep + duplicate-section check. Both gates returned clean for PR #1; the discipline is the gate.
+- **The user merge delegation pattern is opt-in by class**, not blanket. Delegating "review and if no problem, merge and push" for `trusted-mirror` PRs is reasonable; delegating it for `standard` PRs is not.
+
 ---
 
 ## 11. Open questions (main upstream review required)
@@ -536,7 +736,7 @@ Items where the EG-side draft has a working position but main upstream's reactio
 
 ### Q7. Live-board PR panel — separate panel or extension of existing panels?
 
-§9.3 proposes a separate PR panel parallel to §13.20.7's blocker-manifest panel. The alternative is to fold PR rows into the blocker panel (since a stalled PR IS a blocker per §9.1). Folding reduces panel proliferation; separating gives PR state its own visual surface.
+§9.4 proposes a separate PR panel parallel to §13.20.7's blocker-manifest panel. The alternative is to fold PR rows into the blocker panel (since a stalled PR IS a blocker per §9.1). Folding reduces panel proliferation; separating gives PR state its own visual surface.
 
 **Main's answer steers**: live-board UX; `app.js` impl scope.
 
@@ -607,7 +807,9 @@ Components delivered:
 
 Phase 1 implements **Level 2 only**. Level 1 path is the Phase 1b add-on.
 
-### Phase 1b — Level 1 path (virtual PR via A2A envelopes) — PENDING
+### Phase 1b — Level 1 path (virtual PR via A2A envelopes) — DONE
+
+**Shipped: AC-dogfood-6 achieved via PR #1 e2e completion** (integration-branch commit `140fd64` on the target repo). The Level 1 path is operational; the §10A case study documents the e2e protocol path traversed and the three structural defects surfaced + resolved during the dogfood cycle.
 
 - Extend `local-bridge` `handlePrRequest` with a Level 1 branch: when `PRRequest.level == 1`, skip `gh pr create`; instead apply the source diff to the target repo's local checkout, stage a commit, and emit `PRDraftReady` with `draftRef: <commit-sha>`.
 - Extend `handlePrMergeRequest` with a Level 1 branch: when the originating `PRRequest.level == 1`, the merge operation is "push the staged commit to the integration branch on the target repo's local clone and emit `PRMergeAck` with the integration-branch commit SHA + push success."
@@ -627,7 +829,7 @@ Phase 1 implements **Level 2 only**. Level 1 path is the Phase 1b add-on.
 ### Phase 3 — Full §13.20 integration + advanced features
 
 - §6 `emergency` category if main's §11 Q5 answer requires it.
-- Live-board PR panel implementation (§9.3 ask routed to `app.js` / `server.cjs` / `style.css`).
+- Live-board PR panel implementation (§9.4 ask routed to `app.js` / `server.cjs` / `style.css`).
 - §7 option γ (fork-based) support if needed for repos beyond `<hub-repo>`.
 - Cross-link audit: every §13.x section that touches "external work" or "review" should mention §13.22 if applicable; the §13.20 blocker-manifest UI surfaces PR-stalled blockers with first-class treatment.
 
@@ -668,4 +870,4 @@ The §13.22 protocol DOES:
 
 ---
 
-*End of v0.2 DRAFT. Priority open questions Q1 (topology) / Q2 (content-sourcing) / Q3 (authority model) resolved by Phase 1 upstream ship `2213a14` (Level 2 path — local-bridge `cmd:createPR`, β′ mirror branch on target repo, strict `role==main` merge gate). Phase 1b (Level 1 virtual-PR path on local-bridge) pending main implementation; AC-dogfood-6 is the Level 1 dogfood acceptance criterion. Non-priority Q4-Q8 remain open. Joint-formalization target: §13.22 sub-section in `Constellation.md`, number to be confirmed at merge time.*
+*End of v0.3 DRAFT. Priority open questions Q1 (topology) / Q2 (content-sourcing) / Q3 (authority model) resolved by Phase 1 upstream ship `2213a14` (Level 2 path — local-bridge `cmd:createPR`, β′ mirror branch on target repo, strict `role==main` merge gate). Phase 1b (Level 1 virtual-PR path on the receiving bridge) shipped; AC-dogfood-6 achieved via the §10A dogfood-1 case study e2e completion at integration-branch commit `140fd64`. v0.3 incorporates seven RRP-body learnings from the dogfood-1 cycle: `sourceContentRef.kind` enum formalization (§4.1.1) · `inline-section-mirror` semantics (§6.5) · `targetPath` base spec (§6.6) · `trusted_mirrors.targetRepo` alias resolve order (§7.ε) · already-in-target cherry-pick skip discipline (§9.3) · dry-run `abs+exists` verification log (§10.6) · `PR_LIVE` env semantics + `dryRun` marker + user merge delegation (§10.7). Non-priority Q4-Q8 remain open. Joint-formalization target: §13.22 sub-section in `Constellation.md`, number to be confirmed at merge time.*
