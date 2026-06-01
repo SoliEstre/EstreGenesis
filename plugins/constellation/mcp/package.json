@@ -1,0 +1,10 @@
+{
+  "name": "constellation-mcp",
+  "version": "0.2.0",
+  "description": "Constellation MCP server — Phase 2 full impl (WS proxy + 5 tools + 3-tier ack + chunked transfer + §13.13.2 dedup)",
+  "main": "server.cjs",
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "license": "Apache-2.0"
+}

@@ -34,19 +34,33 @@ CONSTELLATION_COLLAB_KEY=ck-...
 CONSTELLATION_TOKEN=...
 ```
 
-## What's in v0.1.0 (Phase 1 prototype)
+## What's in v0.2.0 (Phase 2 production-ready)
 
 - Skill registration (3 skills + Stop hook)
-- MCP server skeleton (stdio JSON-RPC + 5 tool registrations + stub responses)
-- Plugin manifest (`plugin.json` declares MCP server, skills, hooks as a single bundle)
+- **MCP server full impl** (`mcp/server.cjs` + `mcp/package.json` declaring `ws ^8.18.0` dependency):
+  - Live WS proxy connection to the Constellation server (peer-coordination handshake: SERVER_HELLO → HELLO → AgentHello)
+  - **5 tools fully implemented**: `board_state_get` · `board_history_tail` (cursor + §13.16.9 v2.5.2 meaningful filter) · `agent_list_get` · `a2a_emit` (§13.11 rule 5 attachment-aware) · `a2a_wait_ack` (**full §13.13 3-tier**: delivered/commitment/application)
+  - **§13.13.2 idempotent receiver dedup** (seen-msgId LRU 1024/1h; duplicates emit `AckProcessed { dedupHit: true }` automatically)
+  - **Chunked transfer reassembly** (ArtifactManifest + ArtifactChunk + ArtifactComplete; per §13.11 rule 5 + §13.13.2)
+  - Session-lifecycle AgentList integration (MCP session = logical agent presence; close → server marks absent on next AgentList)
+- Plugin manifest (`plugin.json` v0.2.0 declares MCP server, skills, hooks as a single bundle)
 
-## Deferred to Phase 2 (v2.5.10+)
+## Install (with npm dependency)
 
-- Full WS proxy connection from the MCP server to the live board
-- `a2a_wait_ack` with full §13.13 3-tier ack semantics
-- Session-lifecycle AgentList integration (MCP session = logical agent presence)
-- MCP `prompts/list` and `resources/list` (board state as MCP resource)
-- Chunked transfer for large A2A payloads (composes with §13.11 attachment transport-mode currently under negotiation with hermes-dev-agent per outbox 295)
+```bash
+# In Claude Code session:
+/plugin marketplace add SoliEstre/EstreGenesis
+/plugin install constellation@estregenesis-plugins
+
+# Plugin install must resolve the npm dep — if not auto-resolved:
+cd plugins/constellation/mcp && npm install
+```
+
+## Deferred to Phase 3 (v2.5.12+)
+
+- MCP `prompts/list` and `resources/list` (board state as MCP resource — currently `board_state_get` tool only)
+- v0.4 reference-implementation: server.cjs pending queue + redelivery scheduler (per §13.13.2 §13.13.2 server-side state — Phase 3 ships the server complement to this plugin's receiver-side dedup)
+- Telemetry sink: redelivery counts + dedup-hit rates + RelayUnreachable rates (calibration data for §13.13.2 default-tuning)
 
 ## Spec source
 
