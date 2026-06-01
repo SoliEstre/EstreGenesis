@@ -13,11 +13,17 @@
 #   워커:  WS_INBOX=runtime/w2-inbox.jsonl WS_AGENT_ID=worker-2 bash self-wake-watcher.sh &
 #          (커서 파일은 inbox 경로에서 자동 파생 → runtime/.w2-inbox-cursor, 메인 커서와 충돌 없음)
 #
-# ▣ 의미 필터 (broadcast 노이즈만 흡수, blocklist):
-#   inbox 는 이미 '나에게 라우팅된' 큐다. 알려진 noise(ServerNotice/AgentList/Status/Heartbeat/
-#   UserPromptAccepted/OnboardAck 등)만 흡수(커서 전진)하고, 그 외 실제 액션·보고(UserPrompt·
-#   Delegate·WorkerReport·WorkerAck·AgentHello·Handoff* 등)는 모두 깨운다.
-#   (allowlist 가 아닌 blocklist — 새 의미 name 이 생겨도 놓치지 않음.)
+# ▣ 의미 필터 (Constellation §13.16.9 Message classification by intent SSoT 참조):
+#   noise blocklist === §13.16.9 board-directed allowlist + transport-tier
+#     (ServerNotice/AgentList/Status/ConnectionRestored/Heartbeat/Typing/UserPromptAccepted/
+#      PersistentAdapterSmoke/OnboardAck/WorkerInboxReceived/EditMessage/MainChanged/History/
+#      Ack/AckProcessed/AckCumulative/AckPolicyUpdate) — 흡수(커서 전진, 깨우지 않음).
+#   meaningful allowlist === §13.16.9 A2A-intent allowlist
+#     (Report/Delegate/WorkerReport/WorkerAck/AgentHello/Handoff/HandoffRequested/HandoffReady/
+#      Command/Priority/Cancel/UserPrompt/BlockerManifest/BlockerNudge/PRRequest/PRDraftReady/
+#      PRReviewAck/PRMergeRequest/PRMergeAck/PRStatusUpdate/DeadlockProbe/ReviewSLAAck/
+#      PreemptRequest/PreemptForce/MediationProposal/MediationAck/EscalationRequest) — 깨움.
+#   알려지지 않은 name은 fail-safe default = 깨움 (silent-drop-of-A2A이 더 큰 cost).
 #   local-bridge.cjs 의 telemetry filter(AgentList/History/CloseChannel drop) 와 정합.
 #   feedback.jsonl 새 줄·standby=false 는 항상 깨움.
 #
@@ -75,7 +81,7 @@ echo "[ws-wait] armed: inbox=$INBOX cursor=$ic agent=$WID feedback=$FB feedback_
 # 새 줄(인자=시작 커서 이후) 중 의미 있는 항목이 있으면 1, 아니면 0 출력.
 # blocklist — inbox 는 이미 나에게 라우팅된 큐이므로 알려진 noise 만 흡수하고 나머지는 모두 깨운다.
 #
-# ▣ ev-agnostic, name-only (Constellation §13.16.6 v2.4.16 정합):
+# ▣ ev-agnostic, name-only (Constellation §13.16.6 v2.4.16 정합 + §13.16.9 v2.4.17 SSoT):
 #   이 필터는 line 의 `name`/`type` 필드만 본다. `ev` 필드를 prepend-grep 하면 안 됨.
 #   inbox.log 는 두 가지 envelope 포맷을 모두 담는다 — (a) legacy event-relay
 #   `{"t":..., "ev":"inbound", "msg":{"name":...}}` (bridge 의 라이프사이클 로그)
@@ -85,10 +91,12 @@ echo "[ws-wait] armed: inbox=$INBOX cursor=$ic agent=$WID feedback=$FB feedback_
 #   진단 anchor: 2026-06-01 watcher bv0u5h95p + bd7k7xoy3 REARM-timeout 사례
 #   — direct 포맷 inbound 4건이 v2.4.2 ev-gate 에 의해 silently 누락.
 #   name blocklist 만으로 self-emission echo + transport noise 양쪽을 모두 커버한다.
+#   v2.4.17: NOISE 와 MEANINGFUL 모두 §13.16.9 SSoT 와 정합. 알려지지 않은 name 은
+#   fail-safe default = 깨움 (silent-drop-of-A2A 이 더 큰 cost).
 meaningful() {
   node -e '
     const fs = require("fs"), f = process.argv[1], from = +process.argv[2];
-    const NOISE = ["ServerNotice", "AgentList", "Status", "ConnectionRestored", "Heartbeat", "Typing", "UserPromptAccepted", "PersistentAdapterSmoke", "OnboardAck", "WorkerInboxReceived", "EditMessage"];
+    const NOISE = ["ServerNotice", "AgentList", "Status", "ConnectionRestored", "Heartbeat", "Typing", "UserPromptAccepted", "PersistentAdapterSmoke", "OnboardAck", "WorkerInboxReceived", "EditMessage", "MainChanged", "History", "Ack", "AckProcessed", "AckCumulative", "AckPolicyUpdate"];
     let ls = []; try { ls = fs.readFileSync(f, "utf8").trim().split("\n").filter(Boolean); } catch {}
     const ok = ls.slice(from).some(s => { try { const o = JSON.parse(s);
       return !NOISE.includes(o.name || o.type || ""); } catch { return false; } });

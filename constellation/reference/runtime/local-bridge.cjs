@@ -170,7 +170,8 @@ function connect() {
       capabilities: { inbound: ['UserPrompt', 'Command', 'Cancel', 'Priority'], outbound: ['RUN_STARTED', 'RUN_FINISHED', 'STEP_STARTED', 'STEP_FINISHED', 'TEXT_MESSAGE_START', 'TEXT_MESSAGE_CONTENT', 'TEXT_MESSAGE_END', 'TOOL_CALL_START', 'CUSTOM'] },
     });
     console.log('[bridge] connected — HELLO as', AGENT_ID, '(' + AGENT_NAME + ')');
-    send('CUSTOM', { name: 'Status', value: { text: '로컬 IDE 브릿지 온라인 — 에이전트 작업 중일 때 준실시간 응답' } });
+    // [DISABLED 2026-06-01] Status auto-send removed — non-A2A intent (board 대화창 알림)이 server target-unspecified CUSTOM relay policy로 wsPrimaryAgent A2A inbox에도 들어가는 채널-혼선 발생. ServerNotice (아래 line) 로 재연결 broadcast 유지하고 Status auto-send는 비활성.
+    // send('CUSTOM', { name: 'Status', value: { text: '로컬 IDE 브릿지 온라인 — 에이전트 작업 중일 때 준실시간 응답' } });
     send('CUSTOM', { name: 'ServerNotice', value: { kind: 'online', target: 'bridge', agentId: AGENT_ID, text: AGENT_ID + ' 브릿지 온라인(재연결)' } });   // 재연결 공지 → 모든 연결 broadcast (§재시작 공지)
   };
   ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } onInbound(m); };
