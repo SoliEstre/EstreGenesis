@@ -1,16 +1,17 @@
-# A2A PR System — Cross-repo Pull Request orchestration via the A2A messaging layer (RRP v0.1 DRAFT)
+# A2A PR System — Cross-repo Pull Request orchestration via the A2A messaging layer (RRP v0.2 DRAFT)
 
-> **DRAFT v0.1 — for main upstream review before any protocol details are committed.**
+> **DRAFT v0.2 — Phase 1 Level 2 shipped, Level 1 path pending.**
+> Phase 1 prototype (Level 2 — provider-mediated Github PR path) shipped upstream as commit `2213a14`: `server.cjs` `_PR_CUSTOM` 5-type observer set + `wsPrMergeReject` strict `role==main` gate + `PRStatusUpdate` observer; `local-bridge` `handlePrRequest` (trusted-mirror validate → β′ mirror branch on target repo → `gh pr create` → `PRDraftReady`) + `handlePrMergeRequest` (`gh pr merge` → `PRMergeAck`); `state.json.pr_system.trusted_mirrors` registry. Dry-run default: `CONSTELLATION_PR_LIVE` env OFF (opt-in to live PR creation). Priority open questions Q1/Q2/Q3 are resolved by the Phase 1 ship (see §11).
 > EG 1차지식 perspective (Constellation orchestration domain, downstream-of-main per §13.9 peer role).
-> **NOT a unilateral spec** — every concrete design decision below is flagged "(open for main review)" and may be overridden by the joint formalization step. The intent is to give main upstream a *complete shape to react to*, not a fait accompli.
+> **Still NOT a unilateral spec** — the v0.2 additions (Level 1 abstraction, β′ topology articulation, Phase 1b sub-phase) layer on top of the Phase 1 form and remain open to refinement at joint formalization. Items marked "(open for main review)" continue to be load-bearing.
 > Targeted as a new sub-section in `Constellation.md` (proposed slot: §13.22, immediately after §13.21 fresh-context-defer; number to be confirmed at joint-formalization time).
 
 ---
 
 ## 1. Status & provenance
 
-- **Version**: v0.1 (initial RRP — first complete shape; awaits main upstream reaction).
-- **Date**: 2026-06-01.
+- **Version**: v0.2 DRAFT (Phase 1 Level 2 shipped, Level 1 path pending). Predecessor: v0.1 (initial RRP, 2026-06-01).
+- **Date**: 2026-06-01 (v0.2 patch same day as v0.1 cut; reflects Phase 1 ship `2213a14` arriving same day).
 - **Context**: Companion to the §13.14 / §13.15 mirror gap (these two sections currently exist in this repo's `Constellation.md` but are NOT mirrored in the `<hub-repo>` `WS-PROTOCOL.md` — the manual-PR tax described in §1 below is the immediate driver, and the same §13.14/§13.15 mirror PR is the canonical dogfood case described in §9).
 - **Authoring lane**: EG (per §13.9 peer/upstream role with respect to the `<hub-repo>` main; this RRP is one half of a coordinated proposal — the other half is whatever the `<hub-repo>` main wants to add at joint formalization time).
 - **Joint-formalization workflow**: this draft → main upstream review (`<hub-repo>` side; comments via outbox `Delegate` or live-board `decisions` panel per §13.17) → reconciled merge → committed as new `§13.22` (or whichever number main assigns) in `Constellation.md`. The dogfood PR (§9) is the *forcing function*: landing the §13.22 protocol allows the §13.14/§13.15 mirror PR itself to be the first PR routed through the new system, proving the protocol works at the moment it lands.
@@ -53,6 +54,41 @@ A naive alternative — "write a `gh pr create` wrapper, call it from a TodoWrit
 
 The RRP therefore proposes a **wire vocabulary + agent topology + state machine** treatment, not a script.
 
+### 2.4 Two-level abstraction — Level 1 (virtual PR, A2A-only) vs Level 2 (Github PR, provider-mediated)
+
+A core v0.2 refinement: the same wire vocabulary (§4) and state machine (§9) describe two distinct physical realizations of a "PR." Which one applies in a given case is a function of *who operates the source and target sides* and *what file-system access the receiving side holds*.
+
+**Level 1 — Virtual PR (A2A-only path)**. The PR exists *only* as an A2A message exchange between the source agent and the target-owner agent; no actual provider-side (GitHub / GitLab / Gitea) PR object is created. Applicable when:
+
+- Source and target sides share an operator (same person or team operates both ends), AND
+- Both sides have direct repo-level file-system access (the receiving side can clone, edit, commit, and push to the target repo locally).
+
+In Level 1, the receiving side (= the side that holds commit-push authority on the target repo) reads the `sourceContentRef` carried by `PRRequest`, applies the change directly to its local checkout of the target repo, commits, and pushes — using A2A envelopes only for review / ack signaling. The `gh pr create` step is skipped entirely. Review happens in-band on the A2A wire; merge equals "commit to the target repo's integration branch and push."
+
+**Level 2 — Github PR (provider-mediated path)**. The existing Phase 1 form per ship `2213a14`. `handlePrRequest` calls `gh pr create` against the target repo provider; the PR exists as a real GitHub / GitLab / Gitea object; review and merge flow through the provider's UI / API, with A2A envelopes mirroring state. Applicable when:
+
+- Source and target sides are operated by different parties, OR
+- The PR is cross-org, OR
+- The target repo's integration policy requires a provider-side PR object (e.g., for required-status-checks, for audit trail at the provider tier, for compatibility with downstream Constellation adopters' provider-mediated workflows).
+
+**Selection rule** (also encoded in the permission table §8 and reflected in §6 approval discipline). If `category == "trusted_mirror"` AND `operator-shares-target` AND `target-repo-direct-access` conditions both hold, **Level 1 is the default**. Otherwise Level 2. The selection is carried as an explicit payload field `level: 1 | 2` on `PRRequest`; the receiving side validates against its capability matrix and rejects mismatches (e.g., if `level == 1` is requested but the receiver has no direct push authority on the target repo, the receiver rejects with a capability-mismatch reason and the sender may retry with `level: 2`).
+
+**Backward compatibility**: `PRRequest.level` defaults to `2` if absent, matching the Phase 1 ship's existing behavior. Pre-v0.2 senders continue to function unchanged.
+
+**Wire vocabulary across both levels** — the five `CUSTOM` types from §4 (`PRRequest` / `PRDraftReady` / `PRReviewAck` / `PRMergeRequest`+`PRMergeAck` / `PRStatusUpdate`) cover *both* levels; semantics adapt per level. Per-type adaptations are documented inline at each type in §4, summarized here:
+
+| Type | Level 1 (virtual PR) | Level 2 (Github PR) |
+|------|----------------------|---------------------|
+| `PRRequest.level` | `1` | `2` (default if absent) |
+| `PRDraftReady.draftRef` | commit-sha on the staged target branch | provider PR number |
+| `PRMergeRequest` | "commit the staged change to the target's integration branch" | "call `gh pr merge`" |
+| `PRMergeAck` | reports commit SHA + push success | reports merged-PR state per provider |
+| `PRStatusUpdate.state` | level-1 state machine (DRAFT → IN_REVIEW → APPROVED / CHANGES_REQUESTED → MERGED, where MERGED ≡ commit pushed to integration branch) | level-2 state machine (the §9 5-state machine as originally specified) |
+
+The §9 state machine is `level`-discriminated; both levels traverse the same 5 logical states, but the transition triggers and the MERGED-state realization differ per level.
+
+**Phase 1 ship status**: the current Phase 1 prototype (`2213a14`) implements Level 2 only. Phase 1b (§13) extends to Level 1.
+
 ---
 
 ## 3. Goals & non-goals
@@ -77,30 +113,36 @@ The RRP therefore proposes a **wire vocabulary + agent topology + state machine*
 
 ## 4. Wire vocabulary — proposed new `CUSTOM` message types
 
-Five new `CUSTOM` types are proposed, all layered above §13.13 (server-stamped `msgId`, server-emitted `Ack{delivered}`, recipient-agent `AckProcessed`). All are application-tier emissions per §13.13's three-grade model — none are server-auto-emitted; all originate from an agent at the application layer.
+Five new `CUSTOM` types are proposed, all layered above §13.13 (server-stamped `msgId`, server-emitted `Ack{delivered}`, recipient-agent `AckProcessed`). All are application-tier emissions per §13.13's three-grade model — none are server-auto-emitted; all originate from an agent at the application layer. **All five types apply to both Level 1 and Level 2** (§2.4); per-type fields with level-discriminated semantics are flagged inline below.
 
 | Name | Direction | Purpose | Required fields | Optional fields |
 |------|-----------|---------|-----------------|-----------------|
-| `PRRequest` | Any agent → PR-bot agent OR direct to repo-owner agent | Initiate a new PR | `sourceRepo`, `sourceBranch \| filesDiff`, `targetRepo`, `targetBranch`, `title`, `body` | `labels[]`, `reviewers[]`, `category: 'trusted-mirror' \| 'standard' \| 'emergency'`, `slaEta` |
-| `PRDraftReady` | PR-bot agent → requester | Acknowledge PR creation; carry URL + number | `for: msgId`, `prUrl`, `prNumber`, `checksPending[]` | `repoOwner`, `repoName`, `headBranch` |
-| `PRReviewAck` | Reviewer-role agent → requester | Application-tier review ack (approve / request-changes / comment) | `for: prNumber`, `verdict: 'approve' \| 'request-changes' \| 'comment'`, `reviewBody` | `inlineComments[]`, `slaEta` (if `request-changes`), `reviewedAt` |
-| `PRMergeRequest` / `PRMergeAck` | Merge-authority agent → PR-bot; PR-bot → requester | Trigger and confirm merge | `for: prNumber`, `mergeStrategy: 'merge' \| 'squash' \| 'rebase'` | `commitTitle`, `commitBody`, `deleteSourceBranch: bool` |
-| `PRStatusUpdate` | PR-bot agent → all watchers (broadcast or targeted) | Periodic state push | `prNumber`, `state: 'draft' \| 'open' \| 'changes_requested' \| 'approved' \| 'merged' \| 'closed'`, `checks: {...}`, `reviewState: {...}` | `lastEventAt`, `nextSlaCheckAt` |
+| `PRRequest` | Any agent → PR-bot agent OR direct to repo-owner agent | Initiate a new PR | `sourceRepo`, `sourceContentRef` (branch ref OR inline filesDiff), `targetRepo`, `targetBranch`, `title`, `body`, `level: 1 \| 2` (default `2`) | `labels[]`, `reviewers[]`, `category: 'trusted-mirror' \| 'standard' \| 'emergency'`, `slaEta` |
+| `PRDraftReady` | PR-bot agent (Level 2) OR receiving-side agent (Level 1) → requester | Acknowledge PR creation OR target-branch staging; carry draftRef | `for: msgId`, `draftRef` (commit-sha for Level 1; pr-number for Level 2), `checksPending[]` | `prUrl` (Level 2), `repoOwner`, `repoName`, `headBranch` |
+| `PRReviewAck` | Reviewer-role agent → requester | Application-tier review ack (approve / request-changes / comment) | `for: draftRef`, `verdict: 'approve' \| 'request-changes' \| 'comment'`, `reviewBody` | `inlineComments[]`, `slaEta` (if `request-changes`), `reviewedAt` |
+| `PRMergeRequest` / `PRMergeAck` | Merge-authority agent → PR-bot / receiving-side agent; back to requester | Trigger and confirm merge | `for: draftRef`, `mergeStrategy: 'merge' \| 'squash' \| 'rebase'` (Level 2 only — Level 1 always equivalent to fast-forward / direct commit to integration branch) | `commitTitle`, `commitBody`, `deleteSourceBranch: bool` |
+| `PRStatusUpdate` | PR-bot agent OR receiving-side agent → all watchers (broadcast or targeted) | Periodic state push | `draftRef`, `level`, `state: 'draft' \| 'open' \| 'changes_requested' \| 'approved' \| 'merged' \| 'closed'`, `checks: {...}` (Level 2 only), `reviewState: {...}` | `lastEventAt`, `nextSlaCheckAt` |
 
-### 4.1 `PRRequest` (open for main review)
+### 4.1 `PRRequest`
 
 The sender is any agent that has determined a PR is the appropriate next step. The target is either:
 
 - A dedicated **PR-bot agent** (topology a in §5) — the bot holds provider credentials and creates the real PR on the provider's API surface, OR
-- A **repo-owner agent** that delegates to the local bridge's `createPR` port (topology b in §5).
+- A **repo-owner agent** that delegates to the local bridge's `createPR` port (topology b in §5, the form adopted by Phase 1 ship `2213a14`).
 
-Choice between the two is the topology decision in §5 (recommendation: hybrid, lean topology b for v0.1). The `category` field is the *trusted-mirror* gate from §6: `trusted-mirror` PRs are auto-approved for creation per the deployment policy in `state.json`; `standard` PRs follow per-PR user opt-in; `emergency` PRs (e.g., a hotfix mirror) carry an out-of-band approval reference.
+The `category` field is the *trusted-mirror* gate from §6: `trusted-mirror` PRs are auto-approved for creation per the deployment policy in `state.json.pr_system.trusted_mirrors` (§13.14/§13.15 pair as shipped); `standard` PRs follow per-PR user opt-in; `emergency` PRs (e.g., a hotfix mirror) carry an out-of-band approval reference.
 
-The `sourceBranch \| filesDiff` choice maps to the content-sourcing options in §6 below — small diffs may carry the bytes inline (§6 option α); larger diffs send a branch ref (option β/γ). The `slaEta` field is the requester's *expected review SLA*, composing with §13.19.7 `ReviewSLAAck` discipline — if the reviewer cannot meet the ETA, the existing renegotiate-SLA path applies.
+**`level` field** (v0.2 addition; default `2` for backward compatibility with Phase 1 ship). `1` selects the Level 1 virtual-PR path (A2A-envelope-only; receiving side commits + pushes directly to the integration branch; no `gh pr create`); `2` selects the Level 2 Github-PR path (provider-mediated; `gh pr create` against the target repo). The receiving side validates the requested level against its capability matrix (does it hold direct push access to `targetRepo`? does it share an operator with the sender?) and rejects mismatches; the sender may retry with the other level.
+
+The `sourceContentRef` field carries either a branch ref (per §7 option β / β′ — the standard form) or an inline `filesDiff` for small diffs (§7 option α). The `slaEta` field is the requester's *expected review SLA*, composing with §13.19.7 `ReviewSLAAck` discipline — if the reviewer cannot meet the ETA, the existing renegotiate-SLA path applies.
 
 ### 4.2 `PRDraftReady`
 
-The PR-bot agent's commit ack that the PR has been created on the provider. Carries the provider URL + PR number for human follow-through, plus the initial check-pending set (CI / required-status-checks the PR must wait on before review is meaningful). This is **NOT** a §13.13 `AckProcessed` — it is a richer application-tier ack that confirms the PR exists AND surfaces the data the rest of the lifecycle depends on. (Open for main review: should this be modeled as `AckProcessed` with a structured `summary`, or as a distinct type? The proposal here is a distinct type because the data shape diverges enough that conflation would force every consumer of `AckProcessed` to handle a special case.)
+In **Level 2**, the PR-bot agent's commit ack that the PR has been created on the provider. `draftRef` carries the provider PR number; `prUrl` carries the provider URL for human follow-through; `checksPending[]` carries the initial CI / required-status-checks set the PR must wait on before review is meaningful.
+
+In **Level 1**, the receiving-side agent's commit ack that the source content has been applied to a staged target branch (typically a local branch on the receiving side's checkout, not yet pushed to the integration branch). `draftRef` carries the commit SHA of the staged commit; `prUrl` is absent; `checksPending[]` is absent (Level 1 has no provider-side CI by construction; if the receiving side runs local pre-commit checks, those are flagged as `localChecks[]` instead).
+
+This is **NOT** a §13.13 `AckProcessed` — it is a richer application-tier ack that confirms the PR (in either level's sense) exists AND surfaces the data the rest of the lifecycle depends on. (Open for main review: should this be modeled as `AckProcessed` with a structured `summary`, or as a distinct type? The proposal here is a distinct type because the data shape diverges enough that conflation would force every consumer of `AckProcessed` to handle a special case.)
 
 ### 4.3 `PRReviewAck` (layered above §13.13 ack discipline)
 
@@ -108,11 +150,15 @@ This is the critical type for the §9 dogfood case. The reviewer (typically the 
 
 **Layering above §13.13** (open for main review): the proposal is that `PRReviewAck` IS the §13.13 `AckProcessed` for the `PRRequest` — a single application-tier ack carries both the "processed" semantics and the review verdict. Alternative: emit `AckProcessed` first (on PR-bot inbound parse) and `PRReviewAck` second (on actual review completion); this preserves the §13.13 transport-vs-commitment-vs-completion three-ack stratification cleanly. The two-ack alternative is cleaner taxonomically but doubles wire traffic; the single-ack proposal is leaner but conflates two layers. Recommended for v0.1: **two-ack alternative** — `AckProcessed` from the PR-bot when the request is parsed and PR creation is queued, then `PRReviewAck` from the reviewer when review actually completes. Main upstream review may steer this differently.
 
-### 4.4 `PRMergeRequest` / `PRMergeAck` (authority gated)
+### 4.4 `PRMergeRequest` / `PRMergeAck` (authority gated; strict gate confirmed by Phase 1 ship)
 
-Per §13.20-style authority discipline, only an agent with `role == main` for the target repo may emit `PRMergeRequest`. The PR-bot agent's response is `PRMergeAck` carrying the merge result (success / blocked-by-failing-check / blocked-by-conflict). The `mergeStrategy` field defaults to `squash` for mirror PRs (single-commit history is cleaner for spec mirror diff readability); main may override per-target-repo policy.
+Per §13.20-style authority discipline, only an agent with `role == main` for the target repo may emit `PRMergeRequest`. The receiving side's response is `PRMergeAck` carrying the merge result.
 
-**Authority gate (open for main review)**: the strict reading is "only `role == main` on the target repo may merge"; a looser reading is "any agent with provider-side merge permission may merge, regardless of A2A role, because provider-side ACL is the final authority." The first reading composes more cleanly with §13.9's role-coordination tree; the second reading is more permissive and matches what provider-side gh CLI users can do today. Recommended for v0.1: **strict reading** — the A2A protocol enforces its own authority gate independent of provider ACL, so that the protocol's invariants are not implicitly delegated to an external system. Main may steer.
+**Level 2**: the PR-bot agent (or local-bridge per topology b) invokes `gh pr merge` against the provider; `PRMergeAck` reports the provider's merged-PR state (success / blocked-by-failing-check / blocked-by-conflict). The `mergeStrategy` field (`merge` / `squash` / `rebase`) defaults to `squash` for mirror PRs (single-commit history is cleaner for spec mirror diff readability); deployment may override per-target-repo policy.
+
+**Level 1**: the receiving side commits the staged change (referenced by the `for: draftRef` commit SHA) to the target repo's integration branch (typically `main` / default branch) and pushes. `PRMergeAck` reports the resulting commit SHA on the integration branch + push success. `mergeStrategy` is ignored for Level 1 (the operation is conceptually a fast-forward / direct apply); if multiple commits were staged, the receiving side may squash or replay per local policy, but the wire envelope reports only the final integration-branch commit SHA.
+
+**Authority gate**: the **strict gate** (only `role == main` on the target repo may emit `PRMergeRequest`) is confirmed adopted by Phase 1 ship `2213a14` — the server's `wsPrMergeReject` path rejects emissions from non-`main` roles with a logged `decisions` panel entry. This is independent of provider ACL drift; the protocol's authority chain is deterministic and does not delegate to external ACL state. The strict reading composes cleanly with §13.9's role-coordination tree.
 
 ### 4.5 `PRStatusUpdate`
 
@@ -164,18 +210,17 @@ Dedicated PR-bot for cross-repo paths where credentials must be explicit (e.g., 
 - **Pros**: each path uses the simplest surface for its credential profile; the policy of which path to use is per-deployment.
 - **Cons**: two implementations to maintain; the requester has to know which path to address (which the §4.1 `PRRequest` target field implicitly carries, but the user has to configure correctly); the protocol surface area is wider.
 
-### 5.d Recommendation (open for main review)
+### 5.d Recommendation — topology b adopted by Phase 1 ship
 
-**For v0.1: topology b (local-bridge command)**, with topology a/c reserved as phase-2/3 expansions per §12 migration plan.
+**Topology b (local-bridge command) is adopted** by Phase 1 ship `2213a14`. The local-bridge runs in the operator's IDE process and uses the operator's `gh` CLI authentication; no separate credential store is required for v0.1 / Phase 1 / Phase 1b scope. Topology a / c remain as phase-2/3 expansions per §13 migration plan when cross-machine or separate-identity requirements appear.
 
-Rationale:
+Rationale (retained from v0.1; confirmed by Phase 1 ship):
 
-- The §9 dogfood case (EG → `<hub-repo>`) uses the user's local `gh` CLI authentication directly — the user has `gh` auth for both repos, no separate credential plumbing is needed. Topology b lands in one bridge change.
-- Topology a's credential-store requirements are non-trivial (rotation, secret hygiene, leak-grep per §13.14); deferring them lets §13.22 ship without dragging in a credential-management RRP.
-- Topology c is a natural superset of b — once b ships, adding a separate PR-bot agent for cross-machine paths is additive, not a re-architecture.
-- The single most-load-bearing trade-off is "user has to maintain the PR-bot process" — topology b makes this zero-cost (the user's existing bridge process gets one more command). For v0.1 dogfood scope, this is the right call.
+- The §10 dogfood case (EG → `<hub-repo>`) uses the user's local `gh` CLI authentication directly — the user has `gh` auth for both repos, no separate credential plumbing is needed. Topology b lands in one bridge change (the Phase 1 `handlePrRequest` + `handlePrMergeRequest` handlers).
+- Topology a's credential-store requirements (rotation, secret hygiene, leak-grep per §13.14) are non-trivial; deferring them lets §13.22 ship without dragging in a credential-management RRP.
+- Topology c is a natural superset of b — adding a separate PR-bot agent for cross-machine paths is additive, not a re-architecture.
 
-Open question for main review: **does the `<hub-repo>` main accept a PR created via the user's local `gh` CLI authentication as the legitimate creator?** If the answer is "no, it must be created by an agent with its own provider identity for audit-trail purposes," topology a is forced and v0.1 scope expands. (See §10 Q1.)
+**Level 1 fit**: topology b is *also* the natural home for Level 1 (§2.4). The local-bridge already holds direct repo-level file-system access on both source and target sides (when they share an operator); Level 1's "receiving side commits + pushes directly" path is one additional `handlePrRequest` branch (`if request.level === 1 → apply diff to target checkout, commit, push, emit PRDraftReady{draftRef: commitSha}` ) on top of the existing Level 2 handler. Phase 1b (§13) adds this branch.
 
 ---
 
@@ -245,17 +290,30 @@ The requester computes the diff (against the target branch's HEAD) and sends the
 - **Pros**: simplest semantics — the wire carries the whole PR content; no separate repo access needed beyond the PR-bot's target-repo push permission.
 - **Cons**: breaks at scale. The §13.13 / §2 wire is fine for small messages but the W20/W22 outbox split-delivery pattern surfaces at ~80KB+ payloads. A multi-file spec mirror (e.g., touching `Constellation.md` + `_lessons/*` + `seeds/*` in one PR) easily exceeds that. Suitable only for small diffs; not a general solution.
 
-### 7.β Source-branch ref (requester pushes branch in source repo)
+### 7.β Source-branch ref on source repo (initial v0.1 form)
 
-The requester pushes a branch to the source repo (e.g., EG's `mirror/§13.14-§13.15-to-hub` branch) and sends only the branch ref in `PRRequest.sourceBranch`. The PR-bot reads the branch contents via the provider's git API (or `git fetch`) and either:
-
-- Creates the PR from that branch directly (if the source repo and target repo are the same provider org and a "PR across forks within the same org" is supported), OR
-- Pushes the branch contents to a target-side branch (a fork, or a `mirror/...` branch in the target repo) and creates the PR from there.
+The requester pushes a branch to the *source* repo (e.g., EG's `mirror/§13.14-§13.15-to-hub` branch) and sends the branch ref in `PRRequest.sourceContentRef`. The PR-bot reads the branch contents via the provider's git API (or `git fetch`) and either creates the PR from that branch directly, or pushes the branch contents to a target-side branch and creates the PR from there.
 
 **Trade-offs**:
 
 - **Pros**: works at any diff scale; reuses standard git/provider mechanisms.
-- **Cons**: requires push access to the source repo (the requester has that for EG; needs to be checked for any other source-repo case); requires the PR-bot to have read access to the source repo (token scope expansion).
+- **Cons**: requires push access to the source repo (the requester has that for EG; needs to be checked for any other source-repo case); requires the PR-bot to have read access to the source repo (token scope expansion); the cross-repo provider-side authorization for "PR from source-repo branch into target repo" introduces complications when source and target are different orgs.
+
+### 7.β′ Mirror branch on TARGET repo (Phase 1 ship form, adopted)
+
+A variant of β: instead of pushing the branch to the source repo and having the PR-bot fetch cross-repo, the local-bridge pushes the source content directly to a `mirror/...` branch on the **target** repo, then opens the PR from that target-side mirror branch into the target's integration branch. The PR is effectively intra-repo at the provider level; no cross-repo provider authorization is required.
+
+This is the form adopted by Phase 1 ship `2213a14`. Concretely, `handlePrRequest` (Level 2 path):
+
+1. Reads the source content from the local-bridge's checkout of the source repo.
+2. Pushes a `mirror/<topic>` branch to the *target* repo (using the operator's `gh` / `git` credentials for the target).
+3. Invokes `gh pr create --repo <targetRepo> --base <targetBranch> --head mirror/<topic> ...`.
+4. Emits `PRDraftReady` with the resulting PR number.
+
+**Trade-offs**:
+
+- **Pros**: avoids cross-repo provider-side authorization (the PR is intra-target at the provider tier); cleaner audit trail on the target repo (the mirror branch lives where the PR lives); works for any source/target org pairing; reuses the operator's existing target-repo credentials.
+- **Cons**: requires push access to the target repo (the operator's `gh` credentials must cover the target); the mirror branch is a transient artifact on the target repo (cleanup policy needed — Phase 1 ship leaves the branch in place after merge, relying on provider auto-delete-head-branch settings).
 
 ### 7.γ Fork-based (standard GitHub workflow)
 
@@ -266,17 +324,14 @@ The requester pushes to their own fork of the target repo (a user-account fork o
 - **Pros**: matches the provider's intended workflow; no special permissions on the target repo beyond fork (which is open); audit trail is clean (fork owner is identified).
 - **Cons**: requires the requester (or the requester's principal) to maintain a fork of every target repo; adds a sync step (the fork must be kept up to date with the upstream); more moving parts.
 
-### 7.δ Recommendation (open for main review)
+### 7.δ Recommendation — β′ primary (Phase 1 ship), α small-diff fallback
 
-**For v0.1: option β (source-branch ref)**, with option α as fallback for small diffs (< 50KB) where the simplicity is worth the wire cost, and option γ deferred to phase 3.
+**Phase 1 ship `2213a14` adopted β′ as the primary Level 2 content-sourcing form.** This supersedes the v0.1 "β with α fallback" recommendation. Updated v0.2 recommendation:
 
-Rationale:
+- **Level 2: β′ as primary**; α fallback only for small Level 2 diffs (< ~50 KB) where direct payload transfer is simpler than mirror-branch push. β (source-repo branch) and γ (fork-based) are not used in Phase 1 / Phase 1b scope.
+- **Level 1**: content sourcing is implicit — the receiving side reads from the source-content payload (either an inline `filesDiff` or a fetched source-repo ref the receiving side already has access to as part of its operator-shared filesystem). No mirror branch on the target repo is needed (the change goes straight to the integration branch on commit).
 
-- Option β maps cleanly onto the §9 dogfood: EG already pushes mirror branches when staging cross-repo work; the PR-bot just reads the ref.
-- Option α as small-diff fallback is useful because the wire-carry semantics are valuable when the diff is small enough — the requester does not need to push a branch for a 5-line typo fix.
-- Option γ's fork-management overhead is real and not worth dragging into v0.1 scope.
-
-Main upstream review: does the `<hub-repo>` main accept PRs from EG-pushed `mirror/...` branches on the `<hub-repo>` itself (β with target-side push), or does it require source-side-only branches with a fork-based cross-repo PR (γ)? (See §10 Q2.)
+Rationale (β′ vs β): cross-repo provider authorization complications inherent to β (the PR-bot needs read access to the source repo's branch at the provider tier) are avoided by β′ (the source content lands on the target repo's own branch before `gh pr create`, making the PR intra-target at the provider level).
 
 ---
 
@@ -286,12 +341,12 @@ The §13.20 permission table covers blocker tracking + nudge cadence. This RRP e
 
 | Message type | Who may emit | Server filter / authority gate |
 |--------------|--------------|--------------------------------|
-| `PRRequest` | Any role (`main` / `collab` / `upstream` / `local`) | Server validates `sourceRepo` and `targetRepo` are in the deployment's known-repo registry; rejects targets outside the registry |
-| `PRDraftReady` | PR-bot agent only (the one created in topology b, or the dedicated agent in topology a) | Server validates the `for: msgId` references an actual `PRRequest` from a registered requester |
+| `PRRequest` | Any role (`main` / `collab` / `upstream` / `local`) | Server validates `sourceRepo` and `targetRepo` are in the deployment's known-repo registry; rejects targets outside the registry. For `level == 1`, server additionally validates the receiving side's capability matrix (direct push to target + operator-shared). |
+| `PRDraftReady` | PR-bot agent (Level 2) OR receiving-side agent with target-repo push capability (Level 1) | Server validates the `for: msgId` references an actual `PRRequest` from a registered requester |
 | `PRReviewAck` | Any agent with reviewer-role authority on the target repo (per §13.9 role table for that repo) | Server validates the emitter's role against the per-repo reviewer policy |
-| `PRMergeRequest` | **Only** `role == main` for the target repo | Strict — server rejects emissions from non-main roles; logged to `decisions` panel for audit on rejection |
-| `PRMergeAck` | PR-bot agent only | Server validates `for: msgId` references an actual `PRMergeRequest` |
-| `PRStatusUpdate` | PR-bot agent only | Server validates the emitter against the bot identity registry |
+| `PRMergeRequest` | **Only** `role == main` for the target repo | Strict — server rejects emissions from non-main roles (Phase 1 ship `2213a14` `wsPrMergeReject` path); logged to `decisions` panel for audit on rejection |
+| `PRMergeAck` | PR-bot agent (Level 2) OR receiving-side agent (Level 1) | Server validates `for: msgId` references an actual `PRMergeRequest` |
+| `PRStatusUpdate` | PR-bot agent (Level 2) OR receiving-side agent (Level 1) | Server validates the emitter against the bot identity registry (Level 2) or the receiving-side capability matrix (Level 1) |
 
 ### 8.1 Cross-repo role mapping (open for main review)
 
@@ -310,9 +365,13 @@ The role is **per-repo, not per-deployment**. This composes with §13.9's role-b
 
 ---
 
-## 9. State machine — 5-state PR lifecycle
+## 9. State machine — 5-state PR lifecycle (level-discriminated)
 
-The PR lifecycle is modeled as a 5-state machine. Transitions are driven by provider events (translated by the PR-bot into `PRStatusUpdate` emissions) and by review-authority emissions (`PRReviewAck`, `PRMergeRequest`).
+The PR lifecycle is modeled as a 5-state machine. Both Level 1 and Level 2 traverse the same five logical states; transition triggers differ per level.
+
+**Level 2** (the form shipped in Phase 1): transitions are driven by provider events (translated by the PR-bot / local-bridge into `PRStatusUpdate` emissions) and by review-authority emissions (`PRReviewAck`, `PRMergeRequest`). MERGED ≡ `gh pr merge` succeeded and the provider reports the PR as merged.
+
+**Level 1** (Phase 1b path): transitions are driven entirely by A2A envelope events; there is no provider state to translate. `PRDraftReady` carries the staged commit SHA on the target checkout; `PRReviewAck` carries the verdict; `PRMergeRequest` triggers the receiving side to commit the staged change to the target's integration branch and push; MERGED ≡ the push succeeded and the integration-branch commit SHA is reported in `PRMergeAck`. CHANGES_REQUESTED in Level 1 loops back to the source agent updating its `sourceContentRef` (a new commit on the source side, communicated via a follow-up `PRRequest` with `for: previousDraftRef` linkage, or via an out-of-band update mechanism the v0.2 RRP leaves open for refinement).
 
 ```text
        PRRequest received
@@ -373,6 +432,8 @@ Same sequencing rule as §13.20.7: the wire vocabulary lands first; the panel is
 ## 10. Dogfood plan — §13.14 / §13.15 mirror as canonical first use case
 
 The §13.22 protocol's **first production use** is the §13.14 / §13.15 mirror PR itself. This is explicit and non-negotiable: there is no "validate on a toy PR first" intermediate step.
+
+**Level selection for the dogfood PR** (v0.2 addition): the dogfood PR is operated end-to-end by the same operator who runs both the EG repo and the `<hub-repo>`; both repos are directly accessible from the operator's local checkout. This satisfies the §2.4 Level 1 selection rule. Once Phase 1b ships the Level 1 path on the local-bridge, the dogfood PR is targeted as a **Level 1 mirror PR** — A2A envelopes only, receiving (= hub) side commits the §13.14/§13.15 mirror directly to the hub `WS-PROTOCOL.md` and pushes to the integration branch, no `gh pr create` involved. Until Phase 1b ships, the dogfood remains targeted as Level 2 (Phase 1 ship's existing path), at the cost of one extra provider-side PR object that will be merged through the provider's UI / API per the Level 2 sequence below.
 
 ### 10.1 Canonical first PR specification
 
@@ -437,26 +498,23 @@ Each surfaced failure becomes a §13.22 sub-section refinement or a §10 open qu
 
 Items where the EG-side draft has a working position but main upstream's reaction is load-bearing. The top 3 are flagged as **priority** — these are the questions where main's answer most shapes the rest of the protocol.
 
-### Q1. **(priority)** Topology — does `<hub-repo>` main accept PRs created via the user's local `gh` CLI authentication?
+### Q1. **(priority — RESOLVED)** Topology — local-bridge `cmd:createPR` accepted
 
-§5.d recommends topology b (local-bridge `createPR`) for v0.1. This assumes the `<hub-repo>` main accepts PRs created under the user's `gh` CLI identity as legitimate. If `<hub-repo>` policy requires a separate bot identity (for audit-trail, for separation-of-duties, for any other reason), topology a is forced and v0.1 scope expands to include credential-store design.
+**Resolved**: Phase 1 ship `2213a14` adopted topology (b) — local-bridge runs in the operator's IDE process and uses the operator's `gh` CLI authentication. PRs created under the operator's `gh` CLI identity are accepted as legitimate by the cross-repo target. No separate bot identity is required for Phase 1 / Phase 1b scope.
 
-**Main's answer steers**: topology recommendation; phase 1 scope; whether a separate credential-management RRP needs to land before §13.22.
+**Downstream effect**: §5.d recommendation confirmed as the adopted form. Credential-management RRP deferred to phase 2 (only needed if cross-machine or separate-identity requirements appear).
 
-### Q2. **(priority)** Content-sourcing — cross-repo branch placement (β vs γ)
+### Q2. **(priority — RESOLVED)** Content-sourcing — β′ adopted (mirror branch on target repo)
 
-§7.δ recommends option β (source-branch ref). For EG → `<hub-repo>`, this means EG pushes a branch to `<hub-repo>` directly (if push access exists) or to a fork (which is option γ). The exact provider-policy on cross-repo branch pushes is the deciding factor:
+**Resolved**: Phase 1 ship `2213a14` adopted β′ (a variant of β: the local-bridge pushes the source content to a `mirror/...` branch on the **target** repo, not the source repo). Rationale: cross-repo provider-side authorization complications inherent to β (the PR-bot needs read access to the source repo's branch at the provider tier) are sidestepped by β′ — the source content lands on the target repo's own branch before `gh pr create`, making the PR intra-target at the provider level.
 
-- If `<hub-repo>` allows direct push of `mirror/...` branches from EG agents, option β works as proposed.
-- If `<hub-repo>` requires PRs to come from forks, option γ is forced and §10.1 source-branch becomes a fork branch.
+**Downstream effect**: §7 updated — β′ is the primary Level 2 form; α remains a small-diff fallback; β and γ are not used in Phase 1 / Phase 1b scope.
 
-**Main's answer steers**: §7 option choice; §10 dogfood sequence step 2; whether fork-management plumbing needs to land in v0.1.
+### Q3. **(priority — RESOLVED)** Authority model — strict `role == main` gate adopted
 
-### Q3. **(priority)** Authority model — `PRMergeRequest` strict vs permissive
+**Resolved**: Phase 1 ship `2213a14` adopted the strict gate. The server's `wsPrMergeReject` path enforces "only `role == main` on the target repo may emit `PRMergeRequest`" — emissions from non-`main` roles are rejected at the server with a logged `decisions` panel entry. The protocol's authority chain is deterministic and independent of provider ACL drift.
 
-§4.4 recommends strict (only `role == main` for the target repo). §8.1 raises the per-repo role model. Main's preference here decides whether the protocol enforces its own authority gate (strict) or delegates to provider ACL (permissive).
-
-**Main's answer steers**: §4.4 wire vocabulary; §8 permission table; §10 dogfood step 6.
+**Downstream effect**: §4.4 wire vocabulary, §8 permission table, and §10 dogfood step 6 (Level 2 path) all confirmed as the strict-gate form. The per-repo role model (Q4 below) remains the open dimension; the strict-gate decision composes either way.
 
 ### Q4. Per-repo role vs per-deployment role
 
@@ -514,6 +572,7 @@ The §13.22 protocol is considered shipped when:
 - **AC-dogfood-3**: The PR is merged via `PRMergeRequest` / `PRMergeAck` (not via a manual GitHub UI merge by the user).
 - **AC-dogfood-4**: §13.14 + §13.15 land in `<hub-repo>` `WS-PROTOCOL.md` (the actual parity-gap closure — the protocol's value is realized).
 - **AC-dogfood-5**: A retrospective writeup (this doc's `<scope-root>/_lessons/`) catalogs any failure modes surfaced in §10.5 with each one's resolution path.
+- **AC-dogfood-6 (Level 1)**: The first Level 1 mirror PR (EG → `<hub-repo>` `WS-PROTOCOL.md` §13.14/§13.15 mirror) succeeds end-to-end via A2A envelopes only — receiving (= hub) side directly applies the change to its local checkout of the target repo, commits, pushes to the integration branch, and reports the resulting commit SHA in `PRMergeAck`. No `gh pr create` is involved. Phase 1b dependency.
 
 ### 12.4 Composition criteria
 
@@ -535,14 +594,27 @@ All criteria must be met for §13.22 to be considered shipped. Partial completio
 
 **Exit criterion for phase 0**: §11 Q1-Q3 have answers from main; the joint-spec draft of §13.22 is ready for `Constellation.md` insertion.
 
-### Phase 1 — Prototype (local-bridge `createPR`)
+### Phase 1 — Prototype (Level 2, local-bridge `createPR`) — DONE
 
-- Implement `local-bridge.eux` `cmd: createPR(spec)` per §5.b. Single new command, minimal scope.
-- Server-side: validate the five `CUSTOM` types per §8 permission table.
-- `state.json`: schema extension for `pr_system.trusted_mirrors[]`.
-- Dogfood: the §10 §13.14/§13.15 mirror PR. This phase ends when AC-dogfood-1 through AC-dogfood-5 pass.
+**Shipped: commit `2213a14`** (Phase 1 upstream main ship).
 
-**Exit criterion for phase 1**: §10 dogfood PR merges via the protocol; no manual UI step required from the user during steady-state.
+Components delivered:
+
+- `server.cjs`: `_PR_CUSTOM` 5-type observer set covering all five `CUSTOM` types from §4; `wsPrMergeReject` strict `role==main` gate (§8 permission table); `PRStatusUpdate` observer.
+- `local-bridge`: `handlePrRequest` (trusted-mirror validate → β′ mirror branch push to target repo → `gh pr create` against target → `PRDraftReady` with PR number); `handlePrMergeRequest` (`gh pr merge` → `PRMergeAck` with provider state).
+- `state.json`: `pr_system.trusted_mirrors` registry extended per §6.1.
+- Dry-run default: `CONSTELLATION_PR_LIVE` env knob OFF — Phase 1 ships with PR creation gated behind explicit opt-in; turning the env knob ON enables live provider-side PR creation. This is the autonomous-execution external-publish gate (b) instantiated as an env-level safety.
+
+Phase 1 implements **Level 2 only**. Level 1 path is the Phase 1b add-on.
+
+### Phase 1b — Level 1 path (virtual PR via A2A envelopes) — PENDING
+
+- Extend `local-bridge` `handlePrRequest` with a Level 1 branch: when `PRRequest.level == 1`, skip `gh pr create`; instead apply the source diff to the target repo's local checkout, stage a commit, and emit `PRDraftReady` with `draftRef: <commit-sha>`.
+- Extend `handlePrMergeRequest` with a Level 1 branch: when the originating `PRRequest.level == 1`, the merge operation is "push the staged commit to the integration branch on the target repo's local clone and emit `PRMergeAck` with the integration-branch commit SHA + push success."
+- Server-side: validate `PRRequest.level` field; for `level == 1`, validate the receiving side's capability matrix (direct push to target + operator-shared).
+- Dogfood: re-run the §10 §13.14/§13.15 mirror PR as a Level 1 PR. This sub-phase ends when AC-dogfood-6 passes.
+
+**Exit criterion for phase 1b**: Level 1 dogfood PR succeeds end-to-end via A2A envelopes only; no `gh pr create` invoked; receiving side reports integration-branch commit SHA in `PRMergeAck`.
 
 ### Phase 2 — Dedicated PR-bot agent (topology a, optional)
 
@@ -596,4 +668,4 @@ The §13.22 protocol DOES:
 
 ---
 
-*End of v0.1 DRAFT. Awaiting main upstream review of §11 priority open questions (Q1 topology · Q2 content-sourcing · Q3 authority model) before any concrete impl ships. Joint-formalization target: §13.22 sub-section in `Constellation.md`, number to be confirmed at merge time.*
+*End of v0.2 DRAFT. Priority open questions Q1 (topology) / Q2 (content-sourcing) / Q3 (authority model) resolved by Phase 1 upstream ship `2213a14` (Level 2 path — local-bridge `cmd:createPR`, β′ mirror branch on target repo, strict `role==main` merge gate). Phase 1b (Level 1 virtual-PR path on local-bridge) pending main implementation; AC-dogfood-6 is the Level 1 dogfood acceptance criterion. Non-priority Q4-Q8 remain open. Joint-formalization target: §13.22 sub-section in `Constellation.md`, number to be confirmed at merge time.*
