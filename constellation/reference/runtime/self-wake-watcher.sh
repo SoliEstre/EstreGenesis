@@ -74,6 +74,17 @@ echo "[ws-wait] armed: inbox=$INBOX cursor=$ic agent=$WID feedback=$FB feedback_
 
 # 새 줄(인자=시작 커서 이후) 중 의미 있는 항목이 있으면 1, 아니면 0 출력.
 # blocklist — inbox 는 이미 나에게 라우팅된 큐이므로 알려진 noise 만 흡수하고 나머지는 모두 깨운다.
+#
+# ▣ ev-agnostic, name-only (Constellation §13.16.6 v2.4.16 정합):
+#   이 필터는 line 의 `name`/`type` 필드만 본다. `ev` 필드를 prepend-grep 하면 안 됨.
+#   inbox.log 는 두 가지 envelope 포맷을 모두 담는다 — (a) legacy event-relay
+#   `{"t":..., "ev":"inbound", "msg":{"name":...}}` (bridge 의 라이프사이클 로그)
+#   (b) direct inbound `{"at":..., "name":..., "value":..., "source":"agent"}` (bridge
+#   가 server 로부터 실제 A2A envelope 를 deliver 할 때 쓰는 포맷). ev-stage 는 (b)
+#   를 통째로 걸러내므로 bridge-alive 트래픽이 모두 silent 하게 dropped 됨.
+#   진단 anchor: 2026-06-01 watcher bv0u5h95p + bd7k7xoy3 REARM-timeout 사례
+#   — direct 포맷 inbound 4건이 v2.4.2 ev-gate 에 의해 silently 누락.
+#   name blocklist 만으로 self-emission echo + transport noise 양쪽을 모두 커버한다.
 meaningful() {
   node -e '
     const fs = require("fs"), f = process.argv[1], from = +process.argv[2];
