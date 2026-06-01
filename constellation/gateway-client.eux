@@ -1,56 +1,264 @@
-@component agent-gateway-client
-@intent Isolated runtime adapter by which an autonomous agent (API / standalone runtime) attaches to the Constellation gateway (:7878/ws?key=), registers via the HELLO handshake, and exchanges A2A messages over near-real-time turn-held communication. Runs as two independent state machines — axis A connection lifecycle (physical socket + handshake), axis B turn-held drain (collect inbox over a 15s wait window, batch-process and emit). The host (agent runtime) injects ws_send/key/storage and drives via connect()/feedInbound(evt), receiving notifications via onReady/onBatch/emit. Heartbeat disabled (noise avoidance); telemetry threadId excluded from routing. Outbound A2A must echo targetAgentId/threadId/contextId/parentId headers; AG-UI events (RUN_STARTED/STEP/TEXT_MESSAGE/TOOL_CALL) are explicitly emitted to compensate for the §13.11 adapter auto-capture limit. Pure runtime, no DOM/global access (even the WS object is host-injected via deps). This is Constellation's **invariant** A2A adapter — kept at detail tier (the bridge contract must be precise), unlike the rough-tier UI component specs. Provenance: the upstream live-board main re-distilled this from Hermes's concept model (YAML draft + AUTONOMOUS-AGENT-ONBOARDING-GUIDE) into verified EstreUX .eux (brew PASS).
-@expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
-@targets vanilla
-@state
-connState   : string = "DISCONNECTED"   # axis A: DISCONNECTED|CONNECTING|CONNECTED_HELLO|READY
-turnState   : string = "IDLE"            # axis B: IDLE|DRAIN_INBOX|PROCESS|EMIT
-inbox       : list = []                  # receive buffer (turn-held drain target)
-outbox      : list = []                  # post-PROCESS emit batch
-helloAcked  : boolean = false            # HELLO_ACK received
-backoffMs   : number = 1000              # exponential backoff current wait (CONNECTING, §1.9)
-windowMs    : number = 15000             # turn-held wait window (15s, AGENT-CONNECT §1.9)
-@ports
-in   wsUrl    : string              # gateway endpoint ws://host:7878/ws
-in   agentId  : string              # registration id (included in HELLO)
-cmd  connect() : trigger physical connect — axis A connect dispatch (DISCONNECTED→CONNECTING)
-cmd  feedInbound(evt) : load a gateway inbound event into inbox + axis B dispatch (IDLE→DRAIN_INBOX, reset timer if within window). evt={name,source,agentId,targetAgentId,threadId,contextId,parentId,value}
-out  onReady() : notify axis A entered READY (HELLO_ACK received) — send/receive ready
-out  onBatch(msgs) : on axis B EMIT, notify host with the deserialized receive batch
-out  emit(agUiEvt) : explicit AG-UI event emit — {type: RUN_STARTED|STEP|TEXT_MESSAGE|TOOL_CALL, ...} (via deps.ws_send)
-deps ws_send  : function            # physical WS frame send (1 frame = 1 JSON UTF-8)
-deps key      : string              # ?key= gateway auth token
-deps storage  : object              # session context / state local store
-@behavior
-mount(host)      : create adapter state + controller, bind deps (ws_send/key/storage). Return controller (connect/feedInbound/state). No DOM (pure runtime).
-connect          : axis A connect dispatch → CONNECTING. onOpen when channel opens.
-onOpen           : axis A OPEN → CONNECTED_HELLO then sendHello.
-sendHello        : send {type:"HELLO", agentId, key} via ws_send, await HELLO_ACK. No heartbeat send (noise avoidance).
-onFrame(frame)   : route received frame — HELLO_ACK → axis A READY (onReady) · evt.threadId is telemetry → ignore (routing exclusion) · otherwise meaningful message → feedInbound.
-feedInbound(evt) : only routable-guard-passing events inbox.push(evt), axis B dispatch (IDLE→DRAIN_INBOX). If already DRAIN_INBOX, new_message resets the window timer.
-drainTick        : DRAIN_INBOX window (windowMs) expires → axis B PROCESS.
-processBatch     : deserialize inbox sequentially into outbox, then axis B EMIT, clear inbox.
-emitBatch        : bind headers echo (targetAgentId/threadId/contextId/parentId) on each outbox message → onBatch(msgs) + emit needed AG-UI events. Then axis B IDLE, clear outbox.
-backoff          : on each CONNECTING entry, exponentially increase backoffMs (capped) before retry — §1.9 infinite-wait.
-@machine
-# Axis A — connection lifecycle (physical socket + handshake). reducer: (connState, event) → connState
-states(connState): DISCONNECTED(initial) · CONNECTING · CONNECTED_HELLO · READY
-dispatch by event:
-  connect    : DISCONNECTED → CONNECTING        (entry: exponential backoff backoffMs then try)
-  OPEN       : CONNECTING → CONNECTED_HELLO      (entry: sendHello)
-  HELLO_ACK  : CONNECTED_HELLO → READY           (entry: helloAcked=true, backoffMs=1000 reset, onReady)
-  TIMEOUT    : CONNECTED_HELLO → CONNECTING
-  ERROR      : (any) → CONNECTING
-  CLOSE      : READY → DISCONNECTED
-# Axis B — turn-held drain loop (near-real-time mailbox). reducer: (turnState, event) → turnState
-states(turnState): IDLE(initial) · DRAIN_INBOX · PROCESS · EMIT
-dispatch by event:
-  inbound_buffered : IDLE → DRAIN_INBOX          (entry: start windowMs timer)
-  new_message      : DRAIN_INBOX → DRAIN_INBOX   (guard: within window — reset timer, accumulate batch)
-  timeout          : DRAIN_INBOX → PROCESS        (entry: processBatch)
-  done             : PROCESS → EMIT               (entry: emitBatch)
-  complete         : EMIT → IDLE
-derive:
-  routable   ← inbox only when evt.threadId is not telemetry (routing-exclusion guard)
-  echoHeader ← {targetAgentId, threadId, contextId, parentId} mandatory outbound echo
-  agUiEmit   ← explicit emit of significant run state (RUN_STARTED/STEP/TEXT_MESSAGE/TOOL_CALL) (§13.11 auto-capture compensation)
+# constellation/gateway-client.eux
+# Distilled EstreUX specification for Constellation autonomous-runtime WS adapter
+
+metadata:
+  id: "constellation-gateway-client"
+  name: "Constellation Gateway Agent Adapter"
+  version: "2.5.3"
+  author: "hermes-dev-agent, EstreGenesis canonical promoted"
+  description: "Declarative runtime adapter for Constellation upstream/local/collab agents via live-board protocol v0.3. Promoted from constellation/reference/gateway/hermes/_hermes-handoff-20260601/ on 2026-06-01 (v2.5.3 canonical promotion); pre-promotion EG canonical preserved as eg-canonical-pre-promotion.eux in the same audit subfolder."
+
+runtime:
+  engine: "EstreUX"
+  concurrency: "event-driven"
+  keepAlive: true
+  poll_interval_ms: 15000
+  display_heartbeat_ms: 0
+  auto_pong: false
+  idle_heartbeat: false
+
+roles:
+  canonical:
+    - "main"
+    - "local"
+    - "upstream"
+    - "collab"
+    - "board"
+  role_truth: "server-classified AgentList; AgentHello.value.role is a hint"
+  onboard_ack:
+    local: "inform local worker of policy, then wait for Delegate"
+    upstream: "informational welcome; continue autonomous peer track"
+    collab: "informational welcome; continue autonomous peer track"
+
+connection_params:
+  url_rules:
+    local_dev: "ws://<host>:<port>/ws"
+    token_gated: "ws://<host>:<port>/ws?token=<token>"
+    upstream: "ws://<host>:<port>/ws?upstreamKey=<uk-…>"
+    collab: "ws://<host>:<port>/ws?key=<ck-…>"
+  forbidden:
+    - "generic key parameter for upstream"
+    - "client-side idle heartbeat pretending to be agent activity"
+
+deps:
+  - name: "ws_send"
+    description: "raw WebSocket JSON frame send"
+  - name: "upstreamKey"
+    description: "upstream registration key; required when role is upstream"
+  - name: "token"
+    description: "optional token-gated deployment credential"
+  - name: "collabKey"
+    description: "external collaborator key; used as key=<ck-…>"
+  - name: "mainAgentId"
+    description: "AgentHello targetAgentId"
+  - name: "storage"
+    description: "local cursor, msgId watermark, and outbox/inbox persistence"
+  - name: "redact"
+    description: "redaction hook before send and log surfaces"
+
+ports:
+  cmd:
+    - name: "connect"
+      description: "open WS and start server-first handshake"
+    - name: "feed_inbound_evt"
+      description: "append inbound event to inbox after dedup"
+    - name: "drain_inbox_safe_point"
+      description: "turn-held drain with a <=15s wait window"
+  out:
+    - name: "emit_RUN_STARTED"
+      event: "RUN_STARTED"
+    - name: "emit_RUN_FINISHED"
+      event: "RUN_FINISHED"
+    - name: "emit_RUN_ERROR"
+      event: "RUN_ERROR"
+    - name: "emit_STEP_STARTED"
+      event: "STEP_STARTED"
+    - name: "emit_STEP_FINISHED"
+      event: "STEP_FINISHED"
+    - name: "emit_TEXT_MESSAGE_START"
+      event: "TEXT_MESSAGE_START"
+    - name: "emit_TEXT_MESSAGE_CONTENT"
+      event: "TEXT_MESSAGE_CONTENT"
+    - name: "emit_TEXT_MESSAGE_END"
+      event: "TEXT_MESSAGE_END"
+    - name: "emit_TOOL_CALL_START"
+      event: "TOOL_CALL_START"
+    - name: "emit_TOOL_CALL_ARGS"
+      event: "TOOL_CALL_ARGS"
+    - name: "emit_TOOL_CALL_END"
+      event: "TOOL_CALL_END"
+    - name: "emit_TOOL_CALL_RESULT"
+      event: "TOOL_CALL_RESULT"
+    - name: "emit_CUSTOM"
+      event: "CUSTOM"
+
+machines:
+  connection:
+    initial: "DISCONNECTED"
+    states:
+      DISCONNECTED:
+        on:
+          connect: "CONNECTING"
+      CONNECTING:
+        entry: "open_websocket_with_role_specific_auth"
+        on:
+          OPEN: "AWAIT_SERVER_HELLO"
+          ERROR: "CONNECTING"
+      AWAIT_SERVER_HELLO:
+        entry: "read_first_frame_and_require_SERVER_HELLO"
+        on:
+          SERVER_HELLO: "SEND_HELLO"
+          ServerNotice: "HANDLE_SERVER_NOTICE"
+          ERROR: "CONNECTING"
+      SEND_HELLO:
+        entry:
+          - "send_HELLO"
+          - "send_CUSTOM_AgentHello"
+        on:
+          HANDSHAKE_SENT: "READY"
+          ERROR: "CONNECTING"
+      HANDLE_SERVER_NOTICE:
+        entry: "surface_notice_such_as_flap-rejected"
+        on:
+          RECOVERABLE: "CONNECTING"
+          FATAL: "DISCONNECTED"
+      READY:
+        entry: "start_sender_receiver_tasks"
+        on:
+          AgentList: "UPDATE_AUTHORITATIVE_ROLE"
+          History: "REPLAY_TO_INBOX_WITH_DEDUP"
+          CLOSE: "DISCONNECTED"
+          ERROR: "CONNECTING"
+
+  turn_held:
+    initial: "IDLE"
+    states:
+      IDLE:
+        on:
+          inbound_message_buffered: "DRAIN_INBOX"
+      DRAIN_INBOX:
+        entry: "wait_up_to_15000ms_then_collect_available_events"
+        on:
+          safe_point: "PROCESS"
+          timeout: "IDLE"
+      PROCESS:
+        entry:
+          - "dedup_by_persistent_msgId_watermark"
+          - "route_to_active_runtime_turn"
+          - "never_auto_emit_Pong_or_AckProcessed_or_ReviewSLAAck"
+        on:
+          processed: "EMIT_TERMINATION_IF_NEEDED"
+      EMIT_TERMINATION_IF_NEEDED:
+        entry: "agent_layer_may_emit_DONE_BLOCKED_NEEDS_HUMAN_AckProcessed"
+        on:
+          complete: "IDLE"
+
+wire:
+  handshake:
+    server_first: "SERVER_HELLO"
+    client_hello: "HELLO"
+    agent_intro:
+      type: "CUSTOM"
+      name: "AgentHello"
+      top_level_fields:
+        - "name"
+        - "targetAgentId"
+      value_fields:
+        - "agentId"
+        - "agentName"
+        - "role"
+        - "env"
+        - "capabilities"
+        - "idle"
+  envelope:
+    common_required:
+      - "type"
+      - "id"
+      - "seq"
+      - "runId"
+      - "threadId"
+      - "timestamp"
+      - "source"
+      - "agentId"
+    reply_echo:
+      - "targetAgentId"
+      - "contextId"
+      - "parentId"
+    channel_key: "agentId"
+
+routing:
+  target_unspecified: "main"
+  telemetry_exclusion:
+    require_tag: true
+    excluded_from:
+      - "A2A reply-window pairing"
+      - "main routing"
+  a2a_priority:
+    rule: "outbound A2A messages and prerequisites move to the head of the action queue"
+    applies_to:
+      - "Delegate"
+      - "Report"
+      - "BlockerManifest"
+      - "BlockerNudge"
+      - "ReviewSLAAck"
+      - "EscalationRequest"
+
+delivery:
+  default: "at-most-once"
+  automatic_retransmit: false
+  msgId:
+    assigner: "sender bridge/client"
+    applies_to: "targeted CUSTOM except Ack/Ping/Pong/telemetry"
+    persistent_watermark: true
+  ack_layer:
+    delivered:
+      name: "Ack"
+      emitter: "server"
+      meaning: "wire relay succeeded"
+    commitment:
+      name: "ReviewSLAAck"
+      emitter: "recipient agent"
+      meaning: "recipient will complete or renegotiate before eta"
+    application:
+      name: "AckProcessed"
+      emitter: "recipient agent"
+      meaning: "recipient acted on the message"
+  liveness:
+    ping: "agent-layer Ping"
+    pong_owner: "active runtime turn only"
+    bridge_auto_pong: false
+  termination_signals:
+    - "DONE"
+    - "BLOCKED"
+    - "NEEDS_HUMAN"
+  deadlock_vocabulary:
+    - "DeadlockProbe"
+    - "PreemptRequest"
+    - "PreemptForce"
+    - "MediationProposal"
+    - "MediationAck"
+    - "EscalationRequest"
+  blocker_vocabulary:
+    - "BlockerManifest"
+    - "BlockerNudge"
+
+redaction:
+  before_send: true
+  before_log: true
+  public_gate:
+    - "no real token/key values"
+    - "no private repo paths"
+    - "no private service names"
+    - "no raw tool result secret leaks"
+
+operation_discipline:
+  upstream_peer:
+    - "continue own track after informational OnboardAck"
+    - "do not wait for Delegate unless AgentList role is local"
+    - "recommend and proceed for non-branching choices"
+    - "do not defer progressable work to a fresh context"
+    - "materialize large work before context boundary risk"
+  wait_state:
+    - "emit BlockerManifest before all-blocked idle wait"
+    - "emit BlockerNudge by cadence while blocker remains"
+    - "route human escalation to board decisions panel"

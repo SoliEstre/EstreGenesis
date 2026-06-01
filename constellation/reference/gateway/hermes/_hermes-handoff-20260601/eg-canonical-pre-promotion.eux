@@ -1,0 +1,56 @@
+@component agent-gateway-client
+@intent Isolated runtime adapter by which an autonomous agent (API / standalone runtime) attaches to the Constellation gateway (:7878/ws?key=), registers via the HELLO handshake, and exchanges A2A messages over near-real-time turn-held communication. Runs as two independent state machines — axis A connection lifecycle (physical socket + handshake), axis B turn-held drain (collect inbox over a 15s wait window, batch-process and emit). The host (agent runtime) injects ws_send/key/storage and drives via connect()/feedInbound(evt), receiving notifications via onReady/onBatch/emit. Heartbeat disabled (noise avoidance); telemetry threadId excluded from routing. Outbound A2A must echo targetAgentId/threadId/contextId/parentId headers; AG-UI events (RUN_STARTED/STEP/TEXT_MESSAGE/TOOL_CALL) are explicitly emitted to compensate for the §13.11 adapter auto-capture limit. Pure runtime, no DOM/global access (even the WS object is host-injected via deps). This is Constellation's **invariant** A2A adapter — kept at detail tier (the bridge contract must be precise), unlike the rough-tier UI component specs. Provenance: the upstream live-board main re-distilled this from Hermes's concept model (YAML draft + AUTONOMOUS-AGENT-ONBOARDING-GUIDE) into verified EstreUX .eux (brew PASS).
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
+@targets vanilla
+@state
+connState   : string = "DISCONNECTED"   # axis A: DISCONNECTED|CONNECTING|CONNECTED_HELLO|READY
+turnState   : string = "IDLE"            # axis B: IDLE|DRAIN_INBOX|PROCESS|EMIT
+inbox       : list = []                  # receive buffer (turn-held drain target)
+outbox      : list = []                  # post-PROCESS emit batch
+helloAcked  : boolean = false            # HELLO_ACK received
+backoffMs   : number = 1000              # exponential backoff current wait (CONNECTING, §1.9)
+windowMs    : number = 15000             # turn-held wait window (15s, AGENT-CONNECT §1.9)
+@ports
+in   wsUrl    : string              # gateway endpoint ws://host:7878/ws
+in   agentId  : string              # registration id (included in HELLO)
+cmd  connect() : trigger physical connect — axis A connect dispatch (DISCONNECTED→CONNECTING)
+cmd  feedInbound(evt) : load a gateway inbound event into inbox + axis B dispatch (IDLE→DRAIN_INBOX, reset timer if within window). evt={name,source,agentId,targetAgentId,threadId,contextId,parentId,value}
+out  onReady() : notify axis A entered READY (HELLO_ACK received) — send/receive ready
+out  onBatch(msgs) : on axis B EMIT, notify host with the deserialized receive batch
+out  emit(agUiEvt) : explicit AG-UI event emit — {type: RUN_STARTED|STEP|TEXT_MESSAGE|TOOL_CALL, ...} (via deps.ws_send)
+deps ws_send  : function            # physical WS frame send (1 frame = 1 JSON UTF-8)
+deps key      : string              # ?key= gateway auth token
+deps storage  : object              # session context / state local store
+@behavior
+mount(host)      : create adapter state + controller, bind deps (ws_send/key/storage). Return controller (connect/feedInbound/state). No DOM (pure runtime).
+connect          : axis A connect dispatch → CONNECTING. onOpen when channel opens.
+onOpen           : axis A OPEN → CONNECTED_HELLO then sendHello.
+sendHello        : send {type:"HELLO", agentId, key} via ws_send, await HELLO_ACK. No heartbeat send (noise avoidance).
+onFrame(frame)   : route received frame — HELLO_ACK → axis A READY (onReady) · evt.threadId is telemetry → ignore (routing exclusion) · otherwise meaningful message → feedInbound.
+feedInbound(evt) : only routable-guard-passing events inbox.push(evt), axis B dispatch (IDLE→DRAIN_INBOX). If already DRAIN_INBOX, new_message resets the window timer.
+drainTick        : DRAIN_INBOX window (windowMs) expires → axis B PROCESS.
+processBatch     : deserialize inbox sequentially into outbox, then axis B EMIT, clear inbox.
+emitBatch        : bind headers echo (targetAgentId/threadId/contextId/parentId) on each outbox message → onBatch(msgs) + emit needed AG-UI events. Then axis B IDLE, clear outbox.
+backoff          : on each CONNECTING entry, exponentially increase backoffMs (capped) before retry — §1.9 infinite-wait.
+@machine
+# Axis A — connection lifecycle (physical socket + handshake). reducer: (connState, event) → connState
+states(connState): DISCONNECTED(initial) · CONNECTING · CONNECTED_HELLO · READY
+dispatch by event:
+  connect    : DISCONNECTED → CONNECTING        (entry: exponential backoff backoffMs then try)
+  OPEN       : CONNECTING → CONNECTED_HELLO      (entry: sendHello)
+  HELLO_ACK  : CONNECTED_HELLO → READY           (entry: helloAcked=true, backoffMs=1000 reset, onReady)
+  TIMEOUT    : CONNECTED_HELLO → CONNECTING
+  ERROR      : (any) → CONNECTING
+  CLOSE      : READY → DISCONNECTED
+# Axis B — turn-held drain loop (near-real-time mailbox). reducer: (turnState, event) → turnState
+states(turnState): IDLE(initial) · DRAIN_INBOX · PROCESS · EMIT
+dispatch by event:
+  inbound_buffered : IDLE → DRAIN_INBOX          (entry: start windowMs timer)
+  new_message      : DRAIN_INBOX → DRAIN_INBOX   (guard: within window — reset timer, accumulate batch)
+  timeout          : DRAIN_INBOX → PROCESS        (entry: processBatch)
+  done             : PROCESS → EMIT               (entry: emitBatch)
+  complete         : EMIT → IDLE
+derive:
+  routable   ← inbox only when evt.threadId is not telemetry (routing-exclusion guard)
+  echoHeader ← {targetAgentId, threadId, contextId, parentId} mandatory outbound echo
+  agUiEmit   ← explicit emit of significant run state (RUN_STARTED/STEP/TEXT_MESSAGE/TOOL_CALL) (§13.11 auto-capture compensation)
