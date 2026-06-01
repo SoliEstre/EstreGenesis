@@ -1,4 +1,4 @@
-<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.10; date: 2026-06-01; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
+<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.11; date: 2026-06-01; protocol: live-board v0.3 (distilled inline — self-sufficient); license: Apache-2.0 -->
 
 # Constellation — Live Multi-Agent Orchestration
 
@@ -235,6 +235,18 @@ The complement to §13.11.1: **a worker MUST NOT emit telemetry / heartbeats / l
 **Real incident** (referenced in the v2.2.x dogfood log): a `codex-watch.cjs` side process was emitting periodic heartbeats for a codex worker. The board showed the worker as continuously alive, but the worker's actual turn had ended and it was not processing inbound. Removing the watch process restored the correct signal — the board correctly went *quiet* between turns, matching the worker's real state, and the next-turn wake (§4 self-wake watcher) was the next correct emit.
 
 **Rule** (additive to §2 telemetry exclusion): the only legitimate telemetry source is the **(3) near-realtime watcher** of §4 — a separate observation process that is *tagged for telemetry exclusion* (server keeps it on board broadcast but excludes from A2A reply-window pairing AND main routing). It must not pose as agent activity. If you find yourself adding "alive" pulses to keep the board green, the fix is **not** a louder heartbeat — it is identifying why the watcher / re-arm path is dead (§4 silent-disable WARN) and repairing the activity loop itself.
+
+#### 13.11.3 Envelope normalization and client-local render — server stamping discipline (v2.5.1)
+
+This sub-section is the SSoT for three server- and client-side normalization disciplines that together close defects surfaced by the dashboard-render dogfood cycle (2026-05~06). The wire envelope shape (§2) is unchanged; what is codified here is the **server-side stamping responsibility** for two optional fields agents commonly omit (`type`, `timestamp`) plus the **client-side render rule** that the timestamp's display tier must be the renderer's local zone, not the wire payload's verbatim string. The three rules are independent failure modes but compose at the same envelope layer.
+
+**Rule 1 — channel `type` normalization (server-side stamp on outbound `CUSTOM`)**. The server-side relay MUST stamp `type:"CUSTOM"` on outbound A2A envelopes whose sender omitted the top-level `type`. Agents emit `{ name, value, targetAgentId? }` as the canonical minimal shape (carrier fields only) and treat `type` as optional. The server normalizes by stamping `type:"CUSTOM"` whenever the envelope carries a `name` + `value` (the §2 carrier signature) regardless of sender-provided `type`. The agent-side rule: **no top-level `type` required for `name`+`value` carriers**; server normalization is canonical. Pairs with §13.16.9 classification — once `type:"CUSTOM"` is stamped, the routing decision tree (board-directed vs A2A-intent) proceeds normally on the `name` field. Without server stamping, the dashboard render side falls back to `TEXT_MESSAGE` (raw text) for the missing-`type` case, which leaks JSON-as-text into the chat panel.
+
+**Rule 2 — A2A-intent detection (source-set-agnostic + nonstandard upstream-source case)**. The receiver-side detection of "this is an A2A message" (used by the dashboard A2A tab assignment and the agent-side classifier) MUST use the **source-set-agnostic** detection rule: `source !== "user" && source !== "board" && targetAgentId && targetAgentId !== agentId`. Critically, `source` is **NOT fixed at `"agent"`** for all upstream emitters — upstream agents (Hermes-style autonomous-runtime gateways and any compatible reimplementation) MAY emit `source = <their-agentId>` (a nonstandard but conformant source value). Detection MUST NOT branch on `source === "agent"`; it MUST rely on the **negation pattern** (source is neither `user` nor `board`) **plus** `targetAgentId` presence **plus** `targetAgentId !== self.agentId`. The positive-set assumption (`source === "agent"`) silently false-negatives all upstream A2A traffic on the receiver side — a defect class observed during 2026-05~06 dogfood where upstream A2A messages disappeared from the dashboard's general-tab display. The source-set-agnostic detection rule is portable across all upstream emitter variants.
+
+**Rule 3 — timestamp obligation + client-local render**. The server MUST stamp `msg.timestamp = Date.now()` (epoch milliseconds) on every outbound envelope whose sender omitted the top-level `timestamp` (server-stamped truth fallback, consistent with the §13.13 layer split — server is the source of truth for `delivered` / `role` / `source` / `timestamp`). Agents MAY include their own `timestamp` (for end-to-end latency probes); the server preserves a sender-provided `timestamp` and stamps only when absent. **Dashboard render rule**: the rendered timestamp display MUST be computed `new Date(epoch).toTimeString()` (or the renderer's equivalent locale-aware formatter) — **never** the wire-format ISO string verbatim. Rendering the wire-format ISO string displays the sender's time zone, which is confusing for multi-time-zone teams and breaks "what time did this arrive *here*" semantics. The wire-format choice is epoch milliseconds precisely so the display tier can apply the client's local time zone without ambiguity. Pairs with §13.11.1 emission discipline: every emit carries an authoritative arrival timestamp that the renderer presents in the viewer's frame of reference.
+
+**Composition**: the three rules apply at the same envelope layer but are independent. A malformed envelope can hit rule 1 only (missing `type`, present `timestamp`, conformant `source`), rule 3 only (missing `timestamp`, present `type`), or any combination. Server stamping is unconditional and idempotent — stamping a `type` already present is a no-op (the sender's value is preserved); stamping a `timestamp` already present is a no-op; the A2A-intent detection rule (rule 2) is receiver-side and runs regardless of stamping state. Reference impl: a single `wsNormalize(msg)` step on the server's outbound path applies rules 1 and 3 (lines around the `wsBroadcast` / `wsToBoards` / `wsPrimaryAgent` routing tree); rule 2 lives on every receiver that distinguishes A2A from board content (dashboard tab assignment, agent-side inbound classifier, watcher meaningful filter — note the watcher filter applies the §13.16.9 allowlist on the `name` field independently of the source/targetAgentId detection rule).
 
 ### 13.13 A2A message reliability — the ack layer
 
@@ -562,6 +574,30 @@ The watcher's `base=<line count>` cursor only watches *new* inbound that arrives
 
 **Scope of this section**: this is an intent-classification SSoT and a routing-implication note, not a wire-format change. The §13.11 `CUSTOM` envelope shape is unchanged; only the interpretation of the `name` field for target-unspecified routing and watcher-filter membership is codified here. Server / dashboard / bridge / watcher all read the same allowlist; consistency is maintained by referencing this section by anchor (`#13169-message-classification-by-intent-board-directed-vs-a2a-intent`) rather than copy-pasting the name lists.
 
+**Routing decision tree (canonical form, v2.5.1)**: the reference server's outbound branch (post-v2.4.17 routing patch implementing §13.16.9, referenced as the L867 routing branch in implementation notes) applies the following decision tree to every outbound `CUSTOM` envelope:
+
+```
+(has targetAgentId?)
+├─ YES → route to that agent (existing A2A relay path, §2);
+│         intent class governs only board-mirror policy on this branch;
+│         (an explicit recipient overrides intent-class routing).
+└─ NO  → consult §13.16.9 name allowlists:
+         ├─ name ∈ board-directed allowlist → wsToBoards only
+         │                                    (no wsPrimaryAgent fallback;
+         │                                     no main-A2A-inbox relay).
+         ├─ name ∈ A2A-intent allowlist     → wsPrimaryAgent
+         │                                    (main A2A inbox)
+         │                                    + optional board mirror per dashboard policy.
+         └─ name unrecognized               → fail-safe default A2A-intent
+                                              → wsPrimaryAgent.
+                                              (Silent-drop-of-A2A is the worse
+                                               failure mode than redundant board
+                                               noise from an unknown name —
+                                               asymmetric cost rule.)
+```
+
+The tree is the routing-side enforcement of the allowlist enumerations above: the allowlists govern *which branch a target-unspecified envelope takes*, not whether the envelope is valid. Adopters re-implementing the server's outbound path SHOULD encode the decision tree as a single `wsRouteCustom(msg)` step against the §13.16.9 allowlist constants; the alternative (per-`name` ad-hoc routing scattered across handler sites) regresses to the pre-v2.4.17 channel-inversion defect class. The decision tree composes with §13.11.3 rule 1 (`type` normalization): the server stamps `type:"CUSTOM"` first, then routes per this tree — both steps are part of the same `wsNormalize` + `wsRoute` outbound path. Reference implementation: the post-v2.4.17 L867 routing patch carries the canonical form; downstream Constellation adopters mirror the branching shape in their server runtimes.
+
 #### 13.16.10 Pre-send inbound check discipline (read-before-write, git push-before-pull analogy)
 
 **The rule**: every outbound A2A message MUST be preceded by a **cursor-tail probe** of the agent's last-surfaced inbox cursor. If new meaningful inbound exists between the cursor and the current `inbox.log` line count, the agent MUST surface that inbound first and either (a) **incorporate** the new information into the outbound payload, or (b) **defer** the outbound entirely if the new inbound supersedes the planned send. Only after the probe is clean (cursor up-to-date, no new meaningful inbound) does the outbound proceed. The probe fires **before each outbound emission**, not once per turn.
@@ -593,6 +629,33 @@ The watcher's `base=<line count>` cursor only watches *new* inbound that arrives
 - **Probing but ignoring the result** — if meaningful inbound is found, it MUST be surfaced before any outbound that would otherwise drift past it. Probing and then emitting anyway, on the rationale that the planned send is "ready" or "already drafted", defeats the rule: the cost of the probe was paid but the safety the probe provides was discarded.
 
 **The discipline in one line**: read the inbox from the cursor, surface anything meaningful, then write. Every outbound. No exceptions.
+
+#### 13.16.11 Key management unification — `kind`-enum SSoT (v2.5.1)
+
+**Purpose**: this sub-section codifies the unified key-management contract that emerged from the 2026-05~06 dashboard-render dogfood cycle, where three previously separate key concepts (collab key, upstream key, local-key meta) accumulated ad-hoc shape variance across server / bridge / dashboard layers. v2.5.1 names a single `kind` enum that all three layers carry on every key-bearing envelope, so the server's `keyStore`, the `KeyList` broadcast, the `HELLO` handshake meta, and the dashboard's key-management modal all classify keys against the same vocabulary. This is a contract clarification, not a wire-format change — the existing `RegisterCollabKey` / `RegisterUpstreamKey` / `RevokeCollabKey` operations (§5) keep their shapes; what is added is a top-level `kind` discriminator that travels with the key wherever the key is referenced.
+
+**The `kind` enum (closed set, fail-safe reject on unknown)**:
+
+- **`collab`** — external collaborator key (`ck-…` per §5). Issued by main via `RegisterCollabKey{label}`; consumed by the joining agent via the `/join/collab?key=<ck-…>` URL → `collab` role · `group:collab`.
+- **`upstream`** — upstream agent key (`uk-…`). Issued by main; consumed via `ws://…/ws?upstreamKey=<uk-…>` → `upstream` role. Per §2 the upstream key authenticates a peer agent (API / gateway), distinct from a local IDE worker that joins without a key.
+- **`local-key`** — local key for a non-default-environment local agent (e.g., a worker spawned by a sibling main, or a local IDE agent joining a remote server). Distinct from collab (no `group:collab` role assignment) and from upstream (`local` role, not `upstream` role). Optional; many local-IDE adopters never issue local-keys because workers in the same environment join the no-auth `ws://<host>:<port>/ws` path.
+
+Unknown `kind` values MUST be rejected at the server's key-registration boundary (`RegisterKey{kind, label}` returning an error envelope) and at the receiver's `KeyList` consumer (a key with an unrecognized `kind` is logged and skipped, never coerced to a default). The fail-safe-reject discipline mirrors §6.5's `sourceContentRef.kind` enum handling in the A2A PR System RRP — closed enums with explicit reject on unknown rather than fallthrough to a default, which prevents silent misclassification (e.g., an unrecognized kind being routed as `collab` would assign `group:collab` to an upstream peer, leaking collab group membership to non-collab agents).
+
+**SSoT surfaces** (the four layers that all read the same `kind` enum):
+
+- **Server `keyStore`** — the in-memory / on-disk key registry stamps every entry with `kind`. Issuance time (`RegisterCollabKey` / `RegisterUpstreamKey`) populates `kind` from the issuance operation; revocation operates on the `(kind, keyValue)` tuple, not on `keyValue` alone (a `ck-…` and a `uk-…` are different keys even if their suffixes happened to collide).
+- **`KeyList` server broadcast** — when the server pushes the key registry to the dashboard (and to main for management), every entry in the list carries `kind` alongside `label` / `issuedAt` / `status`. The dashboard's key-management modal renders the list with a `kind`-badge per entry (visual differentiation: collab / upstream / local-key).
+- **`HELLO` envelope `meta`** — when an agent connects via a key-bearing URL, the server's `SERVER_HELLO` echo (§2 handshake) carries `meta.upstreamKey` / `meta.collabKey` / `meta.localKey` per the connection's key kind. The agent's HELLO response MAY echo the resolved `kind` for self-classification. The `meta` field is the canonical channel for the server to communicate the resolved authentication outcome to the agent without leaking the raw key value past the connection establishment point.
+- **Dashboard key-management modal** — the UI surface for issuing / revoking keys, listing live keys, and copying join URLs. The modal renders one tab or section per `kind` (or one consolidated list with `kind`-badge filtering), so the operator can distinguish collab keys (external collaborators) from upstream keys (peer agents) from local-keys (cross-environment local agents) at a glance. Issuance forms branch on `kind` to expose the right metadata (e.g., collab keys take a `label` + optional expiry; upstream keys take a `peerName` + capability hints).
+
+**Composition**:
+
+- **With §2 connection paths** — the `kind` enum maps onto the §2 WS URL parameter (`?key=<ck-…>` → `kind:collab`; `?upstreamKey=<uk-…>` → `kind:upstream`; no key → no `kind` → default `local` role for the no-auth path). The `kind` does not replace the URL parameter; it is the *classification of the key value*, not the transport parameter.
+- **With §13.16.9 routing** — key management envelopes (`RegisterCollabKey` / `RegisterUpstreamKey` / `KeyList` / `RevokeCollabKey`) are board-directed by intent (they target the dashboard's key-management surface and the server's key registry, not a peer agent's A2A inbox). The §13.16.9 board-directed allowlist SHOULD include the key-management names; the v2.5.1 KEY-MGMT contract makes this an explicit composition rather than an implicit name-by-name discovery.
+- **With §13.14 redaction discipline** — key values (`ck-…` / `uk-…` suffixes) are environment-specific credentials and MUST NOT appear in any public-surface artifact. The `kind` enum value itself is a vocabulary token (not a secret); only the key value is sensitive. Public reference docs MAY say "the server issues `kind:upstream` keys"; they MUST NOT say "the server issued `uk-9f3a2b1c…`".
+
+**Scope**: contract clarification. The `RegisterCollabKey` / `RegisterUpstreamKey` / `CollabKeyIssued` / `KeyList` / `RevokeCollabKey` wire shapes (§5) gain an additional `kind` field at the top level (server-stamped on issuance, mandatory on `KeyList` entries, optional on `HELLO.meta`); existing adopters that omit `kind` on outbound continue to work for the legacy single-kind paths (collab via `RegisterCollabKey` was historically the only kind exercised), but the dashboard modal and any cross-kind operations require the field. Adopters SHOULD migrate to the `kind`-enum form in lockstep with the §13.16.9 routing decision tree (v2.4.17 + v2.5.1) so the board-directed key-management envelopes route correctly to the dashboard's key-management surface and not into the main A2A inbox.
 
 ### 13.17 Main-chat structured-choice prompts are FORBIDDEN — route via the live board
 
