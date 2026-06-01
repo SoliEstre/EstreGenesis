@@ -2400,25 +2400,31 @@ cautious / proactive 페이스 모드는 파일 기반 코디네이션 + 직렬 
 
 성급한 도입 금지 — cost-benefit crossover 이하에선 lane 관리 오버헤드가 이득을 초과.
 
-### 불변 — `issue_width` 공식
+### 불변 — `issue_width` 공식 (lane-class-aware)
 
-이 부분은 Superscalar가 도입된 모든 환경에서 동일하게 유지:
+이 부분은 Superscalar가 도입된 모든 환경에서 동일하게 유지. `Superscalar.md` v0.3 부터 cap은 lane class 별로 분할 — write lane은 retire-merge 경합 항을 보유, read-only lane은 제거:
 
 ```
-issue_width = min(
+issue_width_write = min(
   Anthropic effort band(task complexity),
   pace_mode 상한,
   Little's Law: PM_review_throughput / avg_task_duration,
   Kanban WIP ≈ (team_size + 1),
   autonomy_available_workers
 )
+
+issue_width_read = min(
+  Anthropic effort band(task complexity),
+  runtime_concurrency_ceiling,                  // 물리 한도 (예: workflow min(16, cores - 2))
+  autonomy_available_workers
+)
 ```
 
-`autonomy_available_workers`는 오토모드 미활성 워커 제외 — dispatch마다 권한 창이 throughput을 무너뜨림(Andon 워커-오토모드 precheck가 lane으로 셈하기 전에 거절). Dispatch는 자율(핵심 원칙 #14): lane의 predecessor가 끝나고 작업이 *선언된* 계획 안에 있으면 scheduler가 묻지 않고 dispatch. Retire는 in-order: lane은 선언된 순서대로 retire, PM이 retire 시점에서 cross-lane 일관성 게이트. Speculation은 선택, cost-benefit 게이트 — 예측 branch가 dominant cost path일 때만 오버헤드 지불.
+`autonomy_available_workers`는 두 class 모두에서 오토모드 미활성 워커 제외 — dispatch마다 권한 창이 throughput을 무너뜨림(Andon 워커-오토모드 precheck가 lane으로 셈하기 전에 거절). read class에서 제외한 두 항(Little's Law, Kanban WIP)은 retire-merge 경합만 모델링; read-only / analysis lane(subagent context sweep, workflow read fan-out, telemetry read)은 비가역 부수효과 없고 synthesis에서 disposable — `Superscalar.md §3`이 이미 그은 irreversibility barrier의 read/write 경계를 그대로 상속. Policy cap과 runtime concurrency ceiling은 별개의 한도: effective concurrent lane = `min(policy_cap, runtime_ceiling)`; `issue_width_write`는 hard policy bound, `issue_width_read`는 그 위의 runtime ceiling에 종속되는 soft preference. Dispatch는 자율(핵심 원칙 #14): lane의 predecessor가 끝나고 작업이 *선언된* 계획 안에 있으면 scheduler가 묻지 않고 dispatch. Retire는 in-order: lane은 선언된 순서대로 retire, PM이 retire 시점에서 cross-lane 일관성 게이트. Speculation은 선택, cost-benefit 게이트 — 예측 branch가 dominant cost path일 때만 오버헤드 지불.
 
 ### 셋업 (참조 파일)
 
 Superscalar는 이 repo에 별도 모듈로 ship — 자족적:
 
-- **`Superscalar.md`** — 전체 가이드: §1 motivation, §2 issue_width 공식 + 자율 dispatch, §3 retire(in-order), §4 Andon(health visible / 워커 오토모드 precheck / MAST guards / lane status), §5 cost-benefit 게이트(spawn vs inline crossover), §6 speculation, §7 PR/commit lane discipline, §8 사례 연구, §9 anti-patterns, §11 dogfood 로그(Phase C reference 작업 Entry 01-03 baseline).
+- **`Superscalar.md`** — 전체 가이드: §1 motivation, §2 issue_width lane-class-aware 공식 (read/write split, v0.3+) + policy cap vs runtime concurrency ceiling + 자율 dispatch, §3 retire(in-order), §4 Andon(health visible / 워커 오토모드 precheck / MAST guards / lane status), §5 lane-class 차등 adoption threshold, §6 speculation, §7 PR/commit lane discipline, §8 사례 연구, §9 anti-patterns, §11 dogfood 로그 (Entry 01-05; Entry 05 = downstream Stage 1 dogfooding n=7, lane-class cap asymmetry signal).
 - raw URL 참조 — 최신(`main`): `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Superscalar.md`; 재현성은 tag 핀(`…/v2.3.0/Superscalar.md`).

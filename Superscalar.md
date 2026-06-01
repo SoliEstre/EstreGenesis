@@ -1,6 +1,6 @@
-<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.3.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-03 on Phase C reference work) + autonomy-aware (v2.2.4 telemetry-integrated); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-05-29; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
+<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-05) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-01; version: v0.3.0; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
 
-# Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.2)
+# Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.3)
 
 > **EstreGenesis optional module — design draft v0.2 (deep-research integrated).** Where the base seed runs tasks **in declared order**, Superscalar borrows processor-architecture techniques to drive an agent's **own sub-agents** more aggressively: issue several independent tasks at once (*superscalar*), run ready tasks regardless of declared order (*out-of-order / OoO*), and — opt-in — start the likely branch of a gate *before* it resolves (*speculation / branch prediction*). The payoff is **latency hiding**: the real bottleneck in agent work is human review/approval time, not token throughput — so doing useful independent work during that wait shortens wall-clock time. (Natural apex of v1.6.0's *agent-time vs human-time* split.)
 >
@@ -37,19 +37,42 @@ Stages: **1** = this draft / immediate ship · **2** = post-v0.2 patch · **3** 
 ## 2. Core — out-of-order scheduling (Stage 1, default-eligible)
 
 - **Dependency DAG, not declared order.** Read the WORKLIST as a graph: an edge = "B needs A's output / touches A's files." Dispatch any task whose predecessors are done; declared order is only a tie-breaker.
-- **`issue_width` is a dynamic cap — the minimum of four signals:**
+- **`issue_width` is a lane-class-aware dynamic cap.** Two lane classes carry distinct caps because their hazard surfaces differ:
 
   ```
-  issue_width = min(
+  issue_width_write = min(
     Anthropic effort band(task complexity),     // simple lookup → 1 agent · comparison → 2-4 · complex research → 10+
     pace_mode cap,                              // Cautious 2 · Proactive 4 · Burst 6 · Sprint 8
     Little's Law: PM_review_throughput / avg_task_duration,
     Kanban WIP ≈ (team_size + 1),
     autonomy_available_workers                  // workers with autonomous-mode active (see §4 worker autonomy precheck)
   )
+
+  issue_width_read = min(
+    Anthropic effort band(task complexity),
+    runtime_concurrency_ceiling,                // physical bound (e.g. workflow min(16, cores - 2)); see "policy cap vs runtime ceiling" below
+    autonomy_available_workers
+  )
   ```
 
-  Rationale: the binding constraint is rarely raw model capacity — it's usually **PM review throughput**. Little's Law makes that explicit; the Kanban floor prevents WIP blow-up; the Anthropic effort band keeps simple tasks from over-dispatching; pace mode (v1.6.0) is the user-chosen ceiling. The `autonomy_available_workers` dimension excludes workers that lack autonomous-mode (every A2A send / tool call becomes a user-synchronous permission prompt, which collapses Little's Law throughput regardless of nominal worker count).
+  **Why the split.** The two terms dropped from `issue_width_read` — Little's Law (review throughput) and Kanban WIP — model **retire-merge contention** that read-only lanes structurally don't have: no store buffer, no retire-merge ordering, no WAW hazard, and the lane's output is disposable on synthesis (consumed by the synthesis barrier, never merged into a shared mutable surface). Read-only / analysis lanes (subagent context sweeps, workflow read fan-outs, telemetry reads) carry **no irreversible side effects** — they inherit the same boundary §3 already draws for the irreversibility barrier (read / analyze = default-allowed; write / deploy / send = retire-gated). The pace_mode cap is also dropped from the read class because pace_mode is a *retire-side throughput* governor (PM review tempo), not a read-side fan-out governor.
+
+  **What still binds on write lanes.** The binding constraint on write lanes is rarely raw model capacity — it's usually **PM review throughput** (Little's Law makes that explicit), Kanban WIP (prevents WIP blow-up under WAW / merge contention), the Anthropic effort band (keeps simple tasks from over-dispatching), and pace_mode (v1.6.0 — user-chosen ceiling). The `autonomy_available_workers` dimension excludes workers that lack autonomous-mode on both classes (every A2A send / tool call becomes a user-synchronous permission prompt, which collapses Little's Law throughput regardless of nominal worker count).
+
+### Policy cap vs runtime concurrency ceiling
+
+The `issue_width_*` caps above are **policy bounds**. A separate **runtime concurrency ceiling** is the physical bound the underlying mechanism enforces — e.g. a workflow fan-out is bounded by `min(16, cores − 2)` per workflow; an agent-tool fan-out is bounded by the harness's max parallel tool calls. The two govern different surfaces and **do not subsume each other**:
+
+```
+effective_concurrent_read_lanes  = min(issue_width_read,  runtime_concurrency_ceiling)
+effective_concurrent_write_lanes = min(issue_width_write, runtime_concurrency_ceiling)
+```
+
+**Which dominates depends on the mechanism.** For workflow-based read fan-outs, the runtime ceiling typically dominates (the policy cap is conservative and frequently above the runtime cap, so the runtime cap is the binding term). For agent-tool-based fan-outs, the policy cap typically dominates (the harness's parallel-tool ceiling is usually high enough that policy bites first).
+
+**Hard vs soft.** `issue_width_write` is a **hard policy bound** — exceeding it is a policy violation regardless of runtime headroom (retire-merge contention scales with concurrent writes, and Little's Law caps it from the demand side). `issue_width_read` is a **soft preference** subject to the runtime ceiling above it: a read-only fan-out that exceeds `issue_width_read` but stays under `runtime_concurrency_ceiling` is **not** a policy violation (no retire-merge hazard, disposable on synthesis) — it is at most a calibration signal that the policy cap may be set conservatively for read fan-outs in this environment. Dogfood data point: an `issue_width_read = 6` policy cap was exceeded at width 7 in a workflow fan-out (case 7 in §11 Entry 05) with zero downside; the runtime ceiling (≥ 7 per the workflow's own cap) was the actual governor, and policy did not need to intervene.
+
+The §5 adoption thresholds use this distinction: the `merge-conflict rate > 15%` gate binds `issue_width_write` only.
 
 - **Autonomous dispatch** (the §4 watch-state autonomous principle, applied at dispatch-time): once a lane's predecessors are done and its task is part of the *declared* plan (`Phase` ordering, `planned` queue, in-order retire, blocked clearance), the scheduler dispatches it **without asking**. Confirming a planned dispatch is itself a Little's Law throughput leak (every confirmation is a user-synchronous gate) and is the same violation that Constellation.md §4 names at retire-time. Gates apply *only* at decision points: a new major branch (RRP / design), a push / deploy / external publish, or explicit user steering — never at the start of an already-decided `Phase`.
 
@@ -119,14 +142,16 @@ Stages: **1** = this draft / immediate ship · **2** = post-v0.2 patch · **3** 
 - **Token-budget caps** — see §3. Treat as hard ceilings, not soft hints.
 - Recorded in `AGENTS.md` core rules alongside language / tone / pace.
 
-**Adoption thresholds — switch behavior dynamically when these fire:**
+**Adoption thresholds — switch behavior dynamically when these fire.** The threshold values are unchanged from prior versions; what is new is which **lane class** each one binds (see §2 for the read/write split):
 
-| Signal | Threshold | Action |
-|---|---|---|
-| Average merge-conflict rate | `> 15%` | `issue_width -= 2` (until rate recovers); investigate hazard mis-detection |
-| Speculative accuracy (lane retired vs discarded) | `< 60%` on last 10 speculations (rolling) | recommend `speculation: off` for next use; prompt user to recalibrate confidence input |
-| Concurrent-mode token cost vs equivalent in-order | `> 3×` (vs Anthropic baselines of ~4× chat→agent, ~15× multi-agent — be conservative) | re-evaluate cost-benefit gate inputs; tighten budget circuit breakers (§3) |
-| MAST FM-1.3 step-repetition detections | `≥ 1 per session` | strengthen duplicate-work guard (§7); reduce `issue_width` |
+| Signal | Threshold | Action | Binds |
+|---|---|---|---|
+| Average merge-conflict rate | `> 15%` | `issue_width_write -= 2` (until rate recovers); investigate hazard mis-detection | **write only** (read-only lanes have no merge surface; conflict = NA) |
+| Speculative accuracy (lane retired vs discarded) | `< 60%` on last 10 speculations (rolling) | recommend `speculation: off` for next use; prompt user to recalibrate confidence input | symmetric (both classes — speculation is a separate axis from lane class) |
+| Concurrent-mode token cost vs equivalent in-order | `> 3×` (vs Anthropic baselines of ~4× chat→agent, ~15× multi-agent — be conservative) | re-evaluate cost-benefit gate inputs; tighten budget circuit breakers (§3) | symmetric |
+| MAST FM-1.3 step-repetition detections | `≥ 1 per session` | strengthen duplicate-work guard (§7); reduce `issue_width` on the affected class | symmetric (apply the reduction to the lane class where the duplicate-work was observed) |
+
+The merge-conflict gate's narrowing to `issue_width_write` reflects the §2 hazard analysis: Little's Law and Kanban WIP terms only bind retire-merge contention, which read-only lanes structurally don't have. A cap-exceeding read-only fan-out (e.g. case 7 in §11 Entry 05 — width 7 read-only at policy cap 6, zero downside) **does not** count against the merge-conflict signal. The other three signals apply symmetrically because they govern cross-cutting concerns (speculation accuracy / token cost / duplicate-work) rather than retire-merge contention specifically.
 
 ---
 
@@ -267,3 +292,31 @@ This first entry validates the §2 / §3 / §7 design at issue_width=3 with no s
   - **Time ROI = weak (in this measurement environment)**: +127% wall-clock is 4.7× the token-increase rate, but mostly *expansion-driven* (B made 3.75× more output). Held to *equal scope*, the in-lane overhead alone is ~+15-20% (jury estimate, weighted per the LLM-as-judge caveat above).
   - **Therefore**: Superscalar's value is **scope · traceability · `[estimate] → [confirmed]` confidence**, not equal-scope efficiency. *"Broad, handover-grade distillation"* → Superscalar discipline justified. *"Fast core extraction"* → naive arm A sufficient (core security / consistency findings caught at −27% tokens, −56% time, with one bug-class A actually caught more sharply than B). The §5 adoption-thresholds table gains its first quantified anchor here.
 - **Calibration signal — both arms surface their characteristic gain**: a clean first dogfood entry where the *trade-off itself* is the result. A's tighter precision on its own scope (one race-condition bug caught more sharply than B) and B's broader coverage + new bugs are both real; the choice is workload-dependent, not arm-dominant. Stage 2's adoption-threshold tuning has its first calibrated reference point.
+
+### Entry 05 — 2026-06-01 · downstream adopter Stage 1 dogfooding (n=7) — read/write lane-class cap asymmetry
+
+- **Source**: downstream adopter — real-time chat-service microservices; full seed adoption incl. the Superscalar and Constellation modules; Burst pace mode (`issue_width` cap = 6); n = 7 retired lanes over ~3 days; case-based ledger, measured values only.
+- **Case mix**: 1 board-worker A2A (PM-doc refresh, width 2) · 5 read-only research subagents (codebase context sweeps, width 2 each) · 1 workflow fan-out (seed-upgrade delta-mapping = 7 reader lanes + synthesis barrier — exceeded policy cap 6, zero downside). Speculation = 0/7 · worktree-isolation direct use = 0/7 · OoO = Y on all (ready-first dispatch). Write lanes: max width = 1 (scope-isolated single file); read-only lanes: 6.
+- **`§2` confirmations**:
+  - **Latency-hiding thesis — confirmed.** All 7 lanes hid agent-time during review-wait or independent-work windows. Write-lane width never exceeded 1; the real bottleneck is review throughput + independent-work availability, not model throughput.
+  - **Speculation off-by-default — held (0/7).** No case simultaneously met the three ask-triggers (high-confidence likely branch + low downstream sensitivity + meaningful latency saving). The conservative default cost nothing.
+  - **MAST FM-1.3 (duplicate work) = 0.** Case 7's 7 readers used area-disjoint manifests; no two lanes overlapped. The lane-manifest cross-check (§3 / §4 / §7 MAST guards) was effective even at width 7. FM-1.5 / FM-2.6 not triggered.
+  - **In-order retire held.** Declared order preserved at the synthesis/merge step in all multi-lane cases.
+- **`§5` adoption-threshold readout — all green at n=7**:
+
+  | Signal | Threshold | Measured (n=7) | Status |
+  |---|---|---|---|
+  | avg merge-conflict rate | `> 15%` → `issue_width_write -= 2` | 0% (0/1 write-mergeable; read-only = NA) | OK |
+  | speculative accuracy (last 10) | `< 60%` → spec off | n/a (0 spec) | — |
+  | concurrent token cost vs in-order | `> 3×` → cap re-tune | qualitative: hidden latency > token premium; case 7 spent fan-out tokens entirely during review-wait | OK |
+  | FM-1.3 detection | `≥ 1/session` → guard up | 0 | OK |
+
+  No threshold tripped; no auto-adjustment fired. Case 7's cap-exceed was a read-only lane (conflict = NA), so it does not count against the merge-conflict signal — empirical confirmation of the §5 lane-class differentiation.
+- **Unexercised surface**: worktree-isolation 0/7 (mechanisms used were board-worker A2A, read-only subagents, workflow fan-out — the ROB-isolation boundary §3 has no telemetry from this entry) · speculation 0/7 (Stage 2/3 features have zero data from this entry) · wide *write* fan-out = 0 (write width never exceeded 1, so the merge-conflict / Kanban-WIP terms are untested from the write side in this entry). Implication: the conservative Stage-1 defaults are strongly validated (cost nothing, prevented nothing useful), but this entry alone provides no signal for advancing to Stage 2/3 — consistent with the "speculation-discard log accumulates 30+ entries" gate.
+- **Relation to Entry 04**: complementary, not redundant. Entry 04 varied **in-lane depth** at fixed width 4 (below cap); Entry 05 varies **cross-lane fan-out during review-wait** (latency-hiding) and probes the read-only-fan-out-above-cap regime Entry 04 did not reach. Neither subsumes the other; both feed §5.
+- **Outcome — P1 + R1 + R2 reflected upstream**:
+  - **P1 — lane-class cap asymmetry (actionable)**: case 7's width-7 read-only fan-out with zero downside is the empirical anchor for the §2 read/write split adopted at v0.3.0.
+  - **R1 — `§2`/`§5` lane-class cap split**: adopted in §2 (`issue_width_read` drops Little's Law + Kanban-WIP terms — they only model retire-merge contention) and §5 (merge-conflict gate binds `issue_width_write` only).
+  - **R2 — policy cap vs runtime concurrency ceiling relationship**: clarified in §2's new "Policy cap vs runtime concurrency ceiling" sub-section. `issue_width_write` is a hard policy bound; `issue_width_read` is a soft preference subject to the runtime ceiling above it. Effective concurrent lanes = `min(policy_cap, runtime_ceiling)`; which dominates is mechanism-dependent (workflow fan-out → runtime dominates; agent-tool fan-out → policy dominates).
+- **Cross-reference**: `_proposals/005_2026-06-01_superscalar-dogfooding-stage1/` — full bundle (EN + KO twin + README).
+- **Calibration signal**: first dogfood entry to probe the read-lane class above policy cap; resolves a previously-silent divergence between the single-cap formula and runtime ceilings on read-only fan-outs. Stage 2 work on the write side (worktree-isolation + wide-write merge-conflict) remains unaddressed by this entry — the Entry 01-04 baselines retain primacy on those surfaces.

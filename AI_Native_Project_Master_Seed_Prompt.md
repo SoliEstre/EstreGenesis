@@ -2397,25 +2397,31 @@ File-based coordination + serial dispatch is sufficient for cautious / proactive
 
 Don't adopt prematurely — overhead of lane management exceeds benefit below the cost-benefit crossover.
 
-### The invariant — `issue_width` formula
+### The invariant — `issue_width` formula (lane-class-aware)
 
-This is the part that must hold identically wherever Superscalar is adopted:
+This is the part that must hold identically wherever Superscalar is adopted. From `Superscalar.md` v0.3, the cap is split by lane class — write lanes carry the retire-merge-contention terms, read-only lanes drop them:
 
 ```
-issue_width = min(
+issue_width_write = min(
   Anthropic effort band(task complexity),
   pace_mode cap,
   Little's Law: PM_review_throughput / avg_task_duration,
   Kanban WIP ≈ (team_size + 1),
   autonomy_available_workers
 )
+
+issue_width_read = min(
+  Anthropic effort band(task complexity),
+  runtime_concurrency_ceiling,                  // physical bound (e.g. workflow min(16, cores - 2))
+  autonomy_available_workers
+)
 ```
 
-`autonomy_available_workers` excludes workers without autonomous mode active — per-dispatch permission prompts collapse throughput (Andon worker-autonomy precheck rejects them before they're counted as a lane). Dispatch is autonomous (Core Principle #14): once a lane's predecessors are done and its task is in the *declared* plan, the scheduler dispatches without asking. Retire is in-order: lanes retire in their declared sequence, with the PM gating on cross-lane consistency at retire. Speculation is optional and cost-benefit gated; pay the overhead only when the predicted branch is the dominant cost path.
+`autonomy_available_workers` excludes workers without autonomous mode active on both classes — per-dispatch permission prompts collapse throughput (Andon worker-autonomy precheck rejects them before they're counted as a lane). The two dropped terms on the read class (Little's Law, Kanban WIP) only model retire-merge contention; read-only / analysis lanes (subagent context sweeps, workflow read fan-outs, telemetry reads) carry no irreversible side effects and are disposable on synthesis — they inherit the read/write boundary `Superscalar.md §3` already draws for the irreversibility barrier. Policy cap and runtime concurrency ceiling are separate bounds: effective concurrent lanes = `min(policy_cap, runtime_ceiling)`; `issue_width_write` is a hard policy bound, `issue_width_read` is a soft preference subject to the runtime ceiling above it. Dispatch is autonomous (Core Principle #14): once a lane's predecessors are done and its task is in the *declared* plan, the scheduler dispatches without asking. Retire is in-order: lanes retire in their declared sequence, with the PM gating on cross-lane consistency at retire. Speculation is optional and cost-benefit gated; pay the overhead only when the predicted branch is the dominant cost path.
 
 ### Setup (referenced files)
 
 Superscalar ships as a separate module in this repo — self-sufficient:
 
-- **`Superscalar.md`** — full guide: §1 motivation, §2 issue_width formula + autonomous dispatch, §3 retire (in-order), §4 Andon (health visible / worker autonomy precheck / MAST guards / lane status), §5 cost-benefit gate (spawn vs inline crossover), §6 speculation, §7 PR/commit lane discipline, §8 case studies, §9 anti-patterns, §11 dogfood log (Entry 01-03 baseline on Phase C reference work).
+- **`Superscalar.md`** — full guide: §1 motivation, §2 issue_width lane-class-aware formula (read/write split, v0.3+) + policy cap vs runtime concurrency ceiling + autonomous dispatch, §3 retire (in-order), §4 Andon (health visible / worker autonomy precheck / MAST guards / lane status), §5 lane-class-differentiated adoption thresholds, §6 speculation, §7 PR/commit lane discipline, §8 case studies, §9 anti-patterns, §11 dogfood log (Entry 01-05; Entry 05 = downstream Stage 1 dogfooding n=7, lane-class cap asymmetry signal).
 - Reference via raw URL — latest on `main`: `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Superscalar.md`; pin a tag (`…/v2.3.0/Superscalar.md`) for reproducibility.
