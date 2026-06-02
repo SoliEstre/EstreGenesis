@@ -2,8 +2,8 @@
 
 (function () {
   const KEY = 'eg-promo-theme';
-  const DEFAULT = 'technical';
-  const THEMES = ['technical', 'marketing', 'academic'];
+  const DEFAULT = 'marketing';
+  const THEMES = ['marketing', 'technical', 'academic'];
 
   function applyTheme(theme) {
     if (!THEMES.includes(theme)) theme = DEFAULT;
