@@ -5,7 +5,7 @@ Static HTML/CSS/JS landing for EstreGenesis + Superscalar + Constellation, suita
 ## Structure
 
 ```
-docs/promo/
+docs/
   index.html           ← landing (3 module cards)
   superscalar.html     ← A/B charts + Entry 06 metrics + dogfood ledger
   constellation.html   ← 5 e2e A2A PRs + §13.x protocol family + plugin install
@@ -13,6 +13,7 @@ docs/promo/
     data.js            ← single source of truth (SSoT) for all metrics
     i18n.js            ← bilingual EN ↔ KO toggle
     theme.js           ← theme switcher (technical / marketing / academic)
+    audience.js        ← audience-level switcher (general / dev / expert)
     charts.js          ← Chart.js wrapper for Superscalar A/B + Constellation timeline
     shared.css         ← theme-agnostic base layout
     themes.css         ← three theme presets (CSS variables)
@@ -31,14 +32,14 @@ docs/promo/
 3. Branch: `main`, folder: `/docs`
 4. Save
 
-Pages publishes at `https://soliestre.github.io/EstreGenesis/promo/` (note: GitHub Pages URLs are lowercase).
+Pages publishes at `https://soliestre.github.io/EstreGenesis/` (note: GitHub Pages URLs are lowercase).
 
 ## Local preview
 
-Open `docs/promo/index.html` directly in a browser, or serve over HTTP:
+Open `docs/index.html` directly in a browser, or serve over HTTP:
 
 ```bash
-cd docs/promo
+cd docs
 python3 -m http.server 8080
 # Open http://localhost:8080
 ```

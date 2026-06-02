@@ -1,4 +1,4 @@
-// docs/promo/shared/i18n.js — bilingual toggle (en ↔ ko)
+// docs/shared/i18n.js — bilingual toggle (en ↔ ko)
 
 (function () {
   const KEY = 'eg-promo-lang';
@@ -39,11 +39,15 @@
 
   window.EG_I18N = { getLang, setLang, applyLang };
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const lang = getLang();
-    applyLang(lang);
-    document.querySelectorAll('.lang-toggle button').forEach((b) => {
-      b.addEventListener('click', () => setLang(b.dataset.lang));
-    });
+  // Apply immediately. This script lives at end of body, so every [data-en]
+  // element above the tag has already been parsed and is queryable. Running
+  // synchronously here (rather than on DOMContentLoaded) lets us swap text
+  // content before the initial paint completes, minimising the EN→KO flash
+  // that a deferred apply would produce for Korean visitors and reducing the
+  // window in which Chrome could decide to offer machine translation.
+  applyLang(getLang());
+
+  document.querySelectorAll('.lang-toggle button').forEach((b) => {
+    b.addEventListener('click', () => setLang(b.dataset.lang));
   });
 })();

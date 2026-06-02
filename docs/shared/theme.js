@@ -1,4 +1,4 @@
-// docs/promo/shared/theme.js — theme switcher (technical / marketing / academic)
+// docs/shared/theme.js — theme switcher (technical / marketing / academic)
 
 (function () {
   const KEY = 'eg-promo-theme';

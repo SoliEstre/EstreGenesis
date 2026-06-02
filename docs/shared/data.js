@@ -1,4 +1,4 @@
-// docs/promo/shared/data.js — single source of truth for promotional metrics.
+// docs/shared/data.js — single source of truth for promotional metrics.
 // All numbers verifiable in the EstreGenesis repo: Superscalar.md §11 + CHANGELOG.md + git log.
 
 window.EG_DATA = {
