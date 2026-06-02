@@ -1,4 +1,4 @@
-<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.18; date: 2026-06-02; protocol: live-board v0.3 (distilled inline — self-sufficient) + MCP integration v0.4 (§8) + attachment transport-mode v0.4 (§13.11 rule 5) + at-least-once relay reliability v0.5 (§13.13.2 — bridge inbox-append commitment) + board render TEXT_MESSAGE fallback (§13.16.12 Pattern 7); license: Apache-2.0 -->
+<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.19; date: 2026-06-02; protocol: live-board v0.3 (distilled inline — self-sufficient) + MCP integration v0.4 (§8) + attachment transport-mode v0.4 (§13.11 rule 5) + at-least-once relay reliability v0.5 (§13.13.2 — bridge inbox-append commitment) + board render TEXT_MESSAGE fallback (§13.16.12 Pattern 7) + ack-layer ownership normative for bridge AND gateway/adapter (§13.13 layer split) + AgentHello opt-in broadcast presence + canonical-id alias discipline (§13.9.1 / §13.9.2); license: Apache-2.0 -->
 
 # Constellation — Live Multi-Agent Orchestration
 
@@ -262,6 +262,40 @@ This section collects the small, surgical clarifications layered on top of §2�
 
 **Why this needs spelling out**: §2 step 4 and §1.8 read like one rule (`OnboardAck` → wait for `Delegate`), and a strict reading would silently stall any collab/upstream peer in standby — defeating §5's purpose. The rule is *role-conditional*, and the conditional is decided by the server's authoritative role (the `AgentList` field), not by what the agent self-reports in `AgentHello.value.role`.
 
+#### 13.9.1 AgentHello as opt-in broadcast presence
+
+`AgentHello` (the `CUSTOM` event introduced in §2 step 3) is **opt-in broadcast presence**, not part of the required handshake. The minimal required handshake — the wire-level invariant every connecting agent MUST satisfy — is `SERVER_HELLO` (server-emitted on accept) followed by `HELLO` (client-emitted; carries `agentId`, `agentName`, `role` hint, `capabilities`). With those two frames the connection is registered and the agent appears in `AgentList`.
+
+`AgentHello` adds two pieces of behaviour on top of the minimal handshake: it (a) declares the agent's display metadata to the board (a visible badge / row appears in the live UI) and (b) triggers the receiving bridge's `OnboardAck` auto-emit, which in turn drives the §13.9 role-conditional onboarding flow (worker-standby for `local`, peer-coordination mode for `upstream` / `collab`). Both are useful for typical interactive deployments and the §2 walkthrough recommends sending it.
+
+Adopters MAY skip `AgentHello` when broadcast presence is undesirable — headless / stealth deployments, telemetry-only listeners, ephemeral debug clients, or any role that does not need the OnboardAck-driven onboarding cycle. When skipped:
+
+- The connection still works; `HELLO` alone is sufficient for the server to classify the role and route messages.
+- `AgentList` still includes the connection (server-side state is built from `HELLO`, not from `AgentHello`).
+- The agent does NOT appear with display metadata until it later sends `AgentHello` (or some role-appropriate equivalent).
+- The receiving bridge's `OnboardAck` auto-emit does NOT fire, so the §13.9 role-conditional standby (for `local`) does NOT start automatically; an agent that wants the worker-standby semantics MUST send `AgentHello` to trigger it.
+
+**Adopter discipline**: when `AgentHello` IS sent, it MUST follow the §2 step 3 wire shape exactly (`name` and `targetAgentId` at top level, sibling of `type`, never nested inside `value`). When `AgentHello` IS sent and the role is `upstream` or `collab`, it MUST be a **broadcast presence event** — no specific `targetAgentId` (or a literal indication that this is a presence broadcast rather than a directed message). Adopters MUST NOT use `AgentHello` as a directed DM to `main-agent` or any other specific agent (that misuse causes the receiving bridge's `OnboardAck` auto-emit to attribute the presence to a peer-coordination relationship that does not exist, and Live Board UIs may then render the AgentHello-sender and the apparent target as two separate identity rows for the same underlying agent — the §13.9.2 alias-confusion failure mode below).
+
+The default for autonomous-peer / upstream-adapter implementations is `announce_agent_hello: false`; opt-in is explicit per deployment. The Constellation reference `local-bridge.cjs` sends `AgentHello` by default because its canonical deployment is the interactive local-IDE worker pattern where the broadcast presence is the desired behaviour; that default is a property of the reference implementation, not of the protocol.
+
+#### 13.9.2 Canonical-id discipline + adopter aliases
+
+Each agent connects with a **canonical agentId** (the value sent in `HELLO.agentId` and the column the server keys its routing tables on). The canonical id is the **single source of truth for identity at the wire level** — the server's `AgentList` row, the per-channel history file (`ws-history/<canonical>.jsonl`), and the routing target for `targetAgentId` all use this id.
+
+Adopters MAY operate aliases — alternative agentIds that route to the same underlying agent runtime — and the server itself has no built-in alias resolution: aliasing is **adopter-side responsibility** (handled inside the connecting adapter / gateway / bridge, not by the server). The canonical default placeholder agentId for the main role is `main-agent` (per §2 — overridable via `WS_PRIMARY_AGENT` env); adopters who run their main agent under a different canonical id (e.g., `local-ide-agent`, `hermes-dev-agent`) MAY treat the literal string `main-agent` as an alias for their canonical id and handle it accordingly.
+
+**Adopter adapter discipline** when aliasing is in effect:
+
+- **Inbound target-alias**: inbound `targetAgentId === <alias>` (e.g., `main-agent`) SHOULD wake / dispatch to the canonical agent runtime. This is the *useful* alias case: peers who learned the alias and address it directly are still routed correctly.
+- **Inbound source-alias (self-loop)**: inbound `agentId === <alias>` (the inbound's apparent sender is the alias of self) AND `targetAgentId === <canonical>` MUST be treated as **self-loop** and dropped at the adapter (do not wake the agent runtime). Without this rule a peer accidentally addressing the alias from the same connection (or a server echo that round-trips the alias) creates a recursive wake.
+- **Outbound source consistency**: outbound traffic from the agent MUST be stamped with the canonical id at `agentId` / `source`, never the alias — keeps server-side routing tables and per-channel history coherent under one identity.
+- **Display-layer disambiguation**: dashboards that render `AgentList` SHOULD show the canonical id as the identity (the alias is implementation detail, not a peer identity); the *bridge* row in `AgentList` should appear once per canonical id, never duplicated as "canonical + alias".
+
+The named adapter-side failure mode this discipline prevents is the **alias-confusion failure** — where a poorly-implemented adapter treats `main-agent` as a *separate peer* (instead of an alias of self), then sends `AgentHello` to it as a DM (per §13.9.1's anti-pattern), then the receiving bridge auto-emits `OnboardAck` to the apparent "main-agent" peer, then the canonical agent receives an `OnboardAck` it did not request from an identity it thought was external — and the live-board UI ends up rendering the same agent twice (once as canonical, once as the alias) with no error surface anywhere. Adopters MUST handle alias resolution at the adapter layer to prevent this.
+
+The server treats aliases as distinct ids by design — pushing alias resolution into the adapter keeps the server stateless about identity (it just routes by the exact string), which is the correct layering. Adopters who do not need aliases pay no cost; adopters who do need them implement the discipline above.
+
 ### 13.11 Board emission discipline
 
 #### 13.11.1 Progress emission is mandatory at safe points
@@ -362,6 +396,8 @@ The classic ROGER vs WILCO split applies: a `read` is ROGER ("I have received yo
 - **Server**: `wsIsAckable(msg)` classification (decides which inbound `CUSTOM` deserves a `delivered` ack — excludes ack/ping types and telemetry, requires `msgId`); auto-emits `Ack{delivered}`. The server is the *only* layer that emits `delivered`.
 - **Bridge** (sender side): assigns `msgId` on outbound emit (the agent does not). Bridge (recipient side): `onInbound` dedup using persisted watermarks; passes deduped messages to the agent's inbox. The bridge does NOT auto-emit `AckProcessed` or `Pong` — those are agent-layer concerns.
 - **Agent**: emits `AckProcessed` when it has actually acted (optional but recommended). Answers `Ping` with `Pong` only from an active turn. Owns the retransmit-vs-probe-vs-escalate decision tree above.
+
+**Layer-split applies equally to gateway / adapter implementations (v2.5.21 normative clarification)**: the bridge prohibitions above (no auto `AckProcessed`, no auto `Pong`, no auto `ReviewSLAAck`, no auto application-tier outcome emission) MUST be interpreted to bind every layer that sits between the agent's active runtime turn and the WS server — bridges (the canonical Node `local-bridge.cjs` pattern), gateway adapters (e.g., a Python `websockets` adapter, a Discord/Telegram/Slack platform adapter, a sidecar process proxying between an IPC channel and the live-board WS), and any other proxy / connector / shim. The discriminator is *not* the implementation language or the layering pattern but the **owner of the agent-layer commitment signal**: only the agent in an active turn can truthfully assert `AckProcessed` (= "I have surfaced the inbound into my working context and intend to act"), `ReviewSLAAck` (= "I commit to producing an outcome by `eta`"), or `Pong` (= "my runtime is currently active and can answer A2A"). A gateway / adapter that auto-emits any of these on the agent's behalf collapses the agent-layer liveness signal exactly the same way a bridge that auto-pongs does — the failure mode is identical, the prohibition therefore applies identically. Generic redaction hooks, ack-tier transport semantics (`Ack{delivered}`), and `msgId` stamping (sender-side) remain explicitly bridge-/adapter-layer responsibilities; commitment-tier and application-tier signals are explicitly NOT.
 
 **No auto-pong rationale** (cross-link to §13.11.2): a bridge that auto-pongs makes `Pong` mean "the bridge process is alive," not "the agent is processing." That collapses the agent-layer liveness signal that the whole §13.13 mechanism depends on. `Pong` from the agent layer = "my turn is currently active and I can answer A2A"; from anywhere else = a false signal that the retry decision tree will misread.
 
