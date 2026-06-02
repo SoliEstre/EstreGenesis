@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Constellation — live multi-agent orchestration · EstreGenesis</title>
+  <meta name="description" content="Constellation v2.5.15 — WebSocket + A2A messaging + dashboard + MCP integration. 5 e2e A2A PRs validated in 24h dogfood. at-least-once relay + attachment transport-mode + dashboard render patterns.">
+  <link rel="stylesheet" href="shared/shared.css">
+  <link rel="stylesheet" href="shared/themes.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="index.html"><span class="logo">⊛</span><span>EstreGenesis</span></a>
+      <nav class="nav">
+        <a href="index.html" data-en="Home" data-ko="홈">Home</a>
+        <a href="superscalar.html">Superscalar</a>
+        <a href="constellation.html" class="active">Constellation</a>
+        <a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Constellation.md" target="_blank" rel="noopener">Spec</a>
+      </nav>
+      <div class="controls">
+        <div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div>
+        <div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-wide">
+    <section class="hero">
+      <h1>Constellation</h1>
+      <p class="tagline" data-en="Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP." data-ko="실시간 multi-agent 오케스트레이션: WebSocket + A2A + dashboard + MCP.">Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP.</p>
+      <div class="badges">
+        <span class="badge">v2.5.15</span>
+        <span class="badge">protocol v0.3 + §13.x</span>
+        <span class="badge">Apache-2.0</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-en="24-hour dogfood — A2A PR system" data-ko="24시간 dogfood — A2A PR 시스템">24-hour dogfood — A2A PR system</h2>
+      <p data-en="The A2A PR system (RRP §13.22 candidate) is a cross-repo Pull Request orchestration over the A2A messaging layer. Five end-to-end PRs ran through it in 24 hours — three via the canonical PR_LIVE chain (PR #1-3), two via the Manual fast-path (PR #4-5, codified at RRP §10B after 2-case validation). Total: 415 hub mirror insertions, 0 redaction violations, 0 merge failures." data-ko="A2A PR 시스템 (RRP §13.22 후보)은 A2A 메시징 layer 위 cross-repo Pull Request 오케스트레이션. 24h 내 5개 e2e PR — 3개는 canonical PR_LIVE chain (PR #1-3) 경유, 2개는 Manual fast-path (PR #4-5, 2-case validation 후 RRP §10B에 codify). 누적: 415 hub mirror ins, 0 redaction 위반, 0 머지 실패.">Five end-to-end PRs in 24h — 3 via canonical chain, 2 via Manual fast-path. 415 hub mirror ins · 0 violations · 0 failures.</p>
+
+      <div class="metrics-grid">
+        <div class="metric"><span class="value">5</span><span class="label" data-en="e2e A2A PRs" data-ko="e2e A2A PR">e2e A2A PRs</span></div>
+        <div class="metric"><span class="value">415</span><span class="label" data-en="Hub mirror ins" data-ko="Hub mirror ins">Hub mirror ins</span></div>
+        <div class="metric"><span class="value">0</span><span class="label" data-en="Redaction violations" data-ko="Redaction 위반">Redaction violations</span></div>
+        <div class="metric"><span class="value">0</span><span class="label" data-en="Merge failures" data-ko="머지 실패">Merge failures</span></div>
+        <div class="metric"><span class="value">~24h</span><span class="label" data-en="Window" data-ko="기간">Window</span></div>
+        <div class="metric highlight"><span class="value">2</span><span class="label" data-en="Merge paths validated" data-ko="머지 경로 검증">Merge paths validated</span></div>
+      </div>
+
+      <div class="chart-box">
+        <canvas id="constellation-prs"></canvas>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-en="The five PRs" data-ko="5개 PR">The five PRs</h2>
+      <table class="data">
+        <thead>
+          <tr>
+            <th>PR</th>
+            <th data-en="Sections" data-ko="섹션">Sections</th>
+            <th class="num" data-en="Ins" data-ko="Ins">Ins</th>
+            <th data-en="Commit" data-ko="Commit">Commit</th>
+            <th data-en="Path" data-ko="경로">Path</th>
+          </tr>
+        </thead>
+        <tbody id="constellation-pr-table"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 data-en="Protocol additions (§13.x)" data-ko="프로토콜 추가 (§13.x)">Protocol additions (§13.x)</h2>
+      <div class="cards" id="protocol-additions"></div>
+    </section>
+
+    <section>
+      <h2 data-en="What's in the box" data-ko="구성 요소">What's in the box</h2>
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="WebSocket server" data-ko="WebSocket 서버">WebSocket server</h3>
+          <p data-en="Deps-0 Node HTTP + WS router. Agent registry, role classification (main/local/upstream/collab/board), A2A relay with reply-window pairing, per-channel history, graceful main handoff." data-ko="Deps-0 Node HTTP + WS 라우터. Agent registry, role 분류 (main/local/upstream/collab/board), A2A relay + reply-window pairing, 채널별 history, graceful main handoff.">Deps-0 Node HTTP + WS router. Agent registry, A2A relay, per-channel history.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="A2A messaging" data-ko="A2A 메시징">A2A messaging</h3>
+          <p data-en="3-tier ack (delivered/commitment/application) · attachment transport-mode (local_path/embedded/url/chunked) · at-least-once relay (v0.4: pending queue + redelivery + idempotent receiver dedup)." data-ko="3-tier ack (delivered/commitment/application) · attachment transport-mode (local_path/embedded/url/chunked) · at-least-once relay (v0.4: pending queue + redelivery + idempotent receiver dedup).">3-tier ack · attachment transport-mode · at-least-once relay.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Dashboard render patterns (§13.16.12)" data-ko="Dashboard render 패턴 (§13.16.12)">Dashboard render patterns (§13.16.12)</h3>
+          <p data-en="7 protocol-tier patterns codified from dogfood: collapse indicator · date-line · attachment chip · connection indicator · upstream tab re-exposure · upstream A2A classification · TEXT_MESSAGE fallback (defense layer)." data-ko="dogfood에서 protocol-tier codified된 7 패턴: collapse 인디케이터 · 날짜변경선 · 첨부 칩 · 연결 인디케이터 · 업스트림 탭 재노출 · 업스트림 A2A 분류 · TEXT_MESSAGE fallback (defense layer).">7 protocol-tier patterns from dogfood.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="MCP integration (§8)" data-ko="MCP 통합 (§8)">MCP integration (§8)</h3>
+          <p data-en="5 MCP tools (board_state_get · board_history_tail · agent_list_get · a2a_emit · a2a_wait_ack with full 3-tier) · session-lifecycle AgentList integration · chunked transfer reassembly. plugins/constellation v0.2.0 ships the reference impl." data-ko="5 MCP tool (board_state_get · board_history_tail · agent_list_get · a2a_emit · a2a_wait_ack full 3-tier) · session-lifecycle AgentList 통합 · chunked transfer 재조립. plugins/constellation v0.2.0이 reference impl ship.">5 MCP tools · full 3-tier ack · plugins/constellation v0.2.0.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-en="Ship timeline (24h)" data-ko="Ship 타임라인 (24h)">Ship timeline (24h)</h2>
+      <table class="data">
+        <thead>
+          <tr>
+            <th data-en="Version" data-ko="버전">Version</th>
+            <th data-en="Description" data-ko="설명">Description</th>
+          </tr>
+        </thead>
+        <tbody id="timeline-body"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 data-en="Install the plugin" data-ko="플러그인 설치">Install the plugin</h2>
+      <p data-en="Constellation ships as a Claude Code plugin with embedded MCP server. Phase 2 prototype (v0.2.0) is install-ready:" data-ko="Constellation은 embedded MCP server 포함 Claude Code 플러그인으로 ship. Phase 2 prototype (v0.2.0)이 install 가능 상태:">Constellation ships as a Claude Code plugin with embedded MCP server.</p>
+<pre><code># Add the EstreGenesis marketplace:
+/plugin marketplace add SoliEstre/EstreGenesis
+
+# Install the constellation plugin:
+/plugin install constellation@estregenesis-plugins
+
+# Configure env (one of):
+CONSTELLATION_WS_URL=ws://localhost:7878/ws
+CONSTELLATION_TOKEN=...    # OR CONSTELLATION_UPSTREAM_KEY / CONSTELLATION_COLLAB_KEY
+CONSTELLATION_STATE_PATH=/path/to/state.json</code></pre>
+    </section>
+
+    <section>
+      <h2 data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
+      <p data-en="The full Constellation.md (architecture · A2A bridge interface · operating modes · runtime patterns · external collab onboarding · §13.x protocol family) is in the EstreGenesis repo." data-ko="전체 Constellation.md (아키텍처 · A2A bridge 인터페이스 · operating modes · 런타임 패턴 · external collab onboarding · §13.x 프로토콜 family)는 EstreGenesis repo에 있습니다.">The full Constellation.md is in the EstreGenesis repo.</p>
+      <p><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Constellation.md" target="_blank">github.com/SoliEstre/EstreGenesis/blob/main/Constellation.md →</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>EstreGenesis · Apache-2.0 · <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank">github.com/SoliEstre/EstreGenesis</a></p>
+  </footer>
+
+  <script src="shared/data.js"></script>
+  <script src="shared/i18n.js"></script>
+  <script src="shared/theme.js"></script>
+  <script src="shared/charts.js"></script>
+  <script>
+    function tr(o) { const l = window.EG_I18N.getLang(); if (!o) return ''; if (typeof o === 'string') return o; return o[l] || o.en || ''; }
+    function renderPRs() {
+      const body = document.getElementById('constellation-pr-table');
+      if (!body) return;
+      body.innerHTML = window.EG_DATA.constellationPRs.map((p) => `
+        <tr>
+          <td><strong>PR #${p.num}</strong></td>
+          <td>${p.sections}</td>
+          <td class="num">${p.ins}</td>
+          <td><code>${p.commit}</code></td>
+          <td class="${p.path === 'Manual fast-path' ? 'highlight' : ''}">${p.path}</td>
+        </tr>
+      `).join('');
+    }
+    function renderProtocol() {
+      const grid = document.getElementById('protocol-additions');
+      if (!grid) return;
+      grid.innerHTML = window.EG_DATA.protocolAdditions.map((p) => `
+        <div class="card">
+          <div class="module-tag">${p.sec}</div>
+          <h3>${tr(p.label)}</h3>
+          <p>${p.detail}</p>
+        </div>
+      `).join('');
+    }
+    function renderTimeline() {
+      const body = document.getElementById('timeline-body');
+      if (!body) return;
+      body.innerHTML = window.EG_DATA.shipTimeline.map((s) => `
+        <tr>
+          <td><code>${s.v}</code></td>
+          <td>${tr(s.desc)}</td>
+        </tr>
+      `).join('');
+    }
+    function redraw() {
+      window.EG_CHARTS.drawConstellationPRsChart('constellation-prs');
+      renderPRs(); renderProtocol(); renderTimeline();
+    }
+    const _orig = window.EG_REDRAW_CHARTS;
+    window.EG_REDRAW_CHARTS = function () { _orig && _orig(); renderPRs(); renderProtocol(); renderTimeline(); };
+    document.addEventListener('DOMContentLoaded', redraw);
+  </script>
+</body>
+</html>
