@@ -1,4 +1,4 @@
-// docs/promo/shared/charts.js — Chart.js wrapper for Superscalar A/B + Constellation timeline
+// docs/shared/charts.js — Chart.js wrapper for Superscalar A/B + Constellation timeline
 // Depends on: Chart.js (CDN), data.js, i18n.js
 
 (function () {

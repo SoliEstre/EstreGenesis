@@ -1,4 +1,4 @@
-// docs/promo/shared/audience.js — audience-level switcher (general / dev / expert)
+// docs/shared/audience.js — audience-level switcher (general / dev / expert)
 
 (function () {
   const KEY = 'eg-promo-audience';

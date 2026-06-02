@@ -10,10 +10,26 @@
   <link rel="stylesheet" href="shared/themes.css">
   <script>
     (function () {
+      var html = document.documentElement;
+      // Audience — set synchronously before body parsing so the CSS hide-non-matching
+      // rule applies from the first paint (no flash of all 3 tier variants).
       var levels = ['general', 'dev', 'expert'];
-      var v = localStorage.getItem('eg-promo-audience') || 'general';
-      if (levels.indexOf(v) === -1) v = 'general';
-      document.documentElement.setAttribute('data-audience', v);
+      var aud = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(aud) === -1) aud = 'general';
+      html.setAttribute('data-audience', aud);
+      // Language — set <html lang="..."> early so Chrome/Edge/Safari see the
+      // correct page language from the start and do NOT offer to machine-translate
+      // a page that is already in the user's language. Mirrors i18n.js's
+      // detectBrowserLang() + getLang() logic.
+      var langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages
+        : [navigator.language || navigator.userLanguage || ''];
+      var detected = 'en';
+      for (var i = 0; i < langs.length; i++) {
+        if (typeof langs[i] === 'string' && langs[i].toLowerCase().indexOf('ko') === 0) { detected = 'ko'; break; }
+      }
+      var lang = localStorage.getItem('eg-promo-lang') || detected;
+      html.setAttribute('lang', lang);
     })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

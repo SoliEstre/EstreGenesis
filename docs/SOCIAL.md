@@ -16,7 +16,7 @@ Two graduated modules (Apache-2.0):
 
 31 ships · 5 e2e PRs · 0 violations in 24h.
 
-https://soliestre.github.io/EstreGenesis/promo/
+https://soliestre.github.io/EstreGenesis/
 ```
 
 **KO**:
@@ -29,7 +29,7 @@ EstreGenesis — Claude Code용 agentic-coding 패턴 공개 시드.
 
 24시간 dogfood: 31 ship · 5 e2e PR · 0 위반.
 
-https://soliestre.github.io/EstreGenesis/promo/
+https://soliestre.github.io/EstreGenesis/
 ```
 
 ---
@@ -74,7 +74,7 @@ For handover-grade audits + cross-dim consistency: discipline wins.
 The trade-off is now numerically anchored.
 
 Full Entry 06 + dogfood ledger:
-https://soliestre.github.io/EstreGenesis/promo/superscalar.html
+https://soliestre.github.io/EstreGenesis/superscalar.html
 
 Spec: https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md
 ```
@@ -116,7 +116,7 @@ The check is verifiable from inbox.log alone.
 Five e2e PRs in 24h. Three relay-drop incidents triggered a §13.13.2 RRP (at-least-once relay) — server pending queue + redelivery + idempotent receiver dedup. Reference impl: v2.5.15.
 
 Full 24h ship timeline + protocol additions:
-https://soliestre.github.io/EstreGenesis/promo/constellation.html
+https://soliestre.github.io/EstreGenesis/constellation.html
 ```
 
 ---
