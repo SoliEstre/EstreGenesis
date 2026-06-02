@@ -5,13 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EstreGenesis — agentic-coding seed + orchestration modules</title>
   <meta name="description" content="A public seed of agentic-coding patterns for Claude Code. Two graduated modules: Superscalar (execution-scheduling discipline) + Constellation (live multi-agent orchestration with MCP).">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="shared/shared.css">
   <link rel="stylesheet" href="shared/themes.css">
+  <script>
+    (function () {
+      var levels = ['general', 'dev', 'expert'];
+      var v = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(v) === -1) v = 'general';
+      document.documentElement.setAttribute('data-audience', v);
+    })();
+  </script>
 </head>
 <body>
   <header class="header">
     <div class="header-inner">
-      <a class="brand" href="index.html"><img class="logo" src="assets/logo.png" alt="EstreGenesis"></a>
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
       <nav class="nav">
         <a href="index.html" class="active" data-en="Home" data-ko="홈">Home</a>
         <a href="superscalar.html" data-en="Superscalar" data-ko="Superscalar">Superscalar</a>
@@ -20,7 +32,8 @@
       </nav>
       <div class="controls">
         <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
-        <div class="control-group"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="marketing">market</button><button data-theme="technical">tech</button><button data-theme="academic">paper</button></div></div>
+        <div class="control-group"><span class="control-label" data-en="Level" data-ko="레벨">Level</span><div class="aud-toggle"><button data-aud-btn="general" data-en="general" data-ko="일반">general</button><button data-aud-btn="dev" data-en="dev" data-ko="개발">dev</button><button data-aud-btn="expert" data-en="expert" data-ko="전문">expert</button></div></div>
+        <div class="control-group"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
       </div>
     </div>
   </header>
@@ -28,7 +41,9 @@
   <main class="container">
     <section class="hero">
       <h1 data-en="EstreGenesis" data-ko="EstreGenesis">EstreGenesis</h1>
-      <p class="tagline" data-en="A public seed of agentic-coding patterns for Claude Code." data-ko="Claude Code용 agentic-coding 패턴 공개 시드.">A public seed of agentic-coding patterns for Claude Code.</p>
+      <p class="tagline" data-aud="general" data-en="A starter kit for building software with AI coding assistants." data-ko="AI 코딩 도우미로 소프트웨어를 만들 때 쓰는 출발 키트예요.">A starter kit for building software with AI coding assistants.</p>
+      <p class="tagline" data-aud="dev" data-en="A reusable seed of agentic-coding patterns, designed to drop into any project that uses Claude Code, Codex, Cursor, or similar AI coding assistants." data-ko="Claude Code · Codex · Cursor와 같은 AI 코딩 도구를 사용하는 프로젝트에 그대로 투입할 수 있도록 정리한, 재사용 가능한 agentic-coding 패턴 시드입니다.">A reusable seed of agentic-coding patterns for Claude Code, Codex, Cursor, etc.</p>
+      <p class="tagline" data-aud="expert" data-en="A public, Apache-2.0-licensed seed of agentic-coding patterns refined through continuous dogfooding on AI-native production projects, distributed as a portable bootstrap for Claude Code and compatible AI coding hosts." data-ko="AI-native 프로덕션 프로젝트의 지속적 dogfooding을 통해 정제된 agentic-coding 패턴을, Claude Code 및 호환 AI coding 호스트를 위한 portable bootstrap의 형태로 배포하는 Apache-2.0 라이선스 공개 시드이다.">A public seed of agentic-coding patterns for Claude Code.</p>
       <div class="badges">
         <span class="badge">Apache-2.0</span>
         <span class="badge">v2.5.15</span>
@@ -39,7 +54,9 @@
 
     <section>
       <h2 data-en="What's in the seed" data-ko="시드 구성">What's in the seed</h2>
-      <p data-en="EstreGenesis distills agentic-coding patterns refined across two real AI-native projects into a portable bootstrap. Six tiers (Master · Lite · Compact × EN/KO) cover everything from Phase 0 setup to two optional graduated modules below." data-ko="EstreGenesis는 두 개의 AI-native 프로젝트 운영에서 정제한 agentic-coding 패턴을 portable bootstrap으로 증류한 공개 시드입니다. 6 tier (Master · Lite · Compact × EN/KO)가 Phase 0 설정부터 아래의 두 graduated module까지 cover합니다.">EstreGenesis distills agentic-coding patterns refined across two real AI-native projects into a portable bootstrap.</p>
+      <p data-aud="general" data-en="Think of it as a battle-tested checklist for working with AI coding tools. When a team built two real products using AI assistants every day, certain patterns kept reappearing — what to set up first, how to keep multiple AI agents from stepping on each other, how to make sure work doesn't get lost. EstreGenesis packages those patterns so you don't have to rediscover them." data-ko="AI 코딩 도구로 일하는 팀을 위한, 실전 검증된 체크리스트라고 보시면 돼요. 두 개의 실제 프로덕트를 매일 AI 보조로 만들다 보니 같은 패턴이 반복적으로 나오더라고요 — 무엇을 먼저 설정해야 하는지, AI 에이전트 여럿이 서로 부딪히지 않으려면 어떻게 해야 하는지, 작업이 사라지지 않게 하려면 어떻게 해야 하는지. EstreGenesis는 그 패턴들을 모아둔 거예요. 같은 시행착오를 다시 겪지 않으셔도 됩니다.">Think of it as a battle-tested checklist for working with AI coding tools.</p>
+      <p data-aud="dev" data-en="EstreGenesis is a portable bootstrap for AI-assisted development. It ships as six seed tiers (Master, Lite, and Compact, each in English and Korean) covering Phase 0 environment setup, AGENTS.md scaffolding, multi-agent coordination patterns, and references to two optional graduated modules — Superscalar and Constellation. The intended workflow is straightforward: drop the appropriate seed into a project, let the AI coding agent read it once, and the rest of the development workflow inherits the patterns without further configuration." data-ko="EstreGenesis는 AI 보조 개발을 위한 portable bootstrap입니다. Master · Lite · Compact 3단계 × 영문 · 국문 2개 언어로 구성된 6-tier 시드로 배포되며, Phase 0 환경 설정과 AGENTS.md 스캐폴드, 다중 에이전트 조정 패턴, 그리고 두 개의 선택 모듈(Superscalar, Constellation)에 대한 참조를 포함합니다. 사용 흐름은 단순합니다. 프로젝트에 적절한 tier의 시드를 배치하면, AI 코딩 에이전트가 이를 한 번 읽는 것만으로 이후의 개발 워크플로우가 별도 설정 없이 해당 패턴을 따르게 됩니다.">A portable bootstrap for AI-assisted development. Six seed tiers cover Phase 0 setup, AGENTS.md scaffolding, coordination patterns, references to two optional modules.</p>
+      <p data-aud="expert" data-en="EstreGenesis distils a set of agentic-coding patterns, iteratively refined through continuous dogfooding on two AI-native production projects, into a portable bootstrap intended for adoption across heterogeneous AI coding hosts. The distribution comprises six tiers (Master, Lite, and Compact, each provided in English and Korean), spanning Phase 0 environment setup, AGENTS.md scaffolding, and inter-agent coordination patterns, together with normative references to two optional graduated modules examined in detail below." data-ko="EstreGenesis는 두 건의 AI-native 프로덕션 프로젝트에서 지속적 dogfooding을 통해 반복적으로 정제된 agentic-coding 패턴의 집합을, 이종 AI coding 호스트 전반에서 채택 가능한 portable bootstrap의 형태로 증류한다. 배포 단위는 Master · Lite · Compact의 3단계를 영문과 국문으로 각각 제공하는 총 6-tier로 구성되며, Phase 0 환경 설정, AGENTS.md 스캐폴드의 작성, 그리고 에이전트 간 조정 패턴을 포함하고, 아래에서 상세히 다루는 두 개의 선택 graduated module을 규범적으로 참조한다.">EstreGenesis distills agentic-coding patterns refined across two real AI-native projects into a portable bootstrap.</p>
     </section>
 
     <section>
@@ -48,28 +65,36 @@
         <div class="card">
           <div class="module-tag">SEED</div>
           <h3 data-en="Project Seed" data-ko="프로젝트 시드">Project Seed</h3>
-          <p data-en="Six-tier bootstrap (Master/Lite/Compact × EN/KO). Phase 0 setup → AGENTS.md scaffold → working with any AI coding service (Claude Code, Codex, Cursor, …)." data-ko="6-tier 부트스트랩 (Master/Lite/Compact × EN/KO). Phase 0 설정 → AGENTS.md 스캐폴드 → 모든 AI coding 서비스에서 작업.">Six-tier bootstrap. Phase 0 setup → AGENTS.md scaffold → any AI coding service.</p>
+          <p data-aud="general" data-en="A one-page starter that tells your AI assistant how to behave on your project. Works with whatever AI tool you use." data-ko="AI 보조에게 「이 프로젝트에서는 이렇게 일해줘」라고 알려주는 한 페이지 출발점이에요. 어떤 AI 도구를 쓰든 같이 씁니다.">A one-page starter that tells your AI assistant how to behave on your project.</p>
+          <p data-aud="dev" data-en="A six-tier bootstrap (Master, Lite, and Compact, each in English and Korean) that bundles Phase 0 environment setup, AGENTS.md scaffolding, and the core coordination patterns needed for multi-agent work. The seed itself is host-agnostic and is currently used with Claude Code, Codex, and Cursor without modification." data-ko="Master · Lite · Compact 3단계를 영문과 국문으로 제공하는 6-tier 부트스트랩이며, Phase 0 환경 설정과 AGENTS.md 스캐폴드, 그리고 다중 에이전트 작업에 필요한 핵심 조정 패턴을 함께 묶어 제공합니다. 시드 자체는 특정 호스트에 종속되지 않으며, Claude Code · Codex · Cursor 등에서 별도 수정 없이 그대로 사용하고 있습니다.">Six-tier bootstrap. Phase 0 setup + AGENTS.md scaffold + coordination patterns.</p>
+          <p data-aud="expert" data-en="A six-tier bootstrap (Master, Lite, Compact × EN/KO) providing a graduated information-density gradient from full normative reference down to compact rule-set form. The distribution covers Phase 0 environment configuration, AGENTS.md scaffold authoring, and host-agnostic operational patterns intended for use with arbitrary AI coding services, including but not limited to Claude Code, Codex, and Cursor." data-ko="Master · Lite · Compact 3단계와 영문 · 국문 2개 언어를 조합한 6-tier 부트스트랩으로, 완전한 규범적 참조로부터 압축된 규칙 집합에 이르기까지 정보 밀도의 단계적 gradient를 제공한다. 본 배포는 Phase 0 환경 구성, AGENTS.md 스캐폴드의 작성, 그리고 Claude Code · Codex · Cursor를 포함하되 이에 한정되지 않는 임의의 AI coding 서비스에서 사용 가능한 호스트 비종속적 운영 패턴을 포괄한다.">Six-tier bootstrap. Phase 0 setup → AGENTS.md scaffold → any AI coding service.</p>
           <a class="card-link" href="https://github.com/SoliEstre/EstreGenesis#readme" target="_blank" data-en="README →" data-ko="README →">README →</a>
         </div>
 
         <div class="card">
           <div class="module-tag">MODULE · v0.4</div>
           <h3>Superscalar</h3>
-          <p data-en="Execution-scheduling discipline for parallel sub-agent dispatch. issue_width formula + worktree-isolated reorder buffer + cost-benefit gate + opt-in speculation. Entry 06: +118% grounding · −40% speculation vs naïve parallel." data-ko="병렬 sub-agent dispatch 실행 스케줄링 규율. issue_width 공식 + worktree-isolated reorder buffer + cost-benefit gate + opt-in speculation. Entry 06: naïve 병렬 대비 grounding +118% · 추측 −40%.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
+          <p data-aud="general" data-en="When you let AI agents work in parallel, raw speed isn't the same as good work. Superscalar is the rulebook for parallel AI work that stays consistent. Measured result: 2.2× more grounded, 40% less guesswork." data-ko="AI 에이전트를 여러 개 동시에 돌리면 빠르긴 한데, 결과가 항상 좋은 건 아닙니다. Superscalar는 병렬로 일하면서도 일관성을 잃지 않게 해주는 규칙집이에요. 실측 결과: 근거가 2.2배 더 많아지고, 추측은 40% 줄어듭니다.">Parallel AI work that stays consistent. Measured: 2.2× more grounded · 40% less guesswork.</p>
+          <p data-aud="dev" data-en="An execution discipline for parallel sub-agent dispatch — both Agent-tool fan-outs and Workflow.parallel calls — built around four primitives: an issue_width formula that bounds in-flight parallelism, worktree isolation for write-disjoint work, in-order retire for deterministic merge, and a consistency gate that reconciles cross-lane contradictions. In a real payment-backend A/B (Entry 06), it delivered a 118 percent increase in grounded cross-references and a 40 percent reduction in speculative claims relative to a naïve max-parallel baseline." data-ko="병렬 sub-agent dispatch — Agent 도구의 fan-out과 Workflow.parallel 호출 모두 — 를 위한 실행 규율로, 네 가지 기본 요소로 구성됩니다. 동시 실행 가능한 작업 수를 제한하는 issue_width 공식, 쓰기가 분리된 작업을 위한 worktree 격리, 결정적 머지를 위한 in-order retire, 그리고 lane 간 모순을 조정하는 consistency gate가 그것입니다. 실제 payment-backend 도메인에서 수행한 A/B(Entry 06)에서는 naïve max-parallel 기준선 대비 grounded cross-reference가 118% 증가하고 추측성 진술이 40% 감소하는 결과를 얻었습니다.">Discipline for parallel sub-agent dispatch. issue_width + worktree isolation + retire + consistency gate.</p>
+          <p data-aud="expert" data-en="An execution-scheduling discipline for parallel sub-agent dispatch, comprising an analytically derived issue_width formula, a worktree-isolated reorder buffer for write-disjoint speculative execution, an explicit cost-benefit admission gate, and an opt-in speculation policy. Empirical validation in Entry 06, an in situ A/B on a production payment-backend codebase, attests to a 118 percent increase in grounded cross-references and a 40 percent reduction in speculative claims relative to a naïve max-parallel baseline." data-ko="병렬 sub-agent dispatch를 위한 실행 스케줄링 규율로서, 해석적으로 도출된 issue_width 공식, 쓰기가 분리된 추측 실행을 위한 worktree-isolated reorder buffer, 명시적인 cost-benefit 인입 게이트, 그리고 선택적 speculation 정책으로 구성된다. 프로덕션 payment-backend 코드베이스에서의 in situ A/B인 Entry 06의 실증적 검증에 따르면, 본 규율은 naïve max-parallel 기준선 대비 grounded cross-reference에 있어서 118%의 증가와 추측성 진술에 있어서 40%의 감소를 보였다.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
           <a class="card-link" href="superscalar.html" data-en="Read the A/B report →" data-ko="A/B 리포트 보기 →">Read the A/B report →</a>
         </div>
 
         <div class="card">
           <div class="module-tag">MODULE · v2.5.15</div>
           <h3>Constellation</h3>
-          <p data-en="Live multi-agent orchestration: WebSocket server + A2A messaging + dashboard + MCP integration. Codified protocol §13.x with attachment transport, at-least-once relay, dashboard render patterns. 5 e2e A2A PRs validated in 24h." data-ko="실시간 multi-agent 오케스트레이션: WebSocket server + A2A 메시징 + dashboard + MCP 통합. 프로토콜 §13.x codify (attachment transport, at-least-once relay, dashboard render patterns). 24h 내 5 e2e A2A PR 검증.">Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP.</p>
+          <p data-aud="general" data-en="Lets multiple AI agents talk to each other in real time, see each other's progress on a shared dashboard, and hand off work safely. Five real Pull Requests went through the system in 24 hours with zero mistakes." data-ko="여러 AI 에이전트가 실시간으로 서로 대화하고, 공유 대시보드로 서로의 진행 상황을 보고, 작업을 안전하게 주고받게 해줍니다. 실제 Pull Request 5건이 24시간 동안 무오류로 통과했어요.">Multiple AI agents talking in real time + shared dashboard + safe handoffs. Five real PRs in 24h, zero mistakes.</p>
+          <p data-aud="dev" data-en="A live multi-agent orchestration layer built on a WebSocket server, agent-to-agent (A2A) messaging, a shared live dashboard, and an MCP integration that lets Claude Code sessions join as first-class participants. A continuous 24-hour dogfood run completed five end-to-end A2A pull requests (totalling 415 hub-mirror insertions) with zero redaction violations and zero merge failures, validating two distinct merge paths — the canonical PR_LIVE chain and the Manual fast-path." data-ko="WebSocket 서버, agent-to-agent(A2A) 메시징, 공유 라이브 대시보드, 그리고 Claude Code 세션을 정식 참여자로 합류시키는 MCP 통합으로 구성된 실시간 multi-agent 오케스트레이션 계층입니다. 24시간 연속 dogfood에서는 5건의 종단 간 A2A pull request(총 415건의 hub mirror insertion)가 redaction 위반 0건 · 머지 실패 0건으로 통과되었으며, 이를 통해 canonical PR_LIVE chain과 Manual fast-path의 두 개 머지 경로가 검증되었습니다.">Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP. 24h dogfood: 5 e2e PRs, 0 violations.</p>
+          <p data-aud="expert" data-en="A live multi-agent orchestration substrate composed of a WebSocket server, agent-to-agent (A2A) messaging, a shared live dashboard, and an MCP integration that admits Claude Code sessions as first-class agents. The accompanying protocol family, codified under §13.x, formalises attachment transport-mode discipline, at-least-once relay semantics, and a normative set of dashboard render patterns. A continuous 24-hour dogfood comprising five end-to-end A2A pull requests provides the principal empirical validation of the design." data-ko="WebSocket 서버, agent-to-agent(A2A) 메시징, 공유 라이브 대시보드, 그리고 Claude Code 세션을 정식 에이전트로 인입하는 MCP 통합으로 구성된 실시간 multi-agent 오케스트레이션 기반이다. 이에 수반되는 프로토콜 군은 §13.x에 codify되어 있으며, 첨부 transport-mode 규율, at-least-once relay 의미론, 그리고 규범적 dashboard render pattern 집합을 형식화한다. 본 설계에 대한 주된 실증적 검증은, 5건의 종단 간 A2A pull request로 구성된 24시간 연속 dogfood에 의해 제공된다.">Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP.</p>
           <a class="card-link" href="constellation.html" data-en="Read the protocol →" data-ko="프로토콜 보기 →">Read the protocol →</a>
         </div>
       </div>
     </section>
 
     <section>
-      <h2 data-en="24-hour dogfood — what shipped" data-ko="24시간 dogfood — 무엇이 ship 됐나">24-hour dogfood — what shipped</h2>
+      <h2 data-aud="general" data-en="What we made in 24 hours" data-ko="24시간 동안 만든 것들">What we made in 24 hours</h2>
+      <h2 data-aud="dev" data-en="24h dogfood — what shipped" data-ko="24h dogfood — ship된 것">24h dogfood — what shipped</h2>
+      <h2 data-aud="expert" data-en="24-hour dogfood — release artefacts" data-ko="24시간 dogfood — 출시 산출물">24-hour dogfood — release artefacts</h2>
       <div class="metrics-grid">
         <div class="metric"><span class="value">31</span><span class="label" data-en="Tagged releases" data-ko="태그 릴리스">Tagged releases</span></div>
         <div class="metric highlight"><span class="value">5</span><span class="label" data-en="e2e A2A PRs" data-ko="e2e A2A PR">e2e A2A PRs</span></div>
@@ -81,7 +106,9 @@
 
       <div class="callout">
         <h4 data-en="The headline finding" data-ko="핵심 발견">The headline finding</h4>
-        <p data-en="Parallelism is not sufficient; orchestration discipline produces consistency. Entry 06's A/B measurement showed naïve max-parallel produces speed (8.9 min vs 23.6 min) but loses grounding (+118% B), assumption suppression (−40% B), dedup, real-contradiction resolution. The wall-clock cost is phase serialisation, not parallel inefficiency." data-ko="병렬성은 충분조건이 아니다 — 오케스트레이션 규율이 정합성을 만든다. Entry 06 A/B 측정: naïve max-parallel은 빠르지만 (8.9분 vs 23.6분) grounding (+118% B), 추측 억제 (−40% B), 중복정리, 실 모순 해소를 잃는다. wall-clock 비용은 phase 직렬화 비용이지 병렬 비효율이 아니다.">Parallelism is not sufficient; orchestration discipline produces consistency.</p>
+        <p data-aud="general" data-en="Running AI agents in parallel doesn't automatically give good results. When the same audit was run two ways — fast/parallel vs slow/disciplined — the slow one took 2.6× longer but caught a real bug both arms had spotted; the fast one saw both halves of the bug but never connected them. Speed without discipline ≠ quality." data-ko="AI 에이전트를 여러 개 동시에 돌린다고 해서 결과 품질이 같이 올라가진 않습니다. 같은 점검을 두 방식 — 빠르게/병렬 vs 천천히/규율 — 으로 해봤더니, 천천히 한 쪽이 2.6배 오래 걸렸지만 실제 버그를 잡아냈어요. 빠른 쪽은 그 버그의 양쪽 단서를 다 봤는데도 연결을 못했고요. 속도가 곧 품질은 아닙니다.">Running AI agents in parallel doesn't automatically give good results. Speed without discipline ≠ quality.</p>
+        <p data-aud="dev" data-en="Parallelism alone is not sufficient — what produces cross-lane consistency is orchestration discipline. In the Entry 06 A/B, naïve max-parallel was faster in wall-clock terms (8.9 minutes versus 23.6 minutes), but it gave up a 118 percent gain in grounded cross-references, a 40 percent reduction in speculative claims, cross-lane deduplication, and the resolution of a real contradiction surfaced during the run. The additional wall-clock cost of the disciplined arm reflects phase serialisation (design-freeze → consume → cross-cut → retire), not any loss of parallel efficiency: in-phase parallelism is identical in both arms." data-ko="병렬성만으로는 충분하지 않습니다. lane 사이의 정합성을 만들어내는 것은 결국 오케스트레이션 규율입니다. Entry 06 A/B에서 naïve max-parallel은 wall-clock 기준으로는 더 빨랐지만(8.9분 대 23.6분), grounded cross-reference의 118% 증가, 추측성 진술의 40% 감소, lane 간 중복 정리, 그리고 실행 중에 표면화된 실제 모순의 해소를 모두 잃었습니다. 규율이 적용된 arm에서 추가된 wall-clock 비용은 phase 직렬화(design-freeze → consume → cross-cut → retire) 비용이며, 병렬 효율의 손실에 기인하지 않습니다. phase 내부에서의 병렬성은 두 arm에서 동일하기 때문입니다.">Parallelism is not sufficient; orchestration discipline produces consistency. Wall-clock cost is phase serialisation, not parallel inefficiency.</p>
+        <p data-aud="expert" data-en="Parallelism does not, of itself, suffice; cross-lane consistency arises from orchestration discipline. The Entry 06 A/B measurement confirms that whilst naïve max-parallel exhibits a wall-clock advantage (8.9 minutes versus 23.6 minutes), it forfeits a 118 percent increase in grounded cross-references, a 40 percent reduction in speculative claims, cross-lane deduplication, and the reconciliation of a genuine contradiction surfaced during execution. The wall-clock cost incurred by the disciplined arm is attributable to phase serialisation and not to any diminution of parallel efficiency, the latter being invariant across the two arms at the level of intra-phase fan-out." data-ko="병렬성은 그 자체로 충분하지 아니하며, lane 간 정합성은 orchestration 규율로부터 비롯된다. Entry 06 A/B 측정은 naïve max-parallel이 wall-clock 측면에서의 우위를 보임에도 불구하고(8.9분 대 23.6분), grounded cross-reference의 118% 증가, 추측성 진술의 40% 감소, lane 간 중복 정리, 그리고 실행 중에 표면화된 실제 모순의 reconciliation을 모두 상실한다는 사실을 확증한다. 규율이 적용된 arm에 부과되는 wall-clock 비용은 phase 직렬화에 귀속되며, 병렬 효율의 어떠한 감쇄에도 귀속되지 아니한다. 후자는 intra-phase fan-out 차원에서 양 arm에 걸쳐 불변이기 때문이다.">Parallelism is not sufficient; orchestration discipline produces consistency.</p>
       </div>
     </section>
   </main>
@@ -93,5 +120,6 @@
   <script src="shared/data.js"></script>
   <script src="shared/i18n.js"></script>
   <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
 </body>
 </html>

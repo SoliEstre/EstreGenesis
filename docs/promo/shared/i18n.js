@@ -2,10 +2,20 @@
 
 (function () {
   const KEY = 'eg-promo-lang';
-  const DEFAULT = 'en';
+  const FALLBACK = 'en';
+
+  function detectBrowserLang() {
+    const langs = (navigator.languages && navigator.languages.length)
+      ? navigator.languages
+      : [navigator.language || navigator.userLanguage || ''];
+    for (const l of langs) {
+      if (typeof l === 'string' && l.toLowerCase().startsWith('ko')) return 'ko';
+    }
+    return FALLBACK;
+  }
 
   function getLang() {
-    return localStorage.getItem(KEY) || DEFAULT;
+    return localStorage.getItem(KEY) || detectBrowserLang();
   }
 
   function setLang(lang) {
