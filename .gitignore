@@ -11,3 +11,9 @@ constellation/reference/runtime/.*-bridge.lock
 /.agent/
 /.agent-*
 /agents.json
+
+# Agent-local scratch directory — one-off helper scripts the agent writes when
+# orchestrating multi-turn work (outbox push helpers, bundle decode scripts,
+# probe wrappers, etc). Ephemeral and project-local; never tracked.
+# Memory feedback_workspace_cleanliness applies.
+/tmp/
