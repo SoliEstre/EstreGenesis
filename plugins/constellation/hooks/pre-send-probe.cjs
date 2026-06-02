@@ -33,6 +33,11 @@ const WATCHER_SCRIPT_PATH = process.env.WATCHER_SCRIPT
 
 // §13.16.9 A2A-intent allowlist (v2.5.2 4-group classification: meaningful = A2A-intent only)
 // transport / liveness / handshake / notice / board-directed UX residual all filtered out
+// v2.5.20 extensions:
+//   - Request/Reply: generic ask/respond envelopes (cross-agent S4-style coordination)
+//   - Attachment: standalone attachment metadata envelope (Hermes 2026-06-01 11:09-11:11 UTC pattern)
+//   - ArtifactManifest/ArtifactComplete: chunked transfer (§13.11 rule 5) anchor + close
+//     (ArtifactChunk intentionally excluded — high-volume reassembly state, not meaningful at agent layer)
 const ALLOWLIST = new Set([
   'Delegate', 'UserPrompt', 'WorkerReport', 'WorkerAck',
   'Report', 'BlockerManifest', 'BlockerNudge',
@@ -45,6 +50,10 @@ const ALLOWLIST = new Set([
   'DeadlockProbe', 'ReviewSLAAck', 'PreemptRequest',
   'PreemptForce', 'MediationProposal', 'MediationAck',
   'EscalationRequest',
+  // v2.5.20 extensions — generic coordination + attachment / chunked-transfer anchors
+  'Request', 'Reply',
+  'Attachment',
+  'ArtifactManifest', 'ArtifactComplete',
 ]);
 
 function readCursor() {
@@ -79,8 +88,17 @@ function probe(cursor) {
     const l = newLines[i];
     let o;
     try { o = JSON.parse(l); } catch { continue; }
-    const name = o?.msg?.name || o?.name;
-    if (name && ALLOWLIST.has(name)) {
+    // v2.5.20: also check value.name for doubly-wrapped envelopes where outer
+    // name field carries the literal "CUSTOM" instead of the MessageName
+    // (observed in 2026-06-02 Hermes meta-ack at inbox 22856 — Hermes-side
+    // envelope construction stamps type literal at outer name level + actual
+    // MessageName at value.name). Without the fallback the probe misses these.
+    const outerName = o?.msg?.name || o?.name;
+    const innerName = o?.msg?.value?.name || o?.value?.name;
+    const name = (outerName && ALLOWLIST.has(outerName)) ? outerName
+               : (innerName && ALLOWLIST.has(innerName) && (outerName === 'CUSTOM' || !outerName)) ? innerName
+               : null;
+    if (name) {
       meaningful.push({ idx: cursor + i + 1, name, body: o });
     }
   }
