@@ -75,7 +75,22 @@ const now = () => Date.now();
 // §13.13 A2A ack 계층 (client 측): 발신 msgId 부여(서버 delivered ack 대상·dedup 키) + 수신 dedup.
 //   ping/pong·AckProcessed(이행) 는 에이전트 레벨 — bridge auto-pong 은 '연결 생존 ≠ turn 생존' false-alive 라 하지 않음.
 const _BRIDGE_ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);
-const _seenMsgIds = new Set();   // 수신 dedup watermark (in-memory — 재시작 시 소실, 영속화는 후속 P: Report §5 함정)
+
+// §13.13.2 v0.4 receiver-side dedup — LRU 1024 entries / 1 hour TTL.
+//   Map(msgId → seen-ts). Map iteration is insertion-order in JS so LRU eviction = delete first key.
+//   On duplicate: emit `AckProcessed { ackFor, dedupHit: true }` immediately + discard body (do NOT append to inbox).
+const _SEEN_LRU_MAX = 1024;
+const _SEEN_TTL_MS = 60 * 60 * 1000;
+const _seenMsgIds = new Map();   // msgId → ts (LRU + TTL evict per §13.13.2)
+function _dedupCheck(msgId) {
+  if (!msgId) return false;
+  const now_ = Date.now();
+  for (const [k, ts] of _seenMsgIds) { if (now_ - ts > _SEEN_TTL_MS) _seenMsgIds.delete(k); else break; }   // TTL evict from oldest (insertion-order)
+  if (_seenMsgIds.has(msgId)) { _seenMsgIds.set(msgId, now_); return true; }   // refresh ts (LRU access)
+  if (_seenMsgIds.size >= _SEEN_LRU_MAX) { const oldest = _seenMsgIds.keys().next().value; _seenMsgIds.delete(oldest); }
+  _seenMsgIds.set(msgId, now_);
+  return false;
+}
 
 function send(type, extra) {
   if (!ws || ws.readyState !== 1) return false;
@@ -88,7 +103,15 @@ function onInbound(m) {
   if (m.type === 'SERVER_HELLO') { console.log('[bridge] SERVER_HELLO proto', m.protocolVersion); return; }
   if (m.type !== 'CUSTOM') return;
   if (m.name === 'AgentList' || m.name === 'History' || m.name === 'CloseChannel') return;   // server→board 용 — 브릿지 무시
-  if (m.msgId) { if (_seenMsgIds.has(m.msgId)) { console.log('[bridge] §13.13 dedup skip', m.msgId); return; } _seenMsgIds.add(m.msgId); }   // 수신 dedup (재연결 replay 중복 방지)
+  // §13.13.2 v0.4 receiver-side dedup with AckProcessed{dedupHit:true} emit.
+  //   Phase 1 (v0.3): silently skip duplicates (set-add, no ack).
+  //   Phase 2 (v0.4): emit `AckProcessed { ackFor, dedupHit: true }` so the sender's pending queue clears + body discard.
+  if (m.msgId && _dedupCheck(m.msgId)) {
+    console.log('[bridge] §13.13.2 dedup hit', m.msgId, '— emitting AckProcessed{dedupHit:true} + discard body');
+    const srcAgent = m.agentId || (m.value && m.value.agentId);   // original sender (so server routes the AckProcessed back)
+    if (srcAgent) send('CUSTOM', { name: 'AckProcessed', targetAgentId: srcAgent, value: { ackFor: m.msgId, dedupHit: true } });
+    return;
+  }
   const rec = { at: new Date().toISOString(), name: m.name, value: m.value, source: m.source };
   try { fs.appendFileSync(INBOX, JSON.stringify(rec) + '\n'); } catch (e) { console.log('[bridge] inbox write fail', String(e)); }
   console.log('[bridge] inbound', m.name, JSON.stringify(m.value || {}));
