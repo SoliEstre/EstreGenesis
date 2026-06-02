@@ -439,9 +439,16 @@ server.on('upgrade', (req, socket) => {
         console.warn('[ws] WARN: targetAgentId fallback from value.targetAgentId (agent outbound from %s) — client envelope shape mismatch', conn.meta.agentId);
       }
       const tgt = msg && msg.targetAgentId;                      // A2A: 다른 에이전트 대상이면 상대에게 relay
-      // §13.13.2 v0.4: AckProcessed inbound → clear sender's pending entry for the ackFor msgId (commitment-tier clear, not transport-tier)
+      // §13.13.2 v0.4/v0.5: AckProcessed inbound → clear sender's pending entry for the ackFor msgId.
+      //   BUG FIX (v2.5.19): the queue key MUST be conn.meta.agentId (the AckProcessed *sender* =
+      //   original *recipient* of the message being acked = pending queue key), NOT tgt
+      //   (which is AckProcessed.targetAgentId = the original *sender*, wrong queue). Pre-fix the
+      //   lookup ran against the wrong queue and silently missed every commitment-tier clear,
+      //   surfaced as redelivery → false RelayUnreachable{commitment-ack-absent} on the 2026-06-02
+      //   dogfood; main found + fixed the equivalent line on its own server first, EG reference
+      //   bug confirmed by code review and shipped here.
       if (msg && msg.type === 'CUSTOM' && msg.name === 'AckProcessed' && msg.value && msg.value.ackFor && tgt) {
-        _relayPendingClear(tgt, msg.value.ackFor);
+        _relayPendingClear(conn.meta.agentId, msg.value.ackFor);
       }
       if (tgt && wsAgents.has(tgt)) {
         const d = wsAgents.get(tgt); if (d && d.alive) {
