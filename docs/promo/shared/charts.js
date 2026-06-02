@@ -4,14 +4,14 @@
 (function () {
   const charts = {};
   const themeColors = {
-    technical: {
-      a: '#94a3b8', b: '#22d3ee', highlight: '#f97316', text: '#cbd5e1', grid: '#334155',
-    },
     marketing: {
       a: '#cbd5e1', b: '#8b5cf6', highlight: '#f43f5e', text: '#1e293b', grid: '#e2e8f0',
     },
+    technical: {
+      a: '#a5b4fc', b: '#38bdf8', highlight: '#fb923c', text: '#e0e7ff', grid: '#312e81',
+    },
     academic: {
-      a: '#94a3b8', b: '#0f172a', highlight: '#0369a1', text: '#1e293b', grid: '#cbd5e1',
+      a: '#d4b8a8', b: '#c96442', highlight: '#a8462b', text: '#2c2825', grid: '#e7e2d8',
     },
   };
 

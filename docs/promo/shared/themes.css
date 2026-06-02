@@ -1,29 +1,8 @@
-/* docs/promo/shared/themes.css — 3 themes: technical / marketing / academic */
+/* docs/promo/shared/themes.css — 3 themes: marketing (default) / technical / academic-claude */
 
-[data-theme="technical"] {
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Monaco, monospace;
-  --color-bg: #0f172a;
-  --color-text: #cbd5e1;
-  --color-text-muted: #94a3b8;
-  --color-heading: #f1f5f9;
-  --color-link: #22d3ee;
-  --color-accent: #22d3ee;
-  --color-accent-on: #0f172a;
-  --color-highlight: #f97316;
-  --color-highlight-bg: rgba(249, 115, 22, 0.1);
-  --color-border: #334155;
-  --color-card-bg: #1e293b;
-  --color-header-bg: rgba(15, 23, 42, 0.85);
-  --color-code-bg: #1e293b;
-  --color-badge-bg: #1e293b;
-  --color-badge-fg: #94a3b8;
-  --color-table-head-bg: #1e293b;
-  --color-table-hover-bg: #1e293b;
-  --color-callout-bg: rgba(34, 211, 238, 0.06);
-}
-
+/* ============================================================
+   marketing — light, gradient, bold (DEFAULT)
+   ============================================================ */
 [data-theme="marketing"] {
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-heading: 'Inter', -apple-system, sans-serif;
@@ -58,31 +37,89 @@
   -webkit-text-fill-color: transparent;
 }
 
-[data-theme="academic"] {
-  --font-body: 'Georgia', 'Times New Roman', serif;
-  --font-heading: 'Georgia', 'Times New Roman', serif;
-  --font-mono: 'Courier New', Courier, monospace;
-  --color-bg: #fafaf7;
-  --color-text: #1e293b;
-  --color-text-muted: #475569;
-  --color-heading: #0f172a;
-  --color-link: #0369a1;
-  --color-accent: #0369a1;
-  --color-accent-on: #ffffff;
-  --color-highlight: #b45309;
-  --color-highlight-bg: rgba(180, 83, 9, 0.05);
-  --color-border: #cbd5e1;
-  --color-card-bg: #ffffff;
-  --color-header-bg: rgba(250, 250, 247, 0.92);
-  --color-code-bg: #f1f5f9;
-  --color-badge-bg: #ffffff;
-  --color-badge-fg: #475569;
-  --color-table-head-bg: #f1f5f9;
-  --color-table-hover-bg: #f8fafc;
-  --color-callout-bg: rgba(3, 105, 161, 0.04);
+/* ============================================================
+   technical — vivid dark with multi-hue accents (refreshed)
+   Less drab, more saturated; deep indigo bg + cyan/violet/orange accents
+   ============================================================ */
+[data-theme="technical"] {
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Monaco, monospace;
+  --color-bg: #0b0d1f;
+  --color-text: #e0e7ff;
+  --color-text-muted: #a5b4fc;
+  --color-heading: #ffffff;
+  --color-link: #38bdf8;
+  --color-accent: #38bdf8;
+  --color-accent-on: #0b0d1f;
+  --color-highlight: #fb923c;
+  --color-highlight-bg: rgba(251, 146, 60, 0.12);
+  --color-border: #312e81;
+  --color-card-bg: #1e1b4b;
+  --color-header-bg: rgba(11, 13, 31, 0.85);
+  --color-code-bg: #1e1b4b;
+  --color-badge-bg: #1e1b4b;
+  --color-badge-fg: #c7d2fe;
+  --color-table-head-bg: #1e1b4b;
+  --color-table-hover-bg: #2e1065;
+  --color-callout-bg: rgba(56, 189, 248, 0.08);
 }
 
-[data-theme="academic"] h1, [data-theme="academic"] h2, [data-theme="academic"] h3 { font-weight: 600; }
-[data-theme="academic"] h2 { border-bottom: 1px solid var(--color-border); padding-bottom: 0.4rem; }
-[data-theme="academic"] .hero h1 { font-size: 2.6rem; }
+[data-theme="technical"] body {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139, 92, 246, 0.18), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 30%, rgba(56, 189, 248, 0.10), transparent),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+[data-theme="technical"] .hero h1 {
+  background: linear-gradient(90deg, #38bdf8, #a78bfa, #fb923c);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+[data-theme="technical"] .badge { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.3); }
+[data-theme="technical"] .card { background: linear-gradient(180deg, #1e1b4b, #1a1747); }
+[data-theme="technical"] .card:hover { border-color: #a78bfa; box-shadow: 0 0 24px rgba(167, 139, 250, 0.2); }
+[data-theme="technical"] .metric .value { background: linear-gradient(90deg, #38bdf8, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+[data-theme="technical"] .metric.highlight .value { background: linear-gradient(90deg, #fb923c, #f472b6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* ============================================================
+   academic (Claude-style) — warm cream + coral + serif
+   Mirrors Anthropic / claude.ai brand: warm off-white bg, coral accent, Tiempos-style serif headings
+   ============================================================ */
+[data-theme="academic"] {
+  --font-body: 'Söhne', 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-heading: 'Tiempos Headline', 'Tiempos', 'Charter', Georgia, 'Times New Roman', serif;
+  --font-mono: 'Söhne Mono', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --color-bg: #faf9f5;
+  --color-text: #2c2825;
+  --color-text-muted: #6b635a;
+  --color-heading: #1f1c19;
+  --color-link: #c96442;
+  --color-accent: #c96442;
+  --color-accent-on: #ffffff;
+  --color-highlight: #a8462b;
+  --color-highlight-bg: rgba(201, 100, 66, 0.06);
+  --color-border: #e7e2d8;
+  --color-card-bg: #ffffff;
+  --color-header-bg: rgba(250, 249, 245, 0.92);
+  --color-code-bg: #f3efe6;
+  --color-badge-bg: #f3efe6;
+  --color-badge-fg: #6b635a;
+  --color-table-head-bg: #f3efe6;
+  --color-table-hover-bg: #faf9f5;
+  --color-callout-bg: rgba(201, 100, 66, 0.05);
+}
+
+[data-theme="academic"] h1,
+[data-theme="academic"] h2,
+[data-theme="academic"] h3 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+[data-theme="academic"] h1 { letter-spacing: -0.02em; }
+[data-theme="academic"] .hero h1 { font-size: 3.2rem; }
+[data-theme="academic"] .tagline { font-family: var(--font-body); font-size: 1.15rem; }
 [data-theme="academic"] table.data { border: 1px solid var(--color-border); }
+[data-theme="academic"] .card { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02); }
+[data-theme="academic"] .badge { font-family: var(--font-body); font-weight: 500; }
