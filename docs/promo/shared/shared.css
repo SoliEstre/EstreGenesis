@@ -1,0 +1,90 @@
+/* docs/promo/shared/shared.css — theme-agnostic base layout */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: var(--font-body); color: var(--color-text); background: var(--color-bg); line-height: 1.6; }
+a { color: var(--color-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: var(--font-mono); background: var(--color-code-bg); padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.92em; }
+pre { font-family: var(--font-mono); background: var(--color-code-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.9rem; }
+h1, h2, h3 { font-family: var(--font-heading); margin: 1.5rem 0 0.8rem; line-height: 1.25; color: var(--color-heading); }
+h1 { font-size: 2.4rem; font-weight: 700; }
+h2 { font-size: 1.8rem; font-weight: 600; }
+h3 { font-size: 1.3rem; font-weight: 600; }
+p { margin: 0.6rem 0; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+.container-wide { max-width: 1300px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+.header {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--color-header-bg); border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(8px);
+}
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 1300px; margin: 0 auto; padding: 0.8rem 1.5rem; gap: 1rem; }
+.brand { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 600; color: var(--color-heading); }
+.brand .logo { font-size: 1.3rem; }
+.nav { display: flex; gap: 1.2rem; }
+.nav a { color: var(--color-text-muted); font-size: 0.92rem; }
+.nav a:hover, .nav a.active { color: var(--color-link); }
+
+.controls { display: flex; gap: 0.5rem; align-items: center; }
+.lang-toggle, .theme-toggle { display: inline-flex; border: 1px solid var(--color-border); border-radius: 4px; overflow: hidden; }
+.lang-toggle button, .theme-toggle button {
+  font-family: var(--font-mono); font-size: 0.78rem; padding: 0.3rem 0.6rem;
+  background: transparent; color: var(--color-text-muted); border: 0; cursor: pointer;
+  border-right: 1px solid var(--color-border);
+}
+.lang-toggle button:last-child, .theme-toggle button:last-child { border-right: 0; }
+.lang-toggle button.active, .theme-toggle button.active { background: var(--color-accent); color: var(--color-accent-on); }
+.lang-toggle button:hover, .theme-toggle button:hover { color: var(--color-link); }
+
+.hero { padding: 4rem 0 2rem; text-align: center; }
+.hero h1 { font-size: 3rem; margin-bottom: 0.5rem; }
+.hero .tagline { font-size: 1.2rem; color: var(--color-text-muted); margin-bottom: 1.5rem; }
+.hero .badges { display: inline-flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+.badge { display: inline-flex; align-items: center; gap: 0.3rem; font-family: var(--font-mono); font-size: 0.78rem; padding: 0.3rem 0.7rem; background: var(--color-badge-bg); color: var(--color-badge-fg); border: 1px solid var(--color-border); border-radius: 999px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.2rem; margin: 2rem 0; }
+.card { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.5rem; transition: transform .2s, border-color .2s; }
+.card:hover { transform: translateY(-3px); border-color: var(--color-accent); }
+.card h3 { margin-top: 0; color: var(--color-heading); }
+.card .module-tag { font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-accent); }
+.card p { color: var(--color-text-muted); font-size: 0.95rem; }
+.card .card-link { display: inline-block; margin-top: 1rem; color: var(--color-link); font-family: var(--font-mono); font-size: 0.9rem; }
+
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.metric { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 6px; padding: 1.2rem; text-align: center; }
+.metric .value { font-family: var(--font-mono); font-size: 2.2rem; font-weight: 700; color: var(--color-accent); display: block; line-height: 1.1; }
+.metric .label { font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0.4rem; display: block; }
+.metric.highlight .value { color: var(--color-highlight); }
+
+.chart-box { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0; }
+.chart-box canvas { width: 100% !important; height: 360px !important; }
+
+table.data { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; }
+table.data th, table.data td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--color-border); }
+table.data th { background: var(--color-table-head-bg); color: var(--color-heading); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+table.data tr:hover td { background: var(--color-table-hover-bg); }
+table.data .num { font-family: var(--font-mono); text-align: right; }
+table.data .winner-b { color: var(--color-accent); font-weight: 600; }
+table.data .winner-a { color: var(--color-text-muted); }
+table.data .winner-tie { color: var(--color-text-muted); font-style: italic; }
+table.data .highlight { color: var(--color-highlight); font-weight: 600; }
+
+.callout { padding: 1.2rem 1.5rem; border-left: 4px solid var(--color-accent); background: var(--color-callout-bg); margin: 1.5rem 0; border-radius: 0 6px 6px 0; }
+.callout.headline { border-left-color: var(--color-highlight); background: var(--color-highlight-bg); }
+.callout h4 { margin-top: 0; color: var(--color-heading); }
+.callout p:last-child { margin-bottom: 0; }
+
+.footer { padding: 3rem 1.5rem 2rem; text-align: center; color: var(--color-text-muted); font-size: 0.88rem; border-top: 1px solid var(--color-border); margin-top: 3rem; }
+.footer a { color: var(--color-text-muted); }
+.footer a:hover { color: var(--color-link); }
+
+@media (max-width: 720px) {
+  h1 { font-size: 2rem; }
+  .hero h1 { font-size: 2.2rem; }
+  .hero { padding: 2.5rem 0 1.5rem; }
+  .controls { flex-wrap: wrap; }
+  .nav { display: none; }
+}

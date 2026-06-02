@@ -1,0 +1,88 @@
+/* docs/promo/shared/themes.css — 3 themes: technical / marketing / academic */
+
+[data-theme="technical"] {
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Monaco, monospace;
+  --color-bg: #0f172a;
+  --color-text: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-heading: #f1f5f9;
+  --color-link: #22d3ee;
+  --color-accent: #22d3ee;
+  --color-accent-on: #0f172a;
+  --color-highlight: #f97316;
+  --color-highlight-bg: rgba(249, 115, 22, 0.1);
+  --color-border: #334155;
+  --color-card-bg: #1e293b;
+  --color-header-bg: rgba(15, 23, 42, 0.85);
+  --color-code-bg: #1e293b;
+  --color-badge-bg: #1e293b;
+  --color-badge-fg: #94a3b8;
+  --color-table-head-bg: #1e293b;
+  --color-table-hover-bg: #1e293b;
+  --color-callout-bg: rgba(34, 211, 238, 0.06);
+}
+
+[data-theme="marketing"] {
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --color-bg: #ffffff;
+  --color-text: #334155;
+  --color-text-muted: #64748b;
+  --color-heading: #0f172a;
+  --color-link: #8b5cf6;
+  --color-accent: #8b5cf6;
+  --color-accent-on: #ffffff;
+  --color-highlight: #f43f5e;
+  --color-highlight-bg: rgba(244, 63, 94, 0.06);
+  --color-border: #e2e8f0;
+  --color-card-bg: #f8fafc;
+  --color-header-bg: rgba(255, 255, 255, 0.9);
+  --color-code-bg: #f1f5f9;
+  --color-badge-bg: #f1f5f9;
+  --color-badge-fg: #475569;
+  --color-table-head-bg: #f1f5f9;
+  --color-table-hover-bg: #f8fafc;
+  --color-callout-bg: rgba(139, 92, 246, 0.05);
+}
+
+[data-theme="marketing"] .hero {
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.08), transparent);
+  padding-bottom: 3.5rem;
+}
+[data-theme="marketing"] .hero h1 {
+  background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+[data-theme="academic"] {
+  --font-body: 'Georgia', 'Times New Roman', serif;
+  --font-heading: 'Georgia', 'Times New Roman', serif;
+  --font-mono: 'Courier New', Courier, monospace;
+  --color-bg: #fafaf7;
+  --color-text: #1e293b;
+  --color-text-muted: #475569;
+  --color-heading: #0f172a;
+  --color-link: #0369a1;
+  --color-accent: #0369a1;
+  --color-accent-on: #ffffff;
+  --color-highlight: #b45309;
+  --color-highlight-bg: rgba(180, 83, 9, 0.05);
+  --color-border: #cbd5e1;
+  --color-card-bg: #ffffff;
+  --color-header-bg: rgba(250, 250, 247, 0.92);
+  --color-code-bg: #f1f5f9;
+  --color-badge-bg: #ffffff;
+  --color-badge-fg: #475569;
+  --color-table-head-bg: #f1f5f9;
+  --color-table-hover-bg: #f8fafc;
+  --color-callout-bg: rgba(3, 105, 161, 0.04);
+}
+
+[data-theme="academic"] h1, [data-theme="academic"] h2, [data-theme="academic"] h3 { font-weight: 600; }
+[data-theme="academic"] h2 { border-bottom: 1px solid var(--color-border); padding-bottom: 0.4rem; }
+[data-theme="academic"] .hero h1 { font-size: 2.6rem; }
+[data-theme="academic"] table.data { border: 1px solid var(--color-border); }

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superscalar — execution-scheduling discipline · EstreGenesis</title>
+  <meta name="description" content="Superscalar v0.4 — issue_width formula + cost-benefit gate + in-order retire + consistency gate. Entry 06 A/B: +118% grounding, −40% speculation vs naïve parallel.">
+  <link rel="stylesheet" href="shared/shared.css">
+  <link rel="stylesheet" href="shared/themes.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="index.html"><span class="logo">⊛</span><span>EstreGenesis</span></a>
+      <nav class="nav">
+        <a href="index.html" data-en="Home" data-ko="홈">Home</a>
+        <a href="superscalar.html" class="active">Superscalar</a>
+        <a href="constellation.html">Constellation</a>
+        <a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md" target="_blank" rel="noopener">Spec</a>
+      </nav>
+      <div class="controls">
+        <div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div>
+        <div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-wide">
+    <section class="hero">
+      <h1>Superscalar</h1>
+      <p class="tagline" data-en="Execution-scheduling discipline for parallel sub-agent dispatch." data-ko="병렬 sub-agent dispatch 실행 스케줄링 규율.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
+      <div class="badges">
+        <span class="badge">v0.4</span>
+        <span class="badge">§11 Entry 01-06</span>
+        <span class="badge">Apache-2.0</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-en="Entry 06 — the headline A/B" data-ko="Entry 06 — 핵심 A/B">Entry 06 — the headline A/B</h2>
+      <p data-en="A downstream payment-backend dogfood: full-source 9-dimension audit, both arms parallelised, only orchestration discipline varied. Arm A = naïve max-parallel; Arm B = design-freeze → consume → cross-cut → in-order retire + consistency gate + completeness critic." data-ko="downstream payment-backend dogfood: 전소스 9차원 audit, 양 arm 모두 병렬, 단일 변수 = orchestration discipline. Arm A = naïve max-parallel; Arm B = design-freeze → consume → cross-cut → in-order retire + consistency gate + completeness critic.">A downstream payment-backend dogfood — 9-dimension audit, parallelism held constant, orchestration discipline isolated.</p>
+
+      <div class="metrics-grid">
+        <div class="metric highlight"><span class="value">+118%</span><span class="label" data-en="grounding (crossRefs)" data-ko="grounding (crossRefs)">grounding (crossRefs)</span></div>
+        <div class="metric highlight"><span class="value">−40%</span><span class="label" data-en="speculation" data-ko="speculation">speculation</span></div>
+        <div class="metric"><span class="value">2.65×</span><span class="label" data-en="wall-clock cost" data-ko="wall-clock 비용">wall-clock cost</span></div>
+        <div class="metric"><span class="value">+8%</span><span class="label" data-en="token cost" data-ko="토큰 비용">token cost</span></div>
+      </div>
+
+      <div class="chart-box">
+        <canvas id="superscalar-ab-bar"></canvas>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-en="Quantitative readouts" data-ko="정량 측정">Quantitative readouts</h2>
+      <table class="data">
+        <thead>
+          <tr>
+            <th data-en="Metric" data-ko="메트릭">Metric</th>
+            <th class="num">Arm A (OFF)</th>
+            <th class="num">Arm B (ON)</th>
+            <th data-en="Δ / Winner" data-ko="Δ / 우위">Δ / Winner</th>
+          </tr>
+        </thead>
+        <tbody id="superscalar-table-body"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2 data-en="B-only artifacts (what naïve parallel structurally cannot produce)" data-ko="B-only 산출물 (naïve 병렬이 구조적으로 못 만드는 것)">B-only artifacts (what naïve parallel structurally cannot produce)</h2>
+      <div id="b-only-list"></div>
+
+      <div class="callout headline">
+        <h4 data-en="The load-bearing meta-finding" data-ko="핵심 메타 발견">The load-bearing meta-finding</h4>
+        <p data-en="Both arms surfaced both halves of a real authentication-hash contradiction (foundation: declared algorithm vs consumer: observed-in-production algorithm). Only Arm B's consistency gate paired the two observations and resolved the contradiction. Arm A left it as a silent quality defect downstream." data-ko="양 arm 모두 인증해시 알고리즘의 실제 모순의 양 면을 surface (foundation의 declared 알고리즘 vs consumer의 production-observed 알고리즘). Arm B의 consistency gate만 두 관찰을 paired + 모순을 reconciliation. Arm A는 silent quality defect로 남김.">Both arms surfaced both halves of a real authentication-hash contradiction. Only Arm B's consistency gate reconciled them.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="chart-box"><canvas id="superscalar-grounding"></canvas></div>
+      <div class="chart-box"><canvas id="superscalar-costbenefit"></canvas></div>
+    </section>
+
+    <section>
+      <h2 data-en="The trade-off — when to use which arm" data-ko="트레이드오프 — 어느 arm을 언제 쓸까">The trade-off — when to use which arm</h2>
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="Arm A — naïve max-parallel" data-ko="Arm A — naïve max-parallel">Arm A — naïve max-parallel</h3>
+          <p data-en="Right choice for fast first-pass reconnaissance: 2.65× faster wall-clock, −8% tokens. Loses dedup, contradiction resolution, completeness map." data-ko="빠른 first-pass reconnaissance에 적합: 2.65× 빠른 wall-clock, 토큰 −8%. dedup, 모순 해소, completeness map 손실.">Right for fast first-pass reconnaissance.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Arm B — Superscalar discipline" data-ko="Arm B — Superscalar 규율">Arm B — Superscalar discipline</h3>
+          <p data-en="Right choice for handover-grade audits + cross-dimension consistency work. The 2.65× wall-clock cost is phase serialisation (freeze → consume → cross-cut → retire), NOT parallel inefficiency — in-phase parallelism is identical in both arms." data-ko="handover-grade audit + 차원간 정합성 작업에 적합. 2.65× wall-clock 비용은 phase 직렬화 (freeze → consume → cross-cut → retire) 비용이지 병렬 비효율 아님 — phase 내부 병렬성은 양 arm 동일.">Right for handover-grade audits + cross-dimension consistency.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-en="The full picture in one paragraph" data-ko="한 문단 요약">The full picture in one paragraph</h2>
+      <p data-en="The Superscalar mapping looks like a parallelism policy but is not. Parallelism alone doesn't produce cross-lane consistency: duplicates aren't deduplicated, inter-lane contradictions aren't reconciled, completeness gaps aren't surveyed. The §3 retire stage (in-order PM merge + consistency gate + completeness critic) is a coordination mechanism, not a scheduling mechanism. Removing it (Arm A) preserves parallelism but eliminates grounding, dedup, contradiction resolution, and the completeness map. The cost of the discipline is the cost of phase serialisation, not of parallel inefficiency." data-ko="Superscalar mapping은 parallelism policy처럼 보이지만 아니다. 병렬성 단독으로는 cross-lane consistency 생성 불가: 중복 미dedup, 차원간 모순 미reconciliation, completeness gap survey 안 됨. §3 retire stage (in-order PM merge + consistency gate + completeness critic)은 coordination 메커니즘이지 scheduling 메커니즘이 아니다. 제거 시 (Arm A) parallelism은 보존되나 grounding, dedup, 모순 해소, completeness map은 잃는다. 규율의 비용은 phase 직렬화 비용이지 병렬 비효율 비용이 아니다.">The Superscalar mapping looks like a parallelism policy but is not. The §3 retire stage is a coordination mechanism, not a scheduling mechanism.</p>
+    </section>
+
+    <section>
+      <h2 data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
+      <p data-en="The full Superscalar.md (§1 concept mapping · §2 issue_width formula · §3 reorder-buffer worktree isolation · §4 speculation · §5 adoption thresholds · §11 dogfood ledger Entry 01-06) is in the EstreGenesis repo." data-ko="전체 Superscalar.md (§1 concept mapping · §2 issue_width 공식 · §3 reorder-buffer worktree isolation · §4 speculation · §5 adoption thresholds · §11 dogfood ledger Entry 01-06)는 EstreGenesis repo에 있습니다.">The full Superscalar.md is in the EstreGenesis repo.</p>
+      <p><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md" target="_blank">github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md →</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>EstreGenesis · Apache-2.0 · <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank">github.com/SoliEstre/EstreGenesis</a></p>
+  </footer>
+
+  <script src="shared/data.js"></script>
+  <script src="shared/i18n.js"></script>
+  <script src="shared/theme.js"></script>
+  <script src="shared/charts.js"></script>
+  <script>
+    function tr(o) { const l = window.EG_I18N.getLang(); return o[l] || o.en || ''; }
+    function renderTable() {
+      const body = document.getElementById('superscalar-table-body');
+      if (!body) return;
+      body.innerHTML = window.EG_DATA.superscalarEntry06.metrics.map((m) => {
+        const cls = m.highlight ? 'highlight' : m.winner === 'B' ? 'winner-b' : m.winner === 'A' ? 'winner-a' : 'winner-tie';
+        const aDisp = m.display ? m.display.a : m.a;
+        const bDisp = m.display ? m.display.b : m.b;
+        const delta = m.delta || (m.winner === 'tie' ? '≈' : '');
+        return `<tr>
+          <td>${tr(m.label)}</td>
+          <td class="num">${aDisp}${m.unit ? ' ' + m.unit : ''}</td>
+          <td class="num ${cls}">${bDisp}${m.unit ? ' ' + m.unit : ''}</td>
+          <td class="${cls}">${delta}</td>
+        </tr>`;
+      }).join('');
+    }
+    function renderBOnly() {
+      const list = document.getElementById('b-only-list');
+      if (!list) return;
+      list.innerHTML = window.EG_DATA.superscalarEntry06.bOnlyArtifacts.map((a) => `
+        <div class="callout ${a.headline ? 'headline' : ''}">
+          <h4>${tr(a)}</h4>
+          <p>${tr(a.detail)}</p>
+        </div>
+      `).join('');
+    }
+    function redraw() {
+      window.EG_CHARTS.drawSuperscalarABBar('superscalar-ab-bar');
+      window.EG_CHARTS.drawGroundingChart('superscalar-grounding');
+      window.EG_CHARTS.drawCostBenefitChart('superscalar-costbenefit');
+      renderTable();
+      renderBOnly();
+    }
+    const _origRedraw = window.EG_REDRAW_CHARTS;
+    window.EG_REDRAW_CHARTS = function () { _origRedraw && _origRedraw(); renderTable(); renderBOnly(); };
+    document.addEventListener('DOMContentLoaded', redraw);
+  </script>
+</body>
+</html>
