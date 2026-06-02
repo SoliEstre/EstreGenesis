@@ -133,7 +133,12 @@ function onInbound(m) {
   //   Skips _BRIDGE_ACK_KINDS (Ack / AckProcessed / Ping / Pong) — never ack-the-ack (would
   //   recursively burn msgIds + cancel the dedup chain). Application-tier outcome acks
   //   (Report / DONE / BLOCKED per §13.13) are preserved on the agent layer separately.
-  if (appended && m.msgId && !_BRIDGE_ACK_KINDS.has(m.name)) {
+  //   v2.5.19 GATE: only emit when RELAY_REDELIVERY=on. With redelivery disabled the server's
+  //   pending queue is dormant (no entry to clear), so a delivered-persist emit is pure board
+  //   noise. Mirrors main's bridge gate (process.env.RELAY_REDELIVERY === 'on'); deployments
+  //   running the redelivery scheduler turn the gate on, deployments running broker-forward
+  //   workaround mode leave it off and skip the emit cleanly.
+  if (process.env.RELAY_REDELIVERY === 'on' && appended && m.msgId && !_BRIDGE_ACK_KINDS.has(m.name)) {
     const srcAgent = m.agentId || (m.value && m.value.agentId);
     if (srcAgent) {
       send('CUSTOM', { name: 'AckProcessed', targetAgentId: srcAgent, value: { ackFor: m.msgId, tier: 'delivered-persist' } });
