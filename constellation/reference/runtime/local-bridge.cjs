@@ -76,9 +76,15 @@ const now = () => Date.now();
 //   ping/pong·AckProcessed(이행) 는 에이전트 레벨 — bridge auto-pong 은 '연결 생존 ≠ turn 생존' false-alive 라 하지 않음.
 const _BRIDGE_ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);
 
-// §13.13.2 v0.4 receiver-side dedup — LRU 1024 entries / 1 hour TTL.
-//   Map(msgId → seen-ts). Map iteration is insertion-order in JS so LRU eviction = delete first key.
-//   On duplicate: emit `AckProcessed { ackFor, dedupHit: true }` immediately + discard body (do NOT append to inbox).
+// §13.13.2 v0.4/v0.5 receiver-side dedup + inbox-append commitment.
+//   v0.4: LRU 1024 entries / 1 hour TTL. Map(msgId → seen-ts). Map iteration is insertion-order
+//         in JS so LRU eviction = delete first key. On duplicate: emit
+//         `AckProcessed { ackFor, dedupHit: true }` immediately + discard body (do NOT append).
+//   v0.5: on a successful inbox-append (non-duplicate, fresh msgId), emit
+//         `AckProcessed { ackFor, tier: "delivered-persist" }` to the original sender on the
+//         bridge's own authority — the inbox file IS the at-least-once anchor. This clears
+//         the server's pending queue within milliseconds and eliminates the false-positive
+//         RelayUnreachable{commitment-ack-absent} class. See onInbound below for the emit.
 const _SEEN_LRU_MAX = 1024;
 const _SEEN_TTL_MS = 60 * 60 * 1000;
 const _seenMsgIds = new Map();   // msgId → ts (LRU + TTL evict per §13.13.2)
@@ -113,8 +119,26 @@ function onInbound(m) {
     return;
   }
   const rec = { at: new Date().toISOString(), name: m.name, value: m.value, source: m.source };
-  try { fs.appendFileSync(INBOX, JSON.stringify(rec) + '\n'); } catch (e) { console.log('[bridge] inbox write fail', String(e)); }
+  let appended = false;
+  try { fs.appendFileSync(INBOX, JSON.stringify(rec) + '\n'); appended = true; } catch (e) { console.log('[bridge] inbox write fail', String(e)); }
   console.log('[bridge] inbound', m.name, JSON.stringify(m.value || {}));
+  // §13.13.2 v0.5 — bridge inbox-append commitment.
+  //   On successful inbox-append of a fresh (non-duplicate) inbound CUSTOM with a msgId, emit
+  //   `AckProcessed { ackFor: msgId, tier: "delivered-persist" }` to the original sender on
+  //   the bridge's own authority — the inbox file IS the at-least-once anchor, so the bridge
+  //   has fulfilled its half of the commitment the moment the body is durably persisted.
+  //   This clears the server's pending entry within milliseconds, eliminating the false-positive
+  //   RelayUnreachable{commitment-ack-absent} class that v0.4 surfaced when the agent layer was
+  //   idle / busy with unrelated work and never emitted an application-tier commitment ack.
+  //   Skips _BRIDGE_ACK_KINDS (Ack / AckProcessed / Ping / Pong) — never ack-the-ack (would
+  //   recursively burn msgIds + cancel the dedup chain). Application-tier outcome acks
+  //   (Report / DONE / BLOCKED per §13.13) are preserved on the agent layer separately.
+  if (appended && m.msgId && !_BRIDGE_ACK_KINDS.has(m.name)) {
+    const srcAgent = m.agentId || (m.value && m.value.agentId);
+    if (srcAgent) {
+      send('CUSTOM', { name: 'AckProcessed', targetAgentId: srcAgent, value: { ackFor: m.msgId, tier: 'delivered-persist' } });
+    }
+  }
   if (m.name === 'UserPrompt' && m.value && m.value.promptId) {
     send('CUSTOM', { name: 'UserPromptAccepted', value: { promptId: m.value.promptId, mode: 'queued_for_next_safe_point' } });
   }
