@@ -154,6 +154,67 @@ const wsConns = new Set();
 const wsAgents = new Map();                    // agentId → conn
 const _a2aPending = new Map();                 // §13.8 A2A reply 페어링: 응답 에이전트 agentId → { from, contextId, parentId, at } (요청 기억)
 const A2A_WINDOW = 120000;                     // reply-window(ms) — 응답 adapter 가 envelope echo 못할 때 fallback
+
+// §13.13.2 v0.4 at-least-once relay reliability — server-side pending queue + redelivery scheduler.
+//   Per targeted CUSTOM with msgId, retain a pending entry until commitment-tier AckProcessed arrives.
+//   Redeliver if first-attempt-ts exceeds threshold + attempt-count < max + recipient AgentList-present.
+//   After max attempts → emit RelayUnreachable to sender + clear pending.
+//   Provisional defaults per §13.13.2 (queue cap 256 · 5min prod / 30s dogfood threshold · max 3 attempts).
+const _RELAY_PENDING_MAX = Number(process.env.RELAY_PENDING_MAX || 256);     // per-target FIFO cap
+const _RELAY_THRESHOLD_MS = Number(process.env.RELAY_THRESHOLD_MS || 30 * 1000);   // 30s dogfood default; 5*60*1000 for prod
+const _RELAY_MAX_ATTEMPTS = Number(process.env.RELAY_MAX_ATTEMPTS || 3);
+const _RELAY_SCAN_INTERVAL_MS = 10 * 1000;   // scheduler tick
+const _relayPending = new Map();                                            // targetAgentId → Array<{ msgId, payload, firstAt, attempts, hasEmbeddedAttachment }>
+function _hasEmbeddedAttachment(msg) {
+  const atts = msg && msg.value && (msg.value.attachments || (msg.value.attachment && [msg.value.attachment]) || msg.value.files);
+  if (!Array.isArray(atts)) return false;
+  return atts.some((a) => a && (a.source === 'embedded' || a.dataUrl));
+}
+function _relayPendingAdd(tgt, msg) {
+  if (!msg || !msg.msgId) return;                                            // §13.13.2: only msgId-bearing envelopes are tracked
+  let q = _relayPending.get(tgt);
+  if (!q) { q = []; _relayPending.set(tgt, q); }
+  if (q.length >= _RELAY_PENDING_MAX) q.shift();                            // FIFO eviction on cap
+  q.push({ msgId: msg.msgId, payload: msg, firstAt: Date.now(), attempts: 1, hasEmbeddedAttachment: _hasEmbeddedAttachment(msg) });
+}
+function _relayPendingClear(tgt, msgId) {
+  const q = _relayPending.get(tgt);
+  if (!q) return false;
+  const i = q.findIndex((e) => e.msgId === msgId);
+  if (i < 0) return false;
+  q.splice(i, 1);
+  if (!q.length) _relayPending.delete(tgt);
+  return true;
+}
+function _relayUnreachableEmit(senderAgentId, entry, targetAgentId, lastError) {
+  const sender = wsAgents.get(senderAgentId);
+  if (!sender || !sender.alive) return;
+  const ev = wscore.event('CUSTOM', { name: 'RelayUnreachable', value: { msgId: entry.msgId, targetAgentId, attemptCount: entry.attempts, lastError: lastError || 'max-attempts-exceeded' } });
+  ev.targetAgentId = senderAgentId; ev.source = 'server';
+  sender.send(ev);
+}
+function _relayScheduleTick() {
+  const now_ = Date.now();
+  for (const [tgt, q] of _relayPending) {
+    const d = wsAgents.get(tgt);
+    const recipientPresent = d && d.alive;
+    for (let i = q.length - 1; i >= 0; i--) {
+      const e = q[i];
+      if (now_ - e.firstAt < _RELAY_THRESHOLD_MS) continue;                  // not yet due
+      const maxForEntry = e.hasEmbeddedAttachment ? Math.ceil(_RELAY_MAX_ATTEMPTS / 2) : _RELAY_MAX_ATTEMPTS;
+      if (e.attempts >= maxForEntry) {
+        const senderId = (e.payload.agentId) || null;
+        if (senderId) _relayUnreachableEmit(senderId, e, tgt, recipientPresent ? 'commitment-ack-absent' : 'recipient-absent');
+        q.splice(i, 1);
+        continue;
+      }
+      if (!recipientPresent) continue;                                       // defer redelivery until reconnect
+      try { d.send(e.payload); e.attempts++; e.firstAt = now_; } catch {}
+    }
+    if (!q.length) _relayPending.delete(tgt);
+  }
+}
+setInterval(_relayScheduleTick, _RELAY_SCAN_INTERVAL_MS).unref();
 function wsIsTelemetry(msg) { return msg && (msg.threadId === 'codex-watch' || msg.runId === 'codex-watch' || (msg.type === 'STATE_SNAPSHOT' && msg.scope === 'codex-watch')); }   // watcher telemetry 는 A2A reply-window 에 묶지 않음
 const _WS_ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);   // §13.13 ack/ping류 — 이것 자체는 delivered ack 안 함(ACK storm 방지)
 function wsIsAckable(msg) {   // §13.13 A2A delivered ack 대상: ack/ping류·telemetry 제외, msgId 있을 때만(하위호환 — 클라가 msgId 붙이기 전엔 ack 미발생)
@@ -378,6 +439,10 @@ server.on('upgrade', (req, socket) => {
         console.warn('[ws] WARN: targetAgentId fallback from value.targetAgentId (agent outbound from %s) — client envelope shape mismatch', conn.meta.agentId);
       }
       const tgt = msg && msg.targetAgentId;                      // A2A: 다른 에이전트 대상이면 상대에게 relay
+      // §13.13.2 v0.4: AckProcessed inbound → clear sender's pending entry for the ackFor msgId (commitment-tier clear, not transport-tier)
+      if (msg && msg.type === 'CUSTOM' && msg.name === 'AckProcessed' && msg.value && msg.value.ackFor && tgt) {
+        _relayPendingClear(tgt, msg.value.ackFor);
+      }
       if (tgt && wsAgents.has(tgt)) {
         const d = wsAgents.get(tgt); if (d && d.alive) {
           d.send(msg);
@@ -386,6 +451,8 @@ server.on('upgrade', (req, socket) => {
             _ackEv.targetAgentId = conn.meta.agentId; _ackEv.source = 'server';
             conn.send(_ackEv);
           }
+          // §13.13.2 v0.4: register pending entry for msgId-bearing targeted CUSTOM (excludes ack/ping kinds via wsIsAckable check above)
+          if (wsIsAckable(msg)) _relayPendingAdd(tgt, msg);
         }
         _a2aPending.set(tgt, { from: conn.meta.agentId, contextId: msg.contextId || msg.threadId, parentId: msg.messageId || msg.id, at: Date.now() });   // §13.8 A2A 요청 기억(응답 페어링용)
       } else {
