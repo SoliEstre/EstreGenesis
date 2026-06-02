@@ -5,7 +5,7 @@
       "hooks": [
         {
           "type": "command",
-          "command": "node \"${CLAUDE_PLUGIN_ROOT}/../../constellation/reference/runtime/stop-hook/pre-send-probe.cjs\" --rearm"
+          "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-send-probe.cjs\" --rearm"
         }
       ]
     }
