@@ -13,8 +13,8 @@
     {
       "name": "constellation",
       "source": "./plugins/constellation",
-      "description": "Live multi-agent orchestration: WebSocket server + A2A messaging + dashboard + Stop hook helper + MCP server (Phase 2 full impl: WS proxy + 5 tools incl. a2a_wait_ack 3-tier + §13.13.2 dedup + chunked transfer). Bundles the v2.5.x reference runtime, the v2.5.3 SSoT-compliant gateway-client, the v0.4 MCP integration (§8), the v2.5.10 attachment transport-mode (§13.11 rule 5), and the v2.5.11 at-least-once relay reliability (§13.13.2). npm dep: ws ^8.18.0.",
-      "version": "0.2.0",
+      "description": "Live multi-agent orchestration: WebSocket server + A2A messaging + dashboard + Stop hook helper + MCP server (Phase 2 full impl: WS proxy + 5 tools incl. a2a_wait_ack 3-tier + §13.13.2 dedup + chunked transfer). Bundles the v2.5.x reference runtime, the v2.5.3 SSoT-compliant gateway-client, the v0.4 MCP integration (§8), the v2.5.10 attachment transport-mode (§13.11 rule 5), and the v2.5.11 at-least-once relay reliability (§13.13.2). v0.2.1: Stop hook script self-contained inside plugin directory for community-marketplace compatibility. npm dep: ws ^8.18.0.",
+      "version": "0.2.1",
       "category": "orchestration",
       "tags": ["multi-agent", "websocket", "a2a", "live-board", "mcp", "dashboard"]
     },
