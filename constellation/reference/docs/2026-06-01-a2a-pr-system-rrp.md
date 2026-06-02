@@ -1,5 +1,8 @@
-# A2A PR System — Cross-repo Pull Request orchestration via the A2A messaging layer (RRP v0.3 DRAFT)
+# A2A PR System — Cross-repo Pull Request orchestration via the A2A messaging layer (RRP v0.4 DRAFT)
 
+> **DRAFT v0.4 — Phase 1 + Phase 1b shipped, AC-dogfood-6 achieved via PR #1, Manual fast-path codified (§10B) after PR #4 + PR #5 dogfood validation.**
+> **v0.4 (this version)** adds **§10B Manual fast-path** — a trusted-mirror short-circuit (one envelope step + one direct bridge operation) that PR #4 (`a3344d7`) + PR #5 (`1e2c3f9`) validated empirically. The chain (§9/§10A) remains canonical for standard / branch-ref / inline-files-diff PRs; fast-path applies only when ALL of (category=trusted-mirror, kind=inline-section-mirror, mergeStrategy=append-section, single-file, dry-run draftRef consistent, redaction grep clean at dry-run, operator manual review). Load-bearing invariant: **dry-run draftRef consistency gate** — PRMergeAck.draftRef MUST match PRDraftReady.draftRef from the dry-run; without this, fast-path is an unauthenticated merge claim.
+>
 > **DRAFT v0.3 — Phase 1 + Phase 1b shipped, AC-dogfood-6 achieved via PR #1.**
 > Phase 1 prototype (Level 2 — provider-mediated Github PR path) shipped upstream as commit `2213a14`. Phase 1b (Level 1 — A2A-envelope-only path on the receiving-side bridge) shipped subsequently; the first Level 1 protocol-mediated PR completed end-to-end as the §10 dogfood case, landing the §13.14/§13.15 mirror at integration-branch commit `140fd64` on the target repo. Three structural defects (sourceContentRef `kind` placeholder lookup; missing `inline-section-mirror` handler; `targetPath` base ambiguity) were surfaced and resolved by the dry-run + review + `abs+exists` gates BEFORE any external publish — the gate stack's value is empirically validated. Priority open questions Q1/Q2/Q3 are resolved by the Phase 1 ship; AC-dogfood-6 is achieved by Phase 1b + the PR #1 e2e completion. See §11 + §10A (case study).
 > EG 1차지식 perspective (Constellation orchestration domain, downstream-of-main per §13.9 peer role).
@@ -10,8 +13,8 @@
 
 ## 1. Status & provenance
 
-- **Version**: v0.3 DRAFT (Phase 1 + Phase 1b shipped; AC-dogfood-6 achieved via PR #1 e2e completion at integration-branch commit `140fd64`). Predecessors: v0.2 (Phase 1 ship + Level 1 abstraction layered, 2026-06-01); v0.1 (initial RRP, 2026-06-01).
-- **Date**: 2026-06-01 (v0.3 patch same day as v0.1 + v0.2 cuts; reflects Phase 1 + Phase 1b ship + dogfood PR #1 e2e completion arriving same day).
+- **Version**: v0.4 DRAFT (§10B Manual fast-path codified after PR #4 + PR #5 dogfood validation, 2026-06-02). Predecessors: v0.3 (Phase 1 + Phase 1b shipped; AC-dogfood-6 achieved via PR #1 e2e completion at `140fd64`, 2026-06-01); v0.2 (Phase 1 ship + Level 1 abstraction layered, 2026-06-01); v0.1 (initial RRP, 2026-06-01).
+- **Date**: 2026-06-02 (v0.4 patch; v0.3 + v0.2 + v0.1 all cut 2026-06-01).
 - **Context**: Companion to the §13.14 / §13.15 mirror gap (these two sections currently exist in this repo's `Constellation.md` but are NOT mirrored in the `<hub-repo>` `WS-PROTOCOL.md` — the manual-PR tax described in §1 below is the immediate driver, and the same §13.14/§13.15 mirror PR is the canonical dogfood case described in §9).
 - **Authoring lane**: EG (per §13.9 peer/upstream role with respect to the `<hub-repo>` main; this RRP is one half of a coordinated proposal — the other half is whatever the `<hub-repo>` main wants to add at joint formalization time).
 - **Joint-formalization workflow**: this draft → main upstream review (`<hub-repo>` side; comments via outbox `Delegate` or live-board `decisions` panel per §13.17) → reconciled merge → committed as new `§13.22` (or whichever number main assigns) in `Constellation.md`. The dogfood PR (§9) is the *forcing function*: landing the §13.22 protocol allows the §13.14/§13.15 mirror PR itself to be the first PR routed through the new system, proving the protocol works at the moment it lands.
@@ -691,6 +694,102 @@ For downstream projects considering Level 1 adoption:
 - **Set `state.json.pr_system.target_aliases` explicitly**. Don't rely on the `git remote get-url origin` fallback for multi-target deployments; the explicit alias map is constant-time and unambiguous.
 - **The redaction grep + path-consistency review on PRReviewAck is non-optional**. Even for trusted-mirror category PRs, the reviewer agent's `PRReviewAck` step ran the §13.14 redaction grep + duplicate-section check. Both gates returned clean for PR #1; the discipline is the gate.
 - **The user merge delegation pattern is opt-in by class**, not blanket. Delegating "review and if no problem, merge and push" for `trusted-mirror` PRs is reasonable; delegating it for `standard` PRs is not.
+
+---
+
+## 10B. Manual fast-path — trusted-mirror short-circuit (v0.4 addition)
+
+The Level 1 PR_LIVE chain documented in §6/§9/§10A traverses six envelope steps (`PRRequest → PRDraftReady{dryRun:true} → main flips PR_LIVE on → PRRequest re-emit → PRDraftReady{dryRun:false, draftRef:<sha>} → PRReviewAck → PRMergeRequest → PRMergeAck`) — each step verified, each ack a transport-tier signal that the bridge stack is operating. The chain is correct and safe; it is also relatively expensive for the **trusted-mirror category** specifically (single-file `append-section` to a hub path the operator has pre-authorised), where the dry-run already validated everything the chain re-validates after PR_LIVE.
+
+The **manual fast-path** is the v0.4 short-circuit that PR #4 (`a3344d7`, §13.11 rule 5 + §13.13.2 RRP draft mirror, 40 ins) and PR #5 (`1e2c3f9`, §13.16.12 Pattern 7 mirror, 19 ins) executed and validated. It collapses six envelope steps to **one envelope step + one direct bridge operation**:
+
+```text
+EG agent:    PRRequest { level: 1, category: 'trusted-mirror',
+                          sourceContentRef: { kind: 'inline-section-mirror', body, targetPath, mergeStrategy },
+                          targetRepo: 'hub', targetBranch: 'main', dryRun: true, ... }
+                 ↓ (A2A)
+Hub bridge:  handlePrRequestL1 → capability check (trusted_mirror class · targetPath exists · §13.14 redaction grep)
+                 → PRDraftReady { dryRun:true, draftRef:'dryrun-<msgId>', checksPending:[] }
+                 ↓
+Main agent:  (manual) git append body to <HUB_REPO_DIR>/<targetPath>
+                       git add <targetPath>  (isolated; NOT -A)
+                       git commit -m "<auto title from PR body>"
+                       git push origin main
+                 → result: commit <sha>, +N ins, 1 file isolated
+                 ↓ (A2A — server-emitted via main outbox)
+Main agent:  PRMergeAck { merged:true, dryRun:false, commit:<sha>, pushSuccess:true, draftRef:'dryrun-<msgId>', forMsgId:<msgId>, approve:'<dry-run gates + redaction grep + manual review> → approve' }
+```
+
+The dry-run draftRef is the **continuity token**: the same `dryrun-<msgId>` value appears in (a) the bridge's `PRDraftReady` reply to the original PRRequest, (b) the main's `PRMergeAck` referencing the dry-run as the basis for approval. This is the **dry-run draftRef consistency gate** — without it, manual fast-path would be indistinguishable from a hand-pushed commit + a synthetic PRMergeAck (no audit trail). The dry-run draftRef being present + matched is the audit trail.
+
+### 10B.1 Why fast-path exists — the redundancy cost
+
+PR_LIVE chain redundancy analysis (PR #1/#2/#3 traces):
+
+| Step | What it does | What it adds vs dry-run |
+|---|---|---|
+| `PRRequest (dry-run)` | sender's intent envelope | initial proof of intent |
+| `PRDraftReady{dryRun:true}` | bridge's capability + path + redaction check | the gate results, dryRun:true marker |
+| `(operator)` PR_LIVE on | enables real git ops | bridge state toggle |
+| `PRRequest (re-emit)` | sender's intent envelope | (redundant — same body as dry-run) |
+| `PRDraftReady{dryRun:false, draftRef:<sha>}` | bridge's commit + draftRef | real commit + draftRef SHA |
+| `PRReviewAck` | reviewer's approve | reviewer's signature on top of dry-run gates |
+| `PRMergeRequest` | sender requests merge | (redundant — bridge already has draftRef) |
+| `cherry-pick + push` | bridge merges + pushes | the actual visible change |
+| `PRMergeAck` | confirmation envelope | merge confirmation |
+
+The redundancy is intentional for the **standard** PR category — the reviewer's signature in `PRReviewAck` is the human-in-the-loop check that catches what dry-run gates miss (cross-cutting impact, intent-vs-implementation drift, downstream review). But for **trusted-mirror** category — where dry-run already validated every check that matters (single-file append, redaction grep, path exists, capability OK) — the reviewer step adds **no new information**. The operator's per-PR review (manual) replaces the protocol-level `PRReviewAck` step, and the `PRMergeAck` includes the same approve+result information in one envelope.
+
+The manual fast-path's cost is **one envelope** (PRRequest dry-run → PRMergeAck) vs the chain's **eight envelopes** (PRRequest, PRDraftReady×2, PRRequest, PRReviewAck, PRMergeRequest, PRMergeAck, plus the PR_LIVE flip side-channel). For trusted-mirror PRs the fast-path saves seven envelopes per PR + the PR_LIVE state-toggle overhead.
+
+### 10B.2 When to use — and when NOT to use
+
+**Use manual fast-path when ALL of the following hold**:
+
+- **Category = `trusted-mirror`** (operator-pre-authorised; pattern + path + content shape all bounded).
+- **`sourceContentRef.kind` = `inline-section-mirror`** (append-section to a single file; not branch-ref or inline-files-diff).
+- **`mergeStrategy = 'append-section'`** (additive; no replace, no insert-after-anchor that could conflict with concurrent edits).
+- **Single target file** (changing `targetPath` only; no cross-file impact).
+- **Dry-run draftRef present + consistent** in the eventual PRMergeAck (the audit-trail continuity token).
+- **Redaction grep clean** at the dry-run step (the §13.14 gate that the chain would re-run, fast-path does NOT re-run — the dry-run result is load-bearing).
+- **Per-PR operator review completed** (operator manually inspects the dry-run result before pushing; this replaces the protocol-level PRReviewAck).
+
+**Do NOT use manual fast-path for**:
+
+- **Standard / branch-ref / inline-files-diff PRs** — these have cross-cutting risk surface that the chain's PRReviewAck step is specifically designed to catch.
+- **Multi-file changes** — even if all files are append-only, the cross-file consistency is not covered by the single-path dry-run gate.
+- **`mergeStrategy != 'append-section'`** — replace and insert-after-anchor have richer conflict modes that dry-run alone does not catch.
+- **PRs touching shared mutable state** (state.json, config, schema) — even if isolated to a single file, the operational impact is broader than a section append.
+- **First-time adopter of the PR system** — the chain's eight envelopes are also the adopter's training data; skipping them on day one loses the dogfood signal.
+
+### 10B.3 The dry-run draftRef consistency gate (load-bearing invariant)
+
+The fast-path's correctness rests on **one invariant**: the `PRMergeAck.draftRef` matches the `PRDraftReady.draftRef` from the original dry-run. Without this, a fast-path PRMergeAck is indistinguishable from an unauthenticated merge claim (any agent could emit `PRMergeAck { merged:true, ... }` against any prior PRRequest msgId).
+
+The bridge implementation MUST emit `draftRef: 'dryrun-<msgId>'` deterministically from the msgId at dry-run time. The main agent's manual PRMergeAck MUST carry that same `draftRef` verbatim (along with the real commit sha in `commit`). Downstream reviewers (the operator, EG-side automation, future audit) verify the two draftRefs match against the inbox history.
+
+PR #4 trace example: PRRequest msgId `m-mpvupm5l-147` → bridge dry-run `PRDraftReady { draftRef: 'dryrun-constellatio-m-mpvupm5l-147', dryRun:true }` → main manual append + push (`a3344d7`) → `PRMergeAck { draftRef: 'dryrun-constellatio-m-mpvupm5l-147', forMsgId: 'm-mpvupm5l-147', commit: 'a3344d7', merged: true, pushSuccess: true }`. The draftRef consistency is verifiable from the inbox.log alone.
+
+### 10B.4 Composition with related disciplines
+
+- **§6 approval discipline**: fast-path requires `trusted-mirror` category. The §6 per-PR opt-in stays in force; the operator's pre-authorisation of the trusted-mirror class is what makes fast-path safe for these PRs.
+- **§13.14 redaction discipline**: fast-path runs redaction grep at dry-run only; the chain re-runs at PRReviewAck. Fast-path adopters MUST treat the dry-run redaction result as authoritative — if the dry-run grep was skipped or fudged, the fast-path is unsafe. The dry-run gate is load-bearing.
+- **§13.13.2 idempotent receiver dedup**: fast-path's PRMergeAck carries the original msgId in `forMsgId`. The v0.4 dedup LRU (Phase 2 reference impl, pending) indexes by msgId — a duplicate fast-path emit (e.g., main reconnecting after a network blip and replaying the PRMergeAck) is caught by dedup without double-counting the merge. The chain has the same property (its envelopes all carry msgIds); fast-path inherits it.
+- **§13.16.10 pre-send probe**: orthogonal — the fast-path operator's manual append step is preceded by their own pre-send probe of the inbox, no different from the chain's cherry-pick step.
+- **§13.16.12 board render**: the fast-path's PRMergeAck renders as an A2A card on the dashboard like any other CUSTOM envelope; the operator's manual git operations are not visible on the dashboard (out-of-band side channel). This is acceptable: the dashboard tracks PR system state via envelopes, not git operations directly.
+
+### 10B.5 Dogfood evidence — PR #4 + PR #5 two-case anchor
+
+| PR | Body | Insertions | Bridge dry-run | Manual append+push | PRMergeAck |
+|---|---|---|---|---|---|
+| #4 | §13.11 rule 5 + §13.13.2 RRP draft | 40 | `dryrun-constellatio-m-mpvupm5l-147` (checksPending:[]) | `a3344d7` (1 file, isolated git add) | `merged:true, pushSuccess:true, draftRef:<dryrun consistent>` |
+| #5 | §13.16.12 Pattern 7 | 19 | `dryrun-constellatio-m-mpvvhhj3-153` (checksPending:[]) | `1e2c3f9` (1 file, isolated git add) | `merged:true, pushSuccess:true, draftRef:<dryrun consistent>` |
+
+**Two-case anchor**: both PRs were trusted-mirror category, single-file append-section, dry-run clean (redaction grep 0 + checksPending []), main manual append + push, PRMergeAck draftRef consistent with dry-run draftRef. Zero regressions vs chain (PR #1/#2/#3 outcomes). The fast-path is empirically validated for this class; the §10B contract codifies what the two cases enacted.
+
+### 10B.6 What the fast-path does NOT codify
+
+The fast-path is a **single-axis short-circuit** — it removes the PR_LIVE state toggle and the PRReviewAck/PRMergeRequest round-trip. It does not change: the §4 wire vocabulary, the §6 approval discipline (category + per-PR opt-in stays in force), the §13.14 redaction discipline, the §13.13.2 dedup mechanic, or the operator's responsibility to manually review the dry-run result before pushing. Fast-path is *easier* not *less rigorous* — every gate the chain runs at protocol level is still run at the dry-run step or by the operator at manual review time.
 
 ---
 
