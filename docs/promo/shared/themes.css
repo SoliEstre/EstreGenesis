@@ -1,7 +1,75 @@
-/* docs/promo/shared/themes.css — 3 themes: marketing (default) / technical / academic-claude */
+/* docs/promo/shared/themes.css — 3 themes, palette anchored to EstreGenesis banner symbol
+ * (amber-orange #fb923c → teal #2dd4bf gradient + metallic silver highlight).
+ *
+ * technical = dark + vivid amber/teal (DEFAULT)
+ * marketing = light + amber/teal gradient
+ * academic  = Claude-style warm cream + amber (primary) + teal (secondary) + serif
+ */
 
 /* ============================================================
-   marketing — light, gradient, bold (DEFAULT)
+   technical — dark, banner-palette accents (DEFAULT)
+   ============================================================ */
+[data-theme="technical"] {
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Monaco, monospace;
+  --color-bg: #0a0e1a;
+  --color-text: #e6e8ec;
+  --color-text-muted: #8b95a8;
+  --color-heading: #ffffff;
+  --color-link: #2dd4bf;
+  --color-accent: #2dd4bf;            /* teal — banner right */
+  --color-accent-on: #0a0e1a;
+  --color-highlight: #fb923c;         /* amber — banner left */
+  --color-highlight-bg: rgba(251, 146, 60, 0.12);
+  --color-border: #1f2a3f;
+  --color-card-bg: #131826;
+  --color-header-bg: rgba(10, 14, 26, 0.85);
+  --color-code-bg: #131826;
+  --color-badge-bg: #131826;
+  --color-badge-fg: #b8c1d1;
+  --color-table-head-bg: #131826;
+  --color-table-hover-bg: #1a2236;
+  --color-callout-bg: rgba(45, 212, 191, 0.07);
+}
+
+[data-theme="technical"] body {
+  background:
+    radial-gradient(ellipse 80% 50% at 12% 0%, rgba(251, 146, 60, 0.16), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 88% 0%, rgba(45, 212, 191, 0.14), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(251, 146, 60, 0.05), transparent),
+    var(--color-bg);
+  background-attachment: fixed;
+}
+[data-theme="technical"] .hero h1 {
+  background: linear-gradient(90deg, #fb923c 0%, #fbbf24 28%, #e8eaee 52%, #5eead4 75%, #2dd4bf 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+[data-theme="technical"] .badge {
+  background: rgba(45, 212, 191, 0.08);
+  border-color: rgba(45, 212, 191, 0.3);
+}
+[data-theme="technical"] .card {
+  background: linear-gradient(180deg, #131826, #0f1320);
+}
+[data-theme="technical"] .card:hover {
+  border-color: #2dd4bf;
+  box-shadow: 0 0 24px rgba(45, 212, 191, 0.18), 0 0 36px rgba(251, 146, 60, 0.08);
+}
+[data-theme="technical"] .metric .value {
+  background: linear-gradient(90deg, #fb923c, #2dd4bf);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+[data-theme="technical"] .metric.highlight .value {
+  background: linear-gradient(90deg, #fb923c, #fbbf24);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ============================================================
+   marketing — light, banner-palette gradient
    ============================================================ */
 [data-theme="marketing"] {
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -11,81 +79,35 @@
   --color-text: #334155;
   --color-text-muted: #64748b;
   --color-heading: #0f172a;
-  --color-link: #8b5cf6;
-  --color-accent: #8b5cf6;
+  --color-link: #0d9488;
+  --color-accent: #0d9488;            /* teal-600, vivid on light */
   --color-accent-on: #ffffff;
-  --color-highlight: #f43f5e;
-  --color-highlight-bg: rgba(244, 63, 94, 0.06);
+  --color-highlight: #ea580c;         /* orange-600 — banner left, vivid on light */
+  --color-highlight-bg: rgba(234, 88, 12, 0.06);
   --color-border: #e2e8f0;
   --color-card-bg: #f8fafc;
-  --color-header-bg: rgba(255, 255, 255, 0.9);
+  --color-header-bg: rgba(255, 255, 255, 0.92);
   --color-code-bg: #f1f5f9;
   --color-badge-bg: #f1f5f9;
   --color-badge-fg: #475569;
   --color-table-head-bg: #f1f5f9;
   --color-table-hover-bg: #f8fafc;
-  --color-callout-bg: rgba(139, 92, 246, 0.05);
+  --color-callout-bg: rgba(13, 148, 136, 0.05);
 }
 
 [data-theme="marketing"] .hero {
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.08), transparent);
+  background: linear-gradient(180deg, rgba(234, 88, 12, 0.05) 0%, rgba(13, 148, 136, 0.05) 100%);
   padding-bottom: 3.5rem;
 }
 [data-theme="marketing"] .hero h1 {
-  background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  background: linear-gradient(90deg, #ea580c, #f59e0b, #0d9488);
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 /* ============================================================
-   technical — vivid dark with multi-hue accents (refreshed)
-   Less drab, more saturated; deep indigo bg + cyan/violet/orange accents
-   ============================================================ */
-[data-theme="technical"] {
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Monaco, monospace;
-  --color-bg: #0b0d1f;
-  --color-text: #e0e7ff;
-  --color-text-muted: #a5b4fc;
-  --color-heading: #ffffff;
-  --color-link: #38bdf8;
-  --color-accent: #38bdf8;
-  --color-accent-on: #0b0d1f;
-  --color-highlight: #fb923c;
-  --color-highlight-bg: rgba(251, 146, 60, 0.12);
-  --color-border: #312e81;
-  --color-card-bg: #1e1b4b;
-  --color-header-bg: rgba(11, 13, 31, 0.85);
-  --color-code-bg: #1e1b4b;
-  --color-badge-bg: #1e1b4b;
-  --color-badge-fg: #c7d2fe;
-  --color-table-head-bg: #1e1b4b;
-  --color-table-hover-bg: #2e1065;
-  --color-callout-bg: rgba(56, 189, 248, 0.08);
-}
-
-[data-theme="technical"] body {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139, 92, 246, 0.18), transparent),
-    radial-gradient(ellipse 60% 40% at 90% 30%, rgba(56, 189, 248, 0.10), transparent),
-    var(--color-bg);
-  background-attachment: fixed;
-}
-[data-theme="technical"] .hero h1 {
-  background: linear-gradient(90deg, #38bdf8, #a78bfa, #fb923c);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-[data-theme="technical"] .badge { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.3); }
-[data-theme="technical"] .card { background: linear-gradient(180deg, #1e1b4b, #1a1747); }
-[data-theme="technical"] .card:hover { border-color: #a78bfa; box-shadow: 0 0 24px rgba(167, 139, 250, 0.2); }
-[data-theme="technical"] .metric .value { background: linear-gradient(90deg, #38bdf8, #a78bfa); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-[data-theme="technical"] .metric.highlight .value { background: linear-gradient(90deg, #fb923c, #f472b6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-
-/* ============================================================
-   academic (Claude-style) — warm cream + coral + serif
-   Mirrors Anthropic / claude.ai brand: warm off-white bg, coral accent, Tiempos-style serif headings
+   academic (Claude-style) — warm cream + amber primary + teal secondary + serif
+   Anchors banner amber-teal palette into Claude's warm-cream aesthetic.
    ============================================================ */
 [data-theme="academic"] {
   --font-body: 'Söhne', 'Inter', -apple-system, 'Segoe UI', sans-serif;
@@ -95,11 +117,11 @@
   --color-text: #2c2825;
   --color-text-muted: #6b635a;
   --color-heading: #1f1c19;
-  --color-link: #c96442;
-  --color-accent: #c96442;
+  --color-link: #d97706;              /* amber-600 — warm primary aligned to banner */
+  --color-accent: #d97706;
   --color-accent-on: #ffffff;
-  --color-highlight: #a8462b;
-  --color-highlight-bg: rgba(201, 100, 66, 0.06);
+  --color-highlight: #0f766e;         /* teal-700 — banner secondary, restrained for paper feel */
+  --color-highlight-bg: rgba(15, 118, 110, 0.06);
   --color-border: #e7e2d8;
   --color-card-bg: #ffffff;
   --color-header-bg: rgba(250, 249, 245, 0.92);
@@ -108,7 +130,7 @@
   --color-badge-fg: #6b635a;
   --color-table-head-bg: #f3efe6;
   --color-table-hover-bg: #faf9f5;
-  --color-callout-bg: rgba(201, 100, 66, 0.05);
+  --color-callout-bg: rgba(217, 119, 6, 0.05);
 }
 
 [data-theme="academic"] h1,
@@ -118,8 +140,22 @@
   letter-spacing: -0.01em;
 }
 [data-theme="academic"] h1 { letter-spacing: -0.02em; }
-[data-theme="academic"] .hero h1 { font-size: 3.2rem; }
+[data-theme="academic"] .hero h1 {
+  font-size: 3.2rem;
+  background: linear-gradient(90deg, #d97706, #0f766e);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 [data-theme="academic"] .tagline { font-family: var(--font-body); font-size: 1.15rem; }
 [data-theme="academic"] table.data { border: 1px solid var(--color-border); }
 [data-theme="academic"] .card { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02); }
 [data-theme="academic"] .badge { font-family: var(--font-body); font-weight: 500; }
+
+/* ============================================================
+   Logo swap — dark logo for technical (dark bg), light logo for marketing + academic
+   (selectors match shared.css's `.brand img.logo` specificity to win cleanly)
+   ============================================================ */
+.brand img.logo-dark { display: none; }
+.brand img.logo-light { display: block; }
+[data-theme="technical"] .brand img.logo-dark { display: block; }
+[data-theme="technical"] .brand img.logo-light { display: none; }

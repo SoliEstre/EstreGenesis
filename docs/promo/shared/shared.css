@@ -24,25 +24,40 @@ p { margin: 0.6rem 0; }
 .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 1300px; margin: 0 auto; padding: 0.8rem 1.5rem; gap: 1rem; }
 .brand { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 600; color: var(--color-heading); text-decoration: none; }
 .brand:hover { text-decoration: none; }
-.brand img.logo { height: 32px; width: auto; display: block; }
+.brand img.logo { height: 32px; width: auto; }
 @media (max-width: 720px) { .brand img.logo { height: 26px; } }
 .nav { display: flex; gap: 1.2rem; }
 .nav a { color: var(--color-text-muted); font-size: 0.92rem; }
 .nav a:hover, .nav a.active { color: var(--color-link); }
 
-.controls { display: flex; gap: 0.8rem; align-items: center; }
+.controls { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
 .control-group { display: inline-flex; align-items: center; gap: 0.4rem; }
 .control-label { font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.lang-toggle, .theme-toggle { display: inline-flex; border: 1px solid var(--color-border); border-radius: 4px; overflow: hidden; }
-.lang-toggle button, .theme-toggle button {
+.lang-toggle, .theme-toggle, .aud-toggle { display: inline-flex; border: 1px solid var(--color-border); border-radius: 4px; overflow: hidden; }
+.lang-toggle button, .theme-toggle button, .aud-toggle button {
   font-family: var(--font-mono); font-size: 0.78rem; padding: 0.3rem 0.6rem;
   background: transparent; color: var(--color-text-muted); border: 0; cursor: pointer;
   border-right: 1px solid var(--color-border);
 }
-.lang-toggle button:last-child, .theme-toggle button:last-child { border-right: 0; }
-.lang-toggle button.active, .theme-toggle button.active { background: var(--color-accent); color: var(--color-accent-on); }
-.lang-toggle button:hover, .theme-toggle button:hover { color: var(--color-link); }
+.lang-toggle button:last-child, .theme-toggle button:last-child, .aud-toggle button:last-child { border-right: 0; }
+.lang-toggle button.active, .theme-toggle button.active, .aud-toggle button.active {
+  background: var(--color-accent); color: var(--color-accent-on);
+  border-right-color: var(--color-accent);
+}
+.lang-toggle button:has(+ .active), .theme-toggle button:has(+ .active), .aud-toggle button:has(+ .active) {
+  border-right-color: var(--color-accent);
+}
+.lang-toggle button:hover, .theme-toggle button:hover, .aud-toggle button:hover { color: var(--color-link); }
 @media (max-width: 720px) { .control-label { display: none; } }
+
+/* audience visibility — hide elements whose data-aud does NOT match current audience.
+ * Uses :not() with elevated specificity (0,3,0) so it beats class rules like
+ * `.metric .label { display: block }` which would otherwise force non-matching
+ * tier labels to remain visible. Matching elements keep their natural class /
+ * element display (block for div/p/h2, inline for span, table-cell for th, etc.). */
+[data-audience="general"] [data-aud]:not([data-aud="general"]),
+[data-audience="dev"]     [data-aud]:not([data-aud="dev"]),
+[data-audience="expert"]  [data-aud]:not([data-aud="expert"]) { display: none; }
 
 .hero { padding: 4rem 0 2rem; text-align: center; }
 .hero h1 { font-size: 3rem; margin-bottom: 0.5rem; }

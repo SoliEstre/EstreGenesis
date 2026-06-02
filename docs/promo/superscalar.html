@@ -5,14 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Superscalar — execution-scheduling discipline · EstreGenesis</title>
   <meta name="description" content="Superscalar v0.4 — issue_width formula + cost-benefit gate + in-order retire + consistency gate. Entry 06 A/B: +118% grounding, −40% speculation vs naïve parallel.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="shared/shared.css">
   <link rel="stylesheet" href="shared/themes.css">
+  <script>
+    (function () {
+      var levels = ['general', 'dev', 'expert'];
+      var v = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(v) === -1) v = 'general';
+      document.documentElement.setAttribute('data-audience', v);
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <header class="header">
     <div class="header-inner">
-      <a class="brand" href="index.html"><img class="logo" src="assets/logo.png" alt="EstreGenesis"></a>
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
       <nav class="nav">
         <a href="index.html" data-en="Home" data-ko="홈">Home</a>
         <a href="superscalar.html" class="active">Superscalar</a>
@@ -21,7 +33,8 @@
       </nav>
       <div class="controls">
         <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
-        <div class="control-group"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="marketing">market</button><button data-theme="technical">tech</button><button data-theme="academic">paper</button></div></div>
+        <div class="control-group"><span class="control-label" data-en="Level" data-ko="레벨">Level</span><div class="aud-toggle"><button data-aud-btn="general" data-en="general" data-ko="일반">general</button><button data-aud-btn="dev" data-en="dev" data-ko="개발">dev</button><button data-aud-btn="expert" data-en="expert" data-ko="전문">expert</button></div></div>
+        <div class="control-group"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
       </div>
     </div>
   </header>
@@ -29,7 +42,9 @@
   <main class="container-wide">
     <section class="hero">
       <h1>Superscalar</h1>
-      <p class="tagline" data-en="Execution-scheduling discipline for parallel sub-agent dispatch." data-ko="병렬 sub-agent dispatch 실행 스케줄링 규율.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
+      <p class="tagline" data-aud="general" data-en="A rulebook for running multiple AI agents in parallel without losing quality." data-ko="여러 AI 에이전트를 동시에 돌리면서도 품질을 잃지 않게 해주는 규칙집입니다.">A rulebook for running multiple AI agents in parallel without losing quality.</p>
+      <p class="tagline" data-aud="dev" data-en="An execution-scheduling discipline for parallel sub-agent dispatch — covering both Agent-tool fan-outs and Workflow.parallel calls — that keeps cross-lane work consistent without sacrificing the parallelism budget." data-ko="Agent 도구의 fan-out과 Workflow.parallel 호출을 포함하는 병렬 sub-agent dispatch를 위한 실행 스케줄링 규율로서, 병렬 예산을 희생하지 않으면서도 lane 사이의 작업이 일관성을 유지하도록 보장합니다.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
+      <p class="tagline" data-aud="expert" data-en="An execution-scheduling discipline for parallel sub-agent dispatch, comprising an analytically derived issue_width formula, a worktree-isolated reorder buffer, a cost-benefit admission gate, and an in-order retire stage with a consistency gate over cross-lane outputs." data-ko="해석적으로 도출된 issue_width 공식, worktree에 의해 격리된 reorder buffer, cost-benefit 인입 게이트, 그리고 lane 간 산출물에 대한 consistency gate를 갖춘 in-order retire 단계로 구성된, 병렬 sub-agent dispatch를 위한 실행 스케줄링 규율이다.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
       <div class="badges">
         <span class="badge">v0.4</span>
         <span class="badge">§11 Entry 01-06</span>
@@ -38,14 +53,104 @@
     </section>
 
     <section>
-      <h2 data-en="Entry 06 — the headline A/B" data-ko="Entry 06 — 핵심 A/B">Entry 06 — the headline A/B</h2>
-      <p data-en="A downstream payment-backend dogfood: full-source 9-dimension audit, both arms parallelised, only orchestration discipline varied. Arm A = naïve max-parallel; Arm B = design-freeze → consume → cross-cut → in-order retire + consistency gate + completeness critic." data-ko="downstream payment-backend dogfood: 전소스 9차원 audit, 양 arm 모두 병렬, 단일 변수 = orchestration discipline. Arm A = naïve max-parallel; Arm B = design-freeze → consume → cross-cut → in-order retire + consistency gate + completeness critic.">A downstream payment-backend dogfood — 9-dimension audit, parallelism held constant, orchestration discipline isolated.</p>
+      <h2 data-aud="general" data-en="What Superscalar is" data-ko="Superscalar란 무엇인가요?">What Superscalar is</h2>
+      <h2 data-aud="dev" data-en="What Superscalar is" data-ko="Superscalar란 무엇인가">What Superscalar is</h2>
+      <h2 data-aud="expert" data-en="Overview" data-ko="개요">Overview</h2>
+
+      <p data-aud="general" data-en="Superscalar is a rulebook for running multiple AI coding agents in parallel — the kind of fan-out modern AI tools do when they split a task into smaller pieces and work on them at the same time. Running things in parallel makes them faster, but speed alone does not guarantee good results. Superscalar adds a small set of rules that keep the parallel work consistent: the agents agree on the structure first, work in parallel on the details, then check each other before signing off. The result is parallel speed without the missed-contradiction problem that pure parallelism brings." data-ko="Superscalar는 여러 AI 코딩 에이전트를 동시에 돌릴 때 따라야 할 규칙집입니다. 최신 AI 도구가 큰 작업을 여러 조각으로 나눠 동시에 처리할 때 적용되는 방식 같은 것이죠. 병렬로 처리하면 빨라지긴 하지만, 빠르다고 결과가 항상 좋아지는 것은 아닙니다. Superscalar는 그 병렬 작업이 일관성을 잃지 않도록 몇 가지 규칙을 추가합니다 — 에이전트들이 먼저 구조에 합의하고, 세부 사항을 병렬로 살피고, 마무리 전에 서로의 결과를 교차 확인하는 방식이죠. 그 결과 단순 병렬이 안고 있는 「모순을 놓치는 문제」 없이 병렬의 속도를 얻을 수 있습니다.">Superscalar is a rulebook for running multiple AI coding agents in parallel without losing the consistency that pure parallelism gives up.</p>
+      <p data-aud="dev" data-en="Superscalar is an execution-scheduling discipline for parallel sub-agent dispatch. Modern AI coding tools — Claude Code's Agent tool fan-outs and Workflow.parallel calls in particular — make parallel sub-agent execution cheap and ergonomic. What is harder is making that parallel work consistent: deduplicating overlapping findings, reconciling cross-lane contradictions, and surveying completeness gaps. Superscalar provides exactly that layer. It bounds in-flight parallelism with an analytically derived issue_width formula, isolates write-disjoint work in dedicated worktrees, and serialises a retire stage that runs a consistency gate and a completeness critic over the cross-lane outputs. The discipline has been empirically validated in a 9-dimension production audit (Entry 06 below), with a 118 percent increase in grounded cross-references and a 40 percent reduction in speculative claims relative to a naïve max-parallel baseline." data-ko="Superscalar는 병렬 sub-agent dispatch를 위한 실행 스케줄링 규율입니다. Claude Code의 Agent 도구 fan-out과 Workflow.parallel 호출처럼, 최신 AI 코딩 도구는 병렬 sub-agent 실행을 저렴하고 다루기 쉽게 만들어 두었습니다. 그러나 그 병렬 작업의 일관성을 확보하는 일 — 겹치는 발견의 중복 정리, lane 간 모순의 reconciliation, completeness gap의 점검 — 은 여전히 어렵습니다. Superscalar는 바로 그 계층을 제공합니다. 해석적으로 도출된 issue_width 공식으로 in-flight 병렬성을 제한하고, 쓰기가 분리된 작업을 전용 worktree에 격리하며, lane 간 산출물에 consistency gate와 completeness critic을 적용하는 retire 단계를 직렬화합니다. 본 규율은 9차원 프로덕션 audit(아래 Entry 06)에서 실증적으로 검증되었으며, naïve max-parallel 기준선 대비 grounded cross-reference 118% 증가와 추측성 진술 40% 감소를 확인하였습니다.">Superscalar is an execution-scheduling discipline for parallel sub-agent dispatch — bounded parallelism, worktree isolation, in-order retire with a consistency gate. Validated by Entry 06.</p>
+      <p data-aud="expert" data-en="Superscalar specifies an execution-scheduling discipline for parallel sub-agent dispatch, addressing the consistency gap that arises when contemporary AI coding hosts fan out work across multiple concurrent sub-agents without imposing inter-lane coordination. The discipline comprises four formally specified components: an analytically derived issue_width formula bounding admissible in-flight parallelism; a worktree-isolated reorder buffer permitting write-disjoint speculative execution; a cost-benefit admission gate governing speculation; and an in-order retire stage at which a consistency gate and a completeness critic operate over cross-lane outputs. Empirical validation, by means of Entry 06 — a controlled, single-variable A/B measurement on a production payment-backend codebase — attests to a 118 percent increase in grounded cross-references and a 40 percent reduction in speculative claims relative to a naïve max-parallel baseline." data-ko="Superscalar는 병렬 sub-agent dispatch를 위한 실행 스케줄링 규율을 규정하며, 동시대의 AI coding 호스트가 lane 간 조정을 부과하지 아니한 채 다수의 동시 sub-agent에 작업을 fan out할 때 발생하는 정합성 결핍을 다룬다. 본 규율은 네 개의 형식적으로 명시된 구성 요소로 이루어진다. 즉, 허용 가능한 in-flight 병렬성을 제한하는 해석적으로 도출된 issue_width 공식, 쓰기가 분리된 추측 실행을 허용하는 worktree에 의해 격리된 reorder buffer, speculation을 규율하는 cost-benefit 인입 게이트, 그리고 lane 간 산출물에 대하여 consistency gate와 completeness critic이 작동하는 in-order retire 단계가 그것이다. 본 규율에 대한 실증적 검증은 프로덕션 payment-backend 코드베이스에 대한 통제된 단일 변수 A/B 측정인 Entry 06을 통해 이루어졌으며, naïve max-parallel 기준선 대비 grounded cross-reference에 있어서 118%의 증가와 추측성 진술에 있어서 40%의 감소를 확증한다.">Superscalar specifies an execution-scheduling discipline for parallel sub-agent dispatch — bounded parallelism, worktree-isolated reorder buffer, cost-benefit admission, and in-order retire with consistency gate and completeness critic.</p>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="The core idea" data-ko="핵심 아이디어">The core idea</h4>
+        <h4 data-aud="dev" data-en="Central thesis" data-ko="핵심 명제">Central thesis</h4>
+        <h4 data-aud="expert" data-en="Central thesis" data-ko="중심 명제">Central thesis</h4>
+        <p data-aud="general" data-en="Pure parallelism gives you speed; Superscalar gives you that same speed plus consistency, without giving up either." data-ko="단순 병렬은 속도만 줍니다. Superscalar는 그 속도에 일관성까지 더해주되, 어느 한쪽도 포기하지 않습니다.">Pure parallelism gives you speed; Superscalar gives you both.</p>
+        <p data-aud="dev" data-en="Parallelism is necessary but not sufficient for cross-lane consistency. The retire stage — coordination, not scheduling — is what separates Superscalar from naïve max-parallel; the discipline's wall-clock cost is the cost of phase serialisation, not of any loss of in-phase parallel efficiency." data-ko="병렬성은 lane 간 정합성의 필요조건이지만 충분조건은 아닙니다. 단순 max-parallel과 Superscalar를 가르는 결정적 차이는 retire 단계 — 스케줄링이 아니라 조정 메커니즘 — 이며, 본 규율의 wall-clock 비용은 phase 직렬화의 비용이지 phase 내부 병렬 효율의 손실이 아닙니다.">Parallelism is necessary but not sufficient; the retire stage is coordination, not scheduling.</p>
+        <p data-aud="expert" data-en="Cross-lane consistency does not arise from parallelism per se; it is produced by the orchestration discipline at the retire stage, which must accordingly be construed as a coordination mechanism rather than as a scheduling mechanism. The wall-clock cost of the discipline is attributable to phase serialisation and not to any diminution of intra-phase parallel efficiency." data-ko="lane 간 정합성은 병렬성 자체로부터 비롯되지 아니하며, retire 단계의 orchestration 규율에 의해 산출된다. 따라서 본 단계는 스케줄링 메커니즘이 아니라 조정 메커니즘으로 해석되어야 한다. 본 규율의 wall-clock 비용은 phase 직렬화에 귀속되며, intra-phase 병렬 효율의 어떠한 감쇄에도 귀속되지 아니한다.">Cross-lane consistency arises not from parallelism per se but from the orchestration discipline at the retire stage.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="The four rules inside" data-ko="안에 들어있는 네 가지 규칙">The four rules inside</h2>
+      <h2 data-aud="dev" data-en="The four primitives" data-ko="네 개의 핵심 요소">The four primitives</h2>
+      <h2 data-aud="expert" data-en="The four formally specified components" data-ko="네 개의 형식적으로 명시된 구성 요소">The four formally specified components</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="module-tag">§2</div>
+          <h3 data-aud="general" data-en="Capping concurrency" data-ko="동시 실행 수 제한">Capping concurrency</h3>
+          <h3 data-aud="dev" data-en="issue_width formula" data-ko="issue_width 공식">issue_width formula</h3>
+          <h3 data-aud="expert" data-en="issue_width formula" data-ko="issue_width 공식">issue_width formula</h3>
+          <p data-aud="general" data-en="Running too many agents at once raises cost without improving quality. The issue_width formula calculates an appropriate level of concurrency based on the task at hand, picking the balance point between cost and benefit." data-ko="한 번에 너무 많은 에이전트가 동시에 돌면 비용만 늘고 결과의 질은 오히려 떨어집니다. issue_width 공식은 작업의 복잡도에 따라 적정한 동시 실행 수를 계산해, 비용과 효과의 균형점을 잡아줍니다.">A formula that caps how many agents run at once, sized to the task.</p>
+          <p data-aud="dev" data-en="An analytical formula bounding the number of in-flight agents during parallel execution. It integrates input complexity, the host's concurrent capacity, lane-class distinctions (read versus write), and the cost-benefit threshold to produce per-lane-class admission limits." data-ko="병렬 실행 시 in-flight 에이전트 수의 상한을 정의하는 해석적 공식입니다. 입력 복잡도, 호스트의 동시 처리 가용량, lane class 구분(read 대 write), 그리고 cost-benefit 임계점을 종합하여 lane class별 admission 한도를 산출합니다.">An analytical formula bounding in-flight parallelism per lane class.</p>
+          <p data-aud="expert" data-en="A formula that derives, by analytical means, an upper bound on in-flight parallelism per lane class. It is defined as a function of input-complexity dimension, host concurrent capacity, the distinction between read and write lane classes, and the cost-benefit admission threshold." data-ko="lane class별 in-flight 병렬성의 상한을 해석적으로 도출하는 공식이다. 이는 입력 복잡도 차원, 호스트의 동시 처리 용량, read와 write lane class 사이의 구분, 그리고 cost-benefit 인입 임계의 함수로서 정의된다.">A formula that derives, analytically, an upper bound on in-flight parallelism per lane class.</p>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">§3</div>
+          <h3 data-aud="general" data-en="Per-agent workspaces" data-ko="에이전트별 작업 공간 분리">Per-agent workspaces</h3>
+          <h3 data-aud="dev" data-en="Worktree isolation" data-ko="Worktree 격리">Worktree isolation</h3>
+          <h3 data-aud="expert" data-en="Worktree-isolated reorder buffer" data-ko="Worktree에 의해 격리된 reorder buffer">Worktree-isolated reorder buffer</h3>
+          <p data-aud="general" data-en="When multiple agents modify the same file at the same time, they overwrite each other's work. Worktree isolation gives each agent its own copy of the files, preventing interference until the merge stage at the end." data-ko="여러 에이전트가 같은 파일을 동시에 수정하면 서로의 작업을 덮어쓰게 됩니다. worktree 격리는 각 에이전트에게 자신만의 파일 사본을 주어, 마지막 합치는 단계 전까지는 서로 간섭하지 못하게 합니다.">Each agent gets its own copy of the files.</p>
+          <p data-aud="dev" data-en="Allocates a dedicated git worktree to each write-disjoint sub-agent, eliminating file-level conflicts that could otherwise arise during concurrent execution. This isolation layer underpins speculative execution and safe rollback." data-ko="쓰기 작업이 분리된 sub-agent에게 각자의 git worktree를 할당하여, 동시 실행 중에 발생할 수 있는 파일 단위 충돌을 제거합니다. 추측 실행과 안전한 rollback의 기반이 되는 격리 계층입니다.">Dedicated git worktree per write-disjoint sub-agent; underpins speculation and rollback.</p>
+          <p data-aud="expert" data-en="A reorder-buffer model assigning isolated git worktrees to write-disjoint speculative sub-agents. This isolation layer constitutes the basis for the consistency guarantee of concurrent speculative execution and for in-order merging at the retire stage." data-ko="쓰기 작업이 분리된 추측 sub-agent에게 격리된 git worktree를 할당하는 reorder buffer 모델. 본 격리 계층은 동시적 추측 실행의 정합성 보장과 retire 시점에서의 in-order merging의 기반을 구성한다.">A reorder-buffer model assigning isolated worktrees to write-disjoint speculative sub-agents.</p>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">§3 retire</div>
+          <h3 data-aud="general" data-en="The retire stage — merge and check" data-ko="마무리 단계 — 합치고 점검하기">The retire stage — merge and check</h3>
+          <h3 data-aud="dev" data-en="In-order retire + consistency gate + completeness critic" data-ko="In-order retire + consistency gate + completeness critic">In-order retire + consistency gate + completeness critic</h3>
+          <h3 data-aud="expert" data-en="In-order retire (consistency gate + completeness critic)" data-ko="In-order retire (consistency gate + completeness critic)">In-order retire (consistency gate + completeness critic)</h3>
+          <p data-aud="general" data-en="As each agent's results come in, they are merged in a fixed order, then checked for contradictions and surveyed for what was missed. This stage is the decisive difference between Superscalar and naïve parallel." data-ko="각 에이전트의 결과가 모이면 정해진 순서대로 합치면서, 서로 모순되지 않는지 점검하고 무엇이 빠졌는지도 함께 살핍니다. 이 단계가 단순 병렬과 Superscalar를 가르는 결정적 차이입니다.">Results merged in fixed order, checked for contradictions and gaps.</p>
+          <p data-aud="dev" data-en="Outputs from parallel lanes are merged in a deterministic order; the consistency gate reconciles cross-lane contradictions whilst the completeness critic maps uncovered regions. This is the coordination mechanism that produces the decisive difference between naïve parallel and Superscalar." data-ko="병렬 lane의 산출물이 결정적 순서로 머지되며, consistency gate가 lane 간 모순을 reconciliation하고 completeness critic이 cover되지 않은 영역을 매핑합니다. 단순 병렬에서 Superscalar로의 결정적 차이를 만들어내는 조정 메커니즘이 바로 이 단계입니다.">Deterministic merge + cross-lane contradiction reconciliation + uncovered-region mapping.</p>
+          <p data-aud="expert" data-en="The coordination stage at which parallel-lane outputs are merged in deterministic order, cross-lane contradictions reconciled by means of the consistency gate, and uncovered regions enumerated by means of the completeness critic. This stage constitutes the decisive differentiator of the Superscalar discipline with respect to a naïve max-parallel baseline." data-ko="병렬 lane의 산출물을 결정적 순서에 따라 merging하며, consistency gate를 통하여 lane 간 모순을 reconciliation하고 completeness critic을 통하여 cover되지 아니한 영역을 enumeration하는 조정 단계이다. 본 단계가 naïve max-parallel 기준선에 대비되는 Superscalar 규율의 결정적 변별 요소를 구성한다.">The coordination stage at which lane outputs are merged, contradictions reconciled, and uncovered regions enumerated.</p>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">§4</div>
+          <h3 data-aud="general" data-en="Speculative work — cost vs benefit" data-ko="추측 실행 — 비용과 효과">Speculative work — cost vs benefit</h3>
+          <h3 data-aud="dev" data-en="Opt-in speculation + cost-benefit admission" data-ko="Opt-in speculation + cost-benefit 인입">Opt-in speculation + cost-benefit admission</h3>
+          <h3 data-aud="expert" data-en="Opt-in speculation policy" data-ko="Opt-in speculation 정책">Opt-in speculation policy</h3>
+          <p data-aud="general" data-en="For some tasks, it is more efficient to start work before being certain its result is needed. Superscalar makes this kind of speculation toggleable, and a cost-benefit rule decides whether to enable it for any given dispatch." data-ko="어떤 작업은 결과가 정말 필요할지 확실하지 않을 때 미리 시작해두는 편이 더 효율적입니다. Superscalar는 이런 추측 실행을 켜고 끌 수 있게 하고, 켤지 말지는 비용 대비 기대 효과를 기준으로 판단하는 규칙을 따릅니다.">Start work before certainty — when the cost-benefit check says it's worth it.</p>
+          <p data-aud="dev" data-en="Sub-agents may be dispatched before the necessity of their result is confirmed, but every speculative dispatch incurs token cost regardless of outcome. The cost-benefit admission gate compares expected utility against token cost to decide whether to issue the dispatch." data-ko="결과의 필요 여부가 확정되기 전에 sub-agent를 미리 발진할 수 있으나, 모든 추측 발진은 결과와 무관하게 토큰 비용을 발생시킵니다. cost-benefit 인입 게이트는 예상 효용과 토큰 비용을 비교하여 추측 발진 여부를 결정합니다.">Speculative dispatch gated by an explicit cost-benefit admission check.</p>
+          <p data-aud="expert" data-en="A policy governing speculative execution — that is, the dispatch of sub-agents in advance of any confirmation of the necessity of their result. Admission of speculation is governed by an explicit cost-benefit admission gate that evaluates expected utility against token cost." data-ko="결과의 필요성이 확정되기에 앞서 sub-agent dispatch를 발진하는 추측 실행에 관한 정책이다. 추측의 인입은 예상 효용과 토큰 비용 사이의 cost-benefit 평가를 통해 결정되는 명시적 admission gate에 의해 통제된다.">A policy on speculative dispatch admitted by an explicit cost-benefit gate.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="The headline experiment — same code, two approaches" data-ko="핵심 실험 — 같은 코드, 두 가지 방식">The headline experiment — same code, two approaches</h2>
+      <h2 data-aud="dev" data-en="Entry 06 — the headline A/B" data-ko="Entry 06 — 핵심 A/B 결과">Entry 06 — the headline A/B</h2>
+      <h2 data-aud="expert" data-en="Entry 06 — the headline A/B measurement" data-ko="Entry 06 — 핵심 A/B 측정">Entry 06 — the headline A/B measurement</h2>
+      <p data-aud="general" data-en="We ran the same audit on the same code two ways. Way A: let AI agents work fast and free (this is also Claude Workflows' default mode). Way B: make them follow strict rules (agree on shapes first → then look in detail → then cross-check → then sign off in order). Both ways used the same number of AI agents in parallel; the only difference was the rulebook. Then we measured what each side caught and how long it took." data-ko="같은 코드에 같은 점검을 두 가지 방식으로 돌려봤어요. 방식 A는 AI 에이전트들을 빠르고 자유롭게 풀어두기 (Claude Workflows의 기본 방식이기도 합니다). 방식 B는 엄격한 순서를 따르게 하기(먼저 형상을 합의 → 세부를 살피기 → 교차 확인 → 순서대로 마무리). 양쪽 모두 같은 수의 AI 에이전트를 병렬로 돌렸고, 차이는 오직 규칙뿐이었습니다. 그렇게 한 다음 각 방식이 무엇을 잡아냈고 얼마나 걸렸는지 비교했어요.">We ran the same audit two ways — fast/free vs strict-rules — same number of parallel agents, only the rulebook differed.</p>
+      <p data-aud="dev" data-en="A real payment-backend audit was executed against the same source code with parallel sub-agents on both arms. Arm A applied naïve max-parallel (this corresponds to the default operating mode of Claude Workflows) — all nine dimensions fired simultaneously with no coordination. Arm B applied the full Superscalar discipline — design-freeze, then consume, then cross-cut, then in-order retire backed by a consistency gate and a completeness critic. Source, agent count, and parallelism budget were held constant; orchestration discipline was the single independent variable." data-ko="실제 payment-backend audit을 양 arm 모두 동일한 코드에 대해 병렬 sub-agent로 실행했습니다. Arm A는 naïve max-parallel을 적용하여 (이는 Claude Workflows의 기본 동작 방식에 해당합니다) 9개 차원을 조정 없이 동시에 fire시켰고, Arm B는 design-freeze → consume → cross-cut → in-order retire의 전체 Superscalar 규율을 적용했으며, consistency gate와 completeness critic을 통해 이를 뒷받침하였습니다. 소스, agent 수, 병렬 예산은 모두 동일하게 유지되었으며, orchestration 규율이 유일한 독립 변수였습니다.">Real payment-backend audit, parallel both ways. Arm A naïve max-parallel vs Arm B Superscalar discipline. Single variable: orchestration.</p>
+      <p data-aud="expert" data-en="The Entry 06 study constitutes a downstream dogfood on a production payment-backend codebase, structured as a 9-dimension full-source audit in which both arms are parallelised at identical fan-out and orchestration discipline is isolated as the sole independent variable. Arm A instantiates the naïve max-parallel baseline (which corresponds to the default operating model of Claude Workflows); Arm B instantiates the full Superscalar discipline, comprising design-freeze, consume, cross-cut, and in-order retire stages, augmented by a consistency gate and a completeness critic." data-ko="Entry 06 연구는 프로덕션 payment-backend 코드베이스에 대한 downstream dogfood를 구성하며, 양 arm을 동일한 fan-out으로 병렬화하고 orchestration 규율을 유일한 독립 변수로 분리한 9차원 전소스 audit으로 설계되었다. Arm A는 naïve max-parallel 기준선을 구현하고 (이는 Claude Workflows의 기본 동작 모델에 해당한다), Arm B는 design-freeze, consume, cross-cut, in-order retire의 단계로 구성되며 consistency gate와 completeness critic에 의해 보강된 완전한 Superscalar 규율을 구현한다.">A downstream payment-backend dogfood — 9-dimension audit, parallelism held constant, orchestration discipline isolated.</p>
 
       <div class="metrics-grid">
-        <div class="metric highlight"><span class="value">+118%</span><span class="label" data-en="grounding (crossRefs)" data-ko="grounding (crossRefs)">grounding (crossRefs)</span></div>
-        <div class="metric highlight"><span class="value">−40%</span><span class="label" data-en="speculation" data-ko="speculation">speculation</span></div>
-        <div class="metric"><span class="value">2.65×</span><span class="label" data-en="wall-clock cost" data-ko="wall-clock 비용">wall-clock cost</span></div>
-        <div class="metric"><span class="value">+8%</span><span class="label" data-en="token cost" data-ko="토큰 비용">token cost</span></div>
+        <div class="metric highlight">
+          <span class="value">+118%</span>
+          <span class="label" data-aud="general" data-en="more sourced citations" data-ko="근거 인용 수 증가">more sourced citations</span>
+          <span class="label" data-aud="dev" data-en="grounding (crossRefs)" data-ko="grounding (crossRefs)">grounding (crossRefs)</span>
+          <span class="label" data-aud="expert" data-en="grounded cross-references" data-ko="grounded cross-reference">grounded cross-references</span>
+        </div>
+        <div class="metric highlight">
+          <span class="value">−40%</span>
+          <span class="label" data-aud="general" data-en="fewer speculative statements" data-ko="추측 의존 진술 감소">fewer speculative statements</span>
+          <span class="label" data-aud="dev" data-en="speculation" data-ko="추측성 진술">speculation</span>
+          <span class="label" data-aud="expert" data-en="speculative claims" data-ko="추측성 진술">speculative claims</span>
+        </div>
+        <div class="metric">
+          <span class="value">2.65×</span>
+          <span class="label" data-aud="general" data-en="longer to finish" data-ko="더 걸린 시간">longer to finish</span>
+          <span class="label" data-aud="dev" data-en="wall-clock cost" data-ko="wall-clock 비용">wall-clock cost</span>
+          <span class="label" data-aud="expert" data-en="wall-clock cost" data-ko="wall-clock 비용">wall-clock cost</span>
+        </div>
+        <div class="metric">
+          <span class="value">+8%</span>
+          <span class="label" data-aud="general" data-en="more tokens used" data-ko="더 사용한 토큰">more tokens used</span>
+          <span class="label" data-aud="dev" data-en="token cost" data-ko="토큰 비용">token cost</span>
+          <span class="label" data-aud="expert" data-en="token cost" data-ko="토큰 비용">token cost</span>
+        </div>
       </div>
 
       <div class="chart-box">
@@ -54,14 +159,24 @@
     </section>
 
     <section>
-      <h2 data-en="Quantitative readouts" data-ko="정량 측정">Quantitative readouts</h2>
+      <h2 data-aud="general" data-en="The measurements" data-ko="측정 결과">The measurements</h2>
+      <h2 data-aud="dev" data-en="Quantitative readouts" data-ko="정량 측정 결과">Quantitative readouts</h2>
+      <h2 data-aud="expert" data-en="Quantitative measurements" data-ko="정량적 측정치">Quantitative measurements</h2>
       <table class="data">
         <thead>
           <tr>
-            <th data-en="Metric" data-ko="메트릭">Metric</th>
-            <th class="num">Arm A (OFF)</th>
-            <th class="num">Arm B (ON)</th>
-            <th data-en="Δ / Winner" data-ko="Δ / 우위">Δ / Winner</th>
+            <th data-aud="general" data-en="What was measured" data-ko="측정 항목">What was measured</th>
+            <th data-aud="dev" data-en="Metric" data-ko="메트릭">Metric</th>
+            <th data-aud="expert" data-en="Metric" data-ko="메트릭">Metric</th>
+            <th class="num" data-aud="general" data-en="Way A (simple)" data-ko="방식 A (단순)">Way A (simple)</th>
+            <th class="num" data-aud="dev" data-en="Arm A (OFF)" data-ko="Arm A (OFF)">Arm A (OFF)</th>
+            <th class="num" data-aud="expert" data-en="Arm A (OFF)" data-ko="Arm A (OFF)">Arm A (OFF)</th>
+            <th class="num" data-aud="general" data-en="Way B (disciplined)" data-ko="방식 B (규율 적용)">Way B (disciplined)</th>
+            <th class="num" data-aud="dev" data-en="Arm B (ON)" data-ko="Arm B (ON)">Arm B (ON)</th>
+            <th class="num" data-aud="expert" data-en="Arm B (ON)" data-ko="Arm B (ON)">Arm B (ON)</th>
+            <th data-aud="general" data-en="Difference / winner" data-ko="차이 / 우위">Difference / winner</th>
+            <th data-aud="dev" data-en="Δ / Winner" data-ko="Δ / 우위">Δ / Winner</th>
+            <th data-aud="expert" data-en="Δ / Winner" data-ko="Δ / 우위">Δ / Winner</th>
           </tr>
         </thead>
         <tbody id="superscalar-table-body"></tbody>
@@ -69,12 +184,16 @@
     </section>
 
     <section>
-      <h2 data-en="B-only artifacts (what naïve parallel structurally cannot produce)" data-ko="B-only 산출물 (naïve 병렬이 구조적으로 못 만드는 것)">B-only artifacts (what naïve parallel structurally cannot produce)</h2>
+      <h2 data-aud="general" data-en="What only the disciplined approach produced" data-ko="규율을 적용한 쪽에서만 나온 결과">What only the disciplined approach produced</h2>
+      <h2 data-aud="dev" data-en="Arm B-only artifacts — what naïve max-parallel structurally cannot produce" data-ko="Arm B 전용 산출물 — 단순 max-parallel이 구조적으로 만들 수 없는 것">Arm B-only artifacts — what naïve max-parallel structurally cannot produce</h2>
+      <h2 data-aud="expert" data-en="Artifacts unique to Arm B — items naïve max-parallel cannot structurally produce" data-ko="Arm B에 고유한 산출물 — naïve max-parallel이 구조적으로 산출 불가능한 항목">Artifacts unique to Arm B — items naïve max-parallel cannot structurally produce</h2>
       <div id="b-only-list"></div>
 
       <div class="callout headline">
         <h4 data-en="The load-bearing meta-finding" data-ko="핵심 메타 발견">The load-bearing meta-finding</h4>
-        <p data-en="Both arms surfaced both halves of a real authentication-hash contradiction (foundation: declared algorithm vs consumer: observed-in-production algorithm). Only Arm B's consistency gate paired the two observations and resolved the contradiction. Arm A left it as a silent quality defect downstream." data-ko="양 arm 모두 인증해시 알고리즘의 실제 모순의 양 면을 surface (foundation의 declared 알고리즘 vs consumer의 production-observed 알고리즘). Arm B의 consistency gate만 두 관찰을 paired + 모순을 reconciliation. Arm A는 silent quality defect로 남김.">Both arms surfaced both halves of a real authentication-hash contradiction. Only Arm B's consistency gate reconciled them.</p>
+        <p data-aud="general" data-en="Imagine two security inspectors reviewing the same building. One inspector noted 'the lock spec says metal A.' Another noted 'the actual lock is metal B.' Both observations were correct. With no one comparing notes, the contradiction goes uncaught — that's Arm A. Arm B forces the two notes to meet, the contradiction surfaces, and the team learns the building has the wrong lock. Same observations, totally different outcome." data-ko="같은 건물을 점검한 두 보안 점검자를 떠올려보세요. 한 명은 「잠금 사양에는 금속 A」라고 기록했고, 다른 한 명은 「실제 잠금은 금속 B」라고 기록했어요. 두 관찰 모두 정확합니다. 그런데 두 노트를 비교하는 사람이 없으면 그 모순은 잡히지 않아요 — 그게 Arm A입니다. Arm B는 두 노트를 만나게 해서, 모순이 드러나고 건물에 잘못된 잠금이 달려있다는 걸 팀이 알게 합니다. 똑같은 관찰이지만 결과는 완전히 다릅니다.">Two inspectors saw both halves of a real contradiction. Without coordination, it goes uncaught. Same observations, totally different outcome.</p>
+        <p data-aud="dev" data-en="Both arms surfaced a genuine password-hash contradiction during the run: one dimension's foundation spec declared the algorithm as BCrypt, whilst three other dimensions' consumer code paths used unsalted SHA-256 in production. In Arm A the two halves were logged independently and no agent paired them. In Arm B the consistency gate at the retire stage paired the observations, grounded the contradiction to specific source lines, and reconciled it — establishing that the declared algorithm corresponded to a dead utility and that the effective production algorithm was the insecure one. Absent the retire stage, this contradiction would have shipped to downstream consumers as a silent quality defect." data-ko="양 arm 모두 실행 중 실제 password-hash 모순을 표면화시켰습니다. 한 차원의 foundation spec은 알고리즘을 BCrypt로 선언하고 있었으나, 다른 세 차원의 consumer 코드 경로는 프로덕션에서 무염 SHA-256을 사용하고 있었습니다. Arm A에서는 이 두 절반이 독립적으로 기록되었을 뿐 어떤 에이전트도 이를 짝짓지 못했습니다. 반면 Arm B에서는 retire 단계의 consistency gate가 두 관찰을 짝지어 모순을 특정 소스 라인에 grounding하고 이를 reconciliation하였으며, 선언된 알고리즘은 dead utility에 해당하고 실효 프로덕션 알고리즘이 비안전한 쪽이라는 결론을 도출했습니다. retire 단계가 없었다면 이 모순은 silent quality defect로 downstream에 전파되었을 것입니다.">Both arms found a real password-hash contradiction. Arm A logged both halves separately. Arm B's consistency gate paired them and resolved it. Without retire, a real security defect would have shipped silently.</p>
+        <p data-aud="expert" data-en="Both arms surfaced both halves of a genuine authentication-hash contradiction, viz. a discrepancy between the algorithm declared in the foundation specification and the algorithm observed in the consumer's production execution paths. Only Arm B, by virtue of its consistency gate operating at the retire stage, paired the two structurally distinct observations and reconciled the resulting contradiction. Arm A, lacking such a coordination mechanism, allowed the contradiction to persist as a silent quality defect propagated to downstream consumers." data-ko="양 arm은 모두 진정한 인증해시 모순의 양 면, 즉 foundation 사양에서 선언된 알고리즘과 consumer의 프로덕션 실행 경로에서 관찰된 알고리즘 사이의 불일치를 표면화시켰다. 그러나 Arm B만이 retire 단계에서 작동하는 consistency gate를 통하여 구조적으로 분리된 두 관찰을 짝지어 결과적인 모순을 reconciliation하였다. 이러한 조정 메커니즘이 결여된 Arm A는 모순이 downstream consumer로 전파되는 silent quality defect로 잔존하도록 허용하였다.">Both arms surfaced both halves of a real authentication-hash contradiction. Only Arm B's consistency gate reconciled them.</p>
       </div>
     </section>
 
@@ -84,26 +203,38 @@
     </section>
 
     <section>
-      <h2 data-en="The trade-off — when to use which arm" data-ko="트레이드오프 — 어느 arm을 언제 쓸까">The trade-off — when to use which arm</h2>
+      <h2 data-aud="general" data-en="When to use which approach" data-ko="어느 방식을 언제 쓸까">When to use which approach</h2>
+      <h2 data-aud="dev" data-en="The trade-off — when to use which arm" data-ko="트레이드오프 — 어느 arm을 언제 쓸까">The trade-off — when to use which arm</h2>
+      <h2 data-aud="expert" data-en="Applicability and trade-offs of each arm" data-ko="양 arm의 적용 영역과 트레이드오프">Applicability and trade-offs of each arm</h2>
       <div class="cards">
         <div class="card">
-          <h3 data-en="Arm A — naïve max-parallel" data-ko="Arm A — naïve max-parallel">Arm A — naïve max-parallel</h3>
-          <p data-en="Right choice for fast first-pass reconnaissance: 2.65× faster wall-clock, −8% tokens. Loses dedup, contradiction resolution, completeness map." data-ko="빠른 first-pass reconnaissance에 적합: 2.65× 빠른 wall-clock, 토큰 −8%. dedup, 모순 해소, completeness map 손실.">Right for fast first-pass reconnaissance.</p>
+          <h3 data-en="Arm A — naïve max-parallel (Workflows default mode)" data-ko="Arm A — naïve max-parallel (Workflows 기본 방식)">Arm A — naïve max-parallel (Workflows default mode)</h3>
+          <p data-aud="general" data-en="Use when you need a quick first look — like a scout running ahead to see the terrain. Fast, but misses anything that requires connecting two separate observations." data-ko="빠르게 한 번 훑어보고 싶을 때 적합해요 — 지형을 먼저 살펴보러 앞서 달리는 정찰병처럼요. 빠르지만, 서로 다른 두 관찰을 이어붙여야 보이는 문제는 놓칩니다.">Use for a quick first look. Fast, but misses anything that needs connecting two separate observations.</p>
+          <p data-aud="dev" data-en="Arm A is the right choice for fast first-pass reconnaissance, where breadth of coverage matters more than reconciled output. It runs 2.65 times faster in wall-clock terms and uses 8 percent fewer tokens than Arm B. The trade-off is that it does not deduplicate overlapping observations across lanes, does not reconcile cross-lane contradictions, and does not produce a completeness gap map — every finding remains a single-lane observation." data-ko="Arm A는 통합된 결과물보다 커버리지의 폭이 더 중요한 빠른 first-pass reconnaissance에 적합한 선택입니다. wall-clock 기준으로 Arm B 대비 2.65배 더 빠르게 동작하며 토큰 소비량도 8% 더 적습니다. 대신 lane 사이에 겹치는 관찰을 중복 정리하지 않고, lane 간 모순을 reconciliation하지 않으며, completeness gap 맵을 산출하지도 않습니다. 따라서 모든 발견 사항은 단일 lane의 관찰로만 남게 됩니다.">Right for fast first-pass recon: 2.65× faster, −8% tokens. Loses dedup, contradiction resolution, completeness map.</p>
+          <p data-aud="expert" data-en="Arm A is the appropriate configuration for fast first-pass reconnaissance in which breadth of coverage takes precedence over reconciled output. It exhibits a 2.65-fold wall-clock advantage and an 8 percent reduction in token consumption relative to Arm B. These gains are obtained at the cost of forfeiting cross-lane deduplication, cross-dimension contradiction resolution, and the completeness gap map; every finding therefore subsists as a single-lane observation." data-ko="Arm A는 통합된 산출물보다 커버리지의 폭이 우선시되는 빠른 first-pass reconnaissance에 적합한 구성이다. 이는 Arm B 대비 2.65배의 wall-clock 우위와 8%의 토큰 소비 감소를 보인다. 그러나 이러한 이득은 lane 간 중복 정리, 차원 간 모순 해소, 그리고 completeness gap 맵을 모두 포기하는 비용을 통해 얻어지며, 따라서 모든 발견은 단일 lane의 관찰로 잔존한다.">Right for fast first-pass reconnaissance.</p>
         </div>
         <div class="card">
           <h3 data-en="Arm B — Superscalar discipline" data-ko="Arm B — Superscalar 규율">Arm B — Superscalar discipline</h3>
-          <p data-en="Right choice for handover-grade audits + cross-dimension consistency work. The 2.65× wall-clock cost is phase serialisation (freeze → consume → cross-cut → retire), NOT parallel inefficiency — in-phase parallelism is identical in both arms." data-ko="handover-grade audit + 차원간 정합성 작업에 적합. 2.65× wall-clock 비용은 phase 직렬화 (freeze → consume → cross-cut → retire) 비용이지 병렬 비효율 아님 — phase 내부 병렬성은 양 arm 동일.">Right for handover-grade audits + cross-dimension consistency.</p>
+          <p data-aud="general" data-en="Use when correctness matters more than speed — like a hand-off audit where you have to be sure nothing was missed. Takes 2.6× longer but catches real contradictions. The slowdown isn't from running slow; it's from making the team agree on shapes before everyone runs in parallel." data-ko="속도보다 정확성이 더 중요할 때 — 인계 점검처럼 무엇 하나라도 놓치면 안 되는 경우에 씁니다. 2.6배 오래 걸리지만, 진짜 모순을 잡아냅니다. 느려진 이유는 일을 천천히 해서가 아니에요. 모두가 병렬로 달리기 전에 형상을 먼저 맞추기 때문입니다.">Use when correctness matters more than speed. 2.6× longer, but catches real contradictions. Slowdown is from agreement-first, not slow work.</p>
+          <p data-aud="dev" data-en="Arm B is the right choice for handover-grade audits and any cross-dimension consistency work where downstream consumers will rely on the output. Its 2.65-fold wall-clock cost reflects the serialisation of phases (design-freeze, then consume, then cross-cut, then retire), not any loss of parallel efficiency — in-phase parallelism is identical on both arms. The retire stage should be understood as a coordination mechanism rather than a scheduling one." data-ko="Arm B는 handover 수준의 audit과 downstream consumer가 결과물에 의존하게 되는 차원 간 정합성 작업 모두에 적합한 선택입니다. 2.65배의 wall-clock 비용은 phase의 직렬화(design-freeze → consume → cross-cut → retire) 비용을 반영하는 것이지 병렬 효율의 손실이 아닙니다. phase 내부의 병렬성은 양 arm에서 동일하게 유지되며, retire 단계는 스케줄링 메커니즘이 아니라 조정(coordination) 메커니즘으로 이해되어야 합니다.">Right for handover-grade audits. 2.65× cost is phase serialisation, NOT parallel inefficiency. Retire = coordination, not scheduling.</p>
+          <p data-aud="expert" data-en="Arm B is the appropriate configuration for handover-grade audits and cross-dimension consistency work upon whose output downstream consumers rely. Its 2.65-fold wall-clock cost is attributable to the serialisation of phases — design-freeze, consume, cross-cut, and retire — and not to any diminution of parallel efficiency, intra-phase parallelism being invariant across the two arms. The retire stage must accordingly be construed as a coordination mechanism and not as a scheduling mechanism." data-ko="Arm B는 handover 수준의 audit 및 downstream consumer가 그 산출물에 의존하는 차원 간 정합성 작업에 적합한 구성이다. 이 arm의 2.65배 wall-clock 비용은 design-freeze, consume, cross-cut, retire의 phase 직렬화에 귀속되며, 병렬 효율의 어떠한 감쇄에도 귀속되지 아니한다. intra-phase 병렬성은 양 arm에 걸쳐 불변이기 때문이다. 따라서 retire 단계는 스케줄링 메커니즘이 아니라 조정 메커니즘으로 해석되어야 한다.">Right for handover-grade audits + cross-dimension consistency.</p>
         </div>
       </div>
     </section>
 
     <section>
-      <h2 data-en="The full picture in one paragraph" data-ko="한 문단 요약">The full picture in one paragraph</h2>
-      <p data-en="The Superscalar mapping looks like a parallelism policy but is not. Parallelism alone doesn't produce cross-lane consistency: duplicates aren't deduplicated, inter-lane contradictions aren't reconciled, completeness gaps aren't surveyed. The §3 retire stage (in-order PM merge + consistency gate + completeness critic) is a coordination mechanism, not a scheduling mechanism. Removing it (Arm A) preserves parallelism but eliminates grounding, dedup, contradiction resolution, and the completeness map. The cost of the discipline is the cost of phase serialisation, not of parallel inefficiency." data-ko="Superscalar mapping은 parallelism policy처럼 보이지만 아니다. 병렬성 단독으로는 cross-lane consistency 생성 불가: 중복 미dedup, 차원간 모순 미reconciliation, completeness gap survey 안 됨. §3 retire stage (in-order PM merge + consistency gate + completeness critic)은 coordination 메커니즘이지 scheduling 메커니즘이 아니다. 제거 시 (Arm A) parallelism은 보존되나 grounding, dedup, 모순 해소, completeness map은 잃는다. 규율의 비용은 phase 직렬화 비용이지 병렬 비효율 비용이 아니다.">The Superscalar mapping looks like a parallelism policy but is not. The §3 retire stage is a coordination mechanism, not a scheduling mechanism.</p>
+      <h2 data-aud="general" data-en="The full picture in one paragraph" data-ko="한 문단으로 정리하면">The full picture in one paragraph</h2>
+      <h2 data-aud="dev" data-en="The full picture in one paragraph" data-ko="한 문단 요약">The full picture in one paragraph</h2>
+      <h2 data-aud="expert" data-en="Synthesis in a single paragraph" data-ko="단락 단위 종합">Synthesis in a single paragraph</h2>
+      <p data-aud="general" data-en="If you put 10 people in a room and tell them to investigate something in parallel, you get 10 reports — but those reports won't talk to each other. Whatever needed connecting between two reports stays unconnected. Superscalar adds the role of the editor who reads all the reports, finds the contradictions, dedupes the overlap, and asks 'what did everyone miss?' That role adds time but it adds the kind of quality that no individual reporter could have produced alone. The time isn't wasted; it's the cost of making the reports actually fit together." data-ko="10명에게 같은 사안을 동시에 나눠서 조사하게 하면 리포트 10개가 나오긴 합니다 — 그런데 그 리포트들끼리는 서로 대화하지 않아요. 두 리포트 사이를 이어야 보이는 문제는 그대로 묻혀버립니다. Superscalar는 모든 리포트를 읽고, 모순을 찾아내고, 겹친 부분을 정리하고, 「모두가 놓친 건 뭘까?」라고 묻는 편집자 역할을 더해줍니다. 그 역할 때문에 시간이 더 들지만, 어느 한 사람이 혼자서는 결코 만들 수 없는 종류의 품질이 더해져요. 그 시간은 낭비가 아니라, 리포트들을 실제로 서로 맞물리게 하는 비용입니다.">Parallel agents produce parallel reports that don't talk to each other. Superscalar adds an editor role: reads all reports, finds contradictions, dedupes, asks what was missed. The added time isn't wasted — it's the cost of making reports actually fit together.</p>
+      <p data-aud="dev" data-en="The Superscalar mapping reads like a parallelism policy, but in operational terms it is a coordination policy. Parallelism, on its own, does not produce cross-lane consistency: duplicate findings are not deduplicated, inter-lane contradictions are not reconciled, and completeness gaps are not surveyed. The retire stage — in-order merge, consistency gate, and completeness critic — is a coordination mechanism rather than a scheduling one; remove it and parallelism remains intact, but every cross-lane operation disappears with it. The wall-clock cost of the disciplined arm is therefore the cost of phase serialisation, not of any parallel inefficiency." data-ko="Superscalar mapping은 표면적으로는 병렬성 정책처럼 보이지만, 운영의 관점에서는 조정(coordination) 정책에 해당합니다. 병렬성만으로는 lane 사이의 정합성을 산출할 수 없습니다. 중복된 발견은 정리되지 않고, lane 간의 모순은 reconciliation되지 않으며, completeness gap도 측정되지 않기 때문입니다. retire 단계 — in-order 머지, consistency gate, completeness critic — 는 스케줄링 메커니즘이 아니라 조정 메커니즘입니다. 이 단계를 제거하면 병렬성 자체는 유지되지만 lane을 가로지르는 모든 작업이 함께 사라지게 됩니다. 따라서 규율이 적용된 arm의 wall-clock 비용은 phase 직렬화 비용이지 병렬 비효율의 비용이 아닙니다.">Superscalar looks like parallelism policy but is coordination policy. Parallelism alone doesn't produce cross-lane consistency. Retire stage is coordination, not scheduling. Wall-clock cost is phase serialisation.</p>
+      <p data-aud="expert" data-en="The Superscalar mapping presents itself as a parallelism policy, yet in formal terms it constitutes a coordination policy. Parallelism, considered alone, does not give rise to cross-lane consistency: duplicate findings remain undeduplicated, inter-lane contradictions remain unreconciled, and completeness gaps remain unsurveyed. The §3 retire stage, comprising the in-order PM merge, the consistency gate, and the completeness critic, must therefore be construed as a coordination mechanism rather than a scheduling mechanism. Its removal — as embodied in Arm A — preserves parallelism whilst forfeiting grounding, deduplication, contradiction resolution, and the completeness map. The cost of the discipline is consequently the cost of phase serialisation and not of parallel inefficiency." data-ko="Superscalar mapping은 표면적으로 병렬성 정책의 외양을 지니나, 형식적 관점에서는 조정 정책을 구성한다. 병렬성만을 고려할 때 lane 간 정합성은 발생하지 아니한다. 중복된 발견은 정리되지 아니하고, lane 간 모순은 reconciliation되지 아니하며, completeness gap은 조사되지 아니하기 때문이다. 따라서 §3 retire 단계는 in-order PM 머지, consistency gate, completeness critic을 포함하는 조정 메커니즘으로 해석되어야 하며, 스케줄링 메커니즘으로 해석되어서는 아니 된다. 이 단계의 제거는 Arm A에 구현된 바와 같이 병렬성을 보존하면서도 grounding, 중복 정리, 모순 해소, 그리고 completeness 맵을 모두 포기시킨다. 따라서 본 규율의 비용은 phase 직렬화의 비용이지 병렬 비효율의 비용이 아니다.">The Superscalar mapping looks like a parallelism policy but is not. The §3 retire stage is a coordination mechanism, not a scheduling mechanism.</p>
     </section>
 
     <section>
-      <h2 data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
+      <h2 data-aud="general" data-en="Want to read more?" data-ko="더 자세히 알고 싶다면">Want to read more?</h2>
+      <h2 data-aud="dev" data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
+      <h2 data-aud="expert" data-en="Reference the full specification" data-ko="전체 사양 참조">Reference the full specification</h2>
       <p data-en="The full Superscalar.md (§1 concept mapping · §2 issue_width formula · §3 reorder-buffer worktree isolation · §4 speculation · §5 adoption thresholds · §11 dogfood ledger Entry 01-06) is in the EstreGenesis repo." data-ko="전체 Superscalar.md (§1 concept mapping · §2 issue_width 공식 · §3 reorder-buffer worktree isolation · §4 speculation · §5 adoption thresholds · §11 dogfood ledger Entry 01-06)는 EstreGenesis repo에 있습니다.">The full Superscalar.md is in the EstreGenesis repo.</p>
       <p><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md" target="_blank">github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md →</a></p>
     </section>
@@ -116,9 +247,22 @@
   <script src="shared/data.js"></script>
   <script src="shared/i18n.js"></script>
   <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
   <script src="shared/charts.js"></script>
   <script>
-    function tr(o) { const l = window.EG_I18N.getLang(); return o[l] || o.en || ''; }
+    function tr(o) {
+      if (!o) return '';
+      if (typeof o === 'string') return o;
+      const l = window.EG_I18N.getLang();
+      if (o.general || o.dev || o.expert) {
+        const aud = (window.EG_AUDIENCE && window.EG_AUDIENCE.get()) || 'general';
+        const inner = o[aud] || o.dev || o.general;
+        if (!inner) return '';
+        if (typeof inner === 'string') return inner;
+        return inner[l] || inner.en || '';
+      }
+      return o[l] || o.en || '';
+    }
     function renderTable() {
       const body = document.getElementById('superscalar-table-body');
       if (!body) return;
@@ -138,12 +282,15 @@
     function renderBOnly() {
       const list = document.getElementById('b-only-list');
       if (!list) return;
-      list.innerHTML = window.EG_DATA.superscalarEntry06.bOnlyArtifacts.map((a) => `
-        <div class="callout ${a.headline ? 'headline' : ''}">
-          <h4>${tr(a)}</h4>
-          <p>${tr(a.detail)}</p>
-        </div>
-      `).join('');
+      const AUDS = ['general', 'dev', 'expert'];
+      list.innerHTML = window.EG_DATA.superscalarEntry06.bOnlyArtifacts.map((a) =>
+        AUDS.map((aud) => `
+          <div class="callout ${a.headline ? 'headline' : ''}" data-aud="${aud}">
+            <h4>${tr(a.label[aud])}</h4>
+            <p>${tr(a.detail[aud])}</p>
+          </div>
+        `).join('')
+      ).join('');
     }
     function redraw() {
       window.EG_CHARTS.drawSuperscalarABBar('superscalar-ab-bar');

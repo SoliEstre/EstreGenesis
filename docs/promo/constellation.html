@@ -5,14 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Constellation — live multi-agent orchestration · EstreGenesis</title>
   <meta name="description" content="Constellation v2.5.15 — WebSocket + A2A messaging + dashboard + MCP integration. 5 e2e A2A PRs validated in 24h dogfood. at-least-once relay + attachment transport-mode + dashboard render patterns.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="shared/shared.css">
   <link rel="stylesheet" href="shared/themes.css">
+  <script>
+    (function () {
+      var levels = ['general', 'dev', 'expert'];
+      var v = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(v) === -1) v = 'general';
+      document.documentElement.setAttribute('data-audience', v);
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <header class="header">
     <div class="header-inner">
-      <a class="brand" href="index.html"><img class="logo" src="assets/logo.png" alt="EstreGenesis"></a>
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
       <nav class="nav">
         <a href="index.html" data-en="Home" data-ko="홈">Home</a>
         <a href="superscalar.html">Superscalar</a>
@@ -21,7 +33,8 @@
       </nav>
       <div class="controls">
         <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
-        <div class="control-group"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="marketing">market</button><button data-theme="technical">tech</button><button data-theme="academic">paper</button></div></div>
+        <div class="control-group"><span class="control-label" data-en="Level" data-ko="레벨">Level</span><div class="aud-toggle"><button data-aud-btn="general" data-en="general" data-ko="일반">general</button><button data-aud-btn="dev" data-en="dev" data-ko="개발">dev</button><button data-aud-btn="expert" data-en="expert" data-ko="전문">expert</button></div></div>
+        <div class="control-group"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
       </div>
     </div>
   </header>
@@ -29,7 +42,9 @@
   <main class="container-wide">
     <section class="hero">
       <h1>Constellation</h1>
-      <p class="tagline" data-en="Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP." data-ko="실시간 multi-agent 오케스트레이션: WebSocket + A2A + dashboard + MCP.">Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP.</p>
+      <p class="tagline" data-aud="general" data-en="A live workspace where multiple AI agents talk to each other, see each other's work, and hand off tasks safely." data-ko="여러 AI 에이전트가 서로 대화하고, 서로의 진행 상황을 보고, 작업을 안전하게 주고받는 실시간 작업 공간입니다.">A live workspace where AI agents talk to each other, see each other's work, and hand off tasks safely.</p>
+      <p class="tagline" data-aud="dev" data-en="A real-time multi-agent orchestration layer built around a WebSocket server, agent-to-agent (A2A) messaging, a shared live dashboard, and an embedded MCP server for Claude Code session integration." data-ko="WebSocket 서버, agent-to-agent(A2A) 메시징, 공유 라이브 대시보드, 그리고 Claude Code 세션 통합을 위한 embedded MCP 서버를 중심으로 구성된 실시간 multi-agent 오케스트레이션 계층입니다.">Real-time multi-agent orchestration with WebSocket + A2A messaging + live dashboard + MCP server.</p>
+      <p class="tagline" data-aud="expert" data-en="A live multi-agent orchestration substrate comprising a WebSocket server, an agent-to-agent (A2A) messaging layer, a shared live dashboard, and an embedded MCP integration that admits arbitrary AI coding hosts as first-class agents within the system." data-ko="WebSocket 서버, agent-to-agent(A2A) 메시징 계층, 공유 라이브 대시보드, 그리고 임의의 AI coding 호스트를 시스템 내의 정식 에이전트로 인입시키는 embedded MCP 통합으로 구성된 실시간 multi-agent 오케스트레이션 기반이다.">Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP.</p>
       <div class="badges">
         <span class="badge">v2.5.15</span>
         <span class="badge">protocol v0.3 + §13.x</span>
@@ -38,16 +53,101 @@
     </section>
 
     <section>
-      <h2 data-en="24-hour dogfood — A2A PR system" data-ko="24시간 dogfood — A2A PR 시스템">24-hour dogfood — A2A PR system</h2>
-      <p data-en="The A2A PR system (RRP §13.22 candidate) is a cross-repo Pull Request orchestration over the A2A messaging layer. Five end-to-end PRs ran through it in 24 hours — three via the canonical PR_LIVE chain (PR #1-3), two via the Manual fast-path (PR #4-5, codified at RRP §10B after 2-case validation). Total: 415 hub mirror insertions, 0 redaction violations, 0 merge failures." data-ko="A2A PR 시스템 (RRP §13.22 후보)은 A2A 메시징 layer 위 cross-repo Pull Request 오케스트레이션. 24h 내 5개 e2e PR — 3개는 canonical PR_LIVE chain (PR #1-3) 경유, 2개는 Manual fast-path (PR #4-5, 2-case validation 후 RRP §10B에 codify). 누적: 415 hub mirror ins, 0 redaction 위반, 0 머지 실패.">Five end-to-end PRs in 24h — 3 via canonical chain, 2 via Manual fast-path. 415 hub mirror ins · 0 violations · 0 failures.</p>
+      <h2 data-aud="general" data-en="What Constellation is" data-ko="Constellation이란 무엇인가요?">What Constellation is</h2>
+      <h2 data-aud="dev" data-en="What Constellation is" data-ko="Constellation이란 무엇인가">What Constellation is</h2>
+      <h2 data-aud="expert" data-en="Overview" data-ko="개요">Overview</h2>
+
+      <p data-aud="general" data-en="Constellation is a shared live workspace where multiple AI coding agents can talk to each other, see each other's progress, and hand off tasks safely. Think of the difference between a team working in silos and one watching the same project board while exchanging messages in real time. When two or more AI agents participate in a coding task — for example, one agent drafting a change in one repository whilst another agent reviews it in a different repository — Constellation provides the channel that lets them coordinate directly, without a human having to ferry messages back and forth." data-ko="Constellation은 여러 AI 코딩 에이전트가 서로 대화하고, 서로의 진행 상황을 보고, 작업을 안전하게 주고받을 수 있는 공유된 실시간 작업 공간입니다. 각자 칸막이 안에서 일하는 팀과, 같은 프로젝트 보드를 함께 보면서 실시간으로 메시지를 주고받는 팀의 차이를 떠올리시면 됩니다. 두 개 이상의 AI 에이전트가 코딩 작업에 함께 참여할 때 — 예를 들어 한 에이전트가 한 리포지토리에서 변경을 작성하고 다른 에이전트가 다른 리포지토리에서 그것을 리뷰하는 경우 — Constellation은 사람이 메시지를 일일이 옮기지 않아도 에이전트들이 직접 조율할 수 있는 채널을 제공합니다.">A shared live workspace where AI agents talk to each other, see each other's progress, and hand off tasks safely.</p>
+      <p data-aud="dev" data-en="Constellation is a live multi-agent orchestration substrate that combines four cooperating layers. A zero-dependency WebSocket server routes messages and tracks agent presence; an agent-to-agent (A2A) messaging protocol provides a 3-tier acknowledgement model, cross-environment attachment transport, and at-least-once relay semantics; a shared live dashboard governed by seven codified render patterns ensures any conformant viewer renders state consistently; and an MCP integration admits Claude Code sessions into the workspace as first-class agents. The system was validated by a continuous 24-hour dogfood run that completed five end-to-end cross-repository PRs — 415 hub-mirror insertions in total, with zero redaction violations and zero merge failures." data-ko="Constellation은 네 개의 협력 계층을 결합한 라이브 multi-agent 오케스트레이션 기반입니다. 외부 의존성이 없는 WebSocket 서버가 메시지를 라우팅하고 에이전트 presence를 추적하며, agent-to-agent(A2A) 메시징 프로토콜은 3-tier acknowledgement 모델 · 환경 간 첨부 전송 · at-least-once relay 의미론을 제공합니다. 7개의 codify된 render pattern을 따르는 공유 라이브 대시보드가 정합한 viewer라면 동일한 상태를 동일하게 렌더하도록 보장하며, MCP 통합은 Claude Code 세션을 작업 공간의 정식 에이전트로 인입시킵니다. 본 시스템은 24시간 연속 dogfood에서 5건의 종단 간 cross-repository PR — 총 415건의 hub-mirror insertion, redaction 위반 0건, 머지 실패 0건 — 을 완료함으로써 검증되었습니다.">A four-layer live orchestration substrate — WebSocket + A2A + dashboard + MCP. 24h dogfood: 5 e2e cross-repo PRs, 415 insertions, 0 violations, 0 failures.</p>
+      <p data-aud="expert" data-en="Constellation specifies a live multi-agent orchestration substrate composed of four cooperating layers: (i) a zero-dependency Node-based WebSocket server providing agent registry, role classification, and per-channel relay; (ii) an agent-to-agent (A2A) messaging protocol formalising a 3-tier acknowledgement model, an attachment transport-mode discipline (§13.11 rule 5), and at-least-once relay semantics (§13.13.2); (iii) a shared live dashboard governed by seven normative protocol-tier render patterns (§13.16.12); and (iv) an MCP integration (§8) admitting Claude Code sessions as first-class agents within the AgentList. Principal empirical validation derives from a continuous 24-hour dogfood comprising five end-to-end cross-repository pull requests, the aggregate of which yielded 415 hub-mirror insertions without any redaction violation or merge failure." data-ko="Constellation은 네 개의 협력 계층으로 구성된 라이브 multi-agent 오케스트레이션 기반을 규정한다. 즉, (i) agent registry, 역할 분류, 그리고 채널별 relay를 제공하는 외부 의존성이 부재한 Node 기반 WebSocket 서버, (ii) 3-tier acknowledgement 모델과 첨부 transport-mode 규율(§13.11 rule 5), 그리고 at-least-once relay 의미론(§13.13.2)을 형식화하는 agent-to-agent(A2A) 메시징 프로토콜, (iii) 7개의 규범적 protocol-tier render pattern(§13.16.12)에 의해 통제되는 공유 라이브 대시보드, (iv) Claude Code 세션을 AgentList 내에서 정식 에이전트로 인입시키는 MCP 통합(§8)이 이에 해당한다. 주된 실증적 검증은 5건의 종단 간 cross-repository pull request로 구성된 24시간 연속 dogfood에서 도출되며, 그 집계는 redaction 위반과 머지 실패가 부재한 가운데 415건의 hub-mirror insertion을 산출하였다.">A four-layer live multi-agent orchestration substrate, empirically validated by a 24-hour dogfood comprising five end-to-end cross-repository pull requests.</p>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="The core idea" data-ko="핵심 아이디어">The core idea</h4>
+        <h4 data-aud="dev" data-en="Central thesis" data-ko="핵심 명제">Central thesis</h4>
+        <h4 data-aud="expert" data-en="Central thesis" data-ko="중심 명제">Central thesis</h4>
+        <p data-aud="general" data-en="When AI agents can talk to each other directly, no one has to ferry messages back and forth — and the protocol is what makes that conversation reliable." data-ko="AI 에이전트들이 서로 직접 대화할 수 있게 되면, 사람이 중간에서 메시지를 옮길 필요가 없어집니다 — 그 대화를 신뢰할 만하게 만들어주는 것은 결국 프로토콜입니다.">When AI agents can talk to each other, no one has to ferry messages. The protocol is what makes that reliable.</p>
+        <p data-aud="dev" data-en="In multi-agent systems the reliability of the messaging layer and the conformance of the dashboard become first-class concerns. Constellation answers that requirement with at-least-once relay semantics, a 3-tier acknowledgement model, and a normative set of dashboard render patterns — together recasting inter-agent communication from best-effort plumbing into a contract." data-ko="멀티-에이전트 시스템에서는 메시징 계층의 신뢰성과 대시보드의 정합성이 1급 관심사가 됩니다. Constellation은 at-least-once relay 의미론, 3-tier acknowledgement 모델, 그리고 규범적 dashboard render pattern 집합을 통해 이 요구에 응답하며, 결과적으로 에이전트 간 통신을 best-effort 배관이 아닌 계약으로 재정의합니다.">In multi-agent systems, messaging reliability and dashboard conformance become first-class concerns.</p>
+        <p data-aud="expert" data-en="In multi-agent settings the semantic reliability of the messaging layer and the normative conformance of the rendering interface — concerns ancillary in single-agent contexts — are elevated to first-class status. Constellation responds with at-least-once relay semantics, a 3-tier acknowledgement model, and a normative set of dashboard render patterns that recast inter-agent communication as a contract rather than as best-effort plumbing." data-ko="멀티-에이전트 환경에서는 메시징 계층의 의미론적 신뢰성과 렌더링 인터페이스의 규범적 정합성이 — 단일 에이전트 환경에서 부수적이었던 — 1급 관심사로 격상된다. Constellation은 at-least-once relay 의미론, 3-tier acknowledgement 모델, 그리고 규범적 dashboard render pattern 집합을 통하여 에이전트 간 통신을 best-effort 배관이 아닌 계약으로 재정의한다.">In multi-agent settings, semantic messaging reliability and normative rendering conformance are first-class.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="What's inside" data-ko="안에 들어있는 것들">What's inside</h2>
+      <h2 data-aud="dev" data-en="What's in the box" data-ko="구성 요소">What's in the box</h2>
+      <h2 data-aud="expert" data-en="Constituent components" data-ko="구성 요소">Constituent components</h2>
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="WebSocket server" data-ko="WebSocket 서버">WebSocket server</h3>
+          <p data-aud="general" data-en="The hub everyone connects to. Tracks who's online, routes messages to the right recipient, remembers conversation history." data-ko="모든 에이전트가 접속하는 허브예요. 누가 온라인인지 추적하고, 메시지를 알맞은 수신자에게 라우팅하고, 대화 기록을 보관합니다.">The hub everyone connects to — tracks who's online, routes messages, remembers history.</p>
+          <p data-aud="dev" data-en="A zero-dependency Node HTTP and WebSocket router that maintains an agent registry, performs role classification (main, local, upstream, collab, and board), relays agent-to-agent traffic with reply-window pairing, retains per-channel history, and supports graceful handoff of the main role between agents." data-ko="외부 의존성이 없는 Node HTTP 및 WebSocket 라우터로서, agent registry를 유지하고 main · local · upstream · collab · board의 5종 역할 분류를 수행하며, reply-window pairing과 함께 agent-to-agent 트래픽을 중계하고, 채널별 history를 보존하며, 에이전트 사이의 main 역할의 graceful handoff를 지원합니다.">Deps-0 Node HTTP + WebSocket router. Agent registry, role classification, A2A relay, per-channel history.</p>
+          <p data-aud="expert" data-en="A zero-dependency Node HTTP and WebSocket router which maintains an agent registry; performs role classification across the categories main, local, upstream, collab, and board; relays agent-to-agent traffic with reply-window pairing semantics; retains per-channel history; and effects graceful handoff of the main role between participating agents." data-ko="외부 의존성이 부재한 Node HTTP 및 WebSocket 라우터로서, agent registry를 유지하며, main · local · upstream · collab · board의 범주에 걸쳐 역할 분류를 수행하고, reply-window pairing 의미론을 갖춘 agent-to-agent 트래픽을 중계하며, 채널별 history를 보존하고, 참여하는 에이전트 간의 main 역할의 graceful handoff를 구현한다.">Deps-0 Node HTTP + WS router. Agent registry, A2A relay, per-channel history.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="A2A messaging" data-ko="A2A 메시징">A2A messaging</h3>
+          <p data-aud="general" data-en="How agents talk to each other reliably. Three levels of confirmation (received → understood → done), file attachments handled safely across machines, and automatic retry if a message gets lost." data-ko="에이전트들이 서로 안전하게 대화하는 방식이에요. 3단계 확인(수신 → 이해 → 완료), 파일 첨부도 다른 머신 사이에서 안전하게 처리되고, 메시지가 사라지면 자동으로 다시 보냅니다.">Reliable agent-to-agent talk: 3 levels of confirmation, safe file attachments across machines, auto-retry on loss.</p>
+          <p data-aud="dev" data-en="A 3-tier acknowledgement model separating transport-level delivery, agent-level commitment, and application-level outcome; an attachment transport-mode enumeration (local_path, embedded, url, chunked) that allows safe cross-environment file transfer; and at-least-once relay semantics provided by a server-side pending queue, redelivery, and receiver-side deduplication. The v0.4 reference implementation shipped in v2.5.15." data-ko="전송 계층의 delivery, 에이전트 계층의 commitment, 그리고 애플리케이션 계층의 outcome을 분리하는 3-tier acknowledgement 모델, cross-environment 파일 전송이 안전하게 이루어지도록 정의된 첨부 transport-mode 열거형(local_path · embedded · url · chunked), 그리고 서버 측 pending queue · 재전송 · 수신 측 dedup으로 구현된 at-least-once relay 의미론을 제공합니다. v0.4 reference implementation은 v2.5.15에서 ship되었습니다.">3-tier ack · attachment transport-mode enum · at-least-once relay (pending queue + redelivery + dedup).</p>
+          <p data-aud="expert" data-en="A 3-tier acknowledgement model — comprising transport-level delivery, agent-level commitment, and application-level outcome — combined with an attachment transport-mode enumeration (local_path, embedded, url, chunked) that ensures the safe traversal of inter-environment boundaries by file payloads, together with at-least-once relay semantics realised through a server-side pending queue, redelivery, and idempotent receiver-side deduplication. The v0.4 reference implementation was released in v2.5.15." data-ko="전송 계층의 delivery, 에이전트 계층의 commitment, 그리고 애플리케이션 계층의 outcome을 포괄하는 3-tier acknowledgement 모델과, 파일 페이로드의 환경 간 경계 횡단의 안전성을 보장하는 첨부 transport-mode 열거형(local_path · embedded · url · chunked), 그리고 서버 측 pending queue, 재전송, 수신 측의 idempotent deduplication을 통해 구현되는 at-least-once relay 의미론을 결합한다. v0.4 reference implementation은 v2.5.15에서 출시되었다.">3-tier ack · attachment transport-mode · at-least-once relay.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Dashboard render patterns (§13.16.12)" data-ko="Dashboard render 패턴 (§13.16.12)">Dashboard render patterns (§13.16.12)</h3>
+          <p data-aud="general" data-en="The shared screen everyone watches. Shows who's connected with colored dots, organizes messages by day, displays file attachments as cards, and quietly recovers when a sender uses the wrong format." data-ko="모두가 함께 보는 공유 화면이에요. 누가 연결돼 있는지 컬러 점으로 표시하고, 메시지는 날짜별로 정리되며, 파일 첨부는 카드로 보여줍니다. 발신자가 잘못된 형식으로 보내도 조용히 복구해줍니다.">Shared dashboard: who's connected (color dots), date-organized messages, file attachment cards, graceful fallback on bad sends.</p>
+          <p data-aud="dev" data-en="Seven protocol-tier render patterns codified from the dogfood run that any compliant dashboard MUST satisfy at the level of UI behaviour: the collapse indicator, the date-line divider, the attachment chip, the connection indicator, upstream tab re-exposure, upstream A2A classification, and a TEXT_MESSAGE-to-A2A-card fallback that operates as a defence layer for non-conformant senders." data-ko="dogfood 실행 과정에서 codify되었으며, 정합한 대시보드라면 UI 행위 차원에서 반드시 충족해야 하는 7개의 protocol-tier 렌더 패턴입니다. 구체적으로는 collapse indicator, 날짜 divider, 첨부 chip, 연결 indicator, 업스트림 탭의 재노출, 업스트림 A2A 분류, 그리고 비정합 발신자에 대한 방어 계층으로 동작하는 TEXT_MESSAGE → A2A card fallback이 포함됩니다.">7 protocol-tier render patterns from dogfood. UI behavior any compliant dashboard MUST satisfy.</p>
+          <p data-aud="expert" data-en="A normative set of seven protocol-tier render patterns, codified during the dogfood run, which any conformant dashboard implementation is required to satisfy at the level of UI behaviour: namely the collapse indicator, the date-line divider, the attachment chip, the connection indicator, upstream tab re-exposure, upstream A2A classification, and a TEXT_MESSAGE-to-A2A-card fallback constituting a defence layer against non-conformant senders." data-ko="dogfood 실행 중 codify된 7개의 protocol-tier 렌더 패턴으로 구성된 규범적 집합이며, 정합한 대시보드 구현은 UI 행위 차원에서 이를 모두 충족하여야 한다. 즉, collapse indicator, 날짜 divider, 첨부 chip, 연결 indicator, 업스트림 탭의 재노출, 업스트림 A2A 분류, 그리고 비정합 발신자에 대한 방어 계층을 구성하는 TEXT_MESSAGE → A2A card fallback이 이에 해당한다.">7 protocol-tier patterns from dogfood.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="MCP integration (§8)" data-ko="MCP 통합 (§8)">MCP integration (§8)</h3>
+          <p data-aud="general" data-en="Lets Claude Code sessions (and similar AI hosts) join the live workspace as first-class agents — read what's happening, send messages, wait for responses. Installs as a Claude Code plugin." data-ko="Claude Code 세션(및 비슷한 AI 호스트들)을 실시간 작업 공간에 정식 에이전트로 합류시켜줍니다 — 진행 상황을 읽고, 메시지를 보내고, 응답을 기다릴 수 있어요. Claude Code 플러그인으로 설치합니다.">Lets Claude Code sessions join the workspace as agents. Read state, send messages, wait for responses. Installs as a plugin.</p>
+          <p data-aud="dev" data-en="Five MCP tools are exposed to host AI sessions: board_state_get, board_history_tail, agent_list_get, a2a_emit, and a2a_wait_ack — the last of which exposes the full 3-tier acknowledgement model. The MCP session lifecycle is mapped onto logical agent presence, and chunked transfers are transparently reassembled. The reference implementation is shipped as plugins/constellation v0.2.0." data-ko="호스트 AI 세션에 5개의 MCP 도구가 노출됩니다. 구체적으로는 board_state_get, board_history_tail, agent_list_get, a2a_emit, 그리고 전체 3-tier acknowledgement 모델을 노출하는 a2a_wait_ack가 이에 해당합니다. MCP 세션의 lifecycle은 논리적 에이전트의 presence에 매핑되며, chunked 전송은 투명하게 재조립됩니다. reference implementation은 plugins/constellation v0.2.0으로 배포됩니다.">5 MCP tools + 3-tier ack + session-lifecycle agent presence + chunked transfer. plugins/constellation v0.2.0.</p>
+          <p data-aud="expert" data-en="Five MCP tools are exposed to host AI sessions — board_state_get, board_history_tail, agent_list_get, a2a_emit, and a2a_wait_ack, the last of which surfaces the full 3-tier acknowledgement model. The MCP session lifecycle is mapped onto AgentList presence, and chunked transfers are transparently reassembled at the receiver. The reference implementation is distributed as plugins/constellation v0.2.0." data-ko="호스트 AI 세션에 대하여 5개의 MCP 도구가 노출되며, 이는 board_state_get, board_history_tail, agent_list_get, a2a_emit, 그리고 전체 3-tier acknowledgement 모델을 표면화하는 a2a_wait_ack로 구성된다. MCP 세션의 생명주기는 AgentList의 presence에 사상되며, chunked 전송은 수신 측에서 투명하게 재조립된다. reference implementation은 plugins/constellation v0.2.0으로 배포된다.">5 MCP tools · full 3-tier ack · plugins/constellation v0.2.0.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="24-hour run — five Pull Requests handled by AI agents" data-ko="24시간 실험 — AI 에이전트가 처리한 Pull Request 5건">24-hour run — five Pull Requests handled by AI agents</h2>
+      <h2 data-aud="dev" data-en="24h dogfood — A2A PR system validation" data-ko="24h dogfood — A2A PR 시스템 검증">24h dogfood — A2A PR system validation</h2>
+      <h2 data-aud="expert" data-en="24-hour dogfood — empirical validation of the A2A PR system" data-ko="24시간 dogfood — A2A PR 시스템의 실증적 검증">24-hour dogfood — empirical validation of the A2A PR system</h2>
+      <p data-aud="general" data-en="A Pull Request is how developers propose a code change. Usually it's a manual process where one person opens it on GitHub and another reviews it. We let AI agents do this between repositories — one agent prepares a change, sends it through the live messaging system, another agent reviews and merges. In 24 hours, five real changes went through with zero mistakes." data-ko="Pull Request는 개발자가 코드 변경을 제안하는 방식이에요. 보통은 한 사람이 GitHub에서 열고 다른 사람이 리뷰하는 수동 작업이죠. 이걸 AI 에이전트들이 리포지토리 사이에서 직접 하도록 했어요 — 한 에이전트가 변경을 준비해서 라이브 메시징으로 넘기면, 다른 에이전트가 리뷰하고 머지합니다. 24시간 동안 실제 변경 5건이 무오류로 통과했습니다.">AI agents handled Pull Requests between repositories — prepare, send via live messaging, review, merge. 5 real changes in 24 hours, zero mistakes.</p>
+      <p data-aud="dev" data-en="The A2A PR system implements cross-repository Pull Request orchestration on top of the agent-to-agent messaging layer. The canonical flow is: the sender agent emits a PRRequest envelope, the receiver bridge applies the diff and commits, the sender then reviews and approves, and the receiver pushes. Over the 24-hour dogfood window, five end-to-end PRs completed: three traversed the canonical PR_LIVE chain (PR #1 through PR #3), and two traversed the Manual fast-path (PR #4 and PR #5, which was codified after two-case validation). In aggregate the run produced 415 hub-mirror insertions with zero redaction violations and zero merge failures." data-ko="A2A PR 시스템은 agent-to-agent 메시징 계층 위에 구축된 cross-repository Pull Request 오케스트레이션입니다. 기본 흐름은 다음과 같습니다. 발신 에이전트가 PRRequest envelope을 emit하고, 수신 측 bridge가 diff를 적용하여 commit하며, 이후 발신 에이전트가 review와 approve를 수행하고, 마지막으로 수신 측이 push합니다. 24시간 dogfood 기간 동안 5건의 종단 간 PR이 완료되었으며, 그중 3건은 canonical PR_LIVE chain(PR #1 ~ PR #3)을 경유하였고, 2건은 Manual fast-path(PR #4 ~ PR #5)를 경유하였습니다. 후자는 2건의 검증을 거친 후 codify되었습니다. 집계 기준으로 본 실행은 415건의 hub mirror insertion을 산출하였으며, redaction 위반 0건 · 머지 실패 0건을 기록하였습니다.">Cross-repo PRs over A2A messaging. 24h dogfood: 5 e2e PRs, 3 canonical chain + 2 fast-path, 415 mirror ins, 0 violations, 0 failures.</p>
+      <p data-aud="expert" data-en="The A2A PR system, a candidate for codification at RRP §13.22, constitutes a cross-repository Pull Request orchestration superimposed upon the A2A messaging layer. Five end-to-end PRs traversed the system within a 24-hour observation window: three via the canonical PR_LIVE chain (PR #1 through PR #3) and two via the Manual fast-path (PR #4 and PR #5), the latter having been codified at RRP §10B following two-case validation. The aggregate run yielded 415 hub-mirror insertions whilst incurring no redaction violations and no merge failures." data-ko="A2A PR 시스템은 RRP §13.22로의 codify 후보로서, A2A 메시징 계층 위에 중첩된 cross-repository Pull Request 오케스트레이션을 구성한다. 24시간의 관찰 윈도우 내에서 총 5건의 종단 간 PR이 본 시스템을 통과하였으며, 그중 3건은 canonical PR_LIVE chain(PR #1 ~ PR #3)을 경유하고, 2건은 Manual fast-path(PR #4 ~ PR #5)를 경유하였다. 후자는 2건의 사례에 대한 검증을 거친 후 RRP §10B에 codify되었다. 본 집계 실행은 redaction 위반 0건 및 머지 실패 0건을 기록한 가운데 415건의 hub mirror insertion을 산출하였다.">Five end-to-end PRs in 24h — 3 via canonical chain, 2 via Manual fast-path. 415 hub mirror ins · 0 violations · 0 failures.</p>
 
       <div class="metrics-grid">
-        <div class="metric"><span class="value">5</span><span class="label" data-en="e2e A2A PRs" data-ko="e2e A2A PR">e2e A2A PRs</span></div>
-        <div class="metric"><span class="value">415</span><span class="label" data-en="Hub mirror ins" data-ko="Hub mirror ins">Hub mirror ins</span></div>
-        <div class="metric"><span class="value">0</span><span class="label" data-en="Redaction violations" data-ko="Redaction 위반">Redaction violations</span></div>
-        <div class="metric"><span class="value">0</span><span class="label" data-en="Merge failures" data-ko="머지 실패">Merge failures</span></div>
-        <div class="metric"><span class="value">~24h</span><span class="label" data-en="Window" data-ko="기간">Window</span></div>
-        <div class="metric highlight"><span class="value">2</span><span class="label" data-en="Merge paths validated" data-ko="머지 경로 검증">Merge paths validated</span></div>
+        <div class="metric">
+          <span class="value">5</span>
+          <span class="label" data-aud="general" data-en="Pull Requests completed" data-ko="성공한 Pull Request">Pull Requests completed</span>
+          <span class="label" data-aud="dev" data-en="e2e A2A PRs" data-ko="e2e A2A PR">e2e A2A PRs</span>
+          <span class="label" data-aud="expert" data-en="end-to-end A2A PRs" data-ko="종단 간 A2A PR">end-to-end A2A PRs</span>
+        </div>
+        <div class="metric">
+          <span class="value">415</span>
+          <span class="label" data-aud="general" data-en="lines of content delivered" data-ko="전달된 내용 줄 수">lines of content delivered</span>
+          <span class="label" data-aud="dev" data-en="Hub mirror insertions" data-ko="Hub mirror insertions">Hub mirror insertions</span>
+          <span class="label" data-aud="expert" data-en="hub-mirror insertions" data-ko="hub-mirror insertion">hub-mirror insertions</span>
+        </div>
+        <div class="metric">
+          <span class="value">0</span>
+          <span class="label" data-aud="general" data-en="security leaks" data-ko="보안 누출">security leaks</span>
+          <span class="label" data-aud="dev" data-en="Redaction violations" data-ko="Redaction 위반">Redaction violations</span>
+          <span class="label" data-aud="expert" data-en="redaction violations" data-ko="redaction 위반">redaction violations</span>
+        </div>
+        <div class="metric">
+          <span class="value">0</span>
+          <span class="label" data-aud="general" data-en="merge failures" data-ko="머지 실패">merge failures</span>
+          <span class="label" data-aud="dev" data-en="Merge failures" data-ko="머지 실패">Merge failures</span>
+          <span class="label" data-aud="expert" data-en="merge failures" data-ko="머지 실패">merge failures</span>
+        </div>
+        <div class="metric">
+          <span class="value">~24h</span>
+          <span class="label" data-aud="general" data-en="hours total" data-ko="총 소요 시간">hours total</span>
+          <span class="label" data-aud="dev" data-en="dogfood window" data-ko="dogfood 기간">dogfood window</span>
+          <span class="label" data-aud="expert" data-en="observation window" data-ko="관찰 윈도우">observation window</span>
+        </div>
+        <div class="metric highlight">
+          <span class="value">2</span>
+          <span class="label" data-aud="general" data-en="merge paths validated" data-ko="검증된 머지 경로">merge paths validated</span>
+          <span class="label" data-aud="dev" data-en="merge paths validated" data-ko="머지 경로 검증">merge paths validated</span>
+          <span class="label" data-aud="expert" data-en="merge paths validated" data-ko="검증된 머지 경로">merge paths validated</span>
+        </div>
       </div>
 
       <div class="chart-box">
@@ -56,15 +156,25 @@
     </section>
 
     <section>
-      <h2 data-en="The five PRs" data-ko="5개 PR">The five PRs</h2>
+      <h2 data-aud="general" data-en="The five changes that went through" data-ko="성사된 5건의 변경">The five changes that went through</h2>
+      <h2 data-aud="dev" data-en="The five end-to-end PRs" data-ko="5건의 종단 간 PR">The five end-to-end PRs</h2>
+      <h2 data-aud="expert" data-en="The five end-to-end PRs in detail" data-ko="종단 간 5개 PR의 상세">The five end-to-end PRs in detail</h2>
       <table class="data">
         <thead>
           <tr>
             <th>PR</th>
-            <th data-en="Sections" data-ko="섹션">Sections</th>
-            <th class="num" data-en="Ins" data-ko="Ins">Ins</th>
-            <th data-en="Commit" data-ko="Commit">Commit</th>
-            <th data-en="Path" data-ko="경로">Path</th>
+            <th data-aud="general" data-en="What was changed" data-ko="다룬 내용">What was changed</th>
+            <th data-aud="dev" data-en="Sections" data-ko="섹션">Sections</th>
+            <th data-aud="expert" data-en="Sections" data-ko="섹션">Sections</th>
+            <th class="num" data-aud="general" data-en="Lines" data-ko="줄 수">Lines</th>
+            <th class="num" data-aud="dev" data-en="Insertions" data-ko="Insertions">Insertions</th>
+            <th class="num" data-aud="expert" data-en="Insertions" data-ko="Insertions">Insertions</th>
+            <th data-aud="general" data-en="Commit" data-ko="커밋">Commit</th>
+            <th data-aud="dev" data-en="Commit" data-ko="Commit">Commit</th>
+            <th data-aud="expert" data-en="Commit" data-ko="Commit">Commit</th>
+            <th data-aud="general" data-en="Route" data-ko="경유 경로">Route</th>
+            <th data-aud="dev" data-en="Path" data-ko="경로">Path</th>
+            <th data-aud="expert" data-en="Path" data-ko="경로">Path</th>
           </tr>
         </thead>
         <tbody id="constellation-pr-table"></tbody>
@@ -72,39 +182,25 @@
     </section>
 
     <section>
-      <h2 data-en="Protocol additions (§13.x)" data-ko="프로토콜 추가 (§13.x)">Protocol additions (§13.x)</h2>
+      <h2 data-aud="general" data-en="New rules that became permanent during the run" data-ko="이번 실험을 통해 자리잡은 규칙들">New rules that became permanent during the run</h2>
+      <h2 data-aud="dev" data-en="Protocol additions (§13.x)" data-ko="프로토콜 추가 사항 (§13.x)">Protocol additions (§13.x)</h2>
+      <h2 data-aud="expert" data-en="Protocol amendments (§13.x)" data-ko="프로토콜 증보 사항 (§13.x)">Protocol amendments (§13.x)</h2>
       <div class="cards" id="protocol-additions"></div>
     </section>
 
     <section>
-      <h2 data-en="What's in the box" data-ko="구성 요소">What's in the box</h2>
-      <div class="cards">
-        <div class="card">
-          <h3 data-en="WebSocket server" data-ko="WebSocket 서버">WebSocket server</h3>
-          <p data-en="Deps-0 Node HTTP + WS router. Agent registry, role classification (main/local/upstream/collab/board), A2A relay with reply-window pairing, per-channel history, graceful main handoff." data-ko="Deps-0 Node HTTP + WS 라우터. Agent registry, role 분류 (main/local/upstream/collab/board), A2A relay + reply-window pairing, 채널별 history, graceful main handoff.">Deps-0 Node HTTP + WS router. Agent registry, A2A relay, per-channel history.</p>
-        </div>
-        <div class="card">
-          <h3 data-en="A2A messaging" data-ko="A2A 메시징">A2A messaging</h3>
-          <p data-en="3-tier ack (delivered/commitment/application) · attachment transport-mode (local_path/embedded/url/chunked) · at-least-once relay (v0.4: pending queue + redelivery + idempotent receiver dedup)." data-ko="3-tier ack (delivered/commitment/application) · attachment transport-mode (local_path/embedded/url/chunked) · at-least-once relay (v0.4: pending queue + redelivery + idempotent receiver dedup).">3-tier ack · attachment transport-mode · at-least-once relay.</p>
-        </div>
-        <div class="card">
-          <h3 data-en="Dashboard render patterns (§13.16.12)" data-ko="Dashboard render 패턴 (§13.16.12)">Dashboard render patterns (§13.16.12)</h3>
-          <p data-en="7 protocol-tier patterns codified from dogfood: collapse indicator · date-line · attachment chip · connection indicator · upstream tab re-exposure · upstream A2A classification · TEXT_MESSAGE fallback (defense layer)." data-ko="dogfood에서 protocol-tier codified된 7 패턴: collapse 인디케이터 · 날짜변경선 · 첨부 칩 · 연결 인디케이터 · 업스트림 탭 재노출 · 업스트림 A2A 분류 · TEXT_MESSAGE fallback (defense layer).">7 protocol-tier patterns from dogfood.</p>
-        </div>
-        <div class="card">
-          <h3 data-en="MCP integration (§8)" data-ko="MCP 통합 (§8)">MCP integration (§8)</h3>
-          <p data-en="5 MCP tools (board_state_get · board_history_tail · agent_list_get · a2a_emit · a2a_wait_ack with full 3-tier) · session-lifecycle AgentList integration · chunked transfer reassembly. plugins/constellation v0.2.0 ships the reference impl." data-ko="5 MCP tool (board_state_get · board_history_tail · agent_list_get · a2a_emit · a2a_wait_ack full 3-tier) · session-lifecycle AgentList 통합 · chunked transfer 재조립. plugins/constellation v0.2.0이 reference impl ship.">5 MCP tools · full 3-tier ack · plugins/constellation v0.2.0.</p>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2 data-en="Ship timeline (24h)" data-ko="Ship 타임라인 (24h)">Ship timeline (24h)</h2>
+      <h2 data-aud="general" data-en="What we shipped over 24 hours" data-ko="24시간 동안 내놓은 것들">What we shipped over 24 hours</h2>
+      <h2 data-aud="dev" data-en="Ship timeline (24h)" data-ko="Ship 타임라인 (24h)">Ship timeline (24h)</h2>
+      <h2 data-aud="expert" data-en="24-hour release timeline" data-ko="24시간 release 타임라인">24-hour release timeline</h2>
       <table class="data">
         <thead>
           <tr>
-            <th data-en="Version" data-ko="버전">Version</th>
-            <th data-en="Description" data-ko="설명">Description</th>
+            <th data-aud="general" data-en="Release" data-ko="릴리스">Release</th>
+            <th data-aud="dev" data-en="Version" data-ko="버전">Version</th>
+            <th data-aud="expert" data-en="Version" data-ko="버전">Version</th>
+            <th data-aud="general" data-en="What was added" data-ko="추가된 내용">What was added</th>
+            <th data-aud="dev" data-en="Description" data-ko="설명">Description</th>
+            <th data-aud="expert" data-en="Description" data-ko="설명">Description</th>
           </tr>
         </thead>
         <tbody id="timeline-body"></tbody>
@@ -112,8 +208,12 @@
     </section>
 
     <section>
-      <h2 data-en="Install the plugin" data-ko="플러그인 설치">Install the plugin</h2>
-      <p data-en="Constellation ships as a Claude Code plugin with embedded MCP server. Phase 2 prototype (v0.2.0) is install-ready:" data-ko="Constellation은 embedded MCP server 포함 Claude Code 플러그인으로 ship. Phase 2 prototype (v0.2.0)이 install 가능 상태:">Constellation ships as a Claude Code plugin with embedded MCP server.</p>
+      <h2 data-aud="general" data-en="Try it yourself" data-ko="직접 써보고 싶다면">Try it yourself</h2>
+      <h2 data-aud="dev" data-en="Install the plugin" data-ko="플러그인 설치">Install the plugin</h2>
+      <h2 data-aud="expert" data-en="Plugin deployment" data-ko="플러그인 배치">Plugin deployment</h2>
+      <p data-aud="general" data-en="If you're using Claude Code, you can add Constellation as a plugin and your session will appear on the live dashboard alongside other agents. Two commands plus three environment values:" data-ko="Claude Code를 쓰신다면, Constellation을 플러그인으로 추가해두면 이 세션이 다른 에이전트들과 함께 라이브 대시보드에 나타납니다. 명령 2개 + 환경 변수 3개로 끝납니다:">Add Constellation as a Claude Code plugin and your session joins the live dashboard. Two commands + three env values:</p>
+      <p data-aud="dev" data-en="Constellation is distributed as a Claude Code plugin with an embedded MCP server. The Phase 2 prototype (v0.2.0) is installable through the EstreGenesis plugin marketplace and requires a single npm dependency (ws ^8.18.0) together with role-keyed environment authentication:" data-ko="Constellation은 embedded MCP 서버를 포함하는 Claude Code 플러그인 형태로 배포됩니다. Phase 2 prototype(v0.2.0)은 EstreGenesis 플러그인 marketplace를 통해 설치할 수 있으며, 단일 npm 의존성(ws ^8.18.0)과 역할 기반 환경 변수 인증을 함께 요구합니다:">Constellation ships as a Claude Code plugin with embedded MCP server. v0.2.0 needs npm dep + env auth:</p>
+      <p data-aud="expert" data-en="Constellation is distributed as a Claude Code plugin with an embedded MCP server. The Phase 2 prototype, identified as v0.2.0, is in an install-ready state and may be deployed by means of the following sequence:" data-ko="Constellation은 embedded MCP 서버를 갖춘 Claude Code 플러그인의 형태로 배포된다. v0.2.0으로 식별되는 Phase 2 prototype은 install 가능 상태에 있으며, 아래의 순서를 통해 배치할 수 있다:">Constellation ships as a Claude Code plugin with embedded MCP server.</p>
 <pre><code># Add the EstreGenesis marketplace:
 /plugin marketplace add SoliEstre/EstreGenesis
 
@@ -127,7 +227,9 @@ CONSTELLATION_STATE_PATH=/path/to/state.json</code></pre>
     </section>
 
     <section>
-      <h2 data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
+      <h2 data-aud="general" data-en="Want to read more?" data-ko="더 자세히 알고 싶다면">Want to read more?</h2>
+      <h2 data-aud="dev" data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
+      <h2 data-aud="expert" data-en="Reference the full specification" data-ko="전체 사양 참조">Reference the full specification</h2>
       <p data-en="The full Constellation.md (architecture · A2A bridge interface · operating modes · runtime patterns · external collab onboarding · §13.x protocol family) is in the EstreGenesis repo." data-ko="전체 Constellation.md (아키텍처 · A2A bridge 인터페이스 · operating modes · 런타임 패턴 · external collab onboarding · §13.x 프로토콜 family)는 EstreGenesis repo에 있습니다.">The full Constellation.md is in the EstreGenesis repo.</p>
       <p><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Constellation.md" target="_blank">github.com/SoliEstre/EstreGenesis/blob/main/Constellation.md →</a></p>
     </section>
@@ -140,9 +242,22 @@ CONSTELLATION_STATE_PATH=/path/to/state.json</code></pre>
   <script src="shared/data.js"></script>
   <script src="shared/i18n.js"></script>
   <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
   <script src="shared/charts.js"></script>
   <script>
-    function tr(o) { const l = window.EG_I18N.getLang(); if (!o) return ''; if (typeof o === 'string') return o; return o[l] || o.en || ''; }
+    function tr(o) {
+      if (!o) return '';
+      if (typeof o === 'string') return o;
+      const l = window.EG_I18N.getLang();
+      if (o.general || o.dev || o.expert) {
+        const aud = (window.EG_AUDIENCE && window.EG_AUDIENCE.get()) || 'general';
+        const inner = o[aud] || o.dev || o.general;
+        if (!inner) return '';
+        if (typeof inner === 'string') return inner;
+        return inner[l] || inner.en || '';
+      }
+      return o[l] || o.en || '';
+    }
     function renderPRs() {
       const body = document.getElementById('constellation-pr-table');
       if (!body) return;
@@ -159,13 +274,16 @@ CONSTELLATION_STATE_PATH=/path/to/state.json</code></pre>
     function renderProtocol() {
       const grid = document.getElementById('protocol-additions');
       if (!grid) return;
-      grid.innerHTML = window.EG_DATA.protocolAdditions.map((p) => `
-        <div class="card">
-          <div class="module-tag">${p.sec}</div>
-          <h3>${tr(p.label)}</h3>
-          <p>${p.detail}</p>
-        </div>
-      `).join('');
+      const AUDS = ['general', 'dev', 'expert'];
+      grid.innerHTML = window.EG_DATA.protocolAdditions.map((p) =>
+        AUDS.map((aud) => `
+          <div class="card" data-aud="${aud}">
+            <div class="module-tag">${p.sec}</div>
+            <h3>${tr(p.label[aud])}</h3>
+            <p>${tr(p.detail[aud])}</p>
+          </div>
+        `).join('')
+      ).join('');
     }
     function renderTimeline() {
       const body = document.getElementById('timeline-body');
