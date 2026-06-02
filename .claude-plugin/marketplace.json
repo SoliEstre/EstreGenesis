@@ -13,8 +13,8 @@
     {
       "name": "constellation",
       "source": "./plugins/constellation",
-      "description": "Live multi-agent orchestration: WebSocket server + A2A messaging + dashboard + Stop hook helper + MCP server (Phase 2 full impl: WS proxy + 5 tools incl. a2a_wait_ack 3-tier + §13.13.2 dedup + chunked transfer). Bundles the v2.5.x reference runtime, the v2.5.3 SSoT-compliant gateway-client, the v0.4 MCP integration (§8), the v2.5.10 attachment transport-mode (§13.11 rule 5), and the v2.5.11 at-least-once relay reliability (§13.13.2). v0.2.1: Stop hook script self-contained inside plugin directory for community-marketplace compatibility. v0.2.2: pre-send-probe.cjs allowlist extended (Request/Reply/Attachment/ArtifactManifest/ArtifactComplete) + inner-name fallback for doubly-wrapped CUSTOM envelopes. npm dep: ws ^8.18.0.",
-      "version": "0.2.2",
+      "description": "Live multi-agent orchestration client for Claude Code. Connects to a separately-running Constellation WebSocket server (user-provisioned; canonical reference impl at constellation/reference/runtime/server.cjs in this repo). MCP server exposes 5 tools (board_state_get / board_history_tail / agent_list_get / a2a_emit / a2a_wait_ack), 3 skills, and a Stop hook bundling pre-send-probe.cjs. Without a running WS server the plugin loads cleanly and degrades gracefully (skills are documentation-only, hook logs cleanly). v0.2.1: hook script self-contained for community-marketplace compatibility. v0.2.2: probe ALLOWLIST extended (Request/Reply/Attachment/ArtifactManifest/ArtifactComplete) + inner-name fallback for doubly-wrapped CUSTOM envelopes. v0.2.3: Infrastructure-requirements section added prominently at top of README per community-marketplace submission readiness review. npm dep: ws ^8.18.0.",
+      "version": "0.2.3",
       "category": "orchestration",
       "tags": ["multi-agent", "websocket", "a2a", "live-board", "mcp", "dashboard"]
     },

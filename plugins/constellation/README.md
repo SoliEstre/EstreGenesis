@@ -1,6 +1,23 @@
-# Constellation plugin — Phase 2 production-ready (v0.2.1)
+# Constellation plugin — Phase 2 production-ready (v0.2.3)
 
 Bundles EstreGenesis's `Constellation.md` live-board orchestration as a Claude Code plugin: WebSocket server + A2A messaging + dashboard + Stop hook helper + MCP server (read board state + emit targeted A2A).
+
+## ⚠️ Infrastructure requirements
+
+**This plugin is a *client* to a separately-running Constellation infrastructure**, not a self-contained tool. Before the plugin's MCP tools can do meaningful work, the following must be running:
+
+1. **Constellation WebSocket server** — a Node process at a URL you configure (typically `ws://localhost:7878/ws`). Canonical reference implementation: [`constellation/reference/runtime/server.cjs`](https://github.com/SoliEstre/EstreGenesis/blob/main/constellation/reference/runtime/server.cjs) in the EstreGenesis repo. Run it with `node server.cjs` (zero npm deps for the basic server; the `ws` package is needed for the MCP bridge in this plugin).
+2. **A state file location** the WS server reads/writes (the `CONSTELLATION_STATE_PATH` env var).
+3. **A role-keyed auth token** matching the server's accepted role (`CONSTELLATION_TOKEN` or one of `_UPSTREAM_KEY` / `_COLLAB_KEY`).
+
+**What the plugin does WITHOUT a running server**:
+
+- The plugin installs and loads without error (no crash on startup).
+- The skills are present and described in the plugin's manifest but operate as documentation-only — they instruct the model to consult the MCP tools, which won't function without the WS server.
+- The Stop hook degrades gracefully — it logs `[probe] inbox.log not found` to stderr and exits clean (no agent-side disruption).
+- MCP tool calls (`board_state_get`, `a2a_emit`, etc.) will fail with connection errors until the WS server is up.
+
+**Why this architecture**: Constellation is a peer-coordination layer for multi-agent live boards. The WS server holds shared state across multiple agents; bundling a single-process default server in the plugin would defeat the multi-agent purpose. This mirrors how database / messaging-bus / observability plugins in the marketplace require the user to run their own backing service.
 
 ## What this plugin gives you
 
@@ -59,6 +76,16 @@ WATCHER_SCRIPT=/absolute/path/to/watcher-rearm.cjs       # optional; if absent t
 ```
 
 Without `INBOX_PATH` the hook degrades gracefully — it logs `[probe] inbox.log not found` to stderr and exits clean, so the rest of your Claude Code session is unaffected.
+
+## What's in v0.2.3
+
+- v0.2.2 features (below) +
+- **Infrastructure requirements section** added prominently at the top of the README per the community-marketplace policy for plugins that depend on user-provisioned external services (no formal disclosure schema yet, but precedent set by Airtable / MongoDB / PostgreSQL / GitHub / Stripe official plugins which all connect to user-managed accounts and external services).
+
+## What's in v0.2.2
+
+- v0.2.1 features (below) +
+- **pre-send-probe.cjs ALLOWLIST extension + doubly-wrapped envelope inner-name fallback** (per EstreGenesis v2.5.20). Added `Request` / `Reply` / `Attachment` / `ArtifactManifest` / `ArtifactComplete` to the cycle-end probe's A2A-intent allowlist. Inner-name fallback handles envelopes where the outer `name` field carries the literal string `"CUSTOM"` instead of the MessageName (a non-standard envelope shape observed in some adapter implementations).
 
 ## What's in v0.2.1
 
