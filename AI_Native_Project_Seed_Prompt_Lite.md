@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Seed Prompt — Lite
 
-<!-- seed-tier: Lite; language: English; version: v2.4.2; date: 2026-06-03; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.2 = bundle 007 M1 reflection — Migration B Step 1/2 dual-track guidance -->
+<!-- seed-tier: Lite; language: English; version: v2.4.3; date: 2026-06-03; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.3 = main hub feedback reflection — Migration B condensed delta list catch-up: v2.0.0 (Constellation Principle #9) + v2.3.0 (Superscalar Principle #10 + autonomous-execution Principle #11) rows added -->
 
 > **How to use**: Copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent will run an **interactive bootstrap session** (or a **migration session** if your project already exists — see § Migration Guides).
 >
@@ -327,6 +327,8 @@ Found in your project:
 - v1.3.7 deltas: Phase 0 agent tone selection + AGENTS.md / rules / bridge placeholders for language and tone
 - v1.5.0 deltas: Phase 2.5 Bootstrap Residency + Adoption Catalog (`<scope-root>`, agent-docs sidecar, multi-project orchestration, upstream split, `source-map.md`, public-boundary/style-guide, `.gitignore` source guard)
 - v1.6.0 deltas: Phase 0 pace mode (Cautious / Proactive / Burst / Sprint) + Core Principle #8 (agent-time vs human-time estimation) + § Agent-Time Estimation Policy + Step B PM split-time format (agent active + human review + calendar window) + AGENTS.md Core rules pace-mode line
+- v2.0.0 deltas: Core Principle #9 (Constellation, optional referenced module — multi-agent live board: WebSocket + A2A messaging + dashboard + MCP) + invariant A2A bridge interface (roles + handshake + messaging + turn-based bridge-daemon + self-wake-watcher) + Constellation.md reference + EstreUX brew-runtime pointer. File-based coordination (Phase 5) remains the default.
+- v2.3.0 deltas: Core Principles #10 (Execution scheduling — Superscalar, optional referenced module: `issue_width` formula with five-dimension bounds + cost-benefit-gated dispatch at ~30-60k token-horizon crossover) and #11 (Autonomous execution, absolute — defined-next-step proceeds without asking; gating only on loss/external-publish, new major-branch decision-point, restart-requiring deploys, or explicit user steering) + Superscalar.md reference + Phase 0 fourth question (`execution scheduling: serial/parallel` + `speculation: off/on`) + AGENTS.md Core rules line 1 = Autonomous execution rule
 
 Present this diff to the user as a numbered menu:
 ```

@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v2.4.2; date: 2026-06-03; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.2 = bundle 007 M1 reflection — 마이그레이션 B Step 1/2 dual-track guidance -->
+<!-- seed-tier: Lite; language: Korean; version: v2.4.3; date: 2026-06-03; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.3 = main hub feedback reflection — 마이그레이션 B condensed delta list catch-up: v2.0.0 (Constellation 핵심 원칙 #9) + v2.3.0 (Superscalar 핵심 원칙 #10 + 자율 실행 핵심 원칙 #11) 행 추가 -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -327,6 +327,8 @@ Step A-D 완료 후 에이전트 안내:
 - v1.3.7 delta: Phase 0 에이전트 말투 선택 + AGENTS.md / rules / 브릿지의 언어·말투 placeholder
 - v1.5.0 delta: Phase 2.5 Bootstrap Residency + Adoption Catalog (`<scope-root>`, agent-docs sidecar, multi-project orchestration, upstream split, `source-map.md`, public-boundary/style-guide, `.gitignore` source guard)
 - v1.6.0 delta: Phase 0 페이스 모드 (Cautious / Proactive / Burst / Sprint) + 핵심 원칙 #8 (agent-time vs human-time 추정) + § Agent-Time 추정 정책 + Step B PM split-time 형식 (agent active + human review + calendar window) + AGENTS.md Core rules 페이스 모드 라인
+- v2.0.0 delta: 핵심 원칙 #9 (Constellation, 선택적 참조 모듈 — 다중 에이전트 라이브보드: WebSocket + A2A 메시징 + 대시보드 + MCP) + 불변 A2A bridge interface (역할 + 핸드셰이크 + 메시징 + 턴 기반 bridge-daemon + self-wake-watcher) + Constellation.md 참조 + EstreUX brew-runtime 포인터. 파일-기반 조정 (Phase 5) 은 기본값 유지.
+- v2.3.0 delta: 핵심 원칙 #10 (실행 스케줄링 — Superscalar, 선택적 참조 모듈: 5-차원 bound `issue_width` 공식 + ~30-60k token-horizon crossover cost-benefit-gated dispatch) 와 #11 (자율 실행, 절대 — defined-next-step 은 묻지 않고 진행; gate 는 loss/외부-publish, 새 major-branch 결정 지점, restart-requiring 배포, 또는 명시적 사용자 steering 만) + Superscalar.md 참조 + Phase 0 네 번째 질문 (`execution scheduling: serial/parallel` + `speculation: off/on`) + AGENTS.md Core rules line 1 = 자율 실행 규칙
 
 번호 메뉴로 사용자에게 제시:
 ```
