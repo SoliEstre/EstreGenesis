@@ -25,18 +25,18 @@ WS 채널 책임:
 - History — active(메모리·full) / cold(stub) / archived(`ws-history/archived/` cold 파일) 3계층
 - 메인 graceful handoff — `SetMain` → `HandoffRequested` → `HandoffReady` / 10s 타임아웃 → `commitMain`
 
-## §2 일반화 범위 (upstream-특수 grep 결과 · 정정 내역)
+## §2 일반화 범위 (upstream-특수 grep 결과 · 정정 내역 · v2.5.33 reflection 갱신)
 
-원본 grep 대상: upstream-환경-특수 키워드 (비공개 보관).
+원본 grep 대상: upstream-환경-특수 키워드 (비공개 보관). **v2.5.33 갱신 (bundle 007 F3)**: 6개 항목 중 일부가 NOTES 작성 시점엔 미반영 상태로 기재됐으나 v2.5.33 패치에서 모두 코드 반영. 아래 표는 reflection 컬럼으로 정직화.
 
-| 위치 | 원본 | generic 화 |
-| --- | --- | --- |
-| header 주석 | `Live Dashboard server` | `Constellation Live Dashboard server` + 통합 원칙 5건 명시 |
-| INTEGRATION_DOCS `/BREW.md` | `path.join('..','..','..','EstreUX','BREW.md')` (외부 sibling 참조) | `'BREW.md'` (이 디렉토리 동봉 — 다운스트림이 자기 위치에서 제공) |
-| `WS_PRIMARY_ID` 기본값 | `'local-ide-agent'` | `'main-agent'` — gateway/main 의 `WS_LOCAL='main-agent'` 정정과 일관 |
-| `wsCollabOnboardMd` md 본문 | `upstream 라이브보드` ×2 · 메인 하드코딩 `local-ide-agent` | `Constellation 라이브보드` ×2 · 메인은 `${WS_PRIMARY_ID}` 로 동적 |
-| 부팅 로그 | `Live dashboard → …` | `Constellation live dashboard → …` |
-| `#168/시드2.0: EstreGenesis·업스트림 증류` 주석 | upstream 내부 이슈 번호 노출 | "증류 자료 (대표 .eux + brew 가이드)" 로 generic 화 |
+| 위치 | 원본 | generic 화 | reflection |
+| --- | --- | --- | --- |
+| header 주석 | `Live Dashboard server` | `Constellation Live Dashboard server` + 통합 원칙 5건 명시 | ✅ v2.5.33 reflected |
+| INTEGRATION_DOCS `/BREW.md` | `path.join('..','..','..','EstreUX','BREW.md')` (외부 sibling 참조) | `['BREW.md', 'estreux-engine/BREW.md', sibling-fallback]` array + `optional:true` graceful 404 — standalone 배치에서 동봉본 우선, sibling 은 in-tree dev 용 fallback | ✅ v2.5.33 reflected (F1) |
+| `WS_PRIMARY_ID` 기본값 | `'local-ide-agent'` | `'main-agent'` — gateway/main 의 `WS_LOCAL='main-agent'` 정정과 일관 | ✅ already reflected (pre-v2.5.33) |
+| `wsCollabOnboardMd` md 본문 | `upstream 라이브보드` ×2 · 메인 하드코딩 `local-ide-agent` | `Constellation 라이브보드` ×2 · 메인은 `${WS_PRIMARY_ID}` 로 동적 | ✅ already reflected (pre-v2.5.33) |
+| 부팅 로그 | `Live dashboard → …` | `Constellation live dashboard → …` | ✅ v2.5.33 reflected |
+| `#168/시드2.0: EstreGenesis·업스트림 증류` 주석 | upstream 내부 이슈 번호 노출 | "증류 자료 (대표 .eux + brew 가이드)" 로 generic 화 | ✅ already reflected (pre-v2.5.33) |
 
 정정 후 upstream-환경-특수 키워드 grep **0건**, `node --check` SYNTAX_OK.
 
@@ -74,7 +74,7 @@ WS 채널 책임:
 
 ## §4-bis A2A ack 계층 (WS-PROTOCOL §13.13)
 
-> 본 절은 upstream 라이브보드 production(private orchestration repo) 에서 도입 중인 *송달 3등급 + msgId dedup + liveness probe* 명세를 EG reference 로 spec reflect 한 것. 현 `server.cjs` 코드 본문은 아직 미반영(자연 보강 후보) — invariant 만 먼저 박제하고, 구현 PR 시 §6 차이표(미반영 → 반영) 갱신.
+> 본 절은 upstream 라이브보드 production 에서 도입된 *송달 3등급 + msgId dedup + liveness probe* 명세를 EG reference 로 spec reflect 한 것. **v2.5.33 갱신 (bundle 007 F5)**: 본 절을 처음 작성한 시점엔 "코드 본문 아직 미반영" 으로 기재됐으나, 그 사이 v2.5.15 / v2.5.18 / v2.5.19 cuts에서 §13.13.2 at-least-once relay 와 commitment-tier `delivered-persist` 가 reference 코드에 모두 반영됨 (`_RELAY_PENDING_MAX` / `_RELAY_THRESHOLD_MS` / `_RELAY_MAX_ATTEMPTS` in server.cjs · bridge inbox-append `AckProcessed{tier:'delivered-persist'}` emit in local-bridge.cjs). NOTES 가 code 보다 stale 했던 갭을 §6 차이표(아래)에서 정정.
 
 ### 송달 3등급 — 책임 분리
 
@@ -177,12 +177,14 @@ RFC6455 의 `0x9` PING / `0xA` PONG 컨트롤 프레임은 transport keepalive (
 
 이 server.cjs 는 upstream 라이브보드 원본(`dashboard/live/server.cjs`)에서 일반화돼 Constellation reference runtime 에 안착. 향후 EstreGenesis 가 이 reference 를 시드 2.0 의 라이브보드 런타임 거점으로 증류, 다운스트림은 그 시드로 자기 워크스페이스에 brew.
 
-## §6 메인 production 과 의도적 차이 (ack 계층 spec 시점)
+## §6 메인 production 과 의도적 차이 (ack 계층 spec 시점 — v2.5.33 갱신: §13.13 / §13.13.2 reflected)
 
-| 항목 | upstream production (private orchestration repo, `constellation/dist/vanilla/live-board-server.js` equiv. 2026-05-29) | EG reference (`server.cjs` + 본 NOTES §4-bis) | 정합 상태 |
+**v2.5.33 갱신 (bundle 007 F5)**: 본 표의 첫 두 행이 NOTES 작성 시점엔 "spec先·code後 (계획)" 으로 기재됐으나, 그 사이 v2.5.10 (§13.11 rule 5 attachment transport-mode) / v2.5.15 (§13.13.2 relay reliability draft) / v2.5.18 (EG bridge `delivered-persist` reference impl) / v2.5.19 (queue-key bug fix + bridge gate) / v2.5.21 (§13.9.1/§13.9.2 + §13.13 layer split) / v2.5.27 (§13.16.9 Hyperbrief A2A allowlist + `ack_tier='decided'`) cuts 에서 reference 코드 본문에 모두 반영. NOTES 가 code 보다 stale 했던 갭을 아래 행별 정직화 컬럼으로 정정.
+
+| 항목 | upstream production (private orchestration repo, equiv. 2026-05-29 baseline) | EG reference (`server.cjs` + 본 NOTES §4-bis) | 정합 상태 |
 | --- | --- | --- | --- |
-| §13.13 ack 계층 spec | dist/vanilla 본문 **미반영** — `delivered` 토큰은 routing 결과 flag 로만 사용(line 833·841·862·873·881), `wsIsAckable`/`msgId`/`AckProcessed` 부재 | NOTES §4-bis 에 invariant 박제(spec reflection). 코드 본문 정정은 메인 production 패치 도착 후 자연 보강 | spec先·code 後 (계획) |
-| msgId 형식 | (미반영, code 後 보강) | **표준 = `m-{base36ts}-{seq}`** — Node bridge 실구현 (`'m-' + Date.now().toString(36) + '-' + (++seq)`). Hermes Python 어댑터는 stack 관용 `f'm-{uuid.uuid4().hex[:12]}'` 도 허용(Node 표준이 SSoT) | **DECIDED 2026-05-29** (DELTA seq 13) |
-| `_pendingAck` / dedup 영속화 | 메인 bridge `_seenMsgIds` in-memory Set | **표준 = in-memory 1차** (deps0 정합·경량). FS 영속(`.msgid-watermark`)은 **Stage 2 후속** — 재시작 중복폭증 방지(Report §5 함정), 현 production 미구현 | **DECIDED 2026-05-29** (DELTA seq 13) |
+| §13.13 ack 계층 spec | 메인 production 측 v2.5.15+ 패치로 §13.13.2 at-least-once relay + commitment-tier `delivered-persist` 반영 | **✅ v2.5.33 갱신**: server.cjs 에 `_RELAY_PENDING_MAX` / `_RELAY_THRESHOLD_MS` / `_RELAY_MAX_ATTEMPTS` 상수 + `_relayPendingClear` (v2.5.19 queue-key fix) + bridge inbox-append `AckProcessed{tier:'delivered-persist'}` emit (v2.5.18 + v2.5.19 `RELAY_REDELIVERY=on` gate) 모두 반영. `wsIsAckable` / `msgId` / `AckProcessed` 분기 활성. v2.5.27 에서 application-tier 가 Hyperbrief `DECISION_RESPONSE/DEFER/REJECT_FRAMING` 으로 확장 (`ack_tier='decided'`). | **정합 (v2.5.27 baseline)** |
+| msgId 형식 | (메인 production 합의) | **표준 = `m-{base36ts}-{seq}`** — Node bridge 실구현 (`'m-' + Date.now().toString(36) + '-' + (++seq)`). Hermes Python 어댑터는 stack 관용 `f'm-{uuid.uuid4().hex[:12]}'` 도 허용(Node 표준이 SSoT). 양쪽 모두 reference 코드 본문에 stamping 활성. | **정합 (DECIDED 2026-05-29 + reflected v2.5.15+)** |
+| `_pendingAck` / dedup 영속화 | 메인 bridge `_seenMsgIds` in-memory Set + (v0.5) 서버측 pending queue | **표준 = in-memory 1차** (deps0 정합·경량) + (v0.5 reflected) 서버 pending queue. FS 영속(`.msgid-watermark`)은 별도 Stage 2 후속 — 재시작 중복폭증 방지, 현 둘 다 미구현. | **정합 (v0.5 server-side reflected v2.5.15+)** |
 | auto-pong | (미반영, 의도적) | NOTES §4-bis #3 — "auto-pong 안 함" 명시 invariant | 정합 |
 | ping/pong 의미 | 현 server.cjs 의 `: ping\n\n` 은 SSE keepalive — application-level §13.13 Ping/Pong 과 별개 | NOTES §4-bis "Ping/Pong 의미 정정" 절에서 명시 분리 | 정합 |

@@ -1,5 +1,5 @@
 /**
- * Live Dashboard server — 에이전트 작업의 실시간 미션 컨트롤.
+ * Constellation Live Dashboard server — 에이전트 작업의 실시간 미션 컨트롤 (deps-0 HTTP + WS router + integration-docs whitelist).
  *
  * - 정적 프론트(public/) 서빙
  * - GET  /api/state      → state.json (라이브 작업 보드; 에이전트가 갱신)
@@ -56,7 +56,12 @@ const INTEGRATION_DOCS = {
   '/eux/ws-conn-bar.eux': { file: path.join('eux', 'ws-conn-bar.eux'), type: 'text/plain; charset=utf-8' },
   '/eux/ws-tool-card.eux': { file: path.join('eux', 'ws-tool-card.eux'), type: 'text/plain; charset=utf-8' },
   '/eux/ws-collab-invite.eux': { file: path.join('eux', 'ws-collab-invite.eux'), type: 'text/plain; charset=utf-8' },
-  '/BREW.md': { file: path.join('..', '..', '..', 'EstreUX', 'BREW.md'), type: 'text/markdown; charset=utf-8' },
+  // /BREW.md — EstreUX brew guide. Standalone-deployment fallback: serve the vendored copy alongside server.cjs
+  // when present (any of "BREW.md" / "estreux-engine/BREW.md") so a downstream adopter that vendored EstreUX via
+  // giget gets the endpoint working out-of-the-box; the historical sibling layout (..\..\..\EstreUX\BREW.md) is
+  // tried last for repo-internal in-tree development. Bundle 007 F1: previously hard-coded to the sibling path,
+  // which 404'd in every standalone deployment.
+  '/BREW.md': { file: ['BREW.md', path.join('estreux-engine', 'BREW.md'), path.join('..', '..', '..', 'EstreUX', 'BREW.md')], type: 'text/markdown; charset=utf-8', optional: true },
 };
 const sseClients = new Set();
 
@@ -126,13 +131,24 @@ const server = http.createServer((req, res) => {
   }
 
   // 연동 문서 (화이트리스트) — 상대 에이전트가 ws://host:7878 와 같은 호스트에서 가이드/레퍼런스를 바로 받아볼 수 있게
+  // doc.file이 string이면 단일 경로; array이면 순차 탐색(첫 번째 존재 파일 사용); doc.optional=true이면 모두 부재 시 404 graceful.
   if (INTEGRATION_DOCS[url]) {
     const doc = INTEGRATION_DOCS[url];
-    fs.readFile(path.join(DIR, doc.file), (e, buf) => {
-      if (e) { res.writeHead(404); res.end('404'); return; }
-      res.writeHead(200, { 'Content-Type': doc.type, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
-      res.end(buf);
-    });
+    const candidates = Array.isArray(doc.file) ? doc.file : [doc.file];
+    const tryNext = (i) => {
+      if (i >= candidates.length) {
+        // optional: graceful 404 with note instead of bare 404 so the operator can see it was a documented endpoint
+        if (doc.optional) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('404 — ' + url + ' not vendored in this deployment (optional)'); }
+        else { res.writeHead(404); res.end('404'); }
+        return;
+      }
+      fs.readFile(path.join(DIR, candidates[i]), (e, buf) => {
+        if (e) { tryNext(i + 1); return; }
+        res.writeHead(200, { 'Content-Type': doc.type, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
+        res.end(buf);
+      });
+    };
+    tryNext(0);
     return;
   }
 
@@ -502,4 +518,4 @@ server.on('upgrade', (req, socket) => {
   };
 });
 
-server.listen(PORT, () => console.log(`Live dashboard → http://localhost:${PORT}/  (state: ${STATE})  [WS: /ws]`));
+server.listen(PORT, () => console.log(`Constellation live dashboard → http://localhost:${PORT}/  (state: ${STATE})  [WS: /ws]`));
