@@ -41,7 +41,9 @@ function getValidator() {
   if (_validator) return _validator;
   let Ajv;
   try {
-    Ajv = require("ajv");
+    // ajv default export is draft-07; our schema is draft 2020-12 → use the 2020-12 dialect entrypoint.
+    // Without this, ajv.compile(schema) throws "no schema with key or ref draft/2020-12/schema" on every IR.
+    Ajv = require("ajv/dist/2020");
   } catch (e) {
     // Schema validation skipped when ajv not installed (Phase 1 fallback territory).
     return null;
