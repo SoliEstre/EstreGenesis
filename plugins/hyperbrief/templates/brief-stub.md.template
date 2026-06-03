@@ -1,0 +1,21 @@
+{{!-- BlockedStub template — rendered when status === 'blocked_low_escalation' (escalation_sum < 4 and no MUST-trigger). Compact one-screen card; NO FullBrief fields. Per bundle 008 H2 (v2.5.34). --}}
+# Autonomous decision · {{decision_id}}
+
+> 🤖 **`AUTONOMOUS_DECIDE`** — escalation sum **{{escalation_header.sum}}** / 12 (irreversibility {{escalation_header.irreversibility}} · blast_radius {{escalation_header.blast_radius}} · time_horizon {{escalation_header.time_horizon}} · reversal_cost {{escalation_header.reversal_cost}}).
+> Threshold (sum ≥ 4 or any MUST-trigger) not met — no FullBrief generated.
+
+## Why not user-delegated
+
+{{escalation_header.autonomy_refusal_reason}}
+
+## Action taken (autonomous)
+
+{{autonomous_action_taken}}
+
+## Post-notify message
+
+{{post_notify_message}}
+
+---
+
+*This is a `BlockedStub` IR per Hyperbrief.md §2 routing — rendered as a compact post-notify card. If you wanted a full brief, raise an axis (irreversibility / blast_radius / time_horizon / reversal_cost) so escalation_sum reaches 4, or set one of the 5 MUST-triggers (`irreversibility ≥ 2` / cross-module blast / external-consumer notification / resource-threshold breach / supersession of parent decision).*

@@ -1,21 +1,25 @@
-# Hyperbrief plugin — Phase 1 prototype (v0.1.0)
+# Hyperbrief plugin — Phase 2 production (v0.5.2)
 
-EstreGenesis의 `Hyperbrief.md` (v0.1)를 Claude Code 플러그인으로 wrapping. 결정 위임 게이팅(decision-delegation gating)을 model-invoked skill로 노출하여, 사용자에게 결정을 묻는 모든 시점에 (a) 발동 자격을 검증하고 (b) 발동 시 schema-enforced 8섹션 JSON IR을 생성하며 (c) deterministic 렌더러로 MD/HTML을 동시 emit한다.
+> **v0.5.2 (2026-06-03 bundle 008 H6 README sync)** — README 가 historically v0.1.0 "Phase 1 prototype" 상태로 남아있었음. 본 갱신이 plugin.json (v0.5.2) / renderers package (v0.5.2) / mcp package (v0.5.2) / Hyperbrief.md SSoT (v0.5.2) 와 정합 회복.
+
+EstreGenesis의 `Hyperbrief.md` (v0.5.2)를 Claude Code 플러그인으로 wrapping. 결정 위임 게이팅(decision-delegation gating)을 model-invoked skill + deterministic Node renderer + MCP server 로 노출하여, 사용자에게 결정을 묻는 모든 시점에 (a) 발동 자격을 검증하고 (b) 발동 시 schema-enforced 9섹션 JSON IR (또는 BlockedStub) 을 생성하며 (c) deterministic 렌더러로 MD/HTML을 동시 emit 한다.
 
 ## 무엇을 주는가
 
 - **Skill: `hyperbrief-trigger-check`** (`skills/hyperbrief-trigger-check/SKILL.md`) — 사용자에게 결정/승인/선택을 묻는 메시지를 작성하기 직전에 자동 호출되는 경량 게이트. escalation 4-score + 5 MUST-trigger condition을 계산해 `{AUTONOMOUS_DECIDE, FULL_HYPERBRIEF, MINIMAL_BRIEF, BLOCK_FRAMING}` 4개 결과 중 하나를 반환. 결과가 `AUTONOMOUS_DECIDE`가 아닐 때만 본 `hyperbrief` skill을 호출한다.
 - **Skill: `hyperbrief`** (`skills/hyperbrief/SKILL.md`) — 본 모듈의 메인 skill. JSON IR 생성 + 두 렌더러 호출 + Constellation `DECISION_REQUEST` + `HyperbriefCard` 동시 emit + revisit-date 등록.
 - **Skill: `hyperbrief-revisit`** (`skills/hyperbrief-revisit/SKILL.md`) — 결정 사후 학습 루프 폐쇄. revisit_date 도래 OR `assumed_invariant` 위반 시 발화. ledger에서 IR 로드 → 사용자에게 실제 결과 질문 → outcome-quality vs decision-quality delta 계산 → Brier 증분 ledger append.
-- **JSON Schema: `schema/hyperbrief.schema.json`** — 8섹션 IR의 정형 스키마 (renderer + validator 공통 입력 계약). LLM은 이 스키마만 생성, MD/HTML은 코드가 렌더링.
-- **Template: `templates/brief.md.template`** — MD 렌더러용 템플릿. ADR 호환 헤더 + mermaid 다이어그램 슬롯.
-- **Template: `templates/brief.html.template`** — HTML 렌더러용 템플릿. chart.js + mermaid CDN 임베드. 인터랙티브 시각화(escalation radar / reversibility 배지 / MCDA radar with weight sliders / 우선순위 드래그 리스트 / active-choice gate).
+- **JSON Schema: `schema/hyperbrief.schema.json`** — 9섹션 IR + BlockedStub 의 정형 스키마 (oneOf 분기; v0.5에 `SurfaceProfileEstimate` + `RecommendedArtifact.{language,line_count,body_hash}` + `AudienceProfileFallback.telemetry` 확장). LLM은 이 스키마만 생성, MD/HTML은 코드가 렌더링.
+- **Deterministic Node renderer: `renderers/`** — Phase 2 (v0.4.0+) ship. `mini-engine.cjs` (자체 placeholder substitution + 톤 3축 transform + canonical IR hash + ajv schema validation) + `types.d.ts` (interface contract) + `bin/render.cjs` (CLI entry) + `package.json` (single dep `ajv ^8.17.0`). 결정성 불변식 (same IR + same options → byte-identical output) smoke test PASS.
+- **MCP server: `mcp/`** — Phase 2 (v0.4.2+) ship. `server.cjs` 가 4 tools 노출 (`hyperbrief_render` / `hyperbrief_validate` / `decision_ledger_append` / `decision_ledger_query`) over stdio JSON-RPC. `plugin.json` 의 `mcp.hyperbrief-mcp` 필드가 Claude Code 호스트에 자동 등록.
+- **Template: `templates/brief.md.template`** + **`templates/brief.html.template`** — FullBrief 용 렌더러 템플릿 (ADR 호환 헤더 + mermaid + chart.js 인터랙티브 시각화).
+- **Template: `templates/brief-stub.md.template`** + **`templates/brief-stub.html.template`** — BlockedStub (`AUTONOMOUS_DECIDE` 결과 — `escalation_sum < 4` 이고 MUST-trigger 없음) 용 compact post-notify card. v0.5.2 (bundle 008 H2) 신규.
 
 ## Infrastructure requirements
 
-- **Node.js**: 렌더러는 별도로 ship되지 않으며, Phase 1에서는 LLM이 템플릿을 직접 채워 emit. Phase 2에서 `renderers/renderer-md.cjs` + `renderers/renderer-html.cjs`가 추가될 예정 (스키마 validation + 순수 함수 렌더).
-- **Constellation**: optional synergy. Constellation이 설치되어 있으면 `DECISION_REQUEST` + `HyperbriefCard` envelope을 emit해 board UI에 결정 카드로 노출. 없으면 standalone 모드 — 사용자에게 brief.md + brief.html 파일 경로를 직접 표시.
-- **Superscalar**: optional synergy. Superscalar의 fan-out 게이트가 비가역 lane을 열 때 본 plugin의 trigger-check를 호출하도록 보강 (Hyperbrief.md §9 참조).
+- **Node.js ≥ 18**: renderers + mcp 모두 Node 18+. renderers 와 mcp 의 `package.json` 둘 다 `ajv ^8.17.0` 단일 의존 (clean install 시 `npm install` 후 자동 해소).
+- **Constellation**: optional synergy. Constellation 이 설치되어 있으면 `DECISION_REQUEST` + `HyperbriefCard` envelope 을 emit 해 board UI에 결정 카드로 노출 (Constellation §13.16.9 A2A intent 5 names + `ack_tier='decided'` per v2.5.27). 없으면 standalone 모드 — 사용자에게 `.agent/_decisions/<id>.{md,html}` 파일 경로를 직접 표시.
+- **Superscalar**: optional synergy. Superscalar §3.1 (v0.4.1+) Hyperbrief decision-delegation interlock 이 write/deploy/send lane 진입 시 본 plugin 의 `trigger-check` 를 자동 호출 (Hyperbrief.md §9 + Superscalar.md §3.1 참조).
 
 ## Install
 
