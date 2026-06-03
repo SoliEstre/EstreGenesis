@@ -328,11 +328,19 @@ function renderMd(ir, opts = {}) {
   const warnings = [];
   const profile = resolveProfile(ir, opts);
 
-  // v0.5: auto-stamp recommended_artifacts metadata (line_count + body_hash)
+  // v0.5: auto-stamp recommended_artifacts metadata (line_count + body_hash) — intentional IR mutation
+  // (the stamped fields are part of the IR contract and travel with archive_config archives).
   stampRecommendedArtifacts(ir);
-  // v0.5.2 H5: strip epistemic tag from heading content
-  stripHeadingEpistemicTag(ir);
 
+  // v0.5.4 H7 fix: validate on the canonical IR BEFORE applying surface-only transforms.
+  // Pre-v0.5.4 code applied stripHeadingEpistemicTag(ir) here, which removed the §6.essence_one_line
+  // `[verified|inferred|assumed|unknown]` prefix from the IR proper — but the schema declares that
+  // field as tagged_text with the prefix REQUIRED, so the subsequent validateIr(ir) call rejected
+  // every FullBrief (the default validation-on code path crashed for the canonical case). The fix
+  // is to (a) validate the canonical IR first, then (b) deep-clone for rendering and apply the
+  // heading-strip to the clone only — IR original stays invariant, archive_config sees pristine IR,
+  // and the surface still ships without the bracket prefix in the H1 heading. Per bundle 008 H7
+  // (reported in _proposals/008_2026-06-03_hyperbrief-adoption/002_resync-and-H7.md).
   if (!opts.skip_validate) {
     const v = validateIr(ir);
     if (!v.ok) {
@@ -344,8 +352,12 @@ function renderMd(ir, opts = {}) {
     if (v.skipped) warnings.push("ajv not installed; schema validation skipped (Phase 1 fallback territory).");
   }
 
+  // Surface-only clone — strip applies to the rendering copy only; archive sees the original IR.
+  const renderIr = JSON.parse(JSON.stringify(ir));
+  stripHeadingEpistemicTag(renderIr);
+
   const template = loadTemplate(selectTemplate(ir, "md"));
-  const substituted = substitute(template, ir, "md");
+  const substituted = substitute(template, renderIr, "md");
   const output = applyToneAxes(substituted, profile, warnings);
 
   // v0.5: surface_profile_estimate + AF-18 declared-vs-estimate gap warning
@@ -372,11 +384,12 @@ function renderHtml(ir, opts = {}) {
   const warnings = [];
   const profile = resolveProfile(ir, opts);
 
-  // v0.5: auto-stamp recommended_artifacts metadata
+  // v0.5: auto-stamp recommended_artifacts metadata — intentional IR mutation
   stampRecommendedArtifacts(ir);
-  // v0.5.2 H5: strip epistemic tag from heading content
-  stripHeadingEpistemicTag(ir);
 
+  // v0.5.4 H7 fix: validate on the canonical IR BEFORE applying surface-only transforms.
+  // See renderMd above for the full rationale (bundle 008 H7 — strip-then-validate ordering crashed
+  // the validation-on default code path because schema requires the essence_one_line tag prefix).
   if (!opts.skip_validate) {
     const v = validateIr(ir);
     if (!v.ok) {
@@ -388,6 +401,12 @@ function renderHtml(ir, opts = {}) {
     if (v.skipped) warnings.push("ajv not installed; schema validation skipped (Phase 1 fallback territory).");
   }
 
+  // Surface-only clone — strip applies to the rendering copy only; IR original preserved for archive.
+  // Note: the IR_JSON inlined into the HTML below is also the cloned (stripped) version so the
+  // surface and the embedded debug-IR agree; archive_config callers pass the original ir separately.
+  const renderIr = JSON.parse(JSON.stringify(ir));
+  stripHeadingEpistemicTag(renderIr);
+
   let template = loadTemplate(selectTemplate(ir, "html"));
 
   // §5.6.7 tone-floor fallback button label resolution from IR or default.
@@ -395,10 +414,10 @@ function renderHtml(ir, opts = {}) {
   const buttonLabel = fallback.button_label || "뭔 소리야? 한국어로 번역해줘 (내가 알아들을 수 있는 말로)";
   template = template
     .replace(/\{\{button_label\}\}/g, escapeHtml(buttonLabel))
-    .replace(/\{\{IR_JSON\}\}/g, JSON.stringify(ir).replace(/<\/script>/gi, "<\\/script>"));
+    .replace(/\{\{IR_JSON\}\}/g, JSON.stringify(renderIr).replace(/<\/script>/gi, "<\\/script>"));
 
   // Inline the IR_JSON before regular substitution so {{...}} markers inside the IR string don't recurse.
-  const substituted = substitute(template, ir, "html");
+  const substituted = substitute(template, renderIr, "html");
 
   let output = applyToneAxes(substituted, profile, warnings);
 

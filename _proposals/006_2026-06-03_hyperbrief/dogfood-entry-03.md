@@ -146,3 +146,43 @@
 ---
 
 *본 archive 는 §9 archive_config 의 세 번째 실 시연이며, hook activation 결정 사이클이 동시에 그 hook 의 자기-검증 cycle 이기도 함 — `한국어로 부탁해` 트리거의 silent miss (model self-invoke 만으로 작동 부족) 가 hook 활성화의 정당화 근거를 자기-제공.*
+
+---
+
+## 6. Addendum (v0.5.4 — bundle 008 002 resync, 본 cycle 직후 추가 검증)
+
+ship 직후 (~1시간) 외부 어댑터 (`assets/reports/2026-06-03_hyperbrief-adoption/002_resync-and-H7.md`) 가 v2.5.37 재-sync 하면서 본 cycle 의 결과를 외부 검증 + 3 신규 finding 추가:
+
+### 6.1 ✅ Positive 흡수 확인 (외부 검증)
+
+어댑터가 9-row 표로 bundle 007 + bundle 008 의 모든 H1-H6 + M4 + F1-F7 + M1-M2 가 v2.5.32 ~ v2.5.37 (약 1시간, 12 릴리스) 에 흡수됐음을 확인 — 본 cycle 의 hook 활성화 (Entry 03) 포함. "리포트가 1시간 내 SSoT 에 반영" 강한 신호로 평가. EG-owner-as-adopter 의 fast-turnaround 패턴의 외부 측정 baseline 첫 확보.
+
+### 6.2 ★ H7 (blocker) — H5 fix 의 역설적 부작용
+
+- v2.5.37 의 renderer 기본 경로 (`mini-engine.cjs` validation-on) 가 **FullBrief 를 거부**.
+- 원인: `stripHeadingEpistemicTag(ir)` 가 `validateIr(ir)` *이전* 실행 → strip 이 `§6.essence_one_line` 의 epistemic tag 를 IR 에서 제거 → schema 의 `tagged_text` (태그 required) 패턴 위반 throw.
+- **즉 H5 (v2.5.34) 의 수정 자체가 strip-then-validate 순서에서 schema 와 정면 충돌**. H1 과 같은 "clean-install validation 경로 깨짐" 계열의 회귀.
+- **v2.5.38 fix**: validate → deep clone → strip 순서 적용. IR 원본 불변, schema 통과, surface 는 여전히 strip 적용. 양 entry-point (`renderMd` + `renderHtml`) smoke test PASS — FullBrief validation-on 작동 + IR 원본 `[verified]` prefix 보존 확인.
+
+### 6.3 훅 어댑터 운영 게이트 finding
+
+- v2.5.37 훅 아키텍처가 **plugin-tier vs SSoT-tier 분리** (§11.4 의 의도) 가 외부 어댑터에게 정합 인식됨 — 4 시나리오 smoke 도 PASS.
+- **신규**: 훅 connection (`.claude/settings.json` 편집) 이 *agent-runtime self-modification* 으로 호스트 자동모드 분류기에 의해 차단 — 사용자 명시 승인 필요. "hyperbrief 플러그인 설치" 와 "hyperbrief 훅 연결" 이 **별개의 두 단계** — 어댑터 가이드에 미리 안내 필요.
+- **`${CLAUDE_PLUGIN_ROOT}` vs `$CLAUDE_PROJECT_DIR`** — 플러그인 marketplace 설치 vs 사이드카 (vendored) 배치 시 wrapper script 경로 다름.
+- v2.5.38 fix: `Hyperbrief.md §11.4` 끝에 본 두 가이드 항목 추가.
+
+### 6.4 운영 관찰 — vendor patch vs pure mirror (M3 후속)
+
+- 어댑터가 H1 은 vendor patch 로 즉시 차단 (1시간 후 EG 가 v2.5.32 ship → patch redundant), H7 은 학습 적용해 pure mirror + `--skip-validate` workaround.
+- 본 trade-off 는 *upstream fix 예상 시간* 에 따라 갈림 — author-direct 운영 = mirror, 외부 업스트림 = patch.
+- v2.5.38 fix: `Hyperbrief.md §11.3` 마지막에 "vendor patch vs pure mirror" 단락 추가.
+
+### 6.5 본 cycle 의 meta_learnings 갱신
+
+5.1 의 schema 갭 후보 목록에 다음 추가:
+
+- **v0.6 후보**: schema 의 tagged_text 패턴 vs renderer 의 surface-only 변환 사이의 명시적 contract — 현재는 mini-engine.cjs 의 코드 ordering 만으로 보장 (H7 회귀 시 silent failure). v0.6 candidate: schema 에 "surface variant — tagged_text 의 surface 형태는 임의 transform 가능, IR 형태는 invariant" 명시 + renderer 가 surface-only 변환 시 IR clone 의무화 normative rule (MUST-22).
+
+5.5 의 다음 사이클 후보에 추가:
+
+- v2.5.38 H7 fix 의 **이중 검증 cycle 자체가 fast-turnaround dogfood 의 가치를 측정 가능하게 만든 첫 사례** — 정량적 timing (어댑터 발견 시점 → EG ship 시점) 이 향후 dogfood 운영의 baseline.
