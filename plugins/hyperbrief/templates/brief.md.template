@@ -1,0 +1,365 @@
+# ADR-{{decision_id}} — {{section_6_decision_prompt.essence_one_line}}
+
+<!--
+Hyperbrief v0.1 — rendered from IR. Do not hand-edit.
+To change content, edit the source IR JSON and re-render via:
+  node ${CLAUDE_PLUGIN_ROOT}/renderers/renderer-md.cjs < ir.json > brief.md
+-->
+
+| Field | Value |
+|---|---|
+| Status | {{status}} |
+| Reversibility | **{{section_0_decision_header.reversibility_class}}** ({{reversibility_badge_emoji}}) |
+| Decider | {{section_0_decision_header.rapid.decider}} |
+| Recommender | {{section_0_decision_header.rapid.recommender}} |
+| Cynefin Domain | {{section_0_decision_header.cynefin_domain}} |
+| Deadline | {{section_0_decision_header.deadline}} |
+| Reading time | {{section_0_decision_header.recommended_reading_minutes}} min |
+
+> 이 질문에 답하지 않아도 됩니다 — 거부 / 보류 / 재구성 옵션이 §7 메타 분기에 있습니다.
+
+{{#if epistemic_distribution.low_confidence_banner}}
+> ⚠️ **Low-confidence brief** — inferred + unknown 비율이 40%를 초과합니다. 결정 전 §4c hidden assumptions와 §8 falsification trigger를 특히 주의 깊게 검토하세요.
+{{/if}}
+
+---
+
+## §0 Decision Header
+
+### Escalation justification
+
+| Indicator | Score (0-3) |
+|---|---|
+| Irreversibility | {{section_0_decision_header.escalation.irreversibility}} |
+| Blast radius | {{section_0_decision_header.escalation.blast_radius}} |
+| Time horizon | {{section_0_decision_header.escalation.time_horizon}} |
+| Reversal cost | {{section_0_decision_header.escalation.reversal_cost}} |
+| **Sum** | **{{section_0_decision_header.escalation.sum}}** / 12 (threshold: ≥ 4) |
+
+**Why this wasn't autonomous:** {{section_0_decision_header.escalation.autonomy_refusal_reason}}
+
+### RAPID roles
+
+- **Recommender** — {{section_0_decision_header.rapid.recommender}}
+- **Decider** — {{section_0_decision_header.rapid.decider}}
+- **Performer** — {{#each section_0_decision_header.rapid.performer}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+- **Input contributors** — {{#each section_0_decision_header.rapid.input_contributors}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+- **Agree (veto)** — {{#each section_0_decision_header.rapid.agree_holders}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+
+### Decision lineage
+
+```mermaid
+flowchart LR
+{{#each section_0_decision_header.decision_lineage.parent_decision_ids}}    {{this}} --> {{../decision_id}}
+{{/each}}
+    {{decision_id}}[{{decision_id}}<br/>{{section_0_decision_header.reversibility_class}}]
+```
+
+**Assumed invariants** (parent invalidation triggers re-revisit):
+
+{{#each section_0_decision_header.decision_lineage.assumed_invariants}}
+- {{this}}
+{{/each}}
+
+### Stake
+
+| Dimension | Estimate |
+|---|---|
+| Financial | {{section_0_decision_header.stake.financial}} |
+| Reputation | {{section_0_decision_header.stake.reputation}} |
+| Tech debt | {{section_0_decision_header.stake.tech_debt}} |
+
+---
+
+## §1 Context Horizon
+
+- **Preconditions** —
+{{#each section_1_context_horizon.preconditions}}  - {{this}}
+{{/each}}
+- **Continuity from prior** — {{section_1_context_horizon.continuity_from_prior}}
+- **Scope of impact** — {{section_1_context_horizon.scope_of_impact}}
+- **Forcing function (why now)** — {{section_1_context_horizon.forcing_function}}
+
+{{#if section_1_context_horizon.prior_decision_links}}
+**Prior decision links:** {{#each section_1_context_horizon.prior_decision_links}}`{{this}}` {{/each}}
+{{/if}}
+
+---
+
+## §2 Blast Radius Surface
+
+| Surface | Touched |
+|---|---|
+| Modules | {{#each section_2_blast_radius_surface.touched_modules}}- {{this}}<br/>{{/each}} |
+| Contracts | {{#each section_2_blast_radius_surface.touched_contracts}}- {{this}}<br/>{{/each}} |
+| Data at rest | {{#each section_2_blast_radius_surface.touched_data_at_rest}}- {{this}}<br/>{{/each}} |
+| External consumers | {{#each section_2_blast_radius_surface.touched_external_consumers}}- {{this}}<br/>{{/each}} |
+| Operational runbooks | {{#each section_2_blast_radius_surface.touched_operational_runbooks}}- {{this}}<br/>{{/each}} |
+
+**Coupling delta:** +{{section_2_blast_radius_surface.coupling_delta.new_dependencies}} dependencies, +{{section_2_blast_radius_surface.coupling_delta.new_consumers}} consumers, {{section_2_blast_radius_surface.coupling_delta.interface_surface_delta}}.
+
+**Observability increment:** {{section_2_blast_radius_surface.observability_increment}}
+
+{{#if section_2_blast_radius_surface.hyrum_exposure_flag}}
+> ⚠️ **Hyrum exposure** — externally visible behavior change risks de facto contract lock-in.
+{{/if}}
+
+---
+
+## §4 Why
+
+### 4a · Decision Driver
+
+{{section_4_why_block.decision_driver}}
+
+### 4b · Boundary Conditions
+
+| Tier | Conditions |
+|---|---|
+| **MUST-HAVE** | {{#each section_4_why_block.boundary_conditions.must_have}}- {{this}}<br/>{{/each}} |
+| **SHOULD-HAVE** | {{#each section_4_why_block.boundary_conditions.should_have}}- {{this}}<br/>{{/each}} |
+| **NICE-TO-HAVE** | {{#each section_4_why_block.boundary_conditions.nice_to_have}}- {{this}}<br/>{{/each}} |
+
+### 4c · Hidden Assumptions
+
+{{#each section_4_why_block.hidden_assumptions}}
+- **{{assumption}}**
+  - *If violated:* {{if_violated}}
+{{/each}}
+
+### 4d · Rejected Alternatives
+
+{{#each section_4_why_block.rejected_alternatives}}
+- ~~{{alternative}}~~ — {{rejection_reason}}
+{{/each}}
+
+{{#if section_4_why_block.forcing_function_closes_option_space_justification}}
+**Why option space is closed:** {{section_4_why_block.forcing_function_closes_option_space_justification}}
+{{/if}}
+
+---
+
+## §5 Consequences
+
+### 5a · Framing Matrix (2x2 + no-action)
+
+```mermaid
+quadrantChart
+    title Accept vs Reject — gains and losses
+    x-axis "Loss" --> "Gain"
+    y-axis "Reject" --> "Accept"
+    quadrant-1 "Accept · Gain"
+    quadrant-2 "Reject · Gain"
+    quadrant-3 "Reject · Loss"
+    quadrant-4 "Accept · Loss"
+```
+
+| Cell | Content |
+|---|---|
+| Accept · Gain | {{section_5_consequences_block.framing_matrix_2x2_plus_no_action.accept_gain}} |
+| Accept · Loss | {{section_5_consequences_block.framing_matrix_2x2_plus_no_action.accept_loss}} |
+| Reject · Gain | {{section_5_consequences_block.framing_matrix_2x2_plus_no_action.reject_gain}} |
+| Reject · Loss | {{section_5_consequences_block.framing_matrix_2x2_plus_no_action.reject_loss}} |
+| **No-action (do-nothing)** | {{section_5_consequences_block.framing_matrix_2x2_plus_no_action.no_action}} |
+
+### 5b · Reversibility Panel
+
+| | |
+|---|---|
+| Rollback — time | {{section_5_consequences_block.reversibility_panel.rollback_cost.time}} |
+| Rollback — money | {{section_5_consequences_block.reversibility_panel.rollback_cost.money}} |
+| Rollback — relational capital | {{section_5_consequences_block.reversibility_panel.rollback_cost.relational_capital}} |
+| Reversal window | **{{section_5_consequences_block.reversibility_panel.reversal_window}}** |
+| Trigger to revisit | {{section_5_consequences_block.reversibility_panel.trigger_to_revisit}} |
+
+### 5c · MCDA Table
+
+| Alternative \\ Criterion | {{#each section_5_consequences_block.mcda_table.criteria}}{{this}} | {{/each}}
+|---|{{#each section_5_consequences_block.mcda_table.criteria}}---|{{/each}}
+{{#each section_5_consequences_block.mcda_table.alternatives}}
+| **{{this}}** | {{!-- cells joined per row by renderer --}} |
+{{/each}}
+
+*(cells expanded by renderer from `mcda_table.cells[]`)*
+
+### 5d · Pre-mortem
+
+{{#each section_5_consequences_block.pre_mortem_scenarios}}
+**Scenario {{@index}}**:
+- *Failure path:* {{failure_path}}
+- *Early warning signal:* {{early_warning_signal}}
+
+{{/each}}
+
+### 5e · Most-Affected Stakeholder ({{section_5_consequences_block.most_affected_stakeholder.stakeholder_id}}) — first-person
+
+> {{section_5_consequences_block.most_affected_stakeholder.first_person_restatement}}
+
+### 5f · Null Option Cost (do-nothing — time axis)
+
+| 30d | 90d | 1y |
+|---|---|---|
+| {{section_5_consequences_block.null_option_cost.d30}} | {{section_5_consequences_block.null_option_cost.d90}} | {{section_5_consequences_block.null_option_cost.y1}} |
+
+{{#if section_5_consequences_block.null_option_cost.lehman_violation_flag}}
+> ⚠️ **Lehman law violation flag** — null-option cost estimated as zero. Software in use must evolve; zero do-nothing cost is rarely correct.
+{{/if}}
+
+### 5g · Toulmin Predictions
+
+| Claim | Grounds | Qualifier | Rebuttal |
+|---|---|---|---|
+{{#each section_5_consequences_block.toulmin_predictions}}| {{claim}} | {{grounds}} | {{qualifier.point_estimate}} / [{{qualifier.ci_90_low}}, {{qualifier.ci_90_high}}] / *miss:* {{qualifier.most_likely_to_miss_scenario}} | {{rebuttal}} |
+{{/each}}
+
+---
+
+## §3 How — Incremental Path Check
+
+| Path | Checked? | Reason |
+|---|---|---|
+| Strangler Fig | {{section_3_incremental_path_check.strangler_fig_check}} |
+| Branch-by-abstraction | {{section_3_incremental_path_check.branch_by_abstraction_check}} |
+| Feature flag | {{section_3_incremental_path_check.feature_flag_check}} |
+
+**Chosen path:** `{{section_3_incremental_path_check.chosen_path}}`{{#if section_3_incremental_path_check.tentative_flag_if_big_bang}} *(tentative — incremental paths not exhausted)*{{/if}}
+
+### Milestones
+
+| # | Label | Rollback | Blast at step |
+|---|---|---|---|
+{{#each section_3_incremental_path_check.milestones}}| {{@index}} | {{label}} | {{rollback_possible}} | {{blast_radius_at_step}} |
+{{/each}}
+
+---
+
+## §6 Decision Prompt
+
+> **{{section_6_decision_prompt.question_to_user}}**
+
+| | |
+|---|---|
+| **Essence** | {{section_6_decision_prompt.essence_one_line}} |
+| **Core trade-off** | {{section_6_decision_prompt.core_tradeoff_one_line}} |
+| **Recommendation + confidence** | {{section_6_decision_prompt.recommendation_with_confidence_one_line}} |
+
+{{#if section_6_decision_prompt.ai_view_vs_devils_advocate}}
+| AI view | Devil's advocate |
+|---|---|
+| {{section_6_decision_prompt.ai_view_vs_devils_advocate.ai_view}} | {{section_6_decision_prompt.ai_view_vs_devils_advocate.devils_advocate}} |
+{{/if}}
+
+---
+
+## §7 Decision Criteria Tree
+
+### Meta-branch (always available)
+
+- `accept` — {{section_7_decision_tree.meta_branch.accept}}
+- `reject-framing` — {{section_7_decision_tree.meta_branch.reject_framing}}
+- `defer` — {{section_7_decision_tree.meta_branch.defer}}
+- `request-investigation` — {{section_7_decision_tree.meta_branch.request_investigation}}
+
+### Domain-adaptive tree
+
+{{#if domain_format_is_tree_mermaid}}
+```mermaid
+flowchart TD
+    META["meta-branch"]
+    META --> N1["N1 · Reversibility OK?"]
+    N1 -- yes --> N2["N2 · Blast radius bounded?"]
+    N1 -- no --> REJECT["reject-framing"]
+    N2 -- yes --> N3["N3 · Time pressure justified?"]
+    N2 -- no --> DEFER["defer"]
+    N3 -- yes --> ACCEPT["accept"]
+    N3 -- no --> INVESTIGATE["request-investigation"]
+{{!-- additional domain-specific nodes injected by renderer --}}
+```
+{{/if}}
+{{#if domain_format_is_probe_safe_to_fail}}
+**Complex domain — safe-to-fail probes:**
+
+{{#each section_7_decision_tree.nodes}}
+{{@index}}. **{{node_id}}** — {{question}}
+   - *Decision relevance:* {{decision_relevance}}
+{{/each}}
+{{/if}}
+{{#if domain_format_is_single_action_card}}
+**Chaotic — single action card.** Immediate action + 24h retrospective auto-scheduled.
+
+- *Action:* {{section_7_decision_tree.nodes.0.question}}
+- *Decision relevance:* {{section_7_decision_tree.nodes.0.decision_relevance}}
+{{/if}}
+
+### Pruned options (explicitly excluded)
+
+{{#each section_7_decision_tree.pruned_options}}
+- ~~{{option}}~~ — {{exclusion_reason}}
+{{/each}}
+
+{{#if section_7_decision_tree.depth_warning}}
+> ⚠️ Tree depth > 3 — cognitive load warning. Consider collapsing nodes that do not change the chosen option.
+{{/if}}
+
+---
+
+## §8 Recommendation
+
+**Conditional recommendation:**
+> {{section_8_recommendation.recommendation_conditional.recommended}}
+
+- **Assuming** — {{#each section_8_recommendation.recommendation_conditional.assumptions}}{{this}}{{#unless @last}}; {{/unless}}{{/each}}
+- **Fallback if assumption violated** — {{section_8_recommendation.recommendation_conditional.fallback_if_assumption_violated}}
+- **Switch to alternative if** — {{section_8_recommendation.recommendation_conditional.switch_if}}
+
+| Confidence | {{section_8_recommendation.confidence.point_estimate}} (90% CI [{{section_8_recommendation.confidence.ci_90_low}}, {{section_8_recommendation.confidence.ci_90_high}}]) |
+|---|---|
+| Brittleness | {{section_8_recommendation.confidence.brittleness}} |
+| Cited tree nodes | {{#each section_8_recommendation.cited_tree_node_ids}}`{{this}}` {{/each}} |
+
+{{#if section_8_recommendation.downgraded_to_proposal_if_low_confidence}}
+> ⚠️ **Label downgraded** — confidence < 0.6, so this is a **proposal candidate**, not a firm recommendation.
+{{/if}}
+
+### Defeaters (any flips the recommendation)
+
+{{#each section_8_recommendation.defeaters}}
+{{@index}}. {{this}}
+{{/each}}
+
+### Pre-mortem (inline)
+
+{{section_8_recommendation.pre_mortem_inline}}
+
+### Reversible fallback
+
+- **Fallback path** — {{section_8_recommendation.reversible_fallback.fallback_path}}
+- **Rollback cost** — {{section_8_recommendation.reversible_fallback.rollback_cost}}
+- **Trigger conditions** — {{section_8_recommendation.reversible_fallback.trigger_conditions}}
+
+### Falsification trigger
+
+Observe `{{section_8_recommendation.falsification_trigger.what_to_observe}}` at `{{section_8_recommendation.falsification_trigger.when}}`; threshold `{{section_8_recommendation.falsification_trigger.threshold}}`.
+
+{{#if section_8_recommendation.i_accept_irreversibility_required}}
+---
+
+- [ ] **I accept irreversibility** — confirms understanding that §5b reversibility window will close on commit. This decision is `one_way`.
+{{/if}}
+
+---
+
+## §9 Decision Capture
+
+| Field | Value |
+|---|---|
+| Revisit date | **{{section_9_decision_capture_stub.revisit_date}}** |
+| Ledger pointer | `{{section_9_decision_capture_stub.ledger_pointer}}` |
+| Outcome (filled post-revisit) | {{#if section_9_decision_capture_stub.outcome_actual}}{{section_9_decision_capture_stub.outcome_actual}}{{else}}*_pending_*{{/if}} |
+| Outcome vs decision quality | {{#if section_9_decision_capture_stub.outcome_vs_decision_quality_delta}}{{section_9_decision_capture_stub.outcome_vs_decision_quality_delta}}{{else}}*_pending_*{{/if}} |
+
+---
+
+*Pre-mortem input required from user before decision confirmation (active-choice gate).*
+*Rendered from `ir.json` by `renderer-md.cjs`. Do not hand-edit.*
+*Source spec: https://github.com/SoliEstre/EstreGenesis/blob/main/Hyperbrief.md*

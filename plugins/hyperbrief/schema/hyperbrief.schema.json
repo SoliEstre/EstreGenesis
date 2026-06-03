@@ -1,0 +1,680 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/SoliEstre/EstreGenesis/plugins/hyperbrief/schema/hyperbrief.schema.json",
+  "title": "HyperbriefIR",
+  "description": "Hyperbrief JSON IR — the single output the LLM emits. MD/HTML are rendered deterministically from this. See Hyperbrief.md for normative rules.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/FullBrief" },
+    { "$ref": "#/$defs/BlockedStub" }
+  ],
+
+  "$defs": {
+
+    "tagged_text": {
+      "type": "string",
+      "description": "All fact-assertion strings MUST carry an epistemic tag. Optional provenance tag follows.",
+      "pattern": "^\\[(verified|inferred|assumed|unknown)\\](\\[(관찰|추론|외부:[^\\]]+|가정)\\])?\\s+\\S.+$"
+    },
+
+    "score_0_3": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+
+    "tone_level_1_5": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "5-level Likert scale. See Hyperbrief.md §5.6 for axis-specific rendering rules. Default 2 per axis."
+    },
+
+    "AudienceProfile": {
+      "type": "object",
+      "description": "3 orthogonal tone axes (§5.6). MUST NOT be collapsed into a single complexity score.",
+      "required": ["audience", "abbreviation", "jargon"],
+      "properties": {
+        "audience": {
+          "$ref": "#/$defs/tone_level_1_5",
+          "description": "Domain familiarity: L1 general / L2 general-dev mid (default) / L3 dev / L4 dev-expert mid / L5 expert-academic."
+        },
+        "abbreviation": {
+          "$ref": "#/$defs/tone_level_1_5",
+          "description": "Surface compression: L1 full sentences / L2 natural with light compression (default) / L3 bullet-heavy / L4 telegraphic / L5 spec-density."
+        },
+        "jargon": {
+          "$ref": "#/$defs/tone_level_1_5",
+          "description": "Domain-term density: L1 no jargon / L2 jargon with 1-line gloss on first use (default) / L3 jargon free / L4 framework cited not explained / L5 citations terse."
+        }
+      }
+    },
+
+    "AudienceProfileFallback": {
+      "type": "object",
+      "description": "Tone-floor fallback affordance (§5.6.7). HTML surfaces a button; MD listens for trigger phrases.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "button_label": {
+          "type": "string",
+          "default": "뭔 소리야? 한국어로 번역해줘",
+          "description": "Playful copy on the HTML re-render button."
+        },
+        "trigger_phrases_md": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["뭔 소리", "안 읽혀", "무슨 말", "이해 안", "더 쉽게", "너무 어렵", "다시 풀어", "쉽게 다시", "한국어로", "한국말로", "level 2 라고", "L2 라고", "이게 level", "이게 L"],
+          "description": "When the user response after a MD brief contains any of these substrings, regenerate at {1,1,1}."
+        }
+      }
+    },
+
+    "RecommendedArtifact": {
+      "type": "object",
+      "description": "Artifact body attached to §8 recommendation (e.g., a patch text the user is voting on). MUST NOT be referenced abstractly — body required (§10.1 MUST-18, AF-20).",
+      "required": ["artifact_type", "target_file", "body", "rationale_one_line"],
+      "properties": {
+        "artifact_type": {
+          "enum": ["patch", "spec", "code", "design", "config", "other"]
+        },
+        "target_file": { "type": "string" },
+        "target_anchor": {
+          "type": "string",
+          "description": "Heading anchor, line range, or section ID within the target file."
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Actual text/code the reader is voting on. Empty body with non-trivial reference is AF-20."
+        },
+        "rationale_one_line": { "$ref": "#/$defs/tagged_text" }
+      }
+    },
+
+    "ArchiveConfig": {
+      "type": "object",
+      "description": "§9 archive_config — preserves decision + brief + related user prompts + applied artifacts + meta learnings as a load-bearing development record.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Default ON. Disable per-brief for low-value decisions."
+        },
+        "archive_path": {
+          "type": "string",
+          "description": "Path to archive bundle directory. Default: .agent/_decisions/<id>.archive/ (standalone) or _proposals/<bundle>/dogfood-entry-NN.md (proposals-tracked)."
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "enum": ["brief_original", "decision", "related_user_prompts", "recommended_artifacts_applied", "meta_learnings"]
+          },
+          "default": ["brief_original", "decision", "related_user_prompts", "recommended_artifacts_applied", "meta_learnings"]
+        }
+      }
+    },
+
+    "decision_id": {
+      "type": "string",
+      "pattern": "^hb-[0-9]{8}-[a-z0-9]{6}$",
+      "description": "Format: hb-YYYYMMDD-<6 lowercase alphanum>"
+    },
+
+    "node_id": {
+      "type": "string",
+      "pattern": "^N[0-9]+$"
+    },
+
+    "EscalationHeader": {
+      "type": "object",
+      "required": ["irreversibility", "blast_radius", "time_horizon", "reversal_cost", "sum", "autonomy_refusal_reason"],
+      "properties": {
+        "irreversibility": { "$ref": "#/$defs/score_0_3" },
+        "blast_radius": { "$ref": "#/$defs/score_0_3" },
+        "time_horizon": { "$ref": "#/$defs/score_0_3" },
+        "reversal_cost": { "$ref": "#/$defs/score_0_3" },
+        "sum": { "type": "integer", "minimum": 0, "maximum": 12 },
+        "autonomy_refusal_reason": { "$ref": "#/$defs/tagged_text" }
+      }
+    },
+
+    "RAPID": {
+      "type": "object",
+      "required": ["recommender", "decider", "performer", "input_contributors", "agree_holders"],
+      "properties": {
+        "recommender": { "type": "string" },
+        "decider": { "type": "string" },
+        "performer": { "type": "array", "items": { "type": "string" } },
+        "input_contributors": { "type": "array", "items": { "type": "string" } },
+        "agree_holders": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "BlockedStub": {
+      "type": "object",
+      "description": "Returned when escalation_sum < 4 and no MUST-trigger fires. Agent decided autonomously; one-line post-notify required.",
+      "required": ["status", "decision_id", "escalation_header", "autonomous_action_taken"],
+      "properties": {
+        "status": { "const": "blocked_low_escalation" },
+        "decision_id": { "$ref": "#/$defs/decision_id" },
+        "escalation_header": { "$ref": "#/$defs/EscalationHeader" },
+        "autonomous_action_taken": { "$ref": "#/$defs/tagged_text" },
+        "post_notify_message": { "type": "string" }
+      }
+    },
+
+    "FullBrief": {
+      "type": "object",
+      "required": [
+        "status",
+        "decision_id",
+        "section_0_decision_header",
+        "section_1_context_horizon",
+        "section_2_blast_radius_surface",
+        "section_3_incremental_path_check",
+        "section_4_why_block",
+        "section_5_consequences_block",
+        "section_6_decision_prompt",
+        "section_7_decision_tree",
+        "section_8_recommendation",
+        "section_9_decision_capture_stub"
+      ],
+      "properties": {
+        "status": { "const": "active" },
+        "decision_id": { "$ref": "#/$defs/decision_id" },
+
+        "section_0_decision_header": {
+          "type": "object",
+          "required": [
+            "escalation",
+            "reversibility_class",
+            "reversibility_badge_color",
+            "rapid",
+            "cynefin_domain",
+            "decision_lineage",
+            "deadline",
+            "recommended_reading_minutes",
+            "stake",
+            "audience_profile"
+          ],
+          "properties": {
+            "escalation": { "$ref": "#/$defs/EscalationHeader" },
+            "reversibility_class": {
+              "enum": ["two_way", "one_way_with_migration_path", "one_way"]
+            },
+            "reversibility_badge_color": {
+              "enum": ["green", "yellow", "red"]
+            },
+            "rapid": { "$ref": "#/$defs/RAPID" },
+            "cynefin_domain": {
+              "enum": ["clear", "complicated", "complex", "chaotic", "confused"]
+            },
+            "decision_lineage": {
+              "type": "object",
+              "properties": {
+                "parent_decision_ids": { "type": "array", "items": { "type": "string" } },
+                "assumed_invariants": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } }
+              }
+            },
+            "deadline": {
+              "type": "string",
+              "description": "ISO8601 or 'no rush'"
+            },
+            "recommended_reading_minutes": { "type": "integer", "minimum": 1 },
+            "stake": {
+              "type": "object",
+              "properties": {
+                "financial": { "$ref": "#/$defs/tagged_text" },
+                "reputation": { "$ref": "#/$defs/tagged_text" },
+                "tech_debt": { "$ref": "#/$defs/tagged_text" }
+              }
+            },
+            "audience_profile": { "$ref": "#/$defs/AudienceProfile" },
+            "audience_profile_fallback": { "$ref": "#/$defs/AudienceProfileFallback" }
+          }
+        },
+
+        "section_1_context_horizon": {
+          "type": "object",
+          "required": ["preconditions", "continuity_from_prior", "scope_of_impact", "forcing_function"],
+          "properties": {
+            "preconditions": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/tagged_text" }
+            },
+            "continuity_from_prior": { "$ref": "#/$defs/tagged_text" },
+            "scope_of_impact": { "$ref": "#/$defs/tagged_text" },
+            "forcing_function": { "$ref": "#/$defs/tagged_text" },
+            "prior_decision_links": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+
+        "section_2_blast_radius_surface": {
+          "type": "object",
+          "required": [
+            "touched_modules",
+            "touched_contracts",
+            "touched_data_at_rest",
+            "touched_external_consumers",
+            "touched_operational_runbooks",
+            "coupling_delta"
+          ],
+          "properties": {
+            "touched_modules": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } },
+            "touched_contracts": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } },
+            "touched_data_at_rest": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } },
+            "touched_external_consumers": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } },
+            "touched_operational_runbooks": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } },
+            "coupling_delta": {
+              "type": "object",
+              "properties": {
+                "new_dependencies": { "type": "integer" },
+                "new_consumers": { "type": "integer" },
+                "interface_surface_delta": { "type": "string" },
+                "depth_to_interface_ratio_change": { "type": "string" }
+              }
+            },
+            "observability_increment": { "$ref": "#/$defs/tagged_text" },
+            "hyrum_exposure_flag": { "type": "boolean" }
+          }
+        },
+
+        "section_3_incremental_path_check": {
+          "type": "object",
+          "required": [
+            "chosen_path",
+            "strangler_fig_check",
+            "branch_by_abstraction_check",
+            "feature_flag_check",
+            "milestones"
+          ],
+          "properties": {
+            "chosen_path": {
+              "enum": ["big_bang", "incremental_strangler", "branch_by_abstraction", "feature_flag_gated"]
+            },
+            "strangler_fig_check": { "$ref": "#/$defs/tagged_text" },
+            "branch_by_abstraction_check": { "$ref": "#/$defs/tagged_text" },
+            "feature_flag_check": { "$ref": "#/$defs/tagged_text" },
+            "milestones": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["label", "rollback_possible", "blast_radius_at_step"],
+                "properties": {
+                  "label": { "type": "string" },
+                  "rollback_possible": { "enum": ["yes", "partial", "no"] },
+                  "blast_radius_at_step": { "$ref": "#/$defs/tagged_text" }
+                }
+              }
+            },
+            "tentative_flag_if_big_bang": { "type": "boolean" }
+          }
+        },
+
+        "section_4_why_block": {
+          "type": "object",
+          "required": ["decision_driver", "boundary_conditions", "hidden_assumptions", "rejected_alternatives"],
+          "properties": {
+            "decision_driver": { "$ref": "#/$defs/tagged_text" },
+            "boundary_conditions": {
+              "type": "object",
+              "required": ["must_have", "should_have", "nice_to_have"],
+              "properties": {
+                "must_have": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": { "$ref": "#/$defs/tagged_text" }
+                },
+                "should_have": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } },
+                "nice_to_have": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } }
+              }
+            },
+            "hidden_assumptions": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "type": "object",
+                "required": ["assumption", "if_violated"],
+                "properties": {
+                  "assumption": { "$ref": "#/$defs/tagged_text" },
+                  "if_violated": { "$ref": "#/$defs/tagged_text" }
+                }
+              }
+            },
+            "rejected_alternatives": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "required": ["alternative", "rejection_reason"],
+                "properties": {
+                  "alternative": { "type": "string" },
+                  "rejection_reason": { "$ref": "#/$defs/tagged_text" }
+                }
+              }
+            },
+            "forcing_function_closes_option_space_justification": { "$ref": "#/$defs/tagged_text" }
+          }
+        },
+
+        "section_5_consequences_block": {
+          "type": "object",
+          "required": [
+            "framing_matrix_2x2_plus_no_action",
+            "reversibility_panel",
+            "mcda_table",
+            "pre_mortem_scenarios",
+            "most_affected_stakeholder",
+            "null_option_cost",
+            "toulmin_predictions"
+          ],
+          "properties": {
+            "framing_matrix_2x2_plus_no_action": {
+              "type": "object",
+              "required": ["accept_gain", "accept_loss", "reject_gain", "reject_loss", "no_action"],
+              "properties": {
+                "accept_gain": { "$ref": "#/$defs/tagged_text" },
+                "accept_loss": { "$ref": "#/$defs/tagged_text" },
+                "reject_gain": { "$ref": "#/$defs/tagged_text" },
+                "reject_loss": { "$ref": "#/$defs/tagged_text" },
+                "no_action": { "$ref": "#/$defs/tagged_text" }
+              }
+            },
+            "reversibility_panel": {
+              "type": "object",
+              "required": ["rollback_cost", "reversal_window", "trigger_to_revisit"],
+              "properties": {
+                "rollback_cost": {
+                  "type": "object",
+                  "properties": {
+                    "time": { "type": "string" },
+                    "money": { "type": "string" },
+                    "relational_capital": { "type": "string" }
+                  }
+                },
+                "reversal_window": { "type": "string" },
+                "trigger_to_revisit": { "$ref": "#/$defs/tagged_text" }
+              }
+            },
+            "mcda_table": {
+              "type": "object",
+              "required": ["alternatives", "criteria", "cells"],
+              "properties": {
+                "alternatives": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": { "type": "string" },
+                  "description": "MUST include 'do_nothing'."
+                },
+                "criteria": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": "string" }
+                },
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["alternative", "criterion", "value", "rationale"],
+                    "properties": {
+                      "alternative": { "type": "string" },
+                      "criterion": { "type": "string" },
+                      "value": {
+                        "type": "string",
+                        "description": "Score 1-5 or quantitative; 'UNKNOWN+investigation_cost:<estimate>' if missing. Empty forbidden."
+                      },
+                      "rationale": { "$ref": "#/$defs/tagged_text" }
+                    }
+                  }
+                }
+              }
+            },
+            "pre_mortem_scenarios": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "required": ["failure_path", "early_warning_signal"],
+                "properties": {
+                  "failure_path": { "$ref": "#/$defs/tagged_text" },
+                  "early_warning_signal": { "$ref": "#/$defs/tagged_text" }
+                }
+              }
+            },
+            "most_affected_stakeholder": {
+              "type": "object",
+              "required": ["stakeholder_id", "first_person_restatement"],
+              "properties": {
+                "stakeholder_id": { "type": "string" },
+                "first_person_restatement": { "$ref": "#/$defs/tagged_text" }
+              }
+            },
+            "null_option_cost": {
+              "type": "object",
+              "required": ["d30", "d90", "y1"],
+              "properties": {
+                "d30": { "$ref": "#/$defs/tagged_text" },
+                "d90": { "$ref": "#/$defs/tagged_text" },
+                "y1": { "$ref": "#/$defs/tagged_text" },
+                "lehman_violation_flag": { "type": "boolean" }
+              }
+            },
+            "toulmin_predictions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["claim", "grounds", "warrant", "qualifier", "rebuttal"],
+                "properties": {
+                  "claim": { "type": "string" },
+                  "grounds": { "$ref": "#/$defs/tagged_text" },
+                  "warrant": { "$ref": "#/$defs/tagged_text" },
+                  "qualifier": {
+                    "type": "object",
+                    "required": ["point_estimate", "ci_90_low", "ci_90_high", "most_likely_to_miss_scenario"],
+                    "properties": {
+                      "point_estimate": { "type": "number", "minimum": 0, "maximum": 1 },
+                      "ci_90_low": { "type": "number", "minimum": 0, "maximum": 1 },
+                      "ci_90_high": { "type": "number", "minimum": 0, "maximum": 1 },
+                      "most_likely_to_miss_scenario": { "$ref": "#/$defs/tagged_text" }
+                    }
+                  },
+                  "rebuttal": {
+                    "$ref": "#/$defs/tagged_text",
+                    "description": "MUST NOT be 'none' / '없음' — Toulmin plausibility violation."
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        "section_6_decision_prompt": {
+          "type": "object",
+          "required": [
+            "question_to_user",
+            "essence_one_line",
+            "core_tradeoff_one_line",
+            "recommendation_with_confidence_one_line"
+          ],
+          "properties": {
+            "question_to_user": {
+              "type": "string",
+              "pattern": "\\?\\s*$",
+              "description": "MUST end with '?'"
+            },
+            "essence_one_line": { "$ref": "#/$defs/tagged_text" },
+            "core_tradeoff_one_line": { "$ref": "#/$defs/tagged_text" },
+            "recommendation_with_confidence_one_line": { "$ref": "#/$defs/tagged_text" },
+            "ai_view_vs_devils_advocate": {
+              "type": "object",
+              "properties": {
+                "ai_view": { "$ref": "#/$defs/tagged_text" },
+                "devils_advocate": { "$ref": "#/$defs/tagged_text" }
+              }
+            }
+          }
+        },
+
+        "section_7_decision_tree": {
+          "type": "object",
+          "required": ["meta_branch", "root_nodes", "domain_format", "nodes", "pruned_options"],
+          "properties": {
+            "meta_branch": {
+              "type": "object",
+              "required": ["accept", "reject_framing", "defer", "request_investigation"],
+              "properties": {
+                "accept": { "type": "string" },
+                "reject_framing": { "$ref": "#/$defs/tagged_text" },
+                "defer": { "$ref": "#/$defs/tagged_text" },
+                "request_investigation": { "$ref": "#/$defs/tagged_text" }
+              }
+            },
+            "root_nodes": {
+              "type": "object",
+              "required": ["reversibility", "blast_radius", "time_pressure"],
+              "properties": {
+                "reversibility": { "type": "object" },
+                "blast_radius": { "type": "object" },
+                "time_pressure": { "type": "object" }
+              }
+            },
+            "domain_format": {
+              "enum": ["tree_mermaid", "probe_safe_to_fail", "single_action_card"]
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["node_id", "question", "decision_relevance"],
+                "properties": {
+                  "node_id": { "$ref": "#/$defs/node_id" },
+                  "question": { "type": "string" },
+                  "decision_relevance": { "$ref": "#/$defs/tagged_text" },
+                  "children_ids": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            },
+            "pruned_options": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["option", "exclusion_reason"],
+                "properties": {
+                  "option": { "type": "string" },
+                  "exclusion_reason": { "$ref": "#/$defs/tagged_text" }
+                }
+              }
+            },
+            "depth_warning": { "type": "boolean" }
+          }
+        },
+
+        "section_8_recommendation": {
+          "type": "object",
+          "required": [
+            "recommendation_conditional",
+            "confidence",
+            "cited_tree_node_ids",
+            "defeaters",
+            "pre_mortem_inline",
+            "reversible_fallback",
+            "falsification_trigger"
+          ],
+          "properties": {
+            "recommendation_conditional": {
+              "type": "object",
+              "required": ["recommended", "assumptions", "fallback_if_assumption_violated", "switch_if"],
+              "properties": {
+                "recommended": { "$ref": "#/$defs/tagged_text" },
+                "recommended_artifacts": {
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/RecommendedArtifact" },
+                  "description": "Artifact bodies the reader is voting on. Required when `recommended` references an applyable change (patch/spec/code/design). Closes AF-20."
+                },
+                "assumptions": { "type": "array", "items": { "$ref": "#/$defs/tagged_text" } },
+                "fallback_if_assumption_violated": { "$ref": "#/$defs/tagged_text" },
+                "switch_if": { "$ref": "#/$defs/tagged_text" }
+              }
+            },
+            "confidence": {
+              "type": "object",
+              "required": ["point_estimate", "brittleness"],
+              "properties": {
+                "point_estimate": { "type": "number", "minimum": 0, "maximum": 1 },
+                "ci_90_low": { "type": "number", "minimum": 0, "maximum": 1 },
+                "ci_90_high": { "type": "number", "minimum": 0, "maximum": 1 },
+                "brittleness": { "$ref": "#/$defs/tagged_text" }
+              }
+            },
+            "downgraded_to_proposal_if_low_confidence": { "type": "boolean" },
+            "cited_tree_node_ids": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/node_id" }
+            },
+            "defeaters": {
+              "type": "array",
+              "minItems": 3,
+              "items": { "$ref": "#/$defs/tagged_text" }
+            },
+            "pre_mortem_inline": { "$ref": "#/$defs/tagged_text" },
+            "reversible_fallback": {
+              "type": "object",
+              "required": ["fallback_path", "rollback_cost", "trigger_conditions"],
+              "properties": {
+                "fallback_path": { "$ref": "#/$defs/tagged_text" },
+                "rollback_cost": { "$ref": "#/$defs/tagged_text" },
+                "trigger_conditions": { "$ref": "#/$defs/tagged_text" }
+              }
+            },
+            "i_accept_irreversibility_required": { "type": "boolean" },
+            "falsification_trigger": {
+              "type": "object",
+              "required": ["what_to_observe", "when", "threshold"],
+              "properties": {
+                "what_to_observe": { "type": "string" },
+                "when": { "type": "string" },
+                "threshold": { "type": "string" }
+              }
+            }
+          }
+        },
+
+        "section_9_decision_capture_stub": {
+          "type": "object",
+          "required": ["revisit_date", "ledger_pointer"],
+          "properties": {
+            "revisit_date": {
+              "type": "string",
+              "description": "ISO8601 date when hyperbrief-revisit should fire."
+            },
+            "ledger_pointer": {
+              "type": "string",
+              "description": ".agent/_decisions/<id>.json (standalone) or constellation ledger SSE id."
+            },
+            "outcome_actual": { "type": ["string", "null"] },
+            "outcome_vs_decision_quality_delta": { "type": ["string", "null"] },
+            "archive_config": { "$ref": "#/$defs/ArchiveConfig" }
+          }
+        },
+
+        "epistemic_distribution": {
+          "type": "object",
+          "description": "Auto-computed; source for HTML doughnut chart.",
+          "properties": {
+            "verified": { "type": "integer" },
+            "inferred": { "type": "integer" },
+            "assumed": { "type": "integer" },
+            "unknown": { "type": "integer" },
+            "low_confidence_banner": {
+              "type": "boolean",
+              "description": "true if (inferred + unknown) / total > 0.4"
+            }
+          }
+        }
+      }
+    }
+  }
+}

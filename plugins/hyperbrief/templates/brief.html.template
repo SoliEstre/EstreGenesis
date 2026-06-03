@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>Hyperbrief {{decision_id}} — {{section_6_decision_prompt.essence_one_line}}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <!-- chart.js for radar/doughnut/scatter/gauge -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- mermaid for trees/timelines/quadrants -->
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "default", securityLevel: "strict" });
+  </script>
+
+  <style>
+    :root {
+      --rev-green: #2e8b57;
+      --rev-yellow: #d4a017;
+      --rev-red: #c0392b;
+      --bg: #fafafa;
+      --fg: #1a1a1a;
+      --card: #ffffff;
+      --border: #e0e0e0;
+      --warn-bg: #fff3cd;
+      --warn-border: #d4a017;
+      --accept: #2e8b57;
+      --defer: #d4a017;
+      --reject: #c0392b;
+      --investigate: #4a90e2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 24px;
+      line-height: 1.55;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .full-width { grid-column: 1 / -1; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .card h2 { margin-top: 0; }
+    .badge-rev {
+      display: inline-block;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      line-height: 60px;
+      text-align: center;
+      color: #fff;
+      font-weight: bold;
+      font-size: 1.5em;
+    }
+    .badge-rev.green { background: var(--rev-green); }
+    .badge-rev.yellow { background: var(--rev-yellow); }
+    .badge-rev.red { background: var(--rev-red); }
+    .epistemic-tag {
+      font-size: 0.75em;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-right: 4px;
+      background: #eeeeee;
+    }
+    .epistemic-tag.verified { background: #d4f1d4; }
+    .epistemic-tag.inferred { background: #fff3cd; }
+    .epistemic-tag.assumed  { background: #ffe0b3; }
+    .epistemic-tag.unknown  { background: #f8d7da; }
+    .low-confidence-banner {
+      background: var(--warn-bg);
+      border-left: 4px solid var(--warn-border);
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    details > summary {
+      cursor: pointer;
+      font-weight: 600;
+      padding: 8px 0;
+    }
+    .revisit-countdown {
+      font-size: 2em;
+      font-weight: bold;
+    }
+    .pre-mortem-gate {
+      background: var(--warn-bg);
+      padding: 16px;
+      border-radius: 8px;
+      border: 2px dashed var(--warn-border);
+      margin-top: 16px;
+    }
+    .pre-mortem-gate textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 8px;
+      font-family: inherit;
+    }
+    .meta-branch {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .meta-branch button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #fff;
+      font-weight: 600;
+    }
+    .meta-branch button.accept      { background: var(--accept); }
+    .meta-branch button.reject      { background: var(--reject); }
+    .meta-branch button.defer       { background: var(--defer); }
+    .meta-branch button.investigate { background: var(--investigate); }
+    .voluntariness-notice {
+      background: #e8f4f8;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    code { background: #f1f1f1; padding: 1px 4px; border-radius: 3px; }
+    blockquote { border-left: 4px solid var(--border); margin: 0; padding-left: 12px; color: #555; }
+    button#confirm-decision-btn {
+      padding: 10px 18px;
+      background: var(--accept);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+    button#confirm-decision-btn:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+<!-- IR injected once; every component hydrates from this single source -->
+<script id="hyperbrief-ir" type="application/json">{{IR_JSON}}</script>
+
+<header class="full-width" style="max-width:1400px;margin:0 auto 16px;">
+  <!-- ===== §5.6.7 Tone-floor fallback affordance (always visible) ===== -->
+  <div id="tone-floor-fallback" style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-bottom:10px;">
+    <span id="tone-profile-chip" style="font:11px/1.4 ui-monospace,monospace;padding:4px 8px;border:1px solid #cfd6df;border-radius:999px;color:#465160;background:#f6f8fa;">A2·B2·J2</span>
+    <button id="tone-floor-btn"
+            type="button"
+            data-default-label="뭔 소리야? 한국어로 번역해줘"
+            style="padding:6px 12px;border:1px solid #cfd6df;border-radius:6px;background:#fffbe6;color:#7a5a00;font-size:13px;cursor:pointer;">
+      뭔 소리야? 한국어로 번역해줘
+    </button>
+  </div>
+  <div class="voluntariness-notice">
+    이 질문에 답하지 않아도 됩니다 — 거부 / 보류 / 재구성 옵션이 §7 메타 분기에 있습니다.
+  </div>
+  <div id="low-confidence-banner-slot"></div>
+</header>
+
+<div class="container">
+
+  <!-- ===== §0 Decision Header ===== -->
+  <section class="card full-width">
+    <h2>§0 Decision Header</h2>
+    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:24px;align-items:center;">
+      <div style="text-align:center;">
+        <div class="badge-rev" id="reversibility-badge">R</div>
+        <p data-ir-path="section_0_decision_header.reversibility_class" style="margin-top:8px;font-weight:600;"></p>
+      </div>
+      <div>
+        <canvas id="escalation-radar" height="180"></canvas>
+        <p style="text-align:center;">Escalation sum: <b data-ir-path="section_0_decision_header.escalation.sum"></b> / 12</p>
+      </div>
+      <div>
+        <p><b>Cynefin:</b> <span data-ir-path="section_0_decision_header.cynefin_domain"></span></p>
+        <p><b>RAPID Decider:</b> <span data-ir-path="section_0_decision_header.rapid.decider"></span></p>
+        <p><b>Recommender:</b> <span data-ir-path="section_0_decision_header.rapid.recommender"></span></p>
+        <p><b>Deadline:</b> <span data-ir-path="section_0_decision_header.deadline"></span></p>
+        <p><b>Reading time:</b> <span data-ir-path="section_0_decision_header.recommended_reading_minutes"></span> min</p>
+        <p><b>Why not autonomous:</b> <span data-ir-path="section_0_decision_header.escalation.autonomy_refusal_reason"></span></p>
+      </div>
+    </div>
+
+    <details>
+      <summary>Decision lineage (parent_decision_ids)</summary>
+      <div class="mermaid" id="lineage-graph">flowchart LR
+    Loading[loading lineage...]</div>
+    </details>
+
+    <h4>Epistemic distribution</h4>
+    <canvas id="epistemic-doughnut" height="120"></canvas>
+  </section>
+
+  <!-- ===== §1 Context Horizon ===== -->
+  <section class="card">
+    <h2>§1 Context Horizon</h2>
+    <div id="section-1-content">
+      <p><b>Preconditions</b></p>
+      <ul id="preconditions-list"></ul>
+      <p><b>Continuity from prior:</b> <span data-ir-path="section_1_context_horizon.continuity_from_prior"></span></p>
+      <p><b>Scope of impact:</b> <span data-ir-path="section_1_context_horizon.scope_of_impact"></span></p>
+      <p><b>Forcing function (why now):</b> <span data-ir-path="section_1_context_horizon.forcing_function"></span></p>
+    </div>
+    <div class="mermaid" id="prior-decisions-timeline"></div>
+  </section>
+
+  <!-- ===== §6 Decision Prompt (above the fold) ===== -->
+  <section class="card">
+    <h2>§6 Decision Prompt</h2>
+    <h3 data-ir-path="section_6_decision_prompt.question_to_user" style="font-size:1.3em;"></h3>
+    <table>
+      <tr><th>Essence</th><td data-ir-path="section_6_decision_prompt.essence_one_line"></td></tr>
+      <tr><th>Core trade-off</th><td data-ir-path="section_6_decision_prompt.core_tradeoff_one_line"></td></tr>
+      <tr><th>Recommendation + conf.</th><td data-ir-path="section_6_decision_prompt.recommendation_with_confidence_one_line"></td></tr>
+    </table>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+      <div><b>AI view</b><p data-ir-path="section_6_decision_prompt.ai_view_vs_devils_advocate.ai_view"></p></div>
+      <div><b>Devil's advocate</b><p data-ir-path="section_6_decision_prompt.ai_view_vs_devils_advocate.devils_advocate"></p></div>
+    </div>
+  </section>
+
+  <!-- ===== §5 Consequences — heaviest section ===== -->
+  <section class="card full-width">
+    <h2>§5 Consequences</h2>
+
+    <h3>5a · 2x2 Framing Matrix + No-action</h3>
+    <canvas id="framing-matrix" height="240"></canvas>
+    <p><b>No-action (do-nothing):</b> <span data-ir-path="section_5_consequences_block.framing_matrix_2x2_plus_no_action.no_action"></span></p>
+
+    <h3>5b · Reversibility Panel</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div>
+        <b>Rollback cost</b>
+        <p>time: <span data-ir-path="section_5_consequences_block.reversibility_panel.rollback_cost.time"></span></p>
+        <p>money: <span data-ir-path="section_5_consequences_block.reversibility_panel.rollback_cost.money"></span></p>
+        <p>relational: <span data-ir-path="section_5_consequences_block.reversibility_panel.rollback_cost.relational_capital"></span></p>
+      </div>
+      <div>
+        <b>Reversal window</b>
+        <p class="revisit-countdown" id="reversal-countdown">—</p>
+      </div>
+      <div>
+        <b>Trigger to revisit</b>
+        <p data-ir-path="section_5_consequences_block.reversibility_panel.trigger_to_revisit"></p>
+      </div>
+    </div>
+
+    <h3>5c · MCDA — adjust weights to recompute</h3>
+    <div id="mcda-weights"></div>
+    <canvas id="mcda-radar" height="280"></canvas>
+
+    <h3>5d · Pre-mortem scenarios</h3>
+    <div id="pre-mortem-cards"></div>
+
+    <h3>5e · Most-affected stakeholder</h3>
+    <blockquote>
+      <p><b id="stakeholder-id-slot"></b></p>
+      <p data-ir-path="section_5_consequences_block.most_affected_stakeholder.first_person_restatement"></p>
+    </blockquote>
+
+    <h3>5f · Null Option Cost (do-nothing time-axis)</h3>
+    <canvas id="null-option-chart" height="180"></canvas>
+    <div id="lehman-violation-flag-slot"></div>
+
+    <h3>5g · Toulmin Predictions</h3>
+    <table id="toulmin-table">
+      <thead>
+        <tr><th>Claim</th><th>Grounds</th><th>Qualifier (point / 90% CI / miss)</th><th>Rebuttal</th></tr>
+      </thead>
+      <tbody id="toulmin-tbody"></tbody>
+    </table>
+  </section>
+
+  <!-- ===== §7 Decision Tree — ALWAYS EXPANDED ===== -->
+  <section class="card full-width">
+    <h2>§7 Decision Criteria Tree</h2>
+
+    <div class="meta-branch">
+      <span style="margin-right:8px;font-weight:600;">Meta-branch — always available:</span>
+      <button class="accept" data-meta="accept">accept</button>
+      <button class="reject" data-meta="reject_framing">reject-framing</button>
+      <button class="defer" data-meta="defer">defer</button>
+      <button class="investigate" data-meta="request_investigation">request-investigation</button>
+    </div>
+
+    <div id="tree-content-by-domain">
+      <!-- Clear / Complicated → mermaid flowchart -->
+      <div class="mermaid" id="cynefin-tree-mermaid" hidden></div>
+      <!-- Complex → probe list -->
+      <div id="cynefin-probes" hidden></div>
+      <!-- Chaotic → single action card -->
+      <div id="cynefin-chaotic" hidden></div>
+    </div>
+
+    <h4>Ranked priorities (drag to reorder — preview updates)</h4>
+    <ol id="priority-drag-list"></ol>
+    <p>Live preview: <span id="priority-preview">—</span></p>
+
+    <details>
+      <summary>Pruned options (explicitly excluded)</summary>
+      <ul id="pruned-options-list"></ul>
+    </details>
+  </section>
+
+  <!-- ===== §2 Blast Radius (progressive disclosure) ===== -->
+  <details class="card full-width">
+    <summary><h2 style="display:inline-block;margin:0;">§2 Blast Radius Surface</h2></summary>
+    <table id="blast-surface-table">
+      <thead><tr><th>Surface</th><th>Touched</th></tr></thead>
+      <tbody id="blast-surface-tbody"></tbody>
+    </table>
+    <p><b>Coupling delta:</b> <span id="coupling-delta-slot"></span></p>
+    <p><b>Observability increment:</b> <span data-ir-path="section_2_blast_radius_surface.observability_increment"></span></p>
+    <div id="hyrum-flag-slot"></div>
+  </details>
+
+  <!-- ===== §3 Incremental Path (progressive disclosure) ===== -->
+  <details class="card full-width">
+    <summary><h2 style="display:inline-block;margin:0;">§3 Incremental Path Check</h2></summary>
+    <table>
+      <tr><th>Path</th><th>Check</th></tr>
+      <tr><td>Strangler fig</td><td data-ir-path="section_3_incremental_path_check.strangler_fig_check"></td></tr>
+      <tr><td>Branch-by-abstraction</td><td data-ir-path="section_3_incremental_path_check.branch_by_abstraction_check"></td></tr>
+      <tr><td>Feature flag</td><td data-ir-path="section_3_incremental_path_check.feature_flag_check"></td></tr>
+    </table>
+    <p><b>Chosen path:</b> <code data-ir-path="section_3_incremental_path_check.chosen_path"></code> <span id="tentative-flag-slot"></span></p>
+    <h4>Milestones</h4>
+    <table>
+      <thead><tr><th>#</th><th>Label</th><th>Rollback</th><th>Blast at step</th></tr></thead>
+      <tbody id="milestones-tbody"></tbody>
+    </table>
+  </details>
+
+  <!-- ===== §4 Why (progressive disclosure but soft-gated before §8) ===== -->
+  <details class="card full-width" id="why-block">
+    <summary><h2 style="display:inline-block;margin:0;">§4 Why · Boundary · Hidden Assumptions · Rejected</h2></summary>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <h4>4a Decision Driver</h4>
+        <p data-ir-path="section_4_why_block.decision_driver"></p>
+      </div>
+      <div>
+        <h4>4b Boundary Conditions</h4>
+        <table>
+          <tr><th>MUST-HAVE</th><td id="must-have-list"></td></tr>
+          <tr><th>SHOULD-HAVE</th><td id="should-have-list"></td></tr>
+          <tr><th>NICE-TO-HAVE</th><td id="nice-to-have-list"></td></tr>
+        </table>
+      </div>
+      <div>
+        <h4>4c Hidden Assumptions</h4>
+        <div id="hidden-assumptions-toggles"></div>
+      </div>
+      <div>
+        <h4>4d Rejected Alternatives</h4>
+        <ul id="rejected-alternatives-list"></ul>
+      </div>
+    </div>
+  </details>
+
+  <!-- ===== §8 Recommendation — collapsed by default, opens after §7 ===== -->
+  <details class="card full-width" id="recommendation-block">
+    <summary><h2 style="display:inline-block;margin:0;">§8 Recommendation (open after §7)</h2></summary>
+
+    <p><b>Recommended:</b> <span data-ir-path="section_8_recommendation.recommendation_conditional.recommended"></span></p>
+    <p><b>Assuming:</b> <span id="rec-assumptions"></span></p>
+    <p><b>Fallback if assumption violated:</b> <span data-ir-path="section_8_recommendation.recommendation_conditional.fallback_if_assumption_violated"></span></p>
+    <p><b>Switch if:</b> <span data-ir-path="section_8_recommendation.recommendation_conditional.switch_if"></span></p>
+
+    <canvas id="confidence-gauge" height="120"></canvas>
+    <p><b>Brittleness:</b> <span data-ir-path="section_8_recommendation.confidence.brittleness"></span></p>
+    <div id="downgrade-flag-slot"></div>
+
+    <h4>Defeaters (any flips recommendation)</h4>
+    <ol id="defeaters-list"></ol>
+
+    <p><b>Pre-mortem (inline):</b> <span data-ir-path="section_8_recommendation.pre_mortem_inline"></span></p>
+
+    <h4>Reversible fallback</h4>
+    <table>
+      <tr><th>Fallback path</th><td data-ir-path="section_8_recommendation.reversible_fallback.fallback_path"></td></tr>
+      <tr><th>Rollback cost</th><td data-ir-path="section_8_recommendation.reversible_fallback.rollback_cost"></td></tr>
+      <tr><th>Trigger conditions</th><td data-ir-path="section_8_recommendation.reversible_fallback.trigger_conditions"></td></tr>
+    </table>
+
+    <h4>Falsification trigger</h4>
+    <p>
+      Observe <code data-ir-path="section_8_recommendation.falsification_trigger.what_to_observe"></code>
+      at <code data-ir-path="section_8_recommendation.falsification_trigger.when"></code>;
+      threshold <code data-ir-path="section_8_recommendation.falsification_trigger.threshold"></code>.
+    </p>
+
+    <!-- Active-choice gate -->
+    <div class="pre-mortem-gate">
+      <h4>Active-choice gate — pre-mortem input required</h4>
+      <p>이 권장이 6개월 후 명백한 실패로 판명났다면, 가장 가능성 높은 실패 경로 1문장 작성:</p>
+      <textarea id="user-premortem-input" required placeholder="실패 경로를 1-2문장으로 적어주세요..."></textarea>
+      <label id="irreversibility-accept-block" hidden>
+        <input type="checkbox" id="irreversibility-accept">
+        <b>I accept irreversibility</b> — confirms reversibility window will close on commit.
+      </label>
+      <br>
+      <button id="confirm-decision-btn" disabled>Confirm decision → POST to Constellation</button>
+    </div>
+  </details>
+
+  <!-- ===== §9 Decision Capture ===== -->
+  <section class="card full-width">
+    <h2>§9 Decision Capture</h2>
+    <p><b>Revisit date:</b> <span data-ir-path="section_9_decision_capture_stub.revisit_date"></span></p>
+    <p><b>Ledger pointer:</b> <code data-ir-path="section_9_decision_capture_stub.ledger_pointer"></code></p>
+    <form id="decision-receipt-form" action="/api/decision-response" method="POST">
+      <input type="hidden" name="decision_id" id="dr-decision-id">
+      <input type="hidden" name="chosen_meta_branch" id="meta-branch-input">
+      <input type="hidden" name="user_premortem" id="meta-premortem-input">
+      <input type="hidden" name="accepted_irreversibility" id="meta-irrev-input">
+    </form>
+  </section>
+
+</div>
+
+<script>
+// ============================================================
+// Hydration — read IR, populate slots, render charts/mermaid,
+// wire meta-branch + active-choice gate.
+// ============================================================
+
+const IR = JSON.parse(document.getElementById("hyperbrief-ir").textContent);
+
+function lookup(path) {
+  return path.split(".").reduce((acc, k) => (acc == null ? acc : acc[k]), IR);
+}
+
+function hydrateTextSlots() {
+  document.querySelectorAll("[data-ir-path]").forEach(el => {
+    const v = lookup(el.dataset.irPath);
+    if (typeof v === "string" || typeof v === "number") el.textContent = v;
+  });
+}
+
+function hydrateBadge() {
+  const color = IR.section_0_decision_header?.reversibility_badge_color;
+  const badge = document.getElementById("reversibility-badge");
+  if (color && badge) {
+    badge.classList.add(color);
+    badge.textContent = color === "green" ? "✓" : color === "yellow" ? "!" : "X";
+  }
+}
+
+function hydrateLowConfidenceBanner() {
+  if (IR.epistemic_distribution?.low_confidence_banner) {
+    document.getElementById("low-confidence-banner-slot").innerHTML =
+      '<div class="low-confidence-banner">⚠️ <b>Low-confidence brief</b> — inferred + unknown 비율 > 40%. §4c hidden assumptions와 §8 falsification trigger를 특히 주의.</div>';
+  }
+}
+
+function renderEscalationRadar() {
+  const e = IR.section_0_decision_header?.escalation;
+  if (!e) return;
+  new Chart(document.getElementById("escalation-radar"), {
+    type: "radar",
+    data: {
+      labels: ["Irrev", "Blast", "Time", "RevCost"],
+      datasets: [{
+        label: "score",
+        data: [e.irreversibility, e.blast_radius, e.time_horizon, e.reversal_cost],
+        backgroundColor: "rgba(192, 57, 43, 0.2)",
+        borderColor: "rgba(192, 57, 43, 1)"
+      }]
+    },
+    options: { scales: { r: { min: 0, max: 3 } } }
+  });
+}
+
+function renderEpistemicDoughnut() {
+  const d = IR.epistemic_distribution;
+  if (!d) return;
+  new Chart(document.getElementById("epistemic-doughnut"), {
+    type: "doughnut",
+    data: {
+      labels: ["verified", "inferred", "assumed", "unknown"],
+      datasets: [{
+        data: [d.verified || 0, d.inferred || 0, d.assumed || 0, d.unknown || 0],
+        backgroundColor: ["#d4f1d4", "#fff3cd", "#ffe0b3", "#f8d7da"]
+      }]
+    }
+  });
+}
+
+function renderMCDARadar() {
+  const t = IR.section_5_consequences_block?.mcda_table;
+  if (!t) return;
+  const datasets = t.alternatives.map((alt, i) => ({
+    label: alt,
+    data: t.criteria.map(c => {
+      const cell = t.cells.find(x => x.alternative === alt && x.criterion === c);
+      const v = parseFloat(cell?.value);
+      return isNaN(v) ? 0 : v;
+    }),
+    backgroundColor: `hsla(${i * 60}, 60%, 50%, 0.2)`,
+    borderColor: `hsla(${i * 60}, 60%, 50%, 1)`
+  }));
+  new Chart(document.getElementById("mcda-radar"), {
+    type: "radar",
+    data: { labels: t.criteria, datasets },
+    options: { scales: { r: { min: 0, max: 5 } } }
+  });
+}
+
+function renderNullOptionChart() {
+  const n = IR.section_5_consequences_block?.null_option_cost;
+  if (!n) return;
+  new Chart(document.getElementById("null-option-chart"), {
+    type: "line",
+    data: {
+      labels: ["30d", "90d", "1y"],
+      datasets: [{
+        label: "Do-nothing cost (qualitative)",
+        data: [1, 2, 3],
+        borderColor: "rgba(212, 160, 23, 1)"
+      }]
+    }
+  });
+  if (n.lehman_violation_flag) {
+    document.getElementById("lehman-violation-flag-slot").innerHTML =
+      '<div class="low-confidence-banner">⚠️ <b>Lehman law violation flag</b> — null-option cost estimated as zero.</div>';
+  }
+}
+
+function renderConfidenceGauge() {
+  const c = IR.section_8_recommendation?.confidence;
+  if (!c) return;
+  new Chart(document.getElementById("confidence-gauge"), {
+    type: "doughnut",
+    data: {
+      labels: ["confidence", "remaining"],
+      datasets: [{
+        data: [c.point_estimate, 1 - c.point_estimate],
+        backgroundColor: [c.point_estimate >= 0.6 ? "#2e8b57" : "#d4a017", "#eeeeee"]
+      }]
+    },
+    options: { circumference: 180, rotation: 270 }
+  });
+  if (IR.section_8_recommendation.downgraded_to_proposal_if_low_confidence) {
+    document.getElementById("downgrade-flag-slot").innerHTML =
+      '<div class="low-confidence-banner">⚠️ <b>Label downgraded</b> — confidence < 0.6 → proposal candidate (not recommendation).</div>';
+  }
+}
+
+function hydrateLists() {
+  // §1 preconditions
+  const pc = IR.section_1_context_horizon?.preconditions || [];
+  document.getElementById("preconditions-list").innerHTML = pc.map(x => `<li>${x}</li>`).join("");
+
+  // §2 blast surface
+  const s2 = IR.section_2_blast_radius_surface;
+  if (s2) {
+    const tbody = document.getElementById("blast-surface-tbody");
+    const rows = [
+      ["Modules", s2.touched_modules],
+      ["Contracts", s2.touched_contracts],
+      ["Data at rest", s2.touched_data_at_rest],
+      ["External consumers", s2.touched_external_consumers],
+      ["Operational runbooks", s2.touched_operational_runbooks]
+    ];
+    tbody.innerHTML = rows.map(([name, arr]) =>
+      `<tr><td><b>${name}</b></td><td>${(arr || []).map(x => `<li>${x}</li>`).join("") || "<i>verified empty</i>"}</td></tr>`
+    ).join("");
+    const cd = s2.coupling_delta || {};
+    document.getElementById("coupling-delta-slot").textContent =
+      `+${cd.new_dependencies || 0} dependencies, +${cd.new_consumers || 0} consumers, ${cd.interface_surface_delta || "—"}`;
+    if (s2.hyrum_exposure_flag) {
+      document.getElementById("hyrum-flag-slot").innerHTML =
+        '<div class="low-confidence-banner">⚠️ <b>Hyrum exposure</b> — externally visible behavior change risks de facto contract lock-in.</div>';
+    }
+  }
+
+  // §3 milestones
+  const ms = IR.section_3_incremental_path_check?.milestones || [];
+  document.getElementById("milestones-tbody").innerHTML = ms.map((m, i) =>
+    `<tr><td>${i}</td><td>${m.label}</td><td>${m.rollback_possible}</td><td>${m.blast_radius_at_step}</td></tr>`
+  ).join("");
+  if (IR.section_3_incremental_path_check?.tentative_flag_if_big_bang) {
+    document.getElementById("tentative-flag-slot").innerHTML =
+      ' <span style="color:#c0392b;">(tentative — incremental paths not exhausted)</span>';
+  }
+
+  // §4 boundary conditions
+  const bc = IR.section_4_why_block?.boundary_conditions || {};
+  document.getElementById("must-have-list").innerHTML = (bc.must_have || []).map(x => `<li>${x}</li>`).join("");
+  document.getElementById("should-have-list").innerHTML = (bc.should_have || []).map(x => `<li>${x}</li>`).join("");
+  document.getElementById("nice-to-have-list").innerHTML = (bc.nice_to_have || []).map(x => `<li>${x}</li>`).join("");
+
+  // §4 hidden assumptions
+  const ha = IR.section_4_why_block?.hidden_assumptions || [];
+  document.getElementById("hidden-assumptions-toggles").innerHTML = ha.map(h =>
+    `<details><summary>${h.assumption}</summary><p><b>If violated:</b> ${h.if_violated}</p></details>`
+  ).join("");
+
+  // §4 rejected alternatives
+  const ra = IR.section_4_why_block?.rejected_alternatives || [];
+  document.getElementById("rejected-alternatives-list").innerHTML = ra.map(r =>
+    `<li><s>${r.alternative}</s> — ${r.rejection_reason}</li>`
+  ).join("");
+
+  // §5 pre-mortem
+  const pm = IR.section_5_consequences_block?.pre_mortem_scenarios || [];
+  document.getElementById("pre-mortem-cards").innerHTML = pm.map((p, i) =>
+    `<details><summary><b>Scenario ${i + 1}</b></summary><p><b>Failure path:</b> ${p.failure_path}</p><p><b>Early warning:</b> ${p.early_warning_signal}</p></details>`
+  ).join("");
+
+  // §5 stakeholder
+  const stk = IR.section_5_consequences_block?.most_affected_stakeholder;
+  if (stk) {
+    document.getElementById("stakeholder-id-slot").textContent = stk.stakeholder_id;
+  }
+
+  // §5 Toulmin
+  const tp = IR.section_5_consequences_block?.toulmin_predictions || [];
+  document.getElementById("toulmin-tbody").innerHTML = tp.map(t =>
+    `<tr><td>${t.claim}</td><td>${t.grounds}</td><td>${t.qualifier.point_estimate} / [${t.qualifier.ci_90_low}, ${t.qualifier.ci_90_high}] / <i>${t.qualifier.most_likely_to_miss_scenario}</i></td><td>${t.rebuttal}</td></tr>`
+  ).join("");
+
+  // §7 pruned options
+  const po = IR.section_7_decision_tree?.pruned_options || [];
+  document.getElementById("pruned-options-list").innerHTML = po.map(p =>
+    `<li><s>${p.option}</s> — ${p.exclusion_reason}</li>`
+  ).join("");
+
+  // §7 priority list (draggable preview placeholder)
+  const rn = IR.section_7_decision_tree?.root_nodes || {};
+  document.getElementById("priority-drag-list").innerHTML =
+    Object.keys(rn).map(k => `<li draggable="true">${k}</li>`).join("");
+
+  // §8 recommendation assumptions
+  const a8 = IR.section_8_recommendation?.recommendation_conditional?.assumptions || [];
+  document.getElementById("rec-assumptions").textContent = a8.join("; ");
+
+  // §8 defeaters
+  const df = IR.section_8_recommendation?.defeaters || [];
+  document.getElementById("defeaters-list").innerHTML = df.map(d => `<li>${d}</li>`).join("");
+
+  // §9 receipt form
+  document.getElementById("dr-decision-id").value = IR.decision_id || "";
+}
+
+function renderDomainTree() {
+  const fmt = IR.section_7_decision_tree?.domain_format;
+  if (fmt === "tree_mermaid") {
+    const el = document.getElementById("cynefin-tree-mermaid");
+    el.hidden = false;
+    el.textContent = `flowchart TD
+    META["meta-branch"]
+    META --> N1["reversibility OK?"]
+    N1 -- yes --> N2["blast radius bounded?"]
+    N1 -- no --> REJECT["reject-framing"]
+    N2 -- yes --> N3["time pressure justified?"]
+    N2 -- no --> DEFER["defer"]
+    N3 -- yes --> ACCEPT["accept"]
+    N3 -- no --> INVESTIGATE["request-investigation"]`;
+  } else if (fmt === "probe_safe_to_fail") {
+    const el = document.getElementById("cynefin-probes");
+    el.hidden = false;
+    const nodes = IR.section_7_decision_tree?.nodes || [];
+    el.innerHTML = "<b>Complex domain — safe-to-fail probes:</b><ol>" +
+      nodes.map(n => `<li><b>${n.node_id}</b> — ${n.question} <br/><i>${n.decision_relevance}</i></li>`).join("") +
+      "</ol>";
+  } else if (fmt === "single_action_card") {
+    const el = document.getElementById("cynefin-chaotic");
+    el.hidden = false;
+    const first = (IR.section_7_decision_tree?.nodes || [])[0];
+    el.innerHTML = "<div class='card'><b>Chaotic — immediate action + 24h retro auto-scheduled.</b>" +
+      (first ? `<p><b>Action:</b> ${first.question}</p><p><b>Relevance:</b> ${first.decision_relevance}</p>` : "") +
+      "</div>";
+  }
+}
+
+function wireActiveChoiceGate() {
+  const ta = document.getElementById("user-premortem-input");
+  const btn = document.getElementById("confirm-decision-btn");
+  const irrevBlock = document.getElementById("irreversibility-accept-block");
+  const irrevCheck = document.getElementById("irreversibility-accept");
+
+  if (IR.section_8_recommendation?.i_accept_irreversibility_required) {
+    irrevBlock.hidden = false;
+  }
+
+  function update() {
+    const irrevOK = IR.section_8_recommendation?.i_accept_irreversibility_required
+      ? irrevCheck.checked : true;
+    btn.disabled = !(ta.value.trim().length > 10 && irrevOK);
+  }
+
+  ta.addEventListener("input", update);
+  irrevCheck.addEventListener("change", update);
+
+  btn.addEventListener("click", e => {
+    e.preventDefault();
+    document.getElementById("meta-premortem-input").value = ta.value;
+    document.getElementById("meta-irrev-input").value = String(irrevCheck.checked);
+    document.getElementById("meta-branch-input").value = "accept";
+    document.getElementById("decision-receipt-form").submit();
+  });
+}
+
+function wireMetaBranch() {
+  document.querySelectorAll(".meta-branch button").forEach(b => {
+    b.addEventListener("click", () => {
+      document.getElementById("meta-branch-input").value = b.dataset.meta;
+      if (b.dataset.meta !== "accept") {
+        // non-accept branches don't require pre-mortem
+        document.getElementById("decision-receipt-form").submit();
+      } else {
+        // accept opens the recommendation block + pre-mortem gate
+        document.getElementById("recommendation-block").open = true;
+        document.getElementById("user-premortem-input").focus();
+      }
+    });
+  });
+}
+
+function init() {
+  hydrateTextSlots();
+  hydrateBadge();
+  hydrateLowConfidenceBanner();
+  renderEscalationRadar();
+  renderEpistemicDoughnut();
+  renderMCDARadar();
+  renderNullOptionChart();
+  renderConfidenceGauge();
+  hydrateLists();
+  renderDomainTree();
+  wireActiveChoiceGate();
+  wireMetaBranch();
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

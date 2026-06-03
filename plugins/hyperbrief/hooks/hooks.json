@@ -1,0 +1,4 @@
+{
+  "_comment": "Phase 1 placeholder — hooks deferred to Phase 2 (v0.4.0). When activated, this file will register: (1) PreToolUse matcher for AskUserQuestion / Bash(git push|gh release) / Constellation A2A emit — auto-invokes hyperbrief-trigger-check skill before the tool call; (2) Stop hook — scans decision-ledger for revisit_date arrivals and triggers hyperbrief-revisit skill. Empty hooks block in Phase 1 means no hook is registered yet — discovery is via SKILL.md frontmatter only.",
+  "hooks": {}
+}
