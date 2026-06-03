@@ -161,9 +161,9 @@
     <span id="tone-profile-chip" style="font:11px/1.4 ui-monospace,monospace;padding:4px 8px;border:1px solid #cfd6df;border-radius:999px;color:#465160;background:#f6f8fa;">A2·B2·J2</span>
     <button id="tone-floor-btn"
             type="button"
-            data-default-label="뭔 소리야? 한국어로 번역해줘"
+            data-default-label="뭔 소리야? 한국어로 번역해줘 (내가 알아들을 수 있는 말로)"
             style="padding:6px 12px;border:1px solid #cfd6df;border-radius:6px;background:#fffbe6;color:#7a5a00;font-size:13px;cursor:pointer;">
-      뭔 소리야? 한국어로 번역해줘
+      뭔 소리야? 한국어로 번역해줘 (내가 알아들을 수 있는 말로)
     </button>
   </div>
   <div class="voluntariness-notice">

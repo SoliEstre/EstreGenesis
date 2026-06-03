@@ -1,6 +1,6 @@
 {
   "name": "hyperbrief-mcp",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Hyperbrief MCP server — Phase 2 exposure of 4 tools (hyperbrief_render / hyperbrief_validate / decision_ledger_append / decision_ledger_query) over stdio JSON-RPC. Per Hyperbrief.md §11.1 v0.4.2 adoption-path item. Single npm dep (ajv) for schema validation; renderer pulled from sibling plugins/hyperbrief/renderers/.",
   "main": "server.cjs",
   "dependencies": {
