@@ -1,4 +1,4 @@
-<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-06) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-01; version: v0.4.0; depends-on: none (optional synergy: Constellation); license: Apache-2.0 -->
+<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-06) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1) + Hyperbrief decision-delegation interlock (v0.4.1 §3.1 — orthogonal gate, serial evaluation: write/deploy/send lanes pass through cost-benefit gate AND hyperbrief-trigger-check, read-only exempt); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-03; version: v0.4.1; depends-on: none (optional synergy: Constellation §13.16.9 A2A intents, Hyperbrief §2 trigger rubric — both orthogonal); license: Apache-2.0 -->
 
 # Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.3)
 
@@ -115,6 +115,39 @@ The §5 adoption thresholds use this distinction: the `merge-conflict rate > 15%
   ```
 
   The harness uses this manifest to enforce §7's FM-1.3 / FM-1.5 / FM-2.6 guards (duplicate-work cross-check, gate-resolve SIGTERM to dependent speculative lanes, announce-vs-action audit). **Without the manifest, those guards cannot fire** — treat manifest registration as part of lane dispatch, not optional metadata.
+
+### 3.1 Hyperbrief decision-delegation interlock (v0.4.1 — orthogonal gate, serial evaluation)
+
+Superscalar and Hyperbrief are **orthogonal gates** evaluated **serially** at every fan-out decision and at every write/deploy/send action. Superscalar asks: *"is this fan-out worth the cost?"* Hyperbrief asks: *"does this require user delegation?"* The two gates compose without either subsuming the other.
+
+- **Read-only lanes are exempt from Hyperbrief by construction.** Per §2's read/write split, read-only lanes (subagent context sweeps, workflow read fan-outs, telemetry reads) have no irreversible side effects and inherit the same boundary as the §3 irreversibility barrier (default-allowed in speculation). Hyperbrief's trigger rubric (4-score escalation + 5 MUST-trigger conditions, see `Hyperbrief.md §2`) is structurally below threshold for read-only — the rubric is not even invoked on this class.
+- **Write / deploy / send lanes pass through both gates in order.** First Superscalar's cost-benefit gate (per-lane spin-up admission); if accepted, the lane enters Hyperbrief's escalation check before any side-effecting action. If `hyperbrief-trigger-check` returns `AUTONOMOUS_DECIDE` (sum < 4, no MUST-trigger), the lane proceeds with a one-line post-notify and no brief. If it returns `FULL_HYPERBRIEF` (sum ≥ 4 or any MUST-trigger), the lane is **paused** — a Constellation `DECISION_REQUEST + HyperbriefCard` pair is emitted to the user-board (or, in standalone mode, the brief is rendered to `.agent/_decisions/<id>.{md,html}` and surfaced inline), and the lane awaits ack-tier `decided` per Constellation §13.16.9. Other reversible sibling lanes continue under Superscalar latency-hiding.
+- **Multi-lane batching.** When several write/deploy/send lanes pass Hyperbrief's escalation check in the same fan-out, the lane manifest's `sibling_lanes` field (see above) lets Hyperbrief emit a **single** `HyperbriefCard` with the sibling lanes as MCDA alternative rows, rather than one card per lane. This prevents decision-flood — the user sees one consolidated brief covering the cross-cut, not n independent escalation queries.
+- **User outcome → Superscalar resume.** On the board's return envelope: `DECISION_RESPONSE { meta_branch: 'accept' }` resumes the lane; `DECISION_DEFER` queues the lane to a `defer_until` timestamp; `DECISION_REJECT_FRAMING` cancels the lane (the user has refused the question the agent posed); `DECISION_RESPONSE { meta_branch: 'request_investigation' }` spawns a research lane to gather the missing input. The retire stage's PM-review-and-merge step (see above) consumes whichever outcome arrived and feeds Hyperbrief's `§9 Decision Capture` automatically — closing the cross-module learning loop without operator intervention.
+- **Speculation discipline.** Speculative lanes (§4) must remain on the read-only / sandboxed-test side of the §3 irreversibility barrier per the existing rule. They never trigger Hyperbrief because they cannot reach the write/deploy/send boundary that the barrier protects. If a speculative lane's *retire-time* commit would cross the barrier, that commit is the side-effecting action, and *it* — not the speculative work — enters Hyperbrief's gate.
+
+**Pseudocode** (the canonical write/deploy/send lane shape under the interlock):
+
+```
+on fan_out_request(intent, lanes):
+  if not superscalar.cost_benefit_gate(intent, lanes): return RUN_INLINE
+  for lane in lanes:
+    if lane.class == 'write' and lane.action in IRREVERSIBLE_ALLOWLIST:
+      verdict = hyperbrief.trigger_check(lane.intent)
+      if verdict == FULL_HYPERBRIEF:
+        superscalar.pause_lane(lane)
+        emit DECISION_REQUEST + HyperbriefCard for lane
+        await ack_tier='decided' or timeout
+        switch user_outcome:
+          case accept:               superscalar.resume_lane(lane)
+          case defer:                superscalar.queue_lane(lane, defer_until)
+          case reject_framing:       superscalar.cancel_lane(lane)
+          case request_investigation: superscalar.spawn_research_lane(lane)
+      # AUTONOMOUS_DECIDE → no pause; lane proceeds with one-line post-notify
+  superscalar.dispatch(lanes)
+```
+
+**Cross-references**: `Hyperbrief.md §2` (trigger rubric), `Hyperbrief.md §9` (Decision Capture + Superscalar feed-back), `Constellation.md §13.16.9` (A2A-intent allowlist for the 5 Hyperbrief names + the `ack_tier='decided'` extension).
 
 ---
 
