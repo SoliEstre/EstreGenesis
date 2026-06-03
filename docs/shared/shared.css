@@ -26,9 +26,20 @@ p { margin: 0.6rem 0; }
 .brand:hover { text-decoration: none; }
 .brand img.logo { height: 32px; width: auto; }
 @media (max-width: 720px) { .brand img.logo { height: 26px; } }
-.nav { display: flex; gap: 1.2rem; }
+.nav { display: flex; gap: 1.2rem; align-items: center; }
 .nav a { color: var(--color-text-muted); font-size: 0.92rem; }
 .nav a:hover, .nav a.active { color: var(--color-link); }
+/* Sub-link: per-page Spec / detail link attached to the active page's nav entry.
+   Visually marked as a sub-entry of the current page (smaller + dotted leader + muted tint + ↳ glyph). */
+.nav a.sub-link {
+  font-size: 0.82rem;
+  opacity: 0.72;
+  padding-left: 0.4rem;
+  border-left: 1px dotted var(--color-text-muted);
+  margin-left: -0.6rem;
+}
+.nav a.sub-link::before { content: "↳ "; opacity: 0.6; }
+.nav a.sub-link:hover { opacity: 1; }
 
 .controls { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
 .control-group { display: inline-flex; align-items: center; gap: 0.4rem; }

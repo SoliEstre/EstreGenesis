@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Superscalar — execution-scheduling discipline · EstreGenesis</title>
-  <meta name="description" content="Superscalar v0.4 — issue_width formula + cost-benefit gate + in-order retire + consistency gate. Entry 06 A/B: +118% grounding, −40% speculation vs naïve parallel.">
+  <meta name="description" content="Superscalar v0.4.2 — issue_width formula + cost-benefit gate + in-order retire + consistency gate + §3.1 Hyperbrief decision-delegation interlock. Entry 06 A/B: +118% grounding, −40% speculation vs naïve parallel. Plugin v0.1.2.">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="shared/shared.css">
   <link rel="stylesheet" href="shared/themes.css">
@@ -44,9 +44,9 @@
       <nav class="nav">
         <a href="index.html" data-en="Home" data-ko="홈">Home</a>
         <a href="superscalar.html" class="active">Superscalar</a>
-        <a href="constellation.html">Constellation</a>
         <a href="hyperbrief.html">Hyperbrief</a>
-        <a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md" target="_blank" rel="noopener">Spec</a>
+        <a href="constellation.html">Constellation</a>
+        <a class="sub-link" href="https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md" target="_blank" rel="noopener" data-en="Spec" data-ko="스펙">Spec</a>
       </nav>
       <div class="controls">
         <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
@@ -63,8 +63,9 @@
       <p class="tagline" data-aud="dev" data-en="An execution-scheduling discipline for parallel sub-agent dispatch — covering both Agent-tool fan-outs and Workflow.parallel calls — that keeps cross-lane work consistent without sacrificing the parallelism budget." data-ko="Agent 도구의 fan-out과 Workflow.parallel 호출을 포함하는 병렬 sub-agent dispatch를 위한 실행 스케줄링 규율로서, 병렬 예산을 희생하지 않으면서도 lane 사이의 작업이 일관성을 유지하도록 보장합니다.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
       <p class="tagline" data-aud="expert" data-en="An execution-scheduling discipline for parallel sub-agent dispatch, comprising an analytically derived issue_width formula, a worktree-isolated reorder buffer, a cost-benefit admission gate, and an in-order retire stage with a consistency gate over cross-lane outputs." data-ko="해석적으로 도출된 issue_width 공식, worktree에 의해 격리된 reorder buffer, cost-benefit 인입 게이트, 그리고 lane 간 산출물에 대한 consistency gate를 갖춘 in-order retire 단계로 구성된, 병렬 sub-agent dispatch를 위한 실행 스케줄링 규율이다.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
       <div class="badges">
-        <span class="badge">v0.4</span>
-        <span class="badge">§11 Entry 01-06</span>
+        <span class="badge">v0.4.2</span>
+        <span class="badge">§11 Entry 01-06 (n=8)</span>
+        <span class="badge">§3.1 Hyperbrief interlock</span>
         <span class="badge">Apache-2.0</span>
       </div>
     </section>
@@ -249,10 +250,27 @@
     </section>
 
     <section>
+      <h2 data-aud="general" data-en="Try it yourself" data-ko="직접 써보고 싶다면">Try it yourself</h2>
+      <h2 data-aud="dev" data-en="Install the plugin" data-ko="플러그인 설치">Install the plugin</h2>
+      <h2 data-aud="expert" data-en="Plugin deployment" data-ko="플러그인 배치">Plugin deployment</h2>
+      <p data-aud="general" data-en="If you're using Claude Code, you can add Superscalar as a plugin and your agent will start consulting the issue_width formula and the cost-benefit gate before every parallel sub-agent fan-out. Two slash commands; no env, no infrastructure — it's a model-invoked skill." data-ko="Claude Code를 쓰신다면, Superscalar를 플러그인으로 추가해두면 에이전트가 모든 병렬 sub-agent fan-out 직전에 issue_width 공식과 cost-benefit gate를 consult하기 시작합니다. 슬래시 명령 2개로 끝나며, env도 인프라도 필요 없습니다 — model-invoked skill입니다.">Add Superscalar as a Claude Code plugin and your agent starts consulting the discipline before every fan-out. Two commands. No env. No infra.</p>
+      <p data-aud="dev" data-en="Superscalar is distributed as a Claude Code plugin wrapping `Superscalar.md` as a single model-invoked skill (v0.1.2 at the time of writing). No npm dependencies; no environment variables; the skill carries the issue_width formula, cost-benefit gate, irreversibility barrier, in-order retire stage, and (since v0.4.1 §3.1) the Hyperbrief decision-delegation interlock for write/deploy/send lanes." data-ko="Superscalar는 `Superscalar.md`를 단일 model-invoked skill로 wrapping한 Claude Code 플러그인으로 배포됩니다(작성 시점 v0.1.2). npm 의존성 없음; 환경 변수 없음; skill이 issue_width 공식, cost-benefit gate, 비가역성 barrier, in-order retire stage, 그리고 (v0.4.1 §3.1 이후) write/deploy/send lane에 대한 Hyperbrief 결정-위임 interlock을 운반합니다.">Superscalar ships as a Claude Code plugin wrapping Superscalar.md as a single model-invoked skill (v0.1.2). 0 npm deps. 0 env. Includes the v0.4.1 §3.1 Hyperbrief interlock.</p>
+      <p data-aud="expert" data-en="Superscalar is distributed as a Claude Code plugin wrapping the `Superscalar.md` specification as a single model-invoked skill (v0.1.2). The plugin has no runtime dependencies and requires no environment configuration; the skill body carries the issue_width formula, the cost-benefit admission gate, the irreversibility barrier, the in-order retire stage with consistency gate and completeness critic, and — since v0.4.1 §3.1 — the Hyperbrief decision-delegation interlock that fires when a write / deploy / send lane passes the cost-benefit gate and reaches the irreversibility boundary." data-ko="Superscalar는 `Superscalar.md` 사양을 단일 model-invoked skill로 wrapping한 Claude Code 플러그인의 형태로 배포된다(v0.1.2). 플러그인은 런타임 의존성을 갖지 아니하며 환경 구성을 요하지 아니한다. skill body는 issue_width 공식, cost-benefit admission gate, 비가역성 barrier, consistency gate와 completeness critic을 갖춘 in-order retire stage, 그리고 — v0.4.1 §3.1 이후 — write / deploy / send lane이 cost-benefit gate를 통과하고 비가역성 경계에 도달할 때 발동하는 Hyperbrief 결정-위임 interlock을 운반한다.">Superscalar ships as a Claude Code plugin wrapping Superscalar.md as a single model-invoked skill (v0.1.2). Zero deps, zero env. Includes v0.4.1 §3.1 Hyperbrief interlock.</p>
+<pre><code># Add the EstreGenesis marketplace:
+/plugin marketplace add SoliEstre/EstreGenesis
+
+# Install the superscalar plugin:
+/plugin install superscalar@estregenesis-plugins
+
+# No env needed. No npm install needed.
+# Optional: install hyperbrief alongside to activate the §3.1 interlock end-to-end.</code></pre>
+    </section>
+
+    <section>
       <h2 data-aud="general" data-en="Want to read more?" data-ko="더 자세히 알고 싶다면">Want to read more?</h2>
       <h2 data-aud="dev" data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
       <h2 data-aud="expert" data-en="Reference the full specification" data-ko="전체 사양 참조">Reference the full specification</h2>
-      <p data-en="The full Superscalar.md (§1 concept mapping · §2 issue_width formula · §3 reorder-buffer worktree isolation · §4 speculation · §5 adoption thresholds · §11 dogfood ledger Entry 01-06) is in the EstreGenesis repo." data-ko="전체 Superscalar.md (§1 concept mapping · §2 issue_width 공식 · §3 reorder-buffer worktree isolation · §4 speculation · §5 adoption thresholds · §11 dogfood ledger Entry 01-06)는 EstreGenesis repo에 있습니다.">The full Superscalar.md is in the EstreGenesis repo.</p>
+      <p data-en="The full Superscalar.md (§1 concept mapping · §2 issue_width formula · §3 reorder-buffer worktree isolation · §3.1 Hyperbrief decision-delegation interlock · §4 speculation · §5 adoption thresholds · §11 dogfood ledger Entry 01-06) is in the EstreGenesis repo." data-ko="전체 Superscalar.md (§1 concept mapping · §2 issue_width 공식 · §3 reorder-buffer worktree isolation · §3.1 Hyperbrief 결정-위임 interlock · §4 speculation · §5 adoption thresholds · §11 dogfood ledger Entry 01-06)는 EstreGenesis repo에 있습니다.">The full Superscalar.md is in the EstreGenesis repo.</p>
       <p><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md" target="_blank">github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md →</a></p>
     </section>
   </main>
