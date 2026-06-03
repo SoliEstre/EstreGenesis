@@ -23,7 +23,8 @@ let _validatorErr = null;
 function getValidator() {
   if (_validator || _validatorErr) return _validator;
   try {
-    const Ajv = require("ajv");
+    // ajv default export is draft-07; our schema is draft 2020-12 → use the 2020-12 dialect entrypoint.
+    const Ajv = require("ajv/dist/2020");
     const ajv = new (Ajv.default || Ajv)({ strict: false, allErrors: true });
     const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, "utf8"));
     _validator = ajv.compile(schema);
