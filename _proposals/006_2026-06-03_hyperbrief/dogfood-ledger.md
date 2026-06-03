@@ -14,6 +14,7 @@
 |---|---|---|---|---|---|---|
 | 01 | `hb-20260603-a1b2c3` | 2026-06-03 | `one_way_with_migration_path` 🟡 | accept (alt-B + 5 follow-up patches → v0.1.1) | _pending revisit 2026-09-01_ | [dogfood-entry-01.md](./dogfood-entry-01.md) |
 | 02 | `hb-20260603-r2nd02` | 2026-06-03 | `one_way_with_migration_path` 🟡 | accept (alt-B mini-engine + ajv + CLI; MCP tool deferred to v0.4.1) → v0.4.0 | _pending revisit 2026-09-01_ | [dogfood-entry-02.md](./dogfood-entry-02.md) |
+| 03 | `hb-20260603-hooke3` | 2026-06-03 | `two_way` 🟢 | accept (alt-(a) advise hook + Constellation/standalone review-queue routing extension) → v0.5.3 | _pending revisit 2026-09-01_ | [dogfood-entry-03.md](./dogfood-entry-03.md) |
 
 ---
 

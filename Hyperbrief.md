@@ -1,4 +1,4 @@
-<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.5.2; date: 2026-06-03; status: design draft v0.5.2 (bundle 008 refinements: H2 status-based template selection + BlockedStub compact templates / H3 self-contained help-string clarity / H5 essence_one_line heading-strip / H6 plugin README catch-up sync / M4 §8.5 new sub-section codifying relation between Hyperbrief, Constellation §13.17 main-chat structured-choice prohibition, and Constellation §13.18 autonomous-execution absolute principle); depends-on: none (optional synergy: Constellation §13 A2A — active, Superscalar §3.1 decision-delegation interlock — active); license: Apache-2.0 -->
+<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.5.3; date: 2026-06-03; status: design draft v0.5.3 (dogfood Entry 03 — PreToolUse + Stop hooks activated in advise mode + review queue routing: Constellation-on emits DECISION_REQUEST to board, Constellation-off + auto_generate_review_doc=on writes .hyperbrief/pending-reviews/<id>.md placeholder, default 'ask' emits stderr advise only. Closes the v0.4.0 deferred PreToolUse-hook item.); depends-on: none (optional synergy: Constellation §13 A2A — active, Superscalar §3.1 decision-delegation interlock — active); license: Apache-2.0 -->
 
 # Hyperbrief — Decision-Delegation Gating Discipline
 
@@ -472,6 +472,7 @@ When Phase 2 ships (v0.4.0) the renderer reads the same IR and produces the same
 - **v0.4.0** — Phase 2 deterministic Node renderer shipped (`plugins/hyperbrief/renderers/mini-engine.cjs` + `types.d.ts` + `bin/render.cjs` + `package.json` with single dep `ajv ^8.17.0`); determinism smoke test PASS. PreToolUse hook + MCP server deferred to v0.4.1+ cuts.
 - **v0.4.1** — `§11.2` dogfood ledger externalized from SSoT body (layer separation per `§10.2 SHOULD-8`); `§5.6.7` / `§10.3` / `§11.3` prose English-normalized.
 - **v0.4.2** — Constellation cascade shipped (Constellation v2.3.20: `§13.16.9` A2A-intent family 5 names + `ack_tier='decided'` application-tier extension; Constellation MCP server `a2a_wait_ack` recognizes `tier='decided'`). MCP server shipped (`plugins/hyperbrief/mcp/server.cjs` + `package.json`, single dep `ajv ^8.17.0`, exposes 4 tools `hyperbrief_render` / `hyperbrief_validate` / `decision_ledger_append` / `decision_ledger_query`); plugin manifest declares the MCP server. PreToolUse hook (decision-keyword detection auto-triggers rubric) deferred to v0.5.
+- **v0.5.3** — PreToolUse + Stop hooks activated (EG cut v2.5.37) in advise mode (exit 0 + stderr alert; never block). PreToolUse matchers: `AskUserQuestion` (always alert) + `Bash` (write/deploy/send whitelist via wrapper script — `git push` / `gh release` / `gh pr create|merge` / `npm publish` / `kubectl apply|delete|create` / `docker push` / `terraform apply` / etc.). Stop hook: scans `hyperbrief-ledger.jsonl` for `revisit_date` arrivals + scans `.hyperbrief/pending-reviews/` for unreviewed items + emits a single advisory line on either signal. **Review queue routing** (§11.4 below): when Constellation is reachable (`CONSTELLATION_WS_URL` + local outbox.jsonl), the hook posts a `DECISION_REQUEST` envelope to the board as a pending review item (the full `HyperbriefCard` follows when/if the agent generates the brief); when Constellation is off, behavior depends on `auto_generate_review_doc` config (`on` → write `.hyperbrief/pending-reviews/<id>.md` placeholder, `off` → stderr alert only, `ask` (default) → stderr alert + setup hint). All three cuts (advise/board/file) compose with the existing model-invoked `SKILL.md` description discipline — the hooks add a *silent-skip detection layer* without removing the agent's self-invoke responsibility. The Phase 2 PreToolUse-hook item from the v0.4.0 status entry is hereby closed.
 - **v0.5.0** — schema v0.5 shipped (EG cut v2.5.30): `surface_profile_estimate` auto-computed by renderer with AF-18 declared-vs-effective drift warning; `recommended_artifacts[]` gains `language` / `line_count` / `body_hash` sub-fields (auto-stamped by renderer); `audience_profile_fallback.telemetry` opt-in phrase-learning structure; canonical `button_label` parenthetical universalization for adopter localization; new normative MUST-20 / MUST-21; new anti-patterns AF-24 / AF-25 / AF-26. Determinism invariant preserved (smoke test PASS post-additions). Dogfood ledger §11.2 Entry 03+ for real-case calibration (`user_acceptance_rate`, Brier score, pre-mortem text length distribution) is the v0.5 *measurement* track and remains in-progress.
 
 ### 11.2 Dogfood ledger — external file (layer separation)
@@ -487,6 +488,7 @@ SSoT body keeps only the most recent 3 rows as a pointer + index:
 
 | Recent entries | Decision id | Date | Outcome |
 |---|---|---|---|
+| Entry 03 | `hb-20260603-hooke3` | 2026-06-03 | Advise-hook activation accept (alt-(a) PreToolUse + Stop + review-queue routing extension; closes the v0.4.0 deferred PreToolUse-hook item) |
 | Entry 02 | `hb-20260603-r2nd02` | 2026-06-03 | Phase 2 renderer accept (alt-B mini-engine + ajv + CLI; MCP tool deferred to v0.4.1) |
 | Entry 01 | `hb-20260603-a1b2c3` | 2026-06-03 | v0.1 → v0.1.1 accept (alt-B + 5 follow-up patches) |
 
@@ -502,6 +504,41 @@ Hyperbrief is one of several EG seed modules. Adopters that maintain a fork of t
 - **Schema version pinning** — adopters MUST declare which `hyperbrief.schema.json` major version they pin via one line in their adopter README, so cross-project ledger reads can apply the correct validator.
 
 EstreUF dogfood ledger entries are recorded in EstreUF's own `_proposals/<bundle>/hyperbrief-ledger.md`. Entries that surface cross-cutting spec gaps (changes that should land in upstream `Hyperbrief.md`) are mirrored back to EG through the standard `_proposals/` lifecycle.
+
+### 11.4 Hook-tier review queue (v0.5.3 — Claude Code plugin-tier discipline)
+
+The `plugins/hyperbrief/hooks/` directory ships with three components: `hooks.json` (the Claude Code hook registration), `trigger-advise.cjs` (the PreToolUse wrapper), and `revisit-scan.cjs` (the Stop wrapper). The hook layer is **plugin-tier** — a Claude Code-specific advise mechanism that adds a *silent-skip detection layer* on top of the `SKILL.md`-frontmatter model-invoked discipline. Other Claude-compatible hosts (Codex, Cursor, etc.) lack the PreToolUse hook concept and rely on the model-invoked discipline alone; the SSoT-tier rules in `Hyperbrief.md §1–§10` remain identical across all hosts.
+
+**Hook contract** (advise mode — exit 0, never block):
+
+- **PreToolUse `AskUserQuestion`** → always alert. The canonical user-facing-decision-question signal.
+- **PreToolUse `Bash`** → alert only when the command matches a write/deploy/send whitelist (`git push`, `gh release`, `gh pr create|merge`, `npm publish`, `pnpm publish`, `yarn publish`, `kubectl apply|delete|create`, `docker push`, `terraform apply`, `gcloud …deploy`, `aws s3 cp|sync` etc., plus `curl -X POST|PUT|DELETE`). Routine Bash calls (`ls`, `cat`, `grep`, etc.) silently pass through.
+- **Stop** → scans the decision ledger for `revisit_date ≤ today` (excluding rows with `outcome_actual` already filled) and scans `.hyperbrief/pending-reviews/` for unreviewed placeholders. Emits a single advisory line on either signal; silent otherwise.
+
+**Review-queue routing** — what happens when a PreToolUse hook fires:
+
+1. **Constellation reachable** (`CONSTELLATION_WS_URL` env set + a local `outbox.jsonl` path exists at one of: `$CONSTELLATION_OUTBOX_PATH`, `assets/collab/outbox.jsonl`, or `.constellation/outbox.jsonl`):
+   - The hook appends a `DECISION_REQUEST` envelope to the outbox file. The envelope is a *pending-review placeholder* — it carries `decision_id`, `origin: "hyperbrief-hook"`, `pending: true`, `detected_tool`, `detected_intent`, `stage: "pending-review"`, `ack_tier_required: "decided"`. The full `HyperbriefCard` follows (paired by `parentId`) when/if the agent generates the actual brief — same envelope-pair design as §8 + Constellation §13.16.9.
+   - The local Constellation bridge (`local-bridge.cjs`) relays the envelope to the board, and the board's decisions/review-items panel surfaces it.
+   - Stderr advise: `[hyperbrief] 결정 시점 감지 (<tool>) — 검토 사안이 Constellation 보드에 등록되었습니다 (id: hb-…). 보드의 검토 사안 패널에서 확인 가능.`
+
+2. **Constellation off** + `auto_generate_review_doc = "on"` (env `HYPERBRIEF_AUTO_GENERATE_REVIEW_DOC=on` or `.hyperbrief/config.json {auto_generate_review_doc: "on"}`):
+   - The hook writes a placeholder Markdown file to `.hyperbrief/pending-reviews/<decision_id>.md` carrying the detected tool, intent, raw tool input (clipped to 4KB), and next-step instructions (request full brief now / leave for later review / archive after review).
+   - Stderr advise: `[hyperbrief] 결정 시점 감지 (<tool>) — 검토 사안 문서 자동 생성됨: <path>.`
+
+3. **Constellation off** + `auto_generate_review_doc = "ask"` (default): stderr advise only — `[hyperbrief] 결정 시점 감지 (<tool>). 검토 사안 문서 자동 생성을 켜시려면 .hyperbrief/config.json의 auto_generate_review_doc를 "on"으로 설정하세요. 현재 설정: "ask".`
+
+4. **Constellation off** + `auto_generate_review_doc = "off"`: simple stderr alert, no file emitted.
+
+**Why advise mode (not hard-block)**: §2.4's alert-fatigue circuit breaker exists precisely because a rubber-stamped Hyperbrief is a degenerate Hyperbrief. A hard-block hook would force every `AskUserQuestion` and every dangerous Bash call through a user confirm step — exactly the alert-fatigue path §2.4 is designed to prevent. Advise mode preserves the agent's responsibility (model-invoked self-invoke per `SKILL.md` description) while adding a *signal-of-silent-skip* layer: when the agent forgets to invoke `hyperbrief-trigger-check`, the hook leaves a visible trail (board review item, file placeholder, or stderr line) so the user can surface the gap rather than have it carry forward invisibly.
+
+**Falsification triggers**:
+
+- First-day hook fire count exceeds 10 → matcher scope too broad → tighten the Bash whitelist.
+- One-week hook fire count is zero while user-facing decision-question samples are accumulating → matcher scope too narrow OR the hook is silently failing → check stderr propagation in the Claude Code host.
+- Three or more consecutive board review items languish past their revisit_date without resolution → the Stop hook's advisory line is being ignored → consider adding a `notify-on-revisit` opt-in that escalates after N days.
+
+**Cross-reference**: Constellation `§13.16.9` for the `DECISION_REQUEST` A2A-intent shape; Constellation `§13.16.10` for the pre-send probe discipline (the hook's emit goes through the same outbox that the probe scans); Hyperbrief `§8` for the `DECISION_REQUEST` + `HyperbriefCard` envelope-pair pattern that the hook plugs into.
 
 ---
 
