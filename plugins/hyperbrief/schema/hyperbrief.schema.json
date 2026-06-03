@@ -52,12 +52,12 @@
 
     "AudienceProfileFallback": {
       "type": "object",
-      "description": "Tone-floor fallback affordance (§5.6.7). HTML surfaces a button; MD listens for trigger phrases.",
+      "description": "Tone-floor fallback affordance (§5.6.7). HTML surfaces a button; MD listens for trigger phrases. v0.5 adds telemetry-driven learning of trigger_phrases_md.",
       "properties": {
         "enabled": { "type": "boolean", "default": true },
         "button_label": {
           "type": "string",
-          "default": "뭔 소리야? 한국어로 번역해줘",
+          "default": "뭔 소리야? 한국어로 번역해줘 (내가 알아들을 수 있는 말로)",
           "description": "Playful copy on the HTML re-render button."
         },
         "trigger_phrases_md": {
@@ -65,13 +65,22 @@
           "items": { "type": "string" },
           "default": ["뭔 소리", "안 읽혀", "무슨 말", "이해 안", "더 쉽게", "너무 어렵", "다시 풀어", "쉽게 다시", "한국어로", "한국말로", "level 2 라고", "L2 라고", "이게 level", "이게 L"],
           "description": "When the user response after a MD brief contains any of these substrings, regenerate at {1,1,1}."
+        },
+        "telemetry": {
+          "type": "object",
+          "description": "v0.5 — telemetry-driven phrase learning. When enabled, adopter MAY append user responses that DID trigger the fallback (or that the user labeled as confusion despite no auto-trigger) to a phrase-learning log; periodic offline review promotes recurring phrases into trigger_phrases_md.",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false, "description": "Opt-in. Default off to keep behavior deterministic." },
+            "log_path": { "type": "string", "description": "Path to a jsonl phrase-learning log; default .agent/_decisions/hyperbrief-trigger-phrase-log.jsonl" },
+            "promotion_threshold": { "type": "integer", "default": 3, "minimum": 1, "description": "Phrase must recur this many times across distinct decision_ids before promotion is offered." }
+          }
         }
       }
     },
 
     "RecommendedArtifact": {
       "type": "object",
-      "description": "Artifact body attached to §8 recommendation (e.g., a patch text the user is voting on). MUST NOT be referenced abstractly — body required (§10.1 MUST-18, AF-20).",
+      "description": "Artifact body attached to §8 recommendation (e.g., a patch text the user is voting on). MUST NOT be referenced abstractly — body required (§10.1 MUST-18, AF-20). v0.5 adds optional sub-fields for structured code artifacts (language hint, line_count metric, hash) so the renderer can apply syntax-aware formatting and the validator can detect tampering.",
       "required": ["artifact_type", "target_file", "body", "rationale_one_line"],
       "properties": {
         "artifact_type": {
@@ -87,7 +96,57 @@
           "minLength": 1,
           "description": "Actual text/code the reader is voting on. Empty body with non-trivial reference is AF-20."
         },
-        "rationale_one_line": { "$ref": "#/$defs/tagged_text" }
+        "rationale_one_line": { "$ref": "#/$defs/tagged_text" },
+        "language": {
+          "type": "string",
+          "description": "v0.5 — language hint for syntax-aware rendering (e.g., 'javascript', 'typescript', 'json', 'markdown', 'python', 'bash', 'diff', 'yaml'). Optional but RECOMMENDED for code/config/patch artifacts. Renderer applies fenced code-block language tag in MD; HTML syntax-highlighting if available.",
+          "examples": ["javascript", "typescript", "python", "json", "markdown", "yaml", "bash", "diff"]
+        },
+        "line_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "v0.5 — line count of `body` (auto-computed by emitter; renderer cross-checks against `body.split('\\n').length` and warns on mismatch). Stable comparison metric across cycles for drift detection."
+        },
+        "body_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "v0.5 — sha256 hex of `body` (lowercase). Auto-computed by emitter; renderer cross-checks. Detects accidental body tampering between IR emit and decision archive."
+        }
+      }
+    },
+
+    "SurfaceProfileEstimate": {
+      "type": "object",
+      "description": "v0.5 — auto-computed estimate of the EFFECTIVE audience_profile based on the rendered surface. Populated by the renderer (NOT by the LLM). Compared against the IR's DECLARED audience_profile (§0); if any axis declared-vs-estimate gap is >= 2 levels, the renderer auto-injects a profile-mismatch warning (AF-18). Heuristics are not authoritative — they exist to surface declared-vs-effective drift, not to override the declared profile.",
+      "properties": {
+        "audience": {
+          "$ref": "#/$defs/tone_level_1_5",
+          "description": "Estimated effective audience level from rendered surface (e.g., english-noun-ratio + acronym density + first-use-gloss presence)."
+        },
+        "abbreviation": {
+          "$ref": "#/$defs/tone_level_1_5",
+          "description": "Estimated effective abbreviation level from rendered surface (e.g., avg sentence length + bullet density + symbolic-operator usage)."
+        },
+        "jargon": {
+          "$ref": "#/$defs/tone_level_1_5",
+          "description": "Estimated effective jargon level from rendered surface (e.g., per-1000-tokens frequency of canonical framework names — RAPID/Cynefin/MCDA/Toulmin/Hyrum/etc — without inline gloss)."
+        },
+        "raw_metrics": {
+          "type": "object",
+          "description": "Optional raw inputs to the estimate, for telemetry / calibration.",
+          "properties": {
+            "english_noun_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "avg_sentence_length_chars": { "type": "number", "minimum": 0 },
+            "jargon_terms_per_1000_tokens": { "type": "number", "minimum": 0 },
+            "first_use_gloss_present": { "type": "boolean" },
+            "bullet_density": { "type": "number", "minimum": 0, "maximum": 1 },
+            "epistemic_tag_form": { "type": "string", "enum": ["bracket", "korean", "superscript", "mixed"] }
+          }
+        },
+        "declared_vs_estimate_gap_warning": {
+          "type": "boolean",
+          "description": "true when any axis |declared - estimate| >= 2."
+        }
       }
     },
 
@@ -230,7 +289,11 @@
               }
             },
             "audience_profile": { "$ref": "#/$defs/AudienceProfile" },
-            "audience_profile_fallback": { "$ref": "#/$defs/AudienceProfileFallback" }
+            "audience_profile_fallback": { "$ref": "#/$defs/AudienceProfileFallback" },
+            "surface_profile_estimate": {
+              "$ref": "#/$defs/SurfaceProfileEstimate",
+              "description": "v0.5 — auto-computed by renderer; not part of LLM-emitted IR. Populated post-render and persisted into the archived IR for audit."
+            }
           }
         },
 

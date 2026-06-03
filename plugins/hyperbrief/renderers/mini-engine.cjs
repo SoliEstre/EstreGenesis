@@ -182,6 +182,108 @@ function applyToneAxes(text, profile, warnings) {
   return out;
 }
 
+// ─── v0.5 surface_profile_estimate (auto-computed, declared-vs-effective gap) ──
+
+const CANONICAL_JARGON_TERMS = ["RAPID", "Cynefin", "MCDA", "Toulmin", "Hyrum", "AHP", "Floridi", "Sennett", "Habermas", "Gadamer", "Bezos", "Snowden", "Drucker", "Klein", "Kahneman", "Lehman", "Brooks", "Fowler", "Hickey", "Ousterhout", "Wirfs-Brock", "Nygard", "Bostrom", "Jonas", "Rawls", "Aristotle", "Toulmin", "Popper", "Goldman", "Zagzebski"];
+
+function estimateSurfaceProfile(text, declaredProfile) {
+  const lower = text.toLowerCase();
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const tokenCount = tokens.length || 1;
+
+  // english_noun_ratio: rough — tokens that match /^[A-Z][a-zA-Z]+$/ + camelCase + ACRONYM patterns / total tokens
+  const englishWord = tokens.filter((t) => /^[A-Za-z][A-Za-z]+$/.test(t)).length;
+  const english_noun_ratio = Math.min(1, englishWord / tokenCount);
+
+  // avg_sentence_length_chars: text length / sentence terminators
+  const sentences = text.split(/[.!?。！？\n]+/).filter((s) => s.trim().length > 0);
+  const avg_sentence_length_chars = sentences.length ? Math.round(text.length / sentences.length) : 0;
+
+  // jargon_terms_per_1000_tokens
+  let jargonHits = 0;
+  for (const term of CANONICAL_JARGON_TERMS) {
+    const re = new RegExp("\\b" + term + "\\b", "g");
+    const matches = lower.match(re);
+    if (matches) jargonHits += matches.length;
+  }
+  const jargon_terms_per_1000_tokens = (jargonHits / tokenCount) * 1000;
+
+  // bullet_density: lines starting with "-" or "*" / total lines
+  const lines = text.split("\n").filter((l) => l.trim().length > 0);
+  const bulletLines = lines.filter((l) => /^\s*[-*•]/.test(l)).length;
+  const bullet_density = lines.length ? bulletLines / lines.length : 0;
+
+  // first_use_gloss_present: heuristic — at least one "X(설명)" or "X — gloss" pattern
+  const first_use_gloss_present = /\([^)]{2,}\)/.test(text) || / — [가-힣A-Za-z]+/.test(text);
+
+  // epistemic_tag_form
+  let epistemic_tag_form = "mixed";
+  const hasBracket = /\[(verified|inferred|assumed|unknown)\]/.test(text);
+  const hasKorean = /(확인됨|추론|가정|미상)\s*—/.test(text);
+  const hasSuper = /[ᵛⁱᵃᵘ]\s+/.test(text);
+  if (hasBracket && !hasKorean && !hasSuper) epistemic_tag_form = "bracket";
+  else if (hasKorean && !hasBracket && !hasSuper) epistemic_tag_form = "korean";
+  else if (hasSuper && !hasBracket && !hasKorean) epistemic_tag_form = "superscript";
+
+  // Map metrics → estimated levels (heuristic; surfaces drift rather than overrides declaration)
+  // audience: english_noun_ratio + gloss presence
+  let audience_est = 3;
+  if (english_noun_ratio >= 0.5) audience_est = 5;
+  else if (english_noun_ratio >= 0.35) audience_est = 4;
+  else if (english_noun_ratio >= 0.20) audience_est = 3;
+  else if (english_noun_ratio >= 0.10) audience_est = 2;
+  else audience_est = 1;
+
+  // abbreviation: avg_sentence_length_chars (shorter → higher level)
+  let abbreviation_est = 2;
+  if (avg_sentence_length_chars >= 200) abbreviation_est = 1;
+  else if (avg_sentence_length_chars >= 120) abbreviation_est = 2;
+  else if (avg_sentence_length_chars >= 70) abbreviation_est = 3;
+  else if (avg_sentence_length_chars >= 40) abbreviation_est = 4;
+  else abbreviation_est = 5;
+
+  // jargon: jargon_terms_per_1000_tokens
+  let jargon_est = 2;
+  if (jargon_terms_per_1000_tokens >= 40) jargon_est = 5;
+  else if (jargon_terms_per_1000_tokens >= 20) jargon_est = 4;
+  else if (jargon_terms_per_1000_tokens >= 8) jargon_est = 3;
+  else if (jargon_terms_per_1000_tokens >= 2) jargon_est = 2;
+  else jargon_est = 1;
+
+  const declared_vs_estimate_gap_warning =
+    Math.abs(declaredProfile.audience - audience_est) >= 2 ||
+    Math.abs(declaredProfile.abbreviation - abbreviation_est) >= 2 ||
+    Math.abs(declaredProfile.jargon - jargon_est) >= 2;
+
+  return {
+    audience: audience_est,
+    abbreviation: abbreviation_est,
+    jargon: jargon_est,
+    raw_metrics: {
+      english_noun_ratio: Number(english_noun_ratio.toFixed(3)),
+      avg_sentence_length_chars,
+      jargon_terms_per_1000_tokens: Number(jargon_terms_per_1000_tokens.toFixed(2)),
+      first_use_gloss_present,
+      bullet_density: Number(bullet_density.toFixed(3)),
+      epistemic_tag_form,
+    },
+    declared_vs_estimate_gap_warning,
+  };
+}
+
+// ─── v0.5 recommended_artifacts auto-stamping (line_count + body_hash) ─────
+
+function stampRecommendedArtifacts(ir) {
+  const recs = ir?.section_8_recommendation?.recommendation_conditional?.recommended_artifacts;
+  if (!Array.isArray(recs)) return;
+  for (const a of recs) {
+    if (typeof a.body === "string" && a.body.length > 0) {
+      if (typeof a.line_count !== "number") a.line_count = a.body.split("\n").length;
+      if (typeof a.body_hash !== "string") a.body_hash = sha256(a.body);
+    }
+  }
+}
+
 // ─── Render entrypoints ─────────────────────────────────────────────────────
 
 function resolveProfile(ir, opts) {
@@ -204,6 +306,9 @@ function renderMd(ir, opts = {}) {
   const warnings = [];
   const profile = resolveProfile(ir, opts);
 
+  // v0.5: auto-stamp recommended_artifacts metadata (line_count + body_hash)
+  stampRecommendedArtifacts(ir);
+
   if (!opts.skip_validate) {
     const v = validateIr(ir);
     if (!v.ok) {
@@ -219,11 +324,22 @@ function renderMd(ir, opts = {}) {
   const substituted = substitute(template, ir, "md");
   const output = applyToneAxes(substituted, profile, warnings);
 
+  // v0.5: surface_profile_estimate + AF-18 declared-vs-estimate gap warning
+  const estimate = estimateSurfaceProfile(output, profile);
+  if (estimate.declared_vs_estimate_gap_warning) {
+    warnings.push(
+      `AF-18: declared audience_profile {A${profile.audience}·B${profile.abbreviation}·J${profile.jargon}} ` +
+      `vs rendered-surface estimate {A${estimate.audience}·B${estimate.abbreviation}·J${estimate.jargon}} ` +
+      "gap >= 2 on at least one axis — consider tone-floor fallback or IR-content reconciliation."
+    );
+  }
+
   return {
     output,
     output_hash: sha256(output),
     ir_hash: canonicalIrHash(ir),
     audience_profile_applied: profile,
+    surface_profile_estimate: estimate,
     warnings,
   };
 }
@@ -231,6 +347,9 @@ function renderMd(ir, opts = {}) {
 function renderHtml(ir, opts = {}) {
   const warnings = [];
   const profile = resolveProfile(ir, opts);
+
+  // v0.5: auto-stamp recommended_artifacts metadata
+  stampRecommendedArtifacts(ir);
 
   if (!opts.skip_validate) {
     const v = validateIr(ir);
@@ -247,7 +366,7 @@ function renderHtml(ir, opts = {}) {
 
   // §5.6.7 tone-floor fallback button label resolution from IR or default.
   const fallback = (ir.section_0_decision_header && ir.section_0_decision_header.audience_profile_fallback) || {};
-  const buttonLabel = fallback.button_label || "뭔 소리야? 한국어로 번역해줘";
+  const buttonLabel = fallback.button_label || "뭔 소리야? 한국어로 번역해줘 (내가 알아들을 수 있는 말로)";
   template = template
     .replace(/\{\{button_label\}\}/g, escapeHtml(buttonLabel))
     .replace(/\{\{IR_JSON\}\}/g, JSON.stringify(ir).replace(/<\/script>/gi, "<\\/script>"));
@@ -258,7 +377,17 @@ function renderHtml(ir, opts = {}) {
   let output = applyToneAxes(substituted, profile, warnings);
 
   if (opts.self_contained_assets) {
-    warnings.push("self_contained_assets requested but inline asset bundling is deferred to v0.4.1 — output still references external CDN scripts.");
+    warnings.push("self_contained_assets requested but inline asset bundling is deferred to v0.4.3 — output still references external CDN scripts.");
+  }
+
+  // v0.5: surface_profile_estimate + AF-18 warning (text-only estimate over HTML; tag presence still detectable)
+  const estimate = estimateSurfaceProfile(output, profile);
+  if (estimate.declared_vs_estimate_gap_warning) {
+    warnings.push(
+      `AF-18: declared audience_profile {A${profile.audience}·B${profile.abbreviation}·J${profile.jargon}} ` +
+      `vs rendered-surface estimate {A${estimate.audience}·B${estimate.abbreviation}·J${estimate.jargon}} ` +
+      "gap >= 2 on at least one axis — consider tone-floor fallback button or IR-content reconciliation."
+    );
   }
 
   return {
@@ -266,6 +395,7 @@ function renderHtml(ir, opts = {}) {
     output_hash: sha256(output),
     ir_hash: canonicalIrHash(ir),
     audience_profile_applied: profile,
+    surface_profile_estimate: estimate,
     warnings,
   };
 }
