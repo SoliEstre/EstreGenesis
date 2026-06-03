@@ -85,7 +85,7 @@ File-based coordination (Phase 5) remains the default and is enough for most pro
 
 | Tier | Size | Primary use | Target reader |
 |---|---|---|---|
-| **Master** | ~2435 lines | New projects that need deep guidance, teams learning the pattern for the first time, edge cases where you need every inline template (full AGENTS.md + `.gitignore` per-stack rows + escape/HTML/PDF scripts + bridge templates) | First-time AI Native author; teams formalizing a process |
+| **Master** | ~2440 lines | New projects that need deep guidance, teams learning the pattern for the first time, edge cases where you need every inline template (full AGENTS.md + `.gitignore` per-stack rows + escape/HTML/PDF scripts + bridge templates) | First-time AI Native author; teams formalizing a process |
 | **Lite** | ~1100 lines | Quick new projects, migration sessions, onboarding new AI services into existing projects, when the master would eat too much context window. Self-contained — embeds inline templates for AGENTS.md, `.agent/rules.md`, `.gitignore`, scripts, and bridge stubs in compressed form | Returning author who remembers the pattern; most projects |
 | **Compact** | ~120 lines | Authors who already know the pattern and want the minimum viable seed; tightest context window; bullet triggers + algorithm-spec descriptions only (the agent generates the actual files following the specs) | Power user who just needs a checklist |
 
@@ -98,7 +98,7 @@ When a project grows to need more detail, you don't upgrade tiers in-place. You 
 ## File list
 
 ```
-AI_Native_Project_Master_Seed_Prompt.md       ← English master (deepest, ~2435 lines)
+AI_Native_Project_Master_Seed_Prompt.md       ← English master (deepest, ~2440 lines)
 AI_Native_Project_Seed_Prompt_Lite.md         ← English lite (~1100 lines, self-contained)
 AI_Native_Project_Seed_Prompt_Compact.md      ← English compact (~120 lines, self-contained)
 AI_Native_프로젝트_마스터_시드_프롬프트.md       ← Korean master
@@ -368,7 +368,7 @@ Constellation 은 **참조 모듈**로 ship ([Constellation.md](Constellation.md
 
 | Tier | 크기 | 주 용도 | 대상 독자 |
 |---|---|---|---|
-| **Master** | ~2435줄 | 깊이 있는 가이드 필요한 신규 프로젝트, 패턴 처음 배우는 팀, 모든 인라인 템플릿 필요한 엣지 케이스 | 첫 AI Native 저자; 프로세스 공식화하는 팀 |
+| **Master** | ~2440줄 | 깊이 있는 가이드 필요한 신규 프로젝트, 패턴 처음 배우는 팀, 모든 인라인 템플릿 필요한 엣지 케이스 | 첫 AI Native 저자; 프로세스 공식화하는 팀 |
 | **Lite** | ~1100줄 | 빠른 신규 프로젝트, 마이그레이션 세션, 기존 프로젝트에 새 AI 서비스 편입, 마스터가 컨텍스트 윈도우에 무거울 때 | 패턴 기억하는 복귀 저자; 대부분 프로젝트 |
 | **Compact** | ~120줄 | 이미 패턴 알고 최소 시드 원하는 저자; 가장 타이트한 컨텍스트 윈도우; bullet 트리거만 | 체크리스트만 필요한 파워 유저 |
 
@@ -379,7 +379,7 @@ Constellation 은 **참조 모듈**로 ship ([Constellation.md](Constellation.md
 ## 파일 목록
 
 ```
-AI_Native_Project_Master_Seed_Prompt.md       ← 영문 마스터 (가장 깊음, ~2435줄)
+AI_Native_Project_Master_Seed_Prompt.md       ← 영문 마스터 (가장 깊음, ~2440줄)
 AI_Native_Project_Seed_Prompt_Lite.md         ← 영문 lite (~1100줄)
 AI_Native_Project_Seed_Prompt_Compact.md      ← 영문 compact (~120줄)
 AI_Native_프로젝트_마스터_시드_프롬프트.md       ← 한국어 마스터

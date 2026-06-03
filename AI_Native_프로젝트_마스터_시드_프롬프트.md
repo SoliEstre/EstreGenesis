@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 마스터 시드 프롬프트 (한국어)
 
-<!-- seed-tier: Master; language: Korean; version: v2.4.2; date: 2026-06-03; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.2 = bundle 007 M1 reflection — 마이그레이션 B Step 1/2 dual-track guidance (seed-version + EG-release-version cross-check) -->
+<!-- seed-tier: Master; language: Korean; version: v2.4.3; date: 2026-06-03; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.3 = main hub feedback reflection — 마이그레이션 B delta 표 catch-up: 누락되어 있던 #12 Constellation (v2.0.0) 와 #13 Superscalar + #14 자율 실행 (v2.3.0) 행 추가. v2.4.2 가 dual-track 추상 안내 추가했고, v2.4.3 가 그 안내가 가리키는 concrete delta 행을 추가. 본 cut 자체가 main 측 실 허브 v2.4.2 마이그레이션 중 surface 된 release-only cut. -->
 
 > **사용법**: 새 프로젝트를 시작할 때 이 파일 전체를 복사해 선택한 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등 어느 것이든)의 첫 대화 입력으로 붙여넣으세요. 이 프롬프트를 읽은 에이전트는 **대화형 부트스트랩 세션**을 시작해 프로젝트 셋업을 단계적으로 안내합니다.
 >
@@ -1408,6 +1408,8 @@ Phase 7까지 완료되면 다음 메시지로 세션 마무리:
 | § 인덱스 동기화 정책 → 외부 지식 인덱스 자동 동기화 서브섹션 (Claude 메모리·Notion·Obsidian·Logseq·wiki·RAG 메타 store 미러링 시 pre-commit 전용 sync 스크립트로 메커니컬 구조 자동 갱신) | v1.3.6 |
 | Phase 2.5 Bootstrap Residency Check + Adoption Catalog (minimal/manual/provider-assisted setup, agent-docs sidecar repo, multi-project orchestration, upstream split, source-map, public-boundary/style-guide, `.gitignore` source guard) | v1.5.0 |
 | Phase 0 페이스 모드 (Cautious / Proactive / Burst / Sprint) + 핵심 원칙 #11 (agent-time vs human-time 추정) + § Agent-Time 추정 정책 + PM 템플릿 split-time 형식 (agent active + human review + calendar window) + AGENTS.md Core rules 페이스 모드 라인 | v1.6.0 |
+| 핵심 원칙 #12 (Constellation, 선택적 참조 모듈 — 다중 에이전트 라이브보드: WebSocket + A2A 메시징 + 대시보드 + MCP) + § Constellation 섹션 + 불변 A2A bridge interface (역할 `board`/`main`/`local`/`upstream`/`collab` + 핸드셰이크 + 메시징 + 턴 기반 bridge-daemon + self-wake-watcher 런타임 패턴) + Constellation.md + constellation/*.eux 사양 (gateway-client.eux detail-tier A2A 어댑터) + EstreUX brew-runtime 참조 (빌드-time 의존, 번들/소유 안 함). 파일-기반 조정 (Phase 5) 은 기본값 유지. | v2.0.0 |
+| 핵심 원칙 #13 (실행 스케줄링 — Superscalar, 선택적 참조 모듈: 5-차원 bound `issue_width` 공식 — Anthropic effort band · pace_mode cap · Little's Law throughput · Kanban WIP · `autonomy_available_workers` — + ~30-60k token-horizon crossover 의 cost-benefit-gated dispatch) 와 #14 (자율 실행, 절대 — defined-next-step 은 묻지 않고 진행; gate 는 loss/외부-publish, 새 major-branch 결정 지점, restart-requiring 배포, 또는 명시적 사용자 steering 만) + § 실행 스케줄링 섹션 + Superscalar.md + Phase 0 네 번째 질문 (`execution scheduling: serial/parallel` + `speculation: off/on`) + AGENTS.md Core rules line 1 = 자율 실행 규칙 | v2.3.0 |
 
 필터링된 diff 를 번호 메뉴로 제시:
 
