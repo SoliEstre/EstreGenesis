@@ -1,6 +1,6 @@
 {
   "name": "@hyperbrief/renderers",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": true,
   "description": "Hyperbrief deterministic MD/HTML renderers — IR → surface. Same IR + same options → same output bytes (load-bearing invariant per Hyperbrief.md §7). Self-engineered placeholder substitution + tone-axis transform; single npm dep (ajv ^8.17.0) for schema validation.",
   "main": "./mini-engine.cjs",

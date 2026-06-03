@@ -1,4 +1,4 @@
-<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.5.4; date: 2026-06-03; status: design draft v0.5.4 (H7 emergency-fix per bundle 008 002: mini-engine.cjs reorders validate-then-clone-then-strip so FullBrief validation-on default path works + IR original invariant; §11.3 vendor-patch-vs-pure-mirror adopter trade-off + §11.4 host self-config approval gate + $CLAUDE_PROJECT_DIR vs $CLAUDE_PLUGIN_ROOT guidance for plugin-vs-sidecar deployments); depends-on: none (optional synergy: Constellation §13 A2A — active, Superscalar §3.1 decision-delegation interlock — active); license: Apache-2.0 -->
+<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.5.5; date: 2026-06-03; status: design draft v0.5.5 (dogfood Entry 04 — §11.5 v1.0 readiness rubric codified: Lens A 7-dim module-wide GA + Lens B 6-dim Claude marketplace registration; current scores Lens A 5.3 simple / 4.9 weighted, Lens B 5.5 simple / 5.1 weighted — both sub-threshold; gap binds on emergency-fix cadence + external adopter validation; Claude marketplace registration deferred to v1.0 GA cut); depends-on: none (optional synergy: Constellation §13 A2A — active, Superscalar §3.1 decision-delegation interlock — active); license: Apache-2.0 -->
 
 # Hyperbrief — Decision-Delegation Gating Discipline
 
@@ -472,6 +472,7 @@ When Phase 2 ships (v0.4.0) the renderer reads the same IR and produces the same
 - **v0.4.0** — Phase 2 deterministic Node renderer shipped (`plugins/hyperbrief/renderers/mini-engine.cjs` + `types.d.ts` + `bin/render.cjs` + `package.json` with single dep `ajv ^8.17.0`); determinism smoke test PASS. PreToolUse hook + MCP server deferred to v0.4.1+ cuts.
 - **v0.4.1** — `§11.2` dogfood ledger externalized from SSoT body (layer separation per `§10.2 SHOULD-8`); `§5.6.7` / `§10.3` / `§11.3` prose English-normalized.
 - **v0.4.2** — Constellation cascade shipped (Constellation v2.3.20: `§13.16.9` A2A-intent family 5 names + `ack_tier='decided'` application-tier extension; Constellation MCP server `a2a_wait_ack` recognizes `tier='decided'`). MCP server shipped (`plugins/hyperbrief/mcp/server.cjs` + `package.json`, single dep `ajv ^8.17.0`, exposes 4 tools `hyperbrief_render` / `hyperbrief_validate` / `decision_ledger_append` / `decision_ledger_query`); plugin manifest declares the MCP server. PreToolUse hook (decision-keyword detection auto-triggers rubric) deferred to v0.5.
+- **v0.5.5** — v1.0 readiness rubric codified per dogfood Entry 04 (EG cut v2.5.40): new §11.5 introduces two evaluation lenses (Lens A 7-dim module-wide GA + Lens B 6-dim host-specific marketplace registration) with explicit dimension definitions, anchored scoring scale, dual aggregation (simple + weighted mean), current-state assessment (Lens A 5.3 simple / 4.9 weighted; Lens B 5.5 simple / 5.1 weighted — neither at threshold), gap analysis converging on emergency-fix cadence + external adopter validation as the binding constraints, and a re-evaluation cadence (≥ 2-point dimension move OR emergency-fix release OR explicit decision-point trigger). The rubric closes the failure mode where v1.0 GA label remained maintainer-arbitrary and where host-specific registration decisions were gated on cross-host validation without causal relevance. Entry 04 dogfood archive records the marketplace-registration deferral decision driven by the rubric's current scores (both lenses sub-threshold).
 - **v0.5.4** — H7 emergency-fix (EG cut v2.5.38) per bundle 008 002 resync report: `mini-engine.cjs` `renderMd` / `renderHtml` reordered to validate-on-canonical-IR → deep-clone → strip-on-clone (previously strip-then-validate crashed every FullBrief in the validation-on default path because schema requires the §6.essence_one_line tagged_text prefix that the strip removed). IR original now invariant across rendering; archive_config sees pristine IR; surface still ships without the H1 heading bracket prefix. Same-class regression as H1 (clean-install validation-on path broken); fix is one ordering swap + one deep-clone insertion per render entrypoint. Adopter guidance added: §11.3 vendor-patch-vs-pure-mirror trade-off (turnaround-time-driven choice); §11.4 host self-config approval gate (settings.json edit requires user approval, not silent migration) + `$CLAUDE_PROJECT_DIR` vs `${CLAUDE_PLUGIN_ROOT}` for plugin-vs-sidecar deployments.
 - **v0.5.3** — PreToolUse + Stop hooks activated (EG cut v2.5.37) in advise mode (exit 0 + stderr alert; never block). PreToolUse matchers: `AskUserQuestion` (always alert) + `Bash` (write/deploy/send whitelist via wrapper script — `git push` / `gh release` / `gh pr create|merge` / `npm publish` / `kubectl apply|delete|create` / `docker push` / `terraform apply` / etc.). Stop hook: scans `hyperbrief-ledger.jsonl` for `revisit_date` arrivals + scans `.hyperbrief/pending-reviews/` for unreviewed items + emits a single advisory line on either signal. **Review queue routing** (§11.4 below): when Constellation is reachable (`CONSTELLATION_WS_URL` + local outbox.jsonl), the hook posts a `DECISION_REQUEST` envelope to the board as a pending review item (the full `HyperbriefCard` follows when/if the agent generates the brief); when Constellation is off, behavior depends on `auto_generate_review_doc` config (`on` → write `.hyperbrief/pending-reviews/<id>.md` placeholder, `off` → stderr alert only, `ask` (default) → stderr alert + setup hint). All three cuts (advise/board/file) compose with the existing model-invoked `SKILL.md` description discipline — the hooks add a *silent-skip detection layer* without removing the agent's self-invoke responsibility. The Phase 2 PreToolUse-hook item from the v0.4.0 status entry is hereby closed.
 - **v0.5.0** — schema v0.5 shipped (EG cut v2.5.30): `surface_profile_estimate` auto-computed by renderer with AF-18 declared-vs-effective drift warning; `recommended_artifacts[]` gains `language` / `line_count` / `body_hash` sub-fields (auto-stamped by renderer); `audience_profile_fallback.telemetry` opt-in phrase-learning structure; canonical `button_label` parenthetical universalization for adopter localization; new normative MUST-20 / MUST-21; new anti-patterns AF-24 / AF-25 / AF-26. Determinism invariant preserved (smoke test PASS post-additions). Dogfood ledger §11.2 Entry 03+ for real-case calibration (`user_acceptance_rate`, Brier score, pre-mortem text length distribution) is the v0.5 *measurement* track and remains in-progress.
@@ -489,9 +490,9 @@ SSoT body keeps only the most recent 3 rows as a pointer + index:
 
 | Recent entries | Decision id | Date | Outcome |
 |---|---|---|---|
+| Entry 04 | `hb-20260603-mktp04` | 2026-06-03 | Claude marketplace registration defer to v1.0 GA + §11.5 v1.0 readiness rubric codified (Lens A 7-dim + Lens B 6-dim, current scores ≈ 5/10 both lenses, gap binds on emergency-fix cadence + external adopter validation) |
 | Entry 03 | `hb-20260603-hooke3` | 2026-06-03 | Advise-hook activation accept (alt-(a) PreToolUse + Stop + review-queue routing extension; closes the v0.4.0 deferred PreToolUse-hook item) |
 | Entry 02 | `hb-20260603-r2nd02` | 2026-06-03 | Phase 2 renderer accept (alt-B mini-engine + ajv + CLI; MCP tool deferred to v0.4.1) |
-| Entry 01 | `hb-20260603-a1b2c3` | 2026-06-03 | v0.1 → v0.1.1 accept (alt-B + 5 follow-up patches) |
 
 Full ledger + Entry meta-learnings: `_proposals/006_2026-06-03_hyperbrief/dogfood-ledger.md`.
 
@@ -542,6 +543,88 @@ The `plugins/hyperbrief/hooks/` directory ships with three components: `hooks.js
 - Three or more consecutive board review items languish past their revisit_date without resolution → the Stop hook's advisory line is being ignored → consider adding a `notify-on-revisit` opt-in that escalates after N days.
 
 **Cross-reference**: Constellation `§13.16.9` for the `DECISION_REQUEST` A2A-intent shape; Constellation `§13.16.10` for the pre-send probe discipline (the hook's emit goes through the same outbox that the probe scans); Hyperbrief `§8` for the `DECISION_REQUEST` + `HyperbriefCard` envelope-pair pattern that the hook plugs into.
+
+### 11.5 v1.0 readiness rubric — two evaluation lenses (v0.5.5, dogfood Entry 04 reflection)
+
+"v1.0 GA" is conventionally a maintainer-discretion label — Semver itself defines 1.0 only as "the public API is now stable", without prescribing what *stable* means. To avoid that label becoming arbitrary, Hyperbrief defines an explicit readiness rubric with **two evaluation lenses** that share most dimensions but diverge on one:
+
+- **Lens A — module-wide GA readiness** (7 dimensions). Used to decide whether to cut a `v1.0.0` tag for the module SSoT + plugin. Includes `cross-host portability` because a module that claims "host-agnostic SSoT-tier discipline" at v1.0 should have at least one cross-host validation.
+- **Lens B — host-specific marketplace registration readiness** (6 dimensions = Lens A minus `cross-host portability`). Used to decide whether to register the plugin on a specific host's marketplace (Claude Code's `claude-plugins-community`, hypothetical Cursor marketplace, etc.). Cross-host portability is structurally orthogonal to a single-host marketplace entry decision — a Claude-only marketplace listing does not depend on whether the same logic works on Cursor.
+
+The lens-split prevents the failure mode where a single-host registration decision is gated on cross-host validation that has no causal relevance to that host's users, AND prevents the inverse — a v1.0 GA cut based on single-host validation alone that then surprises cross-host adopters when discovery starts.
+
+#### 11.5.1 The 7 dimensions
+
+| # | Dimension | What it measures | Scoring anchors |
+|---|---|---|---|
+| 1 | **Spec completeness** | Every normative rule + anti-pattern + adopter-guidance section explicit; v0.x candidate patches all closed | 0 = body half-written; 5 = all sections present with gaps; 10 = no unresolved v0.x candidate patches |
+| 2 | **Schema stability** | Time since last schema major + remaining v0.x schema-candidate patches | 0 = schema major break last week + many candidates; 5 = stable for weeks + few candidates; 10 = 30+ days no-break + zero candidates pending |
+| 3 | **External adopter validation** | Count + diversity of external adopters with dogfood / regression reports | 0 = no external adopter; 3 = n=1; 6 = n=2-3; 10 = n=5+ with diverse usage patterns |
+| 4 | **Emergency-fix cadence settled** | Days since last emergency-fix release (blocker class) | 0 = within the day; 2 = within a week; 5 = within 2 weeks; 8 = 30 days; 10 = 60+ days |
+| 5 | **Cross-host portability** *(Lens A only)* | Empirical validation on hosts other than the canonical (Claude Code) | 0 = no other host attempted; 4 = ported but unvalidated; 7 = one cross-host adopter with regression report; 10 = 2+ cross-host adopters |
+| 6 | **Docs maturity** | README + spec + promo + quick-start + troubleshooting catalogue | 0 = README only; 7 = full normative SSoT + promo + adopter notes; 10 = + quick-start one-pager + troubleshooting catalogue |
+| 7 | **Determinism guarantee** | Same-IR → same-output invariant verified across releases, including clean-install reproducibility | 0 = no test; 5 = smoke test passes; 8 = verified + adopter-side reproduction once; 10 = verified continuously across n≥5 adopter environments |
+
+Lens B drops dimension #5 (`Cross-host portability`).
+
+#### 11.5.2 Aggregation
+
+Two complementary numbers, both reported:
+
+- **Simple mean** — sum of dimension scores divided by dimension count. Reflects an "average preparedness" view.
+- **Weighted mean** — apply per-dimension weights reflecting the dimension's load-bearing role for the lens. Canonical default weights: `Emergency-fix cadence × 2.0` (most load-bearing — a still-fluctuating module cannot be GA); `Schema stability × 1.5`, `External adopter validation × 1.5`, `Determinism guarantee × 1.5` (each is a hard-precondition class); other dimensions × 1.0. Adopters MAY tune the weights but MUST publish their chosen weights alongside the score so the result is interpretable.
+
+A `v1.0.0` cut SHOULD require **both** means at ≥ 8.0 on Lens A. A marketplace registration on a given host SHOULD require **both** means at ≥ 7.5 on Lens B for that host.
+
+#### 11.5.3 Current scoring (v0.5.5 — 2026-06-03)
+
+**Lens A (module-wide GA readiness)** — 7 dimensions:
+
+| Dim | Score | Brief evidence |
+|---|---|---|
+| Spec completeness | 8 | SSoT 350+ lines, 21 MUST + 8 SHOULD + 26 anti-patterns + §8.5/§11.3/§11.4 adopter sections shipped; v0.6 candidate patches enumerated |
+| Schema stability | 5 | Last major: v0.5 (today); 3 v0.6 candidates pending (surface-profile estimate / trigger-phrases telemetry / artifact body sub-schema) |
+| External adopter validation | 3 | n=1 external (MangoClass / bundle 008 + 002); EstreUF planned but not deployed |
+| Emergency-fix cadence settled | 2 | Two blocker-class fixes today (v2.5.32 H1 ajv import + v2.5.38 H7 strip-then-validate ordering) within ~6 hours |
+| Cross-host portability | 4 | SSoT-tier vs plugin-tier separation drawn (§11.4) but no Codex / Cursor adopter |
+| Docs maturity | 7 | README + spec + promo + 4 dogfood archives; no one-page quick-start; no troubleshooting catalogue beyond AF-1..26 |
+| Determinism guarantee | 8 | Smoke test passes across v0.4.0 → v0.5.4; verified once at bundle 008 clean-install ajv 8.x reproduction |
+
+Simple mean: **5.3 / 10**. Weighted mean (default weights): **4.9 / 10**. Neither at the ≥ 8.0 v1.0 cut threshold.
+
+**Lens B (Claude Code marketplace registration readiness)** — 6 dimensions (Lens A minus #5):
+
+| Dim | Score |
+|---|---|
+| Spec completeness | 8 |
+| Schema stability | 5 |
+| External adopter validation | 3 |
+| Emergency-fix cadence settled | 2 |
+| Docs maturity | 7 |
+| Determinism guarantee | 8 |
+
+Simple mean: **5.5 / 10**. Weighted mean: **5.1 / 10**. Neither at the ≥ 7.5 marketplace-registration threshold.
+
+#### 11.5.4 Gap to thresholds — what would close them
+
+The Lens-A and Lens-B gaps converge on the same two load-bearing dimensions:
+
+- **Emergency-fix cadence (currently 2)** needs to reach at least 5 (two weeks no-fix) to bring weighted mean over Lens B's 7.5 threshold by itself. The two-blocker day captured in v2.5.32 / v2.5.38 is the empirical anchor — the next 14 days are the first non-trivial test of fix-cadence stability.
+- **External adopter validation (currently 3)** needs to reach at least 6 (n=2-3 with at least one non-EG-owner adopter beyond MangoClass). EstreUF activation is the canonical next step; one additional unrelated adopter would close most of the gap.
+
+The other dimensions (schema stability, docs maturity, determinism, spec completeness) move forward incrementally with each cut and are not the binding constraint at present.
+
+#### 11.5.5 Re-evaluation cadence
+
+The rubric SHOULD be re-applied at the following events (each event triggers a new score row in §11.2 dogfood ledger or as a §6 addendum on an existing entry):
+
+- Every release that bumps a dimension by ≥ 2 points (e.g., a new external adopter joining moves dimension #3 by 3, triggering re-score).
+- Every emergency-fix release (resets dimension #4 timer, re-score even if other dimensions unchanged).
+- At any explicit decision point that names the rubric (e.g., this Entry 04, or a future "ready for v1.0 cut?" decision).
+
+The first scheduled re-evaluation is **2026-09-01** (90 days), the same date as the Entry 01-04 batch revisit per §9 archive_config defaults. Adopters running their own forks SHOULD adopt the same rubric and re-evaluation cadence so cross-project comparisons remain interpretable.
+
+---
 
 **Adopter installation note — host self-config approval gate (v0.5.4, bundle 008 002 reflection)**: registering the hook with the running Claude Code session requires editing `.claude/settings.json` (or equivalent host config), which the host's auto-mode classifier treats as **agent-runtime self-modification** and blocks without explicit user approval. This is a separate gate from the general migration / file-edit flow — an adopter agent running an EG migration script CANNOT silently install the hook on the user's behalf; the user must explicitly approve the settings.json change (or the adopter project owner must commit the settings update). Adopters integrating Hyperbrief should surface this gate in their installation runbook so the operator understands that "hyperbrief plugin installed" and "hyperbrief hook connected" are two distinct steps. **`$CLAUDE_PROJECT_DIR` vs `${CLAUDE_PLUGIN_ROOT}`**: when Hyperbrief is installed as a Claude Code plugin via the marketplace, `hooks.json` references the wrapper scripts via `${CLAUDE_PLUGIN_ROOT}` (the plugin's install directory). When Hyperbrief is **vendored as a sidecar** (copy of the EG `plugins/hyperbrief/` tree into the adopter's own repo), the wrapper scripts live under the adopter's project tree, not the plugin install path; the hook command should then use `$CLAUDE_PROJECT_DIR/.hyperbrief/hooks/trigger-advise.cjs` (or wherever the adopter placed the vendored copy) for portability. The plugin-tier `hooks.json` ships with the `${CLAUDE_PLUGIN_ROOT}` form; vendored adopters MUST rewrite this when staging.
 
