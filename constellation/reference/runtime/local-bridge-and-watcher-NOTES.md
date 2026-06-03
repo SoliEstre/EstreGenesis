@@ -27,6 +27,8 @@
 - 의미 필터(blocklist): inbox 가 이미 라우팅된 큐이므로 알려진 noise(ServerNotice/AgentList/Status/Heartbeat/OnboardAck 등)만 흡수=커서 전진, 그 외는 모두 wake.
 - 멀티 에이전트: `WS_INBOX`/`WS_AGENT_ID` 별도 지정으로 메인·워커 별도 큐 운영. 커서 파일은 inbox 경로에서 자동 derive(`.<name>-cursor`).
 - 폴 간격 15s × 196회 ≈ 49분. 타임아웃 시 re-arm.
+- **watcher arm 유지엔 `state.json`의 `standby:true` 필요** (bundle 007 F6). 설계상 self-wake-watcher는 *무한대기-전용* 메커니즘이라 `standby:false` 면 매 폴 즉시 WAKE 후 exit — 어댑터가 `standby:false` 상태에서 watcher를 띄우면 "watcher 안 도네?" 로 보일 수 있으나 정상 동작. activation runbook 의 watcher 절을 따를 때 state.json `"standby": true` 를 먼저 확인.
+- **vendored 엔진(estreux-engine 등) gitignore 권장** (bundle 007 F7). EstreUX brew 엔진은 `giget` 으로 재취득 가능한 별도 Apache-2.0 리포 산출물 — 어댑터가 자기 사이드카에 vendoring 했을 때 `gitignore` + README 에 재취득 명령(`npx --yes giget@latest gh:SoliEstre/EstreUX/spike#v0.1.0 ./estreux-engine`) 기록을 권장 (SSoT 경계 유지: 사이드카 tracked = 자체 런타임 배치물만).
 
 ## §2 일반화 범위 (`<source-workspace>`-특수 grep)
 

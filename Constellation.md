@@ -1,4 +1,4 @@
-<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.20; date: 2026-06-03; protocol: live-board v0.3 (distilled inline — self-sufficient) + MCP integration v0.4 (§8) + attachment transport-mode v0.4 (§13.11 rule 5) + at-least-once relay reliability v0.5 (§13.13.2 — bridge inbox-append commitment) + board render TEXT_MESSAGE fallback (§13.16.12 Pattern 7) + ack-layer ownership normative for bridge AND gateway/adapter (§13.13 layer split) + AgentHello opt-in broadcast presence + canonical-id alias discipline (§13.9.1 / §13.9.2) + Hyperbrief A2A-intent family (§13.16.9 — DECISION_REQUEST / DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING / HyperbriefCard, 5 names + ack_tier='decided' application-tier extension); license: Apache-2.0 -->
+<!-- module: Constellation; layer: live-orchestration; part-of: EstreGenesis 2.4; version: v2.3.21; date: 2026-06-03; protocol: live-board v0.3 (distilled inline — self-sufficient) + MCP integration v0.4 (§8) + attachment transport-mode v0.4 (§13.11 rule 5) + at-least-once relay reliability v0.5 (§13.13.2 — bridge inbox-append commitment) + board render TEXT_MESSAGE fallback (§13.16.12 Pattern 7) + ack-layer ownership normative for bridge AND gateway/adapter (§13.13 layer split) + AgentHello opt-in broadcast presence + canonical-id alias discipline (§13.9.1 / §13.9.2) + Hyperbrief A2A-intent family (§13.16.9 — DECISION_REQUEST / DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING / HyperbriefCard, 5 names + ack_tier='decided' application-tier extension) + bundle 007 absorption sweep (§2 step 3 AgentHello cross-ref to §13.9.1 + §8.2 /api/state endpoint correction + §8.6 Phase 2 production-ready status update + server.cjs /BREW.md multi-candidate + optional graceful 404 + server-NOTES §2 reflection column + §6 §13.13/§13.13.2 reflected + watcher↔standby & vendored-engine gitignore runbook hints); license: Apache-2.0 -->
 
 # Constellation — Live Multi-Agent Orchestration
 
@@ -46,7 +46,7 @@ One WS text frame = one JSON event (raw WebSocket, RFC 6455 — no library requi
 **Handshake**:
 1. WS connect (per the path above) → server sends `SERVER_HELLO { sessionId, protocolVersion: "0.3", serverTime }` → `AgentList` (role first, so monitors can classify) → `History` (replay).
 2. Send `HELLO { agentId, agentName, role, capabilities{inbound[],outbound[]} }`. New IDE chat = new `agentId`. (A board sends no HELLO.)
-3. Send a **`CUSTOM` event with `name="AgentHello"`** to introduce yourself. Exact wire shape — write the literal frame; **do NOT interpret the `CUSTOM/Name` slash shorthand** used elsewhere as a human-facing label as the on-wire structure:
+3. Send a **`CUSTOM` event with `name="AgentHello"`** to introduce yourself. *Opt-in broadcast presence — see §13.9.1 for the normative status: AgentHello is NOT part of the required handshake (the wire-level invariant is `SERVER_HELLO` followed by `HELLO` only); it adds display metadata + triggers receiver-bridge `OnboardAck` auto-emit, which adopters MAY skip in headless / stealth / telemetry-only deployments. The §2 walkthrough sends it because it's the recommended interactive default, not because the protocol requires it.* Exact wire shape — write the literal frame; **do NOT interpret the `CUSTOM/Name` slash shorthand** used elsewhere as a human-facing label as the on-wire structure:
 
    ```jsonc
    { "type": "CUSTOM",
@@ -200,7 +200,7 @@ The direct-WS path (`§2` A2A bridge + `gateway-client.eux` v2.5.3 SSoT-promoted
 
 The MCP server SHOULD expose at minimum:
 
-- **`board_state_get`** — returns the board's current `state.json` (modes · channels · current/done/planned · decisions · keys · feedback). Read-only; safe to call from any session. Maps directly to the server's `GET /state.json` HTTP endpoint, but presented as an MCP tool so the host's tool-use loop can compose it with other tools.
+- **`board_state_get`** — returns the board's current `state.json` (modes · channels · current/done/planned · decisions · keys · feedback). Read-only; safe to call from any session. Maps directly to the server's `GET /api/state` HTTP endpoint (NOT `/state.json` — `state.json` is the on-disk file name, not the URL path; the previous text in this paragraph erroneously named the file path as the endpoint URL — fixed in v2.5.33 per bundle 007 F2), but presented as an MCP tool so the host's tool-use loop can compose it with other tools.
 - **`board_history_tail(channelId, sinceCursor)`** — returns the per-channel A2A message history from a cursor forward (the cursor is the canonical pointer the `§13.16.6` watcher + `§13.16.10` pre-send probe use). Read-only.
 - **`agent_list_get`** — returns the current `AgentList` (`§13.9` handshake group). Read-only; useful for routing decisions.
 
@@ -234,15 +234,20 @@ Constellation v0.4 ships a `plugins/constellation/` skeleton (root-level `.claud
 
 The plugin's `plugin.json` declares MCP server, skills, and hooks as a single bundle; one `/plugin install` provides all three integration surfaces. See `plugins/constellation/README.md` (Phase 1 prototype scaffolding) for adopter onboarding.
 
-### 8.6 Stage discipline (v0.4 Phase 1)
+### 8.6 Stage discipline — Phase 2 production-ready (v2.5.12+ ship)
 
-The v0.4 ship provides the **spec + skeleton**, not the full implementation:
+**Status update (v2.5.33 per bundle 007 F4)**: the v0.4 paragraph below is a *historical* snapshot from when the plugin shipped as a Phase 1 skeleton; as of v2.5.12 the plugin has graduated to **Phase 2 production-ready (v0.2.0+)** with all five tools fully implemented (`board_state_get` · `board_history_tail` · `agent_list_get` · `a2a_emit` · `a2a_wait_ack` with full §13.13 3-tier ack tracking + `tier='decided'` Hyperbrief application-tier per v2.5.28) + §13.13.2 idempotent receiver dedup + chunked-transfer reassembly + session-lifecycle AgentList integration. The current plugin manifest version is the source of truth (`plugins/constellation/.claude-plugin/plugin.json`); §8.6's prose is documentation-side and lagged behind the ship cadence — adopters reading §8.6 saw "skeleton / stub responses / deferred" while installing a production-ready v0.2.x plugin.
 
-- **Specified now** (§8.2–§8.5 above): the read/write interface shape, the auth model, the connection channel semantics, the plugin-bundle composition.
-- **Skeleton now** (`plugins/constellation/mcp/server.cjs` Phase 1 prototype): tool registration + stub responses + proxy connection to the WS server. Read tools return real data via the WS proxy; write tools currently emit but ack-wait is best-effort.
-- **Full implementation deferred** (Phase 2 / v2.5.10+): `a2a_wait_ack` with full 3-tier ack tracking · session-lifecycle AgentList integration · MCP `prompts/list` and `resources/list` (for board-state-as-resource consumption by the host) · chunked transfer for large A2A payloads (composes with §13.11 attachment transport-mode currently under negotiation, EG → Hermes outbox 295).
+**Current state** (v0.2.x Phase 2 ship):
 
-Adopters who need a complete MCP integration today should use the direct-WS path (`gateway-client.eux` v2.5.3); the v0.4 MCP path is fully usable for *read* and adequate for *one-shot write*. Production-grade write workflows (delegations that need reliable ack semantics) should wait for Phase 2.
+- **Five tools fully implemented**: `board_state_get` (read board state via WS proxy) · `board_history_tail` (per-channel history with cursor + §13.16.9 meaningful filter) · `agent_list_get` (AgentList read) · `a2a_emit` (§13.11 rule 5 attachment-aware) · `a2a_wait_ack` (full §13.13 3-tier: `delivered` / `commitment` / `application`, plus `decided` for Hyperbrief decision-delegation outcomes per v2.5.28).
+- **§13.13.2 idempotent receiver dedup**: seen-msgId LRU 1024/1h; duplicates emit `AckProcessed { dedupHit: true }` automatically.
+- **Chunked transfer reassembly**: `ArtifactManifest` + `ArtifactChunk` + `ArtifactComplete` per §13.11 rule 5 + §13.13.2.
+- **Session-lifecycle AgentList integration**: MCP session = logical agent presence; close → server marks absent on next AgentList.
+
+Adopters can install the plugin (via `/plugin marketplace add SoliEstre/EstreGenesis` + `/plugin install constellation@estregenesis-plugins`) and immediately have the full MCP integration — direct-WS path (`gateway-client.eux`) remains supported for adopters that need a non-MCP gateway, but is no longer the only "complete" route.
+
+**Historical context (v0.4 Phase 1 ship — superseded by v0.2.x Phase 2)**: the v0.4 ship provided the spec + skeleton (tool registration + stub responses + proxy connection) with full implementation deferred. v2.5.12 closed that gap; this paragraph remains as the lineage record.
 
 ---
 
