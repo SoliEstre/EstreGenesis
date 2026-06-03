@@ -1,4 +1,4 @@
-<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.4.1; date: 2026-06-03; status: design draft v0.4.1 (Phase 2 renderer shipped + §11.2 dogfood ledger externalized from SSoT body per §10.2 SHOULD-8 — layer separation between normative spec and operational telemetry); depends-on: none (optional synergy: Constellation §13 A2A, Superscalar §3 cost-benefit gate); license: Apache-2.0 -->
+<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.4.2; date: 2026-06-03; status: design draft v0.4.2 (Constellation §13.16.9 A2A-intent allowlist extended with the Hyperbrief decision-delegation family — 5 names DECISION_REQUEST / DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING / HyperbriefCard, plus the ack_tier='decided' application-tier extension; the §11.1 v0.2.0 cascade item is now shipped); depends-on: none (optional synergy: Constellation §13 A2A — now active, Superscalar §3 cost-benefit gate — queued v0.3.0 cut); license: Apache-2.0 -->
 
 # Hyperbrief — Decision-Delegation Gating Discipline
 
@@ -443,7 +443,7 @@ When Phase 2 ships (v0.4.0) the renderer reads the same IR and produces the same
 ### 11.1 Adoption path (EG)
 
 - **v0.1.0 (this draft)** — `Hyperbrief.md` SSoT + `plugins/hyperbrief/` Phase 1 (2 skills + IR schema + 2 renderers + 2 templates + hooks placeholder).
-- **v0.2.0** — Constellation `DECISION_REQUEST/RESPONSE/DEFER/REJECT_FRAMING` + `HyperbriefCard` allowlist (Constellation v0.3.0); `a2a_wait_ack` recognizes `tier='decided'`.
+- **v0.2.0** — Constellation `DECISION_REQUEST/RESPONSE/DEFER/REJECT_FRAMING` + `HyperbriefCard` allowlist + ack_tier='decided' application-tier extension shipped at Constellation `version: v2.3.20` (EG cut v2.5.27); `a2a_wait_ack` MCP tool recognition of the new tier is queued under v0.4.2 follow-up.
 - **v0.3.0** — Superscalar interlock (Superscalar.md §3 adds irreversibility-gate → hyperbrief-trigger-check escalation).
 - **v0.4.0** — Phase 2 hooks (PreToolUse on AskUserQuestion / git push / gh release / A2A emit) + MCP server (`hyperbrief_render`, `hyperbrief_validate`, `decision_ledger_append`, `decision_ledger_query`).
 - **v0.5.0** — dogfood ledger §11 Entry 01-05 (real cases with retention of user_acceptance_rate, Brier score, pre-mortem text length distribution).
