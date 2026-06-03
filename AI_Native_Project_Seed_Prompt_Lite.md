@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Seed Prompt — Lite
 
-<!-- seed-tier: Lite; language: English; version: v2.4.1; date: 2026-05-31; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
+<!-- seed-tier: Lite; language: English; version: v2.4.2; date: 2026-06-03; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.2 = bundle 007 M1 reflection — Migration B Step 1/2 dual-track guidance -->
 
 > **How to use**: Copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent will run an **interactive bootstrap session** (or a **migration session** if your project already exists — see § Migration Guides).
 >
@@ -310,9 +310,9 @@ Found in your project:
 
 **Trigger**: The project was bootstrapped with an earlier version of the seed prompt (e.g., a pre-research-loop version or pre-multi-agent version). Goal: bring it up to the current standard without forcing a full re-scaffold.
 
-**Step 1 — Identify the starting version**. Check `AGENTS.md` or `.agent/rules.md` for a "seed version" marker, or look at git history of the first scaffolding commit. If unclear, ask the user when they last applied a seed prompt.
+**Step 1 — Identify the starting version (two tracks)**. EG ships on two parallel tracks: **seed version** (e.g., `v2.4.1`, this prompt's own version, marked in `AGENTS.md`) and **EG release version** (e.g., `v2.5.x`, the wider repo's tagged release, advances on every meaningful push). A release-only cut (e.g., a Constellation §13.x patch or a new optional module like Hyperbrief) does NOT bump the seed version, so checking the seed marker alone can miss substantial module/spec changes. Cross-check both: seed marker in `AGENTS.md` against EG-release recorded in adoption manifest, and against upstream `CHANGELOG.md` HEAD. If unclear, ask the user when they last synced AND which EG release tag was current then.
 
-**Step 2 — Diff the capabilities**. List what the current Lite seed adds vs the starting version. Typical deltas:
+**Step 2 — Diff the capabilities (both tracks)**. List what the current Lite seed adds vs the starting seed version (table below), AND list what the EG release has added vs the starting release version (consult upstream `CHANGELOG.md` between the two tags). Typical seed deltas:
 - Older versions may lack `.agent/_coordination/` (multi-agent layer added later)
 - Older versions may lack the Research → Report → Plan → Link loop (research-driven decisions)
 - Older versions may lack `.agent/_lessons/` (troubleshooting memory)

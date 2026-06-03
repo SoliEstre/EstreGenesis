@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v2.4.1; date: 2026-05-31; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
+<!-- seed-tier: Lite; language: Korean; version: v2.4.2; date: 2026-06-03; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.2 = bundle 007 M1 reflection — 마이그레이션 B Step 1/2 dual-track guidance -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -310,9 +310,9 @@ Step A-D 완료 후 에이전트 안내:
 
 **트리거**: 프로젝트가 이전 버전 시드로 부트스트랩 (리서치 루프 이전, 멀티에이전트 이전 등). 목표: 전체 재스캐폴딩 강제 없이 현 표준으로 올림.
 
-**Step 1 — 시작 버전 파악**. `AGENTS.md` 또는 `.agent/rules.md` 에서 "seed version" 마커, 또는 첫 스캐폴딩 커밋의 git 이력. 불명확하면 사용자에게 마지막 시드 적용 시기 질문.
+**Step 1 — 시작 버전 파악 (두 트랙)**. EG 는 두 개의 병렬 트랙으로 ship: **시드 버전** (예: `v2.4.1`, 본 프롬프트 자체 버전, `AGENTS.md` 에 마커) 과 **EG 릴리스 버전** (예: `v2.5.x`, 더 넓은 repo 의 tagged release, 의미있는 push 마다 advance). release-only cut (예: Constellation §13.x patch 또는 Hyperbrief 같은 신규 옵션 모듈) 은 시드 버전을 bump 하지 않으므로 seed 마커만 확인하면 substantial module/spec 변경을 놓칠 수 있음. 두 마커 cross-check: `AGENTS.md` 의 seed 마커를 adoption manifest 에 기록된 EG-release 와 cross-check, upstream `CHANGELOG.md` HEAD 와도 cross-check. 불명확 시 사용자에게 last sync 시점 + 그 시점의 EG release tag 질문.
 
-**Step 2 — 역량 차이(diff) 산출**. 현 Lite 시드가 시작 버전 대비 추가한 것 목록. 전형적 delta:
+**Step 2 — 역량 차이(diff) 산출 (두 트랙)**. 현 Lite 시드가 시작 시드 버전 대비 추가한 것 목록 (아래) **AND** EG 릴리스가 시작 릴리스 버전 대비 추가한 것 목록 (두 tag 사이의 upstream `CHANGELOG.md` 조회). 전형적 시드 delta:
 - 구 버전은 `.agent/_coordination/` 없을 수 있음 (멀티에이전트 레이어는 나중 추가)
 - 구 버전은 Research → Report → Plan → Link 루프 없을 수 있음
 - 구 버전은 `.agent/_lessons/` 없을 수 있음
