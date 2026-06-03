@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 마스터 시드 프롬프트 (한국어)
 
-<!-- seed-tier: Master; language: Korean; version: v2.4.1; date: 2026-05-31; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
+<!-- seed-tier: Master; language: Korean; version: v2.4.2; date: 2026-06-03; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.2 = bundle 007 M1 reflection — 마이그레이션 B Step 1/2 dual-track guidance (seed-version + EG-release-version cross-check) -->
 
 > **사용법**: 새 프로젝트를 시작할 때 이 파일 전체를 복사해 선택한 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등 어느 것이든)의 첫 대화 입력으로 붙여넣으세요. 이 프롬프트를 읽은 에이전트는 **대화형 부트스트랩 세션**을 시작해 프로젝트 셋업을 단계적으로 안내합니다.
 >
@@ -1368,9 +1368,16 @@ Phase 7까지 완료되면 다음 메시지로 세션 마무리:
 
 **트리거**: 프로젝트가 이전 버전 시드로 부트스트랩됨 (리서치 루프 이전 버전·멀티에이전트 이전 버전 등). 목표: 전체 재스캐폴딩 강요 없이 현 표준으로 올리기.
 
-**Step 1 — 시작 버전 파악**. `AGENTS.md` 또는 `.agent/rules.md` 에서 "seed version" 마커 확인, 첫 스캐폴딩 커밋의 git 이력 조사, 또는 불명확 시 사용자에게 질문: "마지막으로 AI Native 시드 프롬프트 적용한 때가 언제이고, 당시 사용한 파일이 어딘가에 저장돼 있나요?"
+**Step 1 — 시작 버전 파악 (두 트랙)**. EstreGenesis 는 **두 개의 병렬 버전 트랙**으로 ship 되며 마이그레이션 프로젝트가 양쪽 모두 advance해야 할 수 있다:
 
-**Step 2 — 역량 차이(diff) 산출**. 현 마스터 시드가 시작 버전 대비 추가한 것 목록. 전형적 delta:
+- **시드 버전** (예: `v2.4.1`) — 본 프롬프트 파일 자체의 버전, `AGENTS.md` 또는 `.agent/rules.md`에 "seed version" 마커로 박제됨. 부트스트랩 surface 자체 (Phase 0–7 프롬프트, AGENTS.md template, Core Principle, Migration Guide 등) 의 구조적 변경 추적.
+- **EG 릴리스 버전** (예: `v2.5.x`) — 더 넓은 EstreGenesis 저장소의 tagged release, `feedback_release_versioning_cadence.md` 정합하게 의미있는 push 마다 advance. 본 시드가 참조하는 **모듈** (`Constellation.md`, `Superscalar.md`, `Hyperbrief.md`, `plugins/*` 플러그인 번들, `constellation/reference/runtime/` reference impl) 과 그 안의 spec section (예: `Constellation.md §13.x` 프로토콜 patch, plugin manifest 버전 bump, Hyperbrief 같은 신규 옵션 모듈) 의 변경 추적.
+
+**시작 버전 선언 전 두 마커 모두 확인.** 두 트랙은 독립적 — release-only cut (예: Constellation `§13.16.9` allowlist 확장 또는 Hyperbrief 모듈 ship) 은 시드 버전을 bump 하지 않으므로, seed 마커만 확인하는 마이그레이션 어댑터가 사실은 substantial 한 module/spec 변경이 원래 부트스트랩 이후 landed 되었음에도 "delta 없음" 으로 판단할 위험. `AGENTS.md` 의 seed-version 마커를 프로젝트의 adoption manifest (보통 `.agent/rules.md` "seed source" 줄 또는 원 `PM/` adoption 기록) 에 기록된 EG-release 버전과 cross-check 하고, upstream EG 저장소의 `CHANGELOG.md` HEAD (본 파일의 `CHANGELOG.md` 가 EG-release delta 의 authoritative SSoT) 와도 cross-check. 불명확 시 사용자에게 질문: "마지막으로 EstreGenesis 시드를 sync 한 때가 언제이고, 그 시점에 current 였던 EG release tag 가 무엇이었나요?"
+
+**Step 2 — 역량 차이(diff) 산출 (두 트랙)**. 현 마스터 시드가 시작 **시드 버전** 대비 추가한 것 목록 (아래 표) **AND** EG 릴리스가 시작 **릴리스 버전** 대비 추가한 것 목록 (두 release tag 사이의 upstream `CHANGELOG.md` 조회 — 보통 EG 저장소에 대해 `git log <starting-tag>..HEAD --oneline -- CHANGELOG.md` 또는 두 tag 사이의 CHANGELOG entry 직접 read). seed-delta 표는 구조적 prompt 변경 cover; release-delta 는 seed-version 마커만으로는 surface 안 되는 module / spec / reference-impl / 플러그인 변경 cover (예: Hyperbrief 같은 신규 옵션 모듈, Constellation `§13.x` 프로토콜 patch, reference-runtime fix).
+
+**시드 delta 표** — 현 마스터 시드가 시작 시드 버전 대비 추가한 것:
 
 | 기능 | 추가된 버전 |
 |---|---|

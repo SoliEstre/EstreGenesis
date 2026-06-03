@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Master Seed Prompt (English)
 
-<!-- seed-tier: Master; language: English; version: v2.4.1; date: 2026-05-31; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
+<!-- seed-tier: Master; language: English; version: v2.4.2; date: 2026-06-03; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.2 = bundle 007 M1 reflection — Migration B Step 1/2 dual-track guidance (seed-version + EG-release-version cross-check) -->
 
 > **How to use**: When starting a new project, copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent that reads this prompt will start an **interactive bootstrap session** that guides your project setup step by step.
 >
@@ -1361,9 +1361,16 @@ Confirm all services give consistent summaries. Any divergence → investigate w
 
 **Trigger**: The project was bootstrapped with an earlier version of this seed (e.g., pre-research-loop version, pre-multi-agent version). Goal: bring it up to the current standard without forcing a full re-scaffold.
 
-**Step 1 — Identify the starting version**. Check `AGENTS.md` or `.agent/rules.md` for a "seed version" marker, check the first scaffolding commit in git history, or — if unclear — ask the user: "When did you last apply an AI Native seed prompt, and do you have the file you used saved anywhere?"
+**Step 1 — Identify the starting version (two tracks).** EstreGenesis ships on **two parallel version tracks**, both of which a migrating project may need to advance:
 
-**Step 2 — Diff the capabilities**. List what the current master seed adds vs the starting version. Typical deltas:
+- **Seed version** (e.g., `v2.4.1`) — this prompt file's own version, embedded as the "seed version" marker in `AGENTS.md` or `.agent/rules.md`. Tracks structural changes to the bootstrap surface itself (Phase 0–7 prompts, AGENTS.md template, Core Principles, Migration Guides, etc.).
+- **EG release version** (e.g., `v2.5.x`) — the wider EstreGenesis repository's tagged release, advancing on every meaningful push per `feedback_release_versioning_cadence.md`. Tracks changes to the **modules referenced by this seed** (`Constellation.md`, `Superscalar.md`, `Hyperbrief.md`, the `plugins/*` plugin bundles, the `constellation/reference/runtime/` reference impl) and to spec sections within them (e.g., `Constellation.md §13.x` protocol patches, plugin manifest version bumps, new optional modules like Hyperbrief).
+
+**Check both markers before declaring a starting version.** The two tracks are independent — a release-only cut (e.g., a Constellation `§13.16.9` allowlist extension or a Hyperbrief module ship) does NOT bump the seed version, so a migrating adopter that checks only the seed marker may conclude "no delta" when in fact substantial module/spec changes have landed since the original bootstrap. Cross-check the seed-version marker in `AGENTS.md` against the EG-release version recorded in the project's adoption manifest (typically `.agent/rules.md` "seed source" line or the original `PM/` adoption record), and against `CHANGELOG.md` HEAD on the upstream EG repo (this file's `CHANGELOG.md` is the authoritative SSoT for EG-release deltas). If unclear, ask the user: "When did you last sync from the EstreGenesis seed, and which EG release tag was current at that time?"
+
+**Step 2 — Diff the capabilities (both tracks).** List what the current master seed adds vs the starting **seed version** (table below), AND list what the EG release has added vs the starting **release version** (consult upstream `CHANGELOG.md` between the two release tags — typically a `git log <starting-tag>..HEAD --oneline -- CHANGELOG.md` against the EG repo, or just read the CHANGELOG entries between the two tags). The seed-delta table covers structural prompt changes; the release-delta covers module / spec / reference-impl / plugin changes that the seed-version marker alone does NOT surface (e.g., a new optional module like Hyperbrief, a Constellation `§13.x` protocol patch, a reference-runtime fix).
+
+**Seed-delta table** — what the current master seed adds vs the starting seed version:
 
 | Feature | Added in |
 |---|---|

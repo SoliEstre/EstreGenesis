@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Compact
 
-<!-- seed-tier: Compact; language: Korean; version: v2.4.1; date: 2026-05-31; counterpart: AI_Native_Project_Seed_Prompt_Compact.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md -->
+<!-- seed-tier: Compact; language: Korean; version: v2.4.2; date: 2026-06-03; counterpart: AI_Native_Project_Seed_Prompt_Compact.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.4.2 = bundle 007 M1 reflection — 마이그레이션 B dual-track 1-liner -->
 
 > 어떤 AI 코딩 에이전트에게든 첫 메시지로 붙여넣기. **자기 완결** — 다른 tier 참조 없음; AI Native 패턴 이미 아는 저자용. 라이브러리의 다른 tier (Master, Lite) 가 동일 패턴을 다른 깊이로 ship — **프로젝트 repo 당 1 tier**, 혼합은 dead link 발생. 본 시드의 inline 스크립트는 *알고리즘 spec* 으로 묘사 (에이전트가 spec 따라 생성); 즉시 복사-붙여넣기 가능한 풀 source 가 필요하면 라이브러리의 Master 또는 Lite tier 사용.
 
@@ -66,8 +66,8 @@
 경고 신호 → 중지 후 질문: 브릿지 간 규칙 충돌, 기존 `.agent/` 이전 커밋 (history 재작성 금지), 사용자가 유지하고 싶은 커스텀 coordination, 500줄+ 프로젝트 특화 브릿지 파일.
 
 ## 마이그레이션 B — 구 시드 버전 → 현 버전
-1. **시작 버전 파악** — AGENTS.md 마커 / git 이력 / 사용자 질문.
-2. **역량 차이 산출** — 전형적 delta: `.agent/_coordination/` (v1.0), 리서치 루프 (v1.1), 마이그레이션 가이드 (v1.2), Bootstrap/Migration 모드 분기 (v1.2), 원칙 6\~9 + § 인덱스 동기화 · § 외부 N-way sync · § 마크다운 `~` escape · § RAG 인덱스 최적화 · § 문서 인플레이션 방지 (v1.3), 강제 훅 (v1.3.4), 작업 분해 전략 (v1.3.5), 외부 지식 인덱스 자동 동기화 (v1.3.6), Phase 0 에이전트 말투 선택 (v1.3.7), Phase 2.5 Bootstrap Residency + Adoption Catalog (v1.5.0), Phase 0 페이스 모드 + 원칙 #13 (agent-time vs human-time 추정) + PM split-time 형식 (v1.6.0), 원칙 #14 Constellation 라이브 오케스트레이션 (EUX 는 빌드 런타임 참조, 비소유) (v2.0.0). 번호 메뉴로 제시.
+1. **시작 버전 파악 (두 트랙)** — EG 는 병렬 **시드 버전** (본 프롬프트 자체, `AGENTS.md` 마커) AND **EG 릴리스 버전** (더 넓은 repo 의 tagged release, 의미있는 push 마다 advance) 으로 ship. release-only cut (Constellation §13.x patch, Hyperbrief 같은 신규 모듈) 은 시드를 bump 하지 않음; 양 마커 모두 확인 (AGENTS.md seed + adoption manifest EG-release + upstream `CHANGELOG.md` HEAD) 후 시작 상태 선언. 사용자에게 last sync 시점 AND 그 시점의 EG release tag 질문.
+2. **역량 차이 산출 (두 트랙)** — 전형적 시드 delta: `.agent/_coordination/` (v1.0), 리서치 루프 (v1.1), 마이그레이션 가이드 (v1.2), Bootstrap/Migration 모드 분기 (v1.2), 원칙 6\~9 + § 인덱스 동기화 · § 외부 N-way sync · § 마크다운 `~` escape · § RAG 인덱스 최적화 · § 문서 인플레이션 방지 (v1.3), 강제 훅 (v1.3.4), 작업 분해 전략 (v1.3.5), 외부 지식 인덱스 자동 동기화 (v1.3.6), Phase 0 에이전트 말투 선택 (v1.3.7), Phase 2.5 Bootstrap Residency + Adoption Catalog (v1.5.0), Phase 0 페이스 모드 + 원칙 #13 (agent-time vs human-time 추정) + PM split-time 형식 (v1.6.0), 원칙 #14 Constellation 라이브 오케스트레이션 (EUX 는 빌드 런타임 참조, 비소유) (v2.0.0). 번호 메뉴로 제시.
 3. **가산적 적용** — 신규 디렉토리는 템플릿으로, 신규 AGENTS.md 섹션은 자연 위치에 삽입, 신규 브릿지는 기존 건드리지 않고 추가. 각 추가에 `<!-- seed vX.Y 마이그레이션에서 추가, YYYY-MM-DD -->` 마커.
 4. **사용자 진화분 보존** — 커스텀 규칙·프로젝트 특화 섹션은 그대로.
 5. **`.agent/_coordination/CHANGELOG.md` 에 기록** — 어떤 delta 를 적용했는지·뭘 생략했는지·뭘 보존했는지.
