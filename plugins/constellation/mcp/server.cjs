@@ -176,14 +176,18 @@ async function connectWS() {
           p.resolve({ tier: 'commitment', ackedAt: Date.now(), dedupHit: !!msg.value.dedupHit });
           wsState.pendingAcks.delete(msg.value.ackFor);
         }
-      } else if (msg.name === 'Report' || msg.name === 'DONE' || msg.name === 'BLOCKED' || msg.name === 'NEEDS_HUMAN') {
+      } else if (msg.name === 'Report' || msg.name === 'DONE' || msg.name === 'BLOCKED' || msg.name === 'NEEDS_HUMAN'
+                 || msg.name === 'DECISION_RESPONSE' || msg.name === 'DECISION_DEFER' || msg.name === 'DECISION_REJECT_FRAMING') {
         // Application-tier — match by re_msgId or value.for
+        // tier='decided' is the Hyperbrief-specific application-tier per Constellation §13.16.9 + Hyperbrief.md §8.2
         const ackFor = msg.value?.re_msgId || msg.value?.for;
         if (ackFor) {
           const p = wsState.pendingAcks.get(ackFor);
-          if (p && p.tier === 'application') {
+          const isDecisionOutcome = msg.name === 'DECISION_RESPONSE' || msg.name === 'DECISION_DEFER' || msg.name === 'DECISION_REJECT_FRAMING';
+          // 'decided' waiters resolve on DECISION_* outcomes; 'application' waiters resolve on either generic outcomes or DECISION_* outcomes
+          if (p && (p.tier === 'application' || (p.tier === 'decided' && isDecisionOutcome))) {
             clearTimeout(p.timer);
-            p.resolve({ tier: 'application', ackedAt: Date.now(), outcome: msg.name, body: msg.value });
+            p.resolve({ tier: p.tier, ackedAt: Date.now(), outcome: msg.name, body: msg.value });
             wsState.pendingAcks.delete(ackFor);
           }
         }
@@ -221,7 +225,7 @@ const TOOLS = [
   { name: 'board_history_tail', description: 'Per-channel A2A history from cursor forward. Read-only.', inputSchema: { type: 'object', properties: { channelId: { type: 'string' }, sinceCursor: { type: 'integer' }, meaningfulOnly: { type: 'boolean', default: true } }, required: ['channelId', 'sinceCursor'] } },
   { name: 'agent_list_get', description: 'Current AgentList (§13.9 handshake group). Read-only.', inputSchema: { type: 'object', properties: {}, required: [] } },
   { name: 'a2a_emit', description: 'Emit targeted CUSTOM/{name} envelope to targetAgentId. §13.11 rule 5 attachment-aware. Returns server-stamped msgId.', inputSchema: { type: 'object', properties: { targetAgentId: { type: 'string' }, name: { type: 'string' }, value: { type: 'object' }, attachments: { type: 'array', items: { type: 'object' } } }, required: ['targetAgentId', 'name', 'value'] } },
-  { name: 'a2a_wait_ack', description: 'Block until ack tier arrives or timeout. Full §13.13 3-tier.', inputSchema: { type: 'object', properties: { msgId: { type: 'string' }, tier: { type: 'string', enum: ['delivered', 'commitment', 'application'] }, timeoutMs: { type: 'integer', default: 30000 } }, required: ['msgId', 'tier'] } },
+  { name: 'a2a_wait_ack', description: 'Block until ack tier arrives or timeout. Full §13.13 3-tier + Hyperbrief tier=decided application-tier extension (resolves on DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING).', inputSchema: { type: 'object', properties: { msgId: { type: 'string' }, tier: { type: 'string', enum: ['delivered', 'commitment', 'application', 'decided'] }, timeoutMs: { type: 'integer', default: 30000 } }, required: ['msgId', 'tier'] } },
 ];
 
 async function ensureConnected() {

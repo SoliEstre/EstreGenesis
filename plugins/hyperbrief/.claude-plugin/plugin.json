@@ -1,12 +1,18 @@
 {
   "name": "hyperbrief",
-  "version": "0.1.0",
-  "description": "Decision-delegation gating discipline. Wraps Hyperbrief.md v0.1 as model-invoked skills: trigger rubric + §0 escalation gate + 8-section JSON IR schema + deterministic MD/HTML renderers + Constellation DECISION_REQUEST card integration + revisit-date learning loop closure. Phase 1 = skills (trigger-check + hyperbrief + revisit) + IR schema + 2 deterministic renderers + 2 templates. Phase 2 will add PreToolUse hook (decision-keyword detection auto-triggers rubric) + MCP server (hyperbrief_render / hyperbrief_validate / decision_ledger_append / decision_ledger_query). 결정 위임 게이팅 규율: 사용자에게 결정을 묻는 행위 자체를 규율한다.",
+  "version": "0.4.2",
+  "description": "Decision-delegation gating discipline. Wraps Hyperbrief.md v0.4.2 as 3 model-invoked skills (trigger-check + hyperbrief + revisit) + IR schema + 2 templates + Phase 2 deterministic renderers (mini-engine.cjs + types.d.ts + bin/render.cjs + ajv) + Phase 2 MCP server exposing 4 tools (hyperbrief_render / hyperbrief_validate / decision_ledger_append / decision_ledger_query). PreToolUse hook (decision-keyword detection auto-triggers rubric) deferred to v0.5. 결정 위임 게이팅 규율: 사용자에게 결정을 묻는 행위 자체를 규율한다.",
   "author": {
     "name": "SoliEstre",
     "url": "https://github.com/SoliEstre/EstreGenesis"
   },
   "license": "Apache-2.0",
   "homepage": "https://github.com/SoliEstre/EstreGenesis/blob/main/Hyperbrief.md",
-  "repository": "https://github.com/SoliEstre/EstreGenesis"
+  "repository": "https://github.com/SoliEstre/EstreGenesis",
+  "mcp": {
+    "hyperbrief-mcp": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.cjs"]
+    }
+  }
 }

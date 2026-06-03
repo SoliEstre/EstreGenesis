@@ -1,7 +1,7 @@
 {
   "name": "constellation-mcp",
-  "version": "0.2.0",
-  "description": "Constellation MCP server — Phase 2 full impl (WS proxy + 5 tools + 3-tier ack + chunked transfer + §13.13.2 dedup)",
+  "version": "0.2.4",
+  "description": "Constellation MCP server — Phase 2 full impl (WS proxy + 5 tools + 3-tier ack + chunked transfer + §13.13.2 dedup) + v0.2.4 Hyperbrief tier='decided' application-tier extension (resolves on DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING).",
   "main": "server.cjs",
   "dependencies": {
     "ws": "^8.18.0"
