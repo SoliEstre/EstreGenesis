@@ -1,4 +1,25 @@
 {
-  "_comment": "Phase 1 placeholder — hooks deferred to Phase 2 (v0.4.0). When activated, this file will register: (1) PreToolUse matcher for AskUserQuestion / Bash(git push|gh release) / Constellation A2A emit — auto-invokes hyperbrief-trigger-check skill before the tool call; (2) Stop hook — scans decision-ledger for revisit_date arrivals and triggers hyperbrief-revisit skill. Empty hooks block in Phase 1 means no hook is registered yet — discovery is via SKILL.md frontmatter only.",
-  "hooks": {}
+  "_comment": "v0.5.3 (bundle 008 / dogfood Entry 03) — advise-mode hook active. PreToolUse: AskUserQuestion (always) + Bash (write/deploy/send whitelist via wrapper). Stop: ledger revisit-date + pending-review scan. All hooks exit 0 (advisory, never block). Per Hyperbrief.md §11.1 v0.5.3 + Constellation §13.16.9 (DECISION_REQUEST family in A2A allowlist since v2.5.27). Constellation-on → review item posted to board; Constellation-off + auto_generate_review_doc=on → .hyperbrief/pending-reviews/<id>.md placeholder; default 'ask' → stderr advise only.",
+  "PreToolUse": [
+    {
+      "matcher": "AskUserQuestion",
+      "hooks": [
+        { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/trigger-advise.cjs\" --tool=AskUserQuestion" }
+      ]
+    },
+    {
+      "matcher": "Bash",
+      "hooks": [
+        { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/trigger-advise.cjs\" --tool=Bash" }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/revisit-scan.cjs\"" }
+      ]
+    }
+  ]
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hyperbrief — decision-delegation gating discipline · EstreGenesis</title>
-  <meta name="description" content="Hyperbrief v0.5.2 — schema-enforced JSON IR (FullBrief + BlockedStub) + deterministic Node renderer + 3-axis × 5-level tone profile + 26 anti-patterns + 21 MUST / 8 SHOULD + 4 MCP tools. Two self-applied dogfood entries + adopter bundle 008. Constellation §13.16.9 + Superscalar §3.1 integrations shipped.">
+  <meta name="description" content="Hyperbrief v0.5.3 — schema-enforced JSON IR (FullBrief + BlockedStub) + deterministic Node renderer + 3-axis × 5-level tone profile + 26 anti-patterns + 21 MUST / 8 SHOULD + 4 MCP tools + PreToolUse/Stop hooks (advise mode + Constellation board review-queue routing OR standalone .hyperbrief/pending-reviews placeholder). Three self-applied dogfood entries + adopter bundle 008.">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="shared/shared.css">
   <link rel="stylesheet" href="shared/themes.css">
@@ -56,11 +56,11 @@
       <p class="tagline" data-aud="dev" data-en="A decision-delegation gating discipline. Every user-facing decision question runs through a trigger rubric, then — if it escalates — emits a schema-enforced JSON IR that a deterministic Node renderer turns into structured MD and interactive HTML." data-ko="결정 위임 게이팅 규율. 모든 user-facing 결정 질문은 먼저 트리거 rubric을 통과하고, 에스컬레이션 시 schema가 강제하는 JSON IR을 emit한 뒤 결정론적 Node renderer가 이를 구조화된 MD와 interactive HTML로 변환합니다.">A decision-delegation gating discipline — trigger rubric + schema-enforced JSON IR + deterministic Node renderer.</p>
       <p class="tagline" data-aud="expert" data-en="A decision-delegation gating discipline distilled from a 6-axis deep-research synthesis (AI harness / humanities / psychology / management / philosophy / development), governing the act of asking the user to decide via a 5-stage pipeline: trigger rubric, epistemic-honesty surface, cognitive-debiasing layout, reversibility-first governance, and a post-decision learning loop." data-ko="6축 딥리서치 합성(AI 하네스 / 인문학 / 심리학 / 경영학 / 철학 / 개발론)으로부터 증류된 결정 위임 게이팅 규율이며, 「사용자에게 결정을 묻는 행위」 자체를 5단 파이프라인 — 트리거 rubric, 인식론적 정직성 표면, 인지적 debiasing 배치, 가역성 우선 거버넌스, 그리고 사후 학습 루프 — 으로 규율한다.">A decision-delegation gating discipline distilled from a 6-axis deep-research synthesis.</p>
       <div class="badges">
-        <span class="badge">v0.5.2</span>
+        <span class="badge">v0.5.3</span>
         <span class="badge">9-section IR + BlockedStub</span>
         <span class="badge">26 anti-patterns</span>
-        <span class="badge">2 dogfood + adopter bundle</span>
-        <span class="badge">4 MCP tools</span>
+        <span class="badge">3 dogfood + adopter bundle</span>
+        <span class="badge">4 MCP tools + hooks</span>
         <span class="badge">Apache-2.0</span>
       </div>
     </section>
@@ -175,7 +175,8 @@
 
 # Optional env override (default: .agent/_decisions/hyperbrief-ledger.jsonl):
 HYPERBRIEF_LEDGER_PATH=/path/to/hyperbrief-ledger.jsonl</code></pre>
-      <p data-aud="general" data-en="No external WebSocket server or other infrastructure required — Hyperbrief is self-contained. Optional synergies: install Constellation alongside and decision cards get pushed to the live dashboard; install Superscalar alongside and parallel write/deploy/send lanes auto-gate through Hyperbrief at retire time." data-ko="외부 WebSocket 서버나 다른 인프라가 필요하지 않습니다 — Hyperbrief는 자급자족합니다. 선택적 시너지: Constellation을 함께 install하면 결정 카드가 라이브 대시보드에 push되고, Superscalar를 함께 install하면 병렬 write/deploy/send lane이 retire 시점에 Hyperbrief를 통해 자동 게이트됩니다.">Hyperbrief is self-contained — no external infra required. Optional synergies: Constellation (decision cards → live dashboard) + Superscalar (write/deploy/send lanes auto-gate at retire).</p>
+      <p data-aud="general" data-en="No external WebSocket server or other infrastructure required — Hyperbrief is self-contained. Optional synergies: install Constellation alongside and decision cards (including hook-detected pending-review placeholders) get pushed to the live dashboard's review-items panel; install Superscalar alongside and parallel write/deploy/send lanes auto-gate through Hyperbrief at retire time." data-ko="외부 WebSocket 서버나 다른 인프라가 필요하지 않습니다 — Hyperbrief는 자급자족합니다. 선택적 시너지: Constellation을 함께 install하면 결정 카드(hook 이 감지한 pending-review placeholder 포함)가 라이브 대시보드의 검토 사안 패널에 push되고, Superscalar를 함께 install하면 병렬 write/deploy/send lane이 retire 시점에 Hyperbrief를 통해 자동 게이트됩니다.">Hyperbrief is self-contained — no external infra required. Optional synergies: Constellation (decision cards + pending-review placeholders → live dashboard review panel) + Superscalar (write/deploy/send lanes auto-gate at retire).</p>
+      <p data-aud="dev" data-en="v0.5.3 adds PreToolUse + Stop hooks in advise mode (exit 0, never block). The PreToolUse hook fires on AskUserQuestion + Bash-write/deploy/send-whitelist and routes per a 4-way decision tree: Constellation reachable → DECISION_REQUEST envelope posted to the board's review-items panel; Constellation off + auto_generate_review_doc=on → `.hyperbrief/pending-reviews/<id>.md` placeholder; default 'ask' → stderr advise + setup hint; off → simple alert. The Stop hook scans the decision ledger + pending-reviews for unreviewed items and emits a single advisory line. Adds a silent-skip detection layer on top of the model-invoked SKILL.md discipline; does NOT replace it (cross-host portability preserved)." data-ko="v0.5.3가 PreToolUse + Stop hook을 advise mode(exit 0, 차단 안 함)로 추가. PreToolUse hook이 AskUserQuestion + Bash-write/deploy/send-whitelist에서 fire하고 4-way decision tree로 routing: Constellation 가용 → DECISION_REQUEST envelope이 보드의 검토 사안 패널에 등록; Constellation off + auto_generate_review_doc=on → `.hyperbrief/pending-reviews/<id>.md` placeholder; 기본 'ask' → stderr advise + 설정 안내; off → 단순 알림. Stop hook이 결정 ledger + pending-reviews에서 미검토 항목 스캔하고 단일 advisory line emit. model-invoked SKILL.md 규율 위에 silent-skip 감지 layer 추가; 대체하지 않음 (cross-host portability 보존).">v0.5.3 adds advise-mode PreToolUse + Stop hooks with a 4-way review-queue routing tree (Constellation board / standalone placeholder / setup-ask / silent). Adds silent-skip detection on top of model-invoked SKILL.md; does NOT replace it.</p>
     </section>
 
     <section>
