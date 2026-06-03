@@ -5,6 +5,12 @@
 # Per-agentId PID lockfile written by the single-instance guard; never tracked.
 constellation/reference/runtime/.*-bridge.lock
 
+# Constellation reference runtime — operational JSONL streams (inbox / outbox / etc.)
+# Written by the running runtime when it acts as the local bridge for an interactive
+# session. Reference impl source (*.cjs, *.sh, *.md) stays tracked; these jsonl
+# operational artifacts do not. Memory feedback_workspace_cleanliness applies.
+constellation/reference/runtime/*.jsonl
+
 # Local agent-workspace artifacts at repo root (bootstrap policy).
 # Public reference docs and the constellation/ tree stay tracked; agent-local rule sheets / config / scratch dirs do not.
 /AGENTS.md
