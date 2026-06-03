@@ -181,7 +181,10 @@ function onInbound(m) {
 }
 
 // ---- outbox.jsonl 새 줄 → WS 송신 (에이전트가 append) ----
-let outboxCursor = 0;
+// init = EOF — pre-existing lines are skipped per local-bridge.eux @state.outboxCursor spec.
+// 재spawn 시 outbox.jsonl 전체 replay 방지 (구 구현 outboxCursor=0 → bridge 재기동마다 누적 history 재송신 + §13.13.2 dedup 의존했음).
+function initOutboxCursor() { try { return fs.statSync(OUTBOX).size; } catch { return 0; } }
+let outboxCursor = initOutboxCursor();
 function pollOutbox() {
   let stat; try { stat = fs.statSync(OUTBOX); } catch { return; }   // 파일 없으면 대기
   if (stat.size < outboxCursor) outboxCursor = 0;                   // 파일 교체/축소 → 리셋
