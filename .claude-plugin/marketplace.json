@@ -5,15 +5,15 @@
     "url": "https://github.com/SoliEstre/EstreGenesis"
   },
   "metadata": {
-    "version": "0.1.0",
-    "description": "EstreGenesis self-hosted Claude Code plugin marketplace. Currently ships Constellation (live multi-agent orchestration with MCP integration) and Superscalar (execution-scheduling discipline) as Phase 1 prototype plugins. Plugins are Apache-2.0 licensed; the marketplace mirrors the EG repo's main branch.",
+    "version": "0.3.0",
+    "description": "EstreGenesis self-hosted Claude Code plugin marketplace. Ships three Phase 2 production-ready plugins: Constellation (live multi-agent orchestration with WS server + A2A messaging + dashboard + MCP server with 5 tools), Superscalar (execution-scheduling discipline for parallel sub-agent dispatch + §3.1 Hyperbrief interlock), and Hyperbrief (decision-delegation gating discipline with JSON IR + deterministic renderer + MCP server with 4 tools + PreToolUse/Stop hooks + §11.5 v1.0 readiness rubric). Plugins are Apache-2.0 licensed; the marketplace mirrors the EG repo's main branch. Install via `/plugin marketplace add SoliEstre/EstreGenesis` then `/plugin install <name>@estregenesis-plugins`.",
     "license": "Apache-2.0"
   },
   "plugins": [
     {
       "name": "constellation",
       "source": "./plugins/constellation",
-      "description": "Live multi-agent orchestration client for Claude Code. Connects to a separately-running Constellation WebSocket server (user-provisioned; canonical reference impl at constellation/reference/runtime/server.cjs in this repo). MCP server exposes 5 tools (board_state_get / board_history_tail / agent_list_get / a2a_emit / a2a_wait_ack), 3 skills, and a Stop hook bundling pre-send-probe.cjs. Without a running WS server the plugin loads cleanly and degrades gracefully (skills are documentation-only, hook logs cleanly). v0.2.1: hook script self-contained for community-marketplace compatibility. v0.2.2: probe ALLOWLIST extended (Request/Reply/Attachment/ArtifactManifest/ArtifactComplete) + inner-name fallback for doubly-wrapped CUSTOM envelopes. v0.2.3: Infrastructure-requirements section added prominently at top of README per community-marketplace submission readiness review. npm dep: ws ^8.18.0.",
+      "description": "Live multi-agent orchestration client for Claude Code. Connects to a separately-running Constellation WebSocket server (user-provisioned; canonical reference impl at constellation/reference/runtime/server.cjs in this repo). MCP server exposes 5 tools (board_state_get / board_history_tail / agent_list_get / a2a_emit / a2a_wait_ack — tier='decided' application-tier extension included), 3 skills, and a Stop hook bundling pre-send-probe.cjs. Without a running WS server the plugin loads cleanly and degrades gracefully (skills are documentation-only, hook logs cleanly). v0.2.3 reflects bundle 007 absorption + Hyperbrief A2A-intent family (§13.16.9 — DECISION_REQUEST / DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING / HyperbriefCard) + §13.13.2 at-least-once relay reliability + chunked transfer reassembly. npm dep: ws ^8.18.0.",
       "version": "0.2.3",
       "category": "orchestration",
       "tags": ["multi-agent", "websocket", "a2a", "live-board", "mcp", "dashboard"]
@@ -21,10 +21,18 @@
     {
       "name": "superscalar",
       "source": "./plugins/superscalar",
-      "description": "Execution-scheduling discipline for parallel sub-agent dispatch: issue_width formula (effort_band + pace_mode + Little's Law + Kanban WIP + autonomy_available_workers) + worktree-isolated reorder buffer + cost-benefit gate + opt-in speculation + adoption thresholds. Plugin v0.1.0 wraps Superscalar.md v0.4 as a model-invoked skill the agent consults before fan-out decisions.",
-      "version": "0.1.0",
+      "description": "Execution-scheduling discipline for parallel sub-agent dispatch. Wraps Superscalar.md v0.4.2 as a model-invoked skill: issue_width formula (effort_band + pace_mode + Little's Law + Kanban WIP + autonomy_available_workers) + worktree-isolated reorder buffer + cost-benefit gate (~30-60k token-horizon crossover) + opt-in speculation + adoption thresholds + n=8 dogfood ledger (Entry 05 + Entry 06 controlled A/B showing 'parallelism is not sufficient; orchestration discipline produces consistency') + v0.4.1 §3.1 Hyperbrief decision-delegation interlock (write/deploy/send lanes pass through both cost-benefit gate AND hyperbrief-trigger-check; read-only lanes exempt). 0 npm deps / 0 env.",
+      "version": "0.1.2",
       "category": "scheduling",
       "tags": ["parallelism", "dispatch", "discipline", "worktree", "consistency-gate"]
+    },
+    {
+      "name": "hyperbrief",
+      "source": "./plugins/hyperbrief",
+      "description": "Decision-delegation gating discipline. Wraps Hyperbrief.md v0.5.6 as 3 model-invoked skills (hyperbrief-trigger-check + hyperbrief + hyperbrief-revisit) + JSON IR schema (FullBrief + BlockedStub variants) + 4 templates (MD + HTML × FullBrief + BlockedStub) + deterministic Node renderer (mini-engine.cjs with self-engineered placeholder substitution + 3-axis × 5-level tone profile + ajv schema validation) + MCP server exposing 4 tools (hyperbrief_render / hyperbrief_validate / decision_ledger_append / decision_ledger_query) + PreToolUse + Stop hooks in advise mode (4-way review-queue routing: Constellation board / standalone placeholder / setup-ask / silent). v0.5.6 adds the §5.6.7 + MUST-19 skill-side auto-localize discipline (button label + trigger phrases follow the user's prevailing conversation language; EN/KO/JA reference literals in spec). Cross-module integrations active: Constellation §13.16.9 (5 A2A intent names + ack_tier='decided') + Superscalar §3.1 (orthogonal gate at write/deploy/send lane retire). §11.5 v1.0 readiness rubric (Lens A 7-dim module-wide GA / Lens B 6-dim host-specific marketplace registration) shipped. 4 self-applied dogfood entries + adopter bundle 008. npm dep: ajv ^8.17.0.",
+      "version": "0.5.6",
+      "category": "decision-delegation",
+      "tags": ["decision-gating", "json-ir", "deterministic-renderer", "mcp", "hooks", "rapid", "cynefin"]
     }
   ]
 }
