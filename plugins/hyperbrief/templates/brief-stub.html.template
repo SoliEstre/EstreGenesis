@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>{{decision_id}} · Autonomous decision · Hyperbrief</title>
+  <style>
+    body { font: 14px/1.6 ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", "Pretendard", sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; color: #1f2933; }
+    .stub-card { border: 1px solid #cfd6df; border-left: 4px solid #16a34a; border-radius: 8px; padding: 20px 24px; background: #f0fdf4; }
+    h1 { font-size: 18px; margin: 0 0 8px; color: #14532d; }
+    .escalation { font: 12px/1.4 ui-monospace, "SFMono-Regular", monospace; color: #465160; padding: 6px 10px; background: #fff; border: 1px solid #cfd6df; border-radius: 999px; display: inline-block; margin-bottom: 14px; }
+    h2 { font-size: 14px; margin: 16px 0 6px; color: #14532d; }
+    .footer { margin-top: 22px; font-size: 12px; color: #5b6573; font-style: italic; }
+    code { font-family: ui-monospace, "SFMono-Regular", monospace; background: #fff; padding: 1px 5px; border-radius: 3px; border: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="stub-card">
+    <h1>🤖 Autonomous decision · <code>{{decision_id}}</code></h1>
+    <div class="escalation">
+      escalation sum <b>{{escalation_header.sum}}</b> / 12
+      &nbsp;·&nbsp; irreversibility {{escalation_header.irreversibility}}
+      &nbsp;·&nbsp; blast {{escalation_header.blast_radius}}
+      &nbsp;·&nbsp; horizon {{escalation_header.time_horizon}}
+      &nbsp;·&nbsp; reversal {{escalation_header.reversal_cost}}
+    </div>
+
+    <h2>Why not user-delegated</h2>
+    <p>{{escalation_header.autonomy_refusal_reason}}</p>
+
+    <h2>Action taken (autonomous)</h2>
+    <p>{{autonomous_action_taken}}</p>
+
+    <h2>Post-notify message</h2>
+    <p>{{post_notify_message}}</p>
+
+    <p class="footer">
+      <code>BlockedStub</code> IR per <a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Hyperbrief.md">Hyperbrief.md</a> §2 routing — rendered as a compact post-notify card. To force a FullBrief: raise an axis (irreversibility / blast_radius / time_horizon / reversal_cost) so <code>escalation_sum ≥ 4</code>, or trigger one of the 5 MUST-triggers.
+    </p>
+  </div>
+</body>
+</html>

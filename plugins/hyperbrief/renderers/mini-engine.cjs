@@ -304,12 +304,34 @@ function loadTemplate(filename) {
   return fs.readFileSync(path.join(TEMPLATES_DIR, filename), "utf8");
 }
 
+// v0.5.2 H5: epistemic-tag form is a doughnut-chart metadata signal, not heading content. Strip
+// the canonical `[verified|inferred|assumed|unknown]` prefix from §6.essence_one_line *only* — IR
+// field always carries the canonical tag form; surface heading variant strips. Per bundle 008 H5.
+function stripHeadingEpistemicTag(ir) {
+  const e = ir?.section_6_decision_prompt;
+  if (!e || typeof e.essence_one_line !== "string") return;
+  e.essence_one_line = e.essence_one_line.replace(
+    /^\[(verified|inferred|assumed|unknown)\](\[(관찰|추론|외부:[^\]]+|가정)\])?\s+/,
+    ""
+  );
+}
+
+// v0.5.2 H2: status-based template selection. BlockedStub gets the compact stub template; FullBrief
+// gets the full brief template. Per bundle 008 H2.
+function selectTemplate(ir, surface) {
+  const isStub = ir && ir.status === "blocked_low_escalation";
+  if (surface === "html") return isStub ? "brief-stub.html.template" : "brief.html.template";
+  return isStub ? "brief-stub.md.template" : "brief.md.template";
+}
+
 function renderMd(ir, opts = {}) {
   const warnings = [];
   const profile = resolveProfile(ir, opts);
 
   // v0.5: auto-stamp recommended_artifacts metadata (line_count + body_hash)
   stampRecommendedArtifacts(ir);
+  // v0.5.2 H5: strip epistemic tag from heading content
+  stripHeadingEpistemicTag(ir);
 
   if (!opts.skip_validate) {
     const v = validateIr(ir);
@@ -322,7 +344,7 @@ function renderMd(ir, opts = {}) {
     if (v.skipped) warnings.push("ajv not installed; schema validation skipped (Phase 1 fallback territory).");
   }
 
-  const template = loadTemplate("brief.md.template");
+  const template = loadTemplate(selectTemplate(ir, "md"));
   const substituted = substitute(template, ir, "md");
   const output = applyToneAxes(substituted, profile, warnings);
 
@@ -352,6 +374,8 @@ function renderHtml(ir, opts = {}) {
 
   // v0.5: auto-stamp recommended_artifacts metadata
   stampRecommendedArtifacts(ir);
+  // v0.5.2 H5: strip epistemic tag from heading content
+  stripHeadingEpistemicTag(ir);
 
   if (!opts.skip_validate) {
     const v = validateIr(ir);
@@ -364,7 +388,7 @@ function renderHtml(ir, opts = {}) {
     if (v.skipped) warnings.push("ajv not installed; schema validation skipped (Phase 1 fallback territory).");
   }
 
-  let template = loadTemplate("brief.html.template");
+  let template = loadTemplate(selectTemplate(ir, "html"));
 
   // §5.6.7 tone-floor fallback button label resolution from IR or default.
   const fallback = (ir.section_0_decision_header && ir.section_0_decision_header.audience_profile_fallback) || {};

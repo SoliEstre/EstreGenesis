@@ -36,7 +36,7 @@ function parseArgs(argv) {
     else if (a === "--skip-validate") out.skip_validate = true;
     else if (a === "--help" || a === "-h") {
       process.stdout.write(
-        "Usage: hyperbrief-render --format md|html [--ir <path>] [--audience 1-5] [--abbreviation 1-5] [--jargon 1-5] [--self-contained] [--skip-validate]\n"
+        "Usage: hyperbrief-render --format md|html [--ir <path>] [--audience 1-5] [--abbreviation 1-5] [--jargon 1-5] [--self-contained (deferred to v0.4.3 — emits stderr warning, output still references CDN)] [--skip-validate]\n"
       );
       process.exit(0);
     }
