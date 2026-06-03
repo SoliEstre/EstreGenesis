@@ -1,0 +1,23 @@
+{
+  "name": "@hyperbrief/renderers",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Hyperbrief deterministic MD/HTML renderers — IR → surface. Same IR + same options → same output bytes (load-bearing invariant per Hyperbrief.md §7). Self-engineered placeholder substitution + tone-axis transform; single npm dep (ajv ^8.17.0) for schema validation.",
+  "main": "./mini-engine.cjs",
+  "types": "./types.d.ts",
+  "bin": {
+    "hyperbrief-render": "./bin/render.cjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "SoliEstre",
+    "url": "https://github.com/SoliEstre/EstreGenesis"
+  },
+  "repository": "https://github.com/SoliEstre/EstreGenesis"
+}
