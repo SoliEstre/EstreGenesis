@@ -1,4 +1,14 @@
-# Hyperbrief plugin — Phase 2 production (v0.5.2)
+# Hyperbrief plugin — Phase 2 production (v0.5.4)
+
+## ⚠ Adopter installation note — hook connection requires user approval
+
+The Hyperbrief plugin install (`/plugin install hyperbrief@estregenesis-plugins`) installs the skills, the schema, the templates, the deterministic renderer, the MCP server, and the hook *scripts* — but the PreToolUse + Stop **hook connection** (registering the hook in `.claude/settings.json` or the host's equivalent config) is a **separate, explicit-approval gate**. Claude Code's auto-mode classifier treats `.claude/settings.json` edits as agent-runtime self-modification and blocks silent application — an adopter agent running a migration script CANNOT install the hook on the user's behalf. The user (or the adopter project owner) must explicitly approve the settings.json change. Plan for two distinct steps: (1) install the plugin, (2) approve the hook registration.
+
+### Sidecar (vendored) deployment
+
+When Hyperbrief is **vendored as a sidecar** (copying the EG `plugins/hyperbrief/` tree into the adopter's own repo) rather than installed through the marketplace, the wrapper scripts live under the adopter's project tree, not under the plugin install directory. The shipped `hooks.json` uses `${CLAUDE_PLUGIN_ROOT}` for plugin installs; **vendored adopters MUST rewrite this path to `$CLAUDE_PROJECT_DIR/<path-to-vendored-hooks>/`** before registering with the host. The `Hyperbrief.md §11.4` adopter-installation note covers both forms in detail.
+
+---
 
 > **v0.5.2 (2026-06-03 bundle 008 H6 README sync)** — README 가 historically v0.1.0 "Phase 1 prototype" 상태로 남아있었음. 본 갱신이 plugin.json (v0.5.2) / renderers package (v0.5.2) / mcp package (v0.5.2) / Hyperbrief.md SSoT (v0.5.2) 와 정합 회복.
 
