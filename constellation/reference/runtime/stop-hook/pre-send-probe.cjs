@@ -88,6 +88,16 @@ function probe(cursor) {
     const l = newLines[i];
     let o;
     try { o = JSON.parse(l); } catch { continue; }
+    // v2.5.44: skip self-emission echoes. The bridge logs both outbound (ev:"sent")
+    // and inbound (ev:"inbound") to the same inbox.log file. Self-emissions carry
+    // application-tier names (Report / Delegate / WorkerReport / etc.) that match
+    // the §13.16.9 A2A-intent allowlist, so without this gate every outbox push
+    // gets echo-surfaced to the agent as if it were inbound — pure context noise.
+    // Note: v2.4.16 dropped a pure ev-gate because some adopter bridges write
+    // inbound without the ev marker; this is a per-line ev:"sent" SKIP, not an
+    // ev:"inbound" REQUIRE, so adopters without ev annotations still see their
+    // inbound surfaced normally.
+    if (o?.ev === 'sent') continue;
     // v2.5.20: also check value.name for doubly-wrapped envelopes where outer
     // name field carries the literal "CUSTOM" instead of the MessageName
     // (observed in 2026-06-02 Hermes meta-ack at inbox 22856 — Hermes-side

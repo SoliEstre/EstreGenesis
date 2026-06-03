@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.5.43" src="https://img.shields.io/badge/version-v2.5.43-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.5.44" src="https://img.shields.io/badge/version-v2.5.44-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -275,7 +275,7 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.5.43 (2026-06-04) — `constellation/reference/runtime/local-bridge.cjs` `outboxCursor` init aligned with the `local-bridge.eux` `@state.outboxCursor` spec (init = EOF; pre-existing lines are skipped on respawn). The previous implementation initialized the cursor to 0 at module init, causing the entire accumulated outbox.jsonl to be replayed on every restart — §13.13.2 server-side dedup masked the application-level impact, but bandwidth + log noise was significant. Seed-tier (Master + Lite + Compact × EN/KO) is at **v2.4.3** (2026-06-03). Most recent module cuts: Constellation v2.3.21, Superscalar v0.4.2, Hyperbrief v0.5.6.
+**Current**: v2.5.44 (2026-06-04) — `constellation/reference/runtime/stop-hook/pre-send-probe.cjs` self-emission echo filter: `ev:"sent"` lines (bridge-logged outbound) are now skipped during meaningful classification. Without this gate, the bridge's mixed inbox.log (inbound + sent traced to the same file) caused every outbox push of an A2A-intent name (Report / Delegate / WorkerReport / etc.) to echo-surface back to the agent as if it were inbound, polluting the watch-state cycle. v2.5.43 fixed `local-bridge.cjs` outboxCursor init; v2.5.42 fixed the README/marketplace docs gap. Seed-tier (Master + Lite + Compact × EN/KO) is at **v2.4.3** (2026-06-03). Most recent module cuts: Constellation v2.3.21, Superscalar v0.4.2, Hyperbrief v0.5.6.
 
 **Full changelog** (all releases from v1.0 onward, EN + KO): [CHANGELOG.md](CHANGELOG.md).
 
@@ -561,7 +561,7 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.5.43 (2026-06-04) — `constellation/reference/runtime/local-bridge.cjs` 의 `outboxCursor` init 을 `local-bridge.eux` `@state.outboxCursor` spec 에 정합 (init = EOF; 재spawn 시 pre-existing 라인 skip). 이전 구현은 module init 시 cursor 를 0 으로 설정하여 모든 재기동마다 누적된 outbox.jsonl 전체를 replay — §13.13.2 server-side dedup 이 application-level 영향은 가렸지만 대역폭 + 로그 noise 가 컸음. 시드 tier (Master + Lite + Compact × EN/KO) 는 **v2.4.3** (2026-06-03). 최근 모듈 cut: Constellation v2.3.21, Superscalar v0.4.2, Hyperbrief v0.5.6.
+**현재**: v2.5.44 (2026-06-04) — `constellation/reference/runtime/stop-hook/pre-send-probe.cjs` 의 self-emission echo filter: `ev:"sent"` 라인 (bridge-logged outbound) 을 meaningful 분류 시 skip. 본 gate 가 없으면 bridge 의 mixed inbox.log (inbound + sent 가 동일 파일에 trace) 가 A2A-intent 이름 (Report / Delegate / WorkerReport 등) 의 outbox push 마다 inbound 인 양 echo-surface 시킴 — watch-state cycle 오염. v2.5.43 = `local-bridge.cjs` outboxCursor init fix; v2.5.42 = README/marketplace 문서 갭 fix. 시드 tier (Master + Lite + Compact × EN/KO) 는 **v2.4.3** (2026-06-03). 최근 모듈 cut: Constellation v2.3.21, Superscalar v0.4.2, Hyperbrief v0.5.6.
 
 **전체 변경 이력** (v1.0 부터 모든 릴리스, EN + KO): [CHANGELOG.md](CHANGELOG.md).
 
