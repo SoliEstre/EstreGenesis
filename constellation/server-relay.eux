@@ -73,6 +73,46 @@
       on:
         HandoffReady → STABLE              # entry: wsCommitMain, MainChanged
         timeout_10s → STABLE               # entry: wsCommitMain anyway — current main may be gone
+@invariants
+  # P3 AST 계약스키마 — phase_3 1st cut per eux-format v1.2 §2.6 (EstreUX 884552b). prose+vocabulary 형식 (Q1=c).
+  state:
+    - wsAgents 는 동일 agentId 재등록 시 prior conn replace + member-of unique-agentId
+    - sourceStampFallback: board-fanout/record event 의 source 는 server-truth (conn.meta.role) IF original.source unset — server-truth invariant (monotonic preservation)
+    - telemetry_exclude: codex-watch threadId/runId 인 event 는 _a2aPending 에 never paired + main routing 제외 (member-of exclusion)
+    - anonymous_gate: conn.meta.anonymous == true 인 conn 의 relay 는 skip — wsAgents 에 never registered (bounded membership)
+    - WS_PRIMARY_ID 는 commitMain transition 으로만 변경 (axis 2 main_handoff machine — monotonic in time)
+    - _a2aPending entries 는 RUN_FINISHED 도착 시 closed (state cleanup ordered)
+  temporal:
+    - _a2aPending 의 모든 pair (req, resp) 는 (resp.t - req.t) within A2A_WINDOW (120s)
+    - _selPrompts 의 prompt p 는 p.created + UI6_SERVER_TTL_MS 이전 expires-after (hard-TTL sweep)
+    - setMain HandoffRequested 는 10s within HandoffReady 응답 OR timeout fallback (HANDOFF_PENDING → STABLE)
+    - relay() 는 at-most-once forward per (msgId, target) — server dedup tier
+    - deadlock probe sweep 는 cadence 별 wsEffectiveElapsed 시간 보정 후 wsBuildWaitEdges (after sweep interval) — sweep cadence idempotent (동일 wait edges → 동일 detect 결과)
+  transaction:
+    - relay() 는 wsToBoards(msg) + wsRecord(msg via -history) 를 always 호출 — ordering atomic (board fanout 과 history 기록이 함께 진행)
+    - register(HELLO): 동일 agentId 재등록 시 close+replace prior conn — wsAgents.set persist-before wsPushAgentList broadcast (rollback-safe: 실패 시 prior conn 보존)
+    - anti_pattern_ack_storm: relay 는 AckProcessed/ReviewSLAAck never auto-emit — external client 의 idempotent 보장 (server 는 transit 만)
+    - setMain commit: WS_PRIMARY_ID = to (persist-before MainChanged.broadcast) — atomic axis 2 transition
+    - sourceStampFallback: server stamp commit-then forward (board + record paths)
+    - reply-window pairing: msg.targetAgentId 미설정 시 _a2aPending lookup → backfill + dual-write 같은 atomic (board + record + relay)
+  causality:
+    - register: HELLO.agentId 존재 iff conn.role = 'agent' ∧ wsAgents.has(agentId) post-register
+    - handoff commit: WS_PRIMARY_ID == to implies main authority moved (server uninterrupted)
+    - deadlock observation: wsBuildWaitEdges (waitingOn/ackFor parse) precedes wsDetectCycles (DFS strict/quasi 분류)
+    - escalation: wsDetectCycles cycle 발견 implies wsSurfaceEscalation board emit
+@metamorphic
+  # P4 property/metamorphic 후보 — phase_3 1st cut per eux-format v1.2 §2.7 (EstreUX 884552b). round-trip/idempotency/determinism.
+  round_trip:
+    - register(agent) → revoke(agent) → register(agent): wsAgents 동일 endstate (idempotency in roundtrip form)
+    - 100x register-then-revoke 동일 agentId: wsAgents 크기 동일 (state preservation)
+    - setMain(A) → setMain(B) → setMain(A): WS_PRIMARY_ID == A endstate (handoff round-trip)
+  idempotency:
+    - anti_pattern_ack_storm: 100x relay 동일 msg 시 AckProcessed 발생 0건 (server idempotent at relay layer)
+    - sourceStampFallback: 동일 conn.meta.role 의 stamp 결과 deterministic + idempotent across reconnects
+    - telemetry_exclude: codex-watch 분류 결과 deterministic (state.scope == 'codex-watch' OR threadId/runId match)
+  determinism:
+    - 동일 msg + 동일 fromConn 의 relay() 결과 deterministic (telemetry 분류 + reply-window pairing + sourceStamp 결과 동일)
+    - register(HELLO) → wsPushAgentList 의 broadcast 내용 deterministic (wsAgents snapshot ordering)
 @operation_discipline
   derive:
     a2a_paired: reply-window backfills targetAgentId for adapters that can't echo the A2A envelope (§13.8)

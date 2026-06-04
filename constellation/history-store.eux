@@ -95,4 +95,39 @@ recovery_discipline:
   walCorruption: operator-driven 5-step recovery (state.json flip A → restart → verify JSONL → preserve corrupted .db as forensic evidence → optional retry B backfill); JSONL rollback floor never threatened in mode A or B
   partial_dual_write_failure: sliding 10min window count ≥ 3 → autoRevert in-memory (mode A) + BlockerManifest tier 2-explicit + operator decision required
   drift_detection: single FAIL → discrepancy report {jsonl_count, sqlite_count, only_in_jsonl, only_in_sqlite, investigation_hint} + BlockerManifest; sliding 30min ≥ 2 drift FAILs → autoRevert
+@invariants
+  # P3 AST 계약스키마 — phase_3 1st cut per eux-format v1.2 §2.6 (EstreUX 884552b). prose+vocabulary 형식 (Q1=c).
+  state:
+    - jsonlChans 채널별 events 는 HIST_CAP=200 으로 bounded
+    - wsHistByChan events 는 timestamp ASC ordered + INSERT OR IGNORE 로 id monotonic 증가 (never overwrite)
+    - currentMode 는 {jsonl, dual, sqlite} member-of (operator intent 가 state.json 에 persist)
+    - jsonl_rollback_floor: 모든 mode 에서 JSONL 이 canonical 또는 regenerable — wal_corruption / sqlite probe failure / partial-write 가 canonical data 위협 X (무결성 monotonic preservation)
+  temporal:
+    - selectSqliteBackend() 는 process 시작 시 at-most-once 호출, 결과 process 종료까지 expires-after (never re-evaluated per-write)
+    - _recordDrift 는 30min sliding window 내 ≥2 FAIL within 시 _autoRevert trigger
+    - _recordPartialFail 은 10min sliding window 내 ≥3 FAIL within 시 _autoRevert trigger
+    - mode-B reconcile cadence: 10min after OR 100 events after, 둘 중 먼저 (cadence trigger)
+    - boot 후 wsLoadAll 는 idempotent (재기동 시 동일 endstate; disk state 가 canonical)
+  transaction:
+    - mode B append 는 jsonlStore + sqliteStore dual-write atomic — 한쪽 실패 시 다른 쪽 rollback-safe (ftruncate JSONL OR ROLLBACK sqlite tx)
+    - backfillFromJsonl 는 INSERT OR IGNORE 로 idempotent — 1회/N회 실행 결과 동일
+    - exportJsonl 는 byte-identical (ORDER BY ts ASC, id ASC) — mode A trivial · mode B verified · mode C 의 rollback floor (commit-then byte 결과)
+    - autoRevert 는 currentMode in-memory 만 변경, state.json mutation 금지 (operator intent persist-before 자동 변경 차단 metadata)
+    - probeRefusal: mode B/C 선택 + 양 driver 미가용 시 refuse-to-start (atomic startup, silent degradation 금지)
+  causality:
+    - operator intent (state.json modes.historyBackend) precedes auto-revert decision (intent 가 restart 후 surface)
+    - backfill_complete iff count-reconcile.pass — 둘 다 성공 시 mode B promotion 가능
+    - WAL corruption recovery implies operator-driven 5-step path (auto recovery 금지 by design)
+@metamorphic
+  # P4 property/metamorphic 후보 — phase_3 1st cut per eux-format v1.2 §2.7 (EstreUX 884552b). round-trip/idempotency/determinism.
+  round_trip:
+    - mode-B exportJsonl → fresh JSONL → mode-B 재진입 + backfillFromJsonl → exportJsonl 결과 byte-identical (전체 cycle 동일성)
+    - active → cold (agent_present_lost) → active (RequestChannelHistory): events 동일 (lifecycle preservation)
+    - active → archived (explicit close) → active (RequestChannelHistory): events 동일 (archive round-trip)
+  idempotency:
+    - backfillFromJsonl 1회 vs N회 실행 결과 동일 (INSERT OR IGNORE 보장)
+    - record(ev) 의 skip set 내 event (HELLO/Heartbeat 등) 는 0회 또는 N회 동일 endstate
+  determinism:
+    - 동일 ev 입력 시 jsonlStore + sqliteStore append 결과 deterministic (probe once + driver fixed per-process)
+    - exportJsonl ordering (ts ASC, id ASC) 결과 deterministic across mode B verification cycles
 @incident seq 79 DB RRP (`m-mpt4mzo9-78`, 2026-05-31) — originating agreement that fixed the three-mode shape: P1 (HistoryStore abstraction + JsonlStore) → P2 (dual-write + backfill + SqliteStore) → P3 (db-primary). Mode-letter naming (A/B/C) is this guide's convenience handle on top of the seq 79 chain; the chain itself unchanged. · seq 144 (`m-mptlrmm3-143`, 2026-05-31) — DB P2 ship trigger Delegate from main upstream requesting EG-side P2 guide; satisfied by `constellation/reference/docs/DB-P2-Guide.md` v0.1. · seq 155 — main upstream commit `a28150e` DB P2 ship + EG DB-P2-Guide.md v2.4.3 정합 (history-store.cjs factored out of server.cjs, ~580 lines, separate file). · seq 159 (`m-mpu9febn-158`) — a5bc §F line-range mapping used to author this .eux's @source ranges (JsonlStore L39-215 · SQLITE_SCHEMA L225-238 · selectSqliteBackend L246-279 · SqliteStore L286-469 · HistoryStoreMux L475-567 · createHistoryStore L572-577).
