@@ -2,6 +2,7 @@
 @intent Tool-call aggregate card for a WS stream. The host feeds START/ARGS/END/RESULT events (by toolCallId) into one card that accumulates: tool name, title, status (running→done/error), args, result, display meta. Status drives left-border/badge color. Isolated component — no own WS/global access; host maps WS events to feed.
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
+@profile ui-component
 @state
 tool     : map = {}        # accumulated tool state by toolCallId
 expanded : boolean = false # compact card body toggle
