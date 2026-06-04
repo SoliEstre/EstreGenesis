@@ -1,0 +1,53 @@
+@component gateway-client-attachments
+@intent Attachment transport-mode sub-module of the `gateway-client` runtime adapter family (v1.1 split per phase_2 2026-06-04). Distills `Constellation.md §13.11 rule 5` (attachment transport-mode discipline, v2.5.10 ship + Hermes hybrid convergent) into a formal eux contract — previously implicit in the parent gateway-client.eux wire/delivery sections, now formalized as a first-class sub-module per phase_2 scope expansion. Owns: (a) attachment-object canonical schema (name/mime/size/sha256 + source-discriminated localPath/dataUrl/chunks), (b) source-mode discipline (localPath = byte-not-transported metadata-only / dataUrl = byte-embedded inline / chunks = chunked-transfer reassembly per §13.11.4 / hybrid = both localPath + dataUrl carried, source=embedded canonical default), (c) sha256 anchor verification (recipient MUST verify decoded sha256 matches declared before promoting to canonical), (d) ack-tier semantics for attachment-carrying messages (commitment = recipient acked attachment metadata / application = bytes verified + applied), (e) wire-level vs metadata-only distinction (history_verification self-claim mismatch class — bytes-declared vs bytes-actually-emitted gap, Hermes incident 2026-06-02).
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
+@targets vanilla
+@profile protocol-adapter
+@source Constellation.md(v2.3.21+ §13.11 rule 5 attachment transport-mode) · Constellation.md(§13.13.2 at-least-once relay + chunked transfer) · constellation/reference/runtime/local-bridge.cjs(v2.5.15+ msgId watermark + dedup) · reports/hermes 2nd handoff 2026-06-02 (history_verification dataUrl-strip incident)
+@wire
+  attachment_object:
+    common_required: [name, mime, size, sha256, source]
+    source_enum: [localPath, dataUrl, chunks, hybrid]
+    source_discriminated:
+      localPath: [path]                                   # filesystem path; bytes NOT in-wire (recipient resolves locally)
+      dataUrl: [dataUrl]                                  # data:<mime>;base64,<payload> — bytes embedded in-wire
+      chunks: [chunkManifest, chunkIds]                   # chunked-transfer per §13.11.4 (large attachment > MAX_BODY)
+      hybrid: [path, dataUrl]                             # both; source=embedded canonical default
+  carrier_messages:
+    Attachment: standalone attachment-only envelope (sha256 anchor + source)
+    Report: value.attachments[] field carries attachment-objects
+    Reply: value.attachments[] field carries attachment-objects
+    ArtifactManifest: chunked-transfer outer manifest (chunkIds + total_size + sha256)
+    ArtifactComplete: chunked-transfer terminator (sender confirms all chunks emitted)
+@delivery
+  ack_tier_semantics:
+    delivered: server Ack — wire relay of envelope succeeded (does NOT prove bytes received intact)
+    commitment: recipient ReviewSLAAck — recipient accepted attachment metadata + scheduled byte verification
+    application: recipient AckProcessed — recipient decoded bytes + sha256 verified + applied/persisted
+  byte_verification_discipline:
+    recipient_MUST: decode dataUrl/chunks → compute sha256 → compare to declared anchor; reject on mismatch
+    self_claim_mismatch_class: sender's history_verification field MUST reflect actual wire-emitted shape (declared + actually-present at wire), NOT just declared-intent (Hermes 2026-06-02 incident — gateway internally strips dataUrl, self-claim says all_dataUrl_present:true, actual envelope shows metadata-only)
+  redelivery:
+    chunked_transfer_redrive: on §13.13.2 RELAY_REDELIVERY=on, individual chunks are dedup'd by chunkId (not by parent msgId)
+    metadata_only_replay: localPath-mode attachments replay safely (no byte gap); dataUrl-mode replays carry full bytes again (bandwidth hit accepted)
+@routing
+  attachment_carrier_classification:
+    A2A_intent_group: [Report, Reply, Attachment, ArtifactManifest, ArtifactComplete]   # all attachment carriers wake agent layer
+    notice_group_exclude: attachments NEVER carried in notice-tier (Status/Typing/ServerNotice)
+@deps
+  storage: local filesystem access for localPath resolution + dataUrl staging area
+  ws_send: raw WS send (uses parent -a2a routing + envelope contract)
+  sha256: cryptographic hash (Node crypto or equivalent)
+@ports
+  cmd  attach_localPath(path, mime?)                : returns attachment_object source=localPath (sha256 computed locally)
+  cmd  attach_dataUrl(buffer, mime)                  : returns attachment_object source=dataUrl (encoded inline)
+  cmd  attach_hybrid(path, mime?)                    : returns attachment_object source=hybrid (path + dataUrl, embedded canonical)
+  cmd  verify_attachment(attachment_object)          : decode + sha256 verify; throws on mismatch
+  out  attachmentReceived(name, sha256_verified, source_received)
+  out  attachmentVerificationFailed(name, declared_sha256, actual_sha256, source_received)
+@operation_discipline
+  principle: source-of-truth is wire-emitted shape (not sender's internal state); recipient sha256 verification is authoritative
+  anti_patterns:
+    - sender self-claim history_verification based on internal object (not wire-emitted frame) → masks gateway dataUrl-strip bugs
+    - recipient AckProcessed before sha256 verification → false-positive integrity report
+    - localPath-mode across machines without out-of-band path negotiation → cross-host paths invalid

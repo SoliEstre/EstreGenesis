@@ -1,0 +1,75 @@
+@component gateway-client-a2a
+@intent Application-tier A2A messaging sub-module of the `gateway-client` runtime adapter family (v1.1 split per phase_2 2026-06-04). Owns: (a) CUSTOM-wrapped envelope contract (top-level common required + reply_echo + value sub-fields), (b) inbox turn-held drain machine (~15s safe-point window per Constellation.md §13.11) with persistent `msgId` watermark dedup, (c) §13.16.9 4-group routing classification (board-directed / A2A-intent / handshake / notice — only A2A-intent wakes the agent layer), (d) §13.13 ack-tier layer (delivered = server transport / commitment = ReviewSLAAck / application = AckProcessed) + §11.1 v0.4.2 Hyperbrief decision-delegation extension `ack_tier='decided'` (DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING emission resolves), (e) §13.16.8 A2A communication priority (outbound A2A + prerequisite work moves to head of action queue), (f) §13.19/§13.20 deadlock + blocker vocabulary admission. Parent manifest `gateway-client.eux` carries cross-cluster operational directives.
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
+@targets vanilla
+@profile protocol-adapter
+@source constellation/gateway-client.eux(v2.5.3 pre-split, lines 133-154 machines.turn_held · 173-187 wire.envelope · 189-204 routing · 206-243 delivery)
+@wire
+  envelope:
+    convention: CUSTOM-wrapped {type:CUSTOM, name, value, ...common, ...reply_echo}
+    bare_top_level_reserved: SERVER_HELLO · HELLO · Heartbeat · PersistentAdapterSmoke (transport framing only)
+    common_required: [type, id, seq, runId, threadId, timestamp, source, agentId]
+    reply_echo: [targetAgentId, contextId, parentId]
+    channel_key: agentId
+  ack_tier:
+    delivered: transport-tier Ack emitted by server (wire relay succeeded; not a body-arrival proof)
+    commitment: ReviewSLAAck emitted by recipient agent (will complete or renegotiate before eta)
+    application: AckProcessed emitted by recipient agent (recipient acted on the message)
+    decided: user-decided gate cleared per Hyperbrief.md §11.1 — DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING emission resolves the wait (Constellation MCP a2a_wait_ack recognizes tier='decided' per v2.5.28)
+@routing
+  groups: board-directed | A2A-intent | handshake | notice    # §13.16.9 4-group classification
+  a2a_intent_wakes_agent: true                                  # only A2A-intent group triggers application-layer wake; others are absorbed
+  telemetry_exclude:
+    require_tag: true
+    excluded_from: [A2A reply-window pairing, main routing]
+  a2a_priority_head_of_queue:                                   # §13.16.8 — outbound A2A + prerequisites run FIRST
+    applies_to: [Delegate, Report, BlockerManifest, BlockerNudge, ReviewSLAAck, EscalationRequest]
+  target_unspecified_default: main
+@delivery
+  semantics: at-most-once default; at-least-once when RELAY_REDELIVERY=on per §13.13.2
+  automatic_retransmit: false
+  msgId:
+    assigner: sender bridge/client
+    applies_to: targeted CUSTOM except Ack/Ping/Pong/telemetry
+    persistent_watermark: true                                  # LRU 1024 / 1h TTL per local-bridge.cjs v2.5.15
+  liveness:
+    ping: agent-layer Ping (application liveness probe — not retransmit)
+    pong_owner: active runtime turn only
+    bridge_auto_pong: false                                      # bridge MUST NOT auto-emit pong; agent owns liveness emission
+  termination_signals: [DONE, BLOCKED, NEEDS_HUMAN, AckProcessed]
+  deadlock_vocabulary: [DeadlockProbe, PreemptRequest, PreemptForce, MediationProposal, MediationAck, EscalationRequest]   # §13.19
+  blocker_vocabulary: [BlockerManifest, BlockerNudge]                                                                       # §13.20
+@deps
+  ws_send: raw WebSocket JSON frame send (from -handshake module, post-READY)
+  storage: persistent msgId watermark + inbox cursor + outbox tail (cross-restart durable)
+@ports
+  cmd  feed_inbound_evt(envelope)         : append after §13.16.9 routing classification + msgId dedup
+  cmd  drain_inbox_safe_point()           : turn-held drain with ≤15s wait window (drives @machine turn_held)
+  cmd  emit_a2a(name, value, targetAgentId, ack_tier_required?)  : push outbound A2A (head of queue per §13.16.8)
+  out  emit_TEXT_MESSAGE_START(messageId, role)
+  out  emit_TEXT_MESSAGE_CONTENT(messageId, delta)
+  out  emit_TEXT_MESSAGE_END(messageId)
+  out  emit_CUSTOM(name, value)                                  # generic A2A pass-through
+@machine turn_held
+  initial: IDLE
+  states:
+    IDLE:
+      on:
+        inbound_message_buffered → DRAIN_INBOX
+    DRAIN_INBOX:
+      entry: wait_up_to_15000ms_then_collect_available_events    # 15s safe-point window per §13.11
+      on:
+        safe_point → PROCESS
+        timeout → IDLE
+    PROCESS:
+      entry:
+        - dedup_by_persistent_msgId_watermark                    # LRU 1024 / 1h TTL
+        - classify_by_§13_16_9_4_group                            # board-directed/A2A-intent/handshake/notice
+        - route_a2a_intent_to_active_runtime_turn                # only A2A-intent wakes agent
+        - never_auto_emit_Pong_or_AckProcessed_or_ReviewSLAAck   # agent owns ack emission
+      on:
+        processed → EMIT_TERMINATION_IF_NEEDED
+    EMIT_TERMINATION_IF_NEEDED:
+      entry: agent_layer_may_emit_DONE_BLOCKED_NEEDS_HUMAN_AckProcessed
+      on:
+        complete → IDLE

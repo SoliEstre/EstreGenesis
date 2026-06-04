@@ -1,97 +1,41 @@
-@component live-board-server
-@intent The Constellation live-board **server** (deps-0 raw HTTP + WS, no framework) — the single resident process every agent connects to. HTTP half: serves the static dashboard, a `state.json` live board (GET `/api/state` + SSE `/api/events` pushed on `fs.watch`), feedback intake (POST `/api/feedback`, data-URL attachments extracted to disk, path-ref kept), a one-URL external-collab onboarding endpoint (GET `/join/collab?key=ck-…` → dynamic onboarding md; 403 on bad key), and a **whitelist** of integration docs (public protocol SSoT + reference client + representative `.eux` + brew guide only — private agreements are NEVER listed). WS half (`/ws` upgrade): the multi-agent router — per-`agentId` registry, role classification (board/main/local/upstream/collab), A2A relay with reply-window pairing, telemetry exclusion, graceful main handoff, and per-channel persistent history (active/cold/archived with streaming compression). The `state.json` SSoT is owned by the **main** agent; the server only relays + records (workers never write the board directly). Pure runtime, no DOM. (Distilled from constellation/reference/runtime/server.cjs — WS-PROTOCOL §13 orchestration; the A2A relay here is the server side of the §2 bridge interface.) **Envelope convention (v0.3 wire)** — application messages (`AgentList`, `History`, `ChannelHistory`, `MainChanged`, `ServerNotice`, every A2A name: `AgentHello`/`OnboardAck`/`Delegate`/`WorkerReport`/`WorkerAck`/`Handoff*` etc.) are emitted as `wscore.event('CUSTOM', { name, value })` → on the wire `{type:'CUSTOM', name, value, ...envelope}` (3-field CUSTOM-wrapped). **Bare top-level types** (`SERVER_HELLO`, `HELLO`, `Heartbeat`, `PersistentAdapterSmoke`) are reserved for **transport-level framing only**. Mixing fails silently — a dashboard expecting CUSTOM-wrapped accepts SERVER_HELLO but drops a bare-emitted AgentList (connection shows healthy, channels stay empty); this is a real downstream-adoption pitfall. Treat `wscore.event(type, payload)` as the canonical builder; never construct `{type:...}` literals for application messages.
-@expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
+@component server
+@intent Parent manifest of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04 — supersedes pre-split single-file form, ~97 lines distilling 799-line server.cjs at 1:8 ratio per phase_1 G3 evaluation). The deps-0 raw HTTP + WS resident process every agent connects to. The split addresses G3/G6 from the 2026-06-03 brew-dogfooding gap catalog (large module surface-only validation + single .eux content-cramming) by separating into 4 functional sub-modules: `-core` (HTTP routes + SSE + WS upgrade + connection_role machine + envelope_convention), `-relay` (A2A relay + reply-window + telemetry + sourceStamp/targetFallback + handoff axis 2 + §13.19 deadlock observation + UI6 SelectionPrompt), `-keys` (KEY-MGMT registry + issue/list/revoke/label, **C7 @hazards credential discipline**), `-history` (per-channel ring + streaming compression + lifecycle active/cold/archived + DB P2 thin shim delegating to history-store.eux). The `state.json` SSoT is owned by the **main** agent; the server only relays + records (workers never write the board directly — see derive `board_ssot`). Pure runtime, no DOM. Envelope convention (CUSTOM-wrapped application vs bare transport framing) is canonically anchored in `-core` `@wire`.
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
 @targets vanilla
-@source constellation/reference/runtime/server.cjs(188-360) · constellation/reference/runtime/server.cjs(414-625) · constellation/reference/runtime/server.cjs(670) · constellation/reference/runtime/server.cjs(674-678) · constellation/reference/runtime/server.cjs(795-796) · constellation/reference/runtime/server.cjs(159-160) · constellation/reference/runtime/server.cjs(382-385) · constellation/reference/runtime/server.cjs(681-690) · constellation/reference/runtime/server.cjs(733-734) · constellation/reference/runtime/server.cjs(736-758) · constellation/reference/runtime/server.cjs(778-787) · constellation/reference/runtime/server.cjs(368-381) · constellation/reference/runtime/server.cjs(386) · constellation/reference/runtime/server.cjs(247-265) · constellation/reference/runtime/server.cjs(267-277) · constellation/reference/runtime/server.cjs(279-300)
-# @source provenance per main upstream Delegate seq 159 (msgId m-mpu9febn-158, §F mapping, 2026-06-01) — reflects v2.3.x+DB-P2 ship state, server.cjs 799 lines actual (last L798 server.listen) NOT 794 spec.
-# Range legend (post-v2.3 additions, all repo-relative to constellation/reference/runtime/server.cjs):
-#   L188-360                                : KEY-MGMT block (KEY_JSON / keyStore / key* helpers + wsKeyIssue/List/Revoke/Label)
-#   L414-625 · L670 · L674-678 · L795-796   : §13.19 deadlock observation layer (_DEADLOCK_* consts + wsBuildWaitEdges / wsDetectCycles / wsSurfaceEscalation / wsEffectiveElapsed / wsWaitState + outbound hooks + probe sweep)
-#   L159-160 · L382-385 · L681-690 · L733-734 · L736-758 · L778-787 : UI6 SelectionPrompt/Answer/Cancel handlers + wsSelResolved + _selPrompts + UI6_SERVER_TTL_MS + hard-TTL sweep
-#   L368-381 · L386                         : DB P2 thin shim (createHistoryStore + store delegation + historyStore.boot); SqliteStore / HistoryStoreMux are dormant by default (mode A default, operator opt-in untouched)
-#   L247-265 · L267-277 · L279-300          : wsCollabOnboardMd / wsCommit / wsSetMain / wsHandoffReady / wsHandleOrch dispatch
-# (Pre-existing inline provenance in @intent — "Distilled from constellation/reference/runtime/server.cjs" — remains valid for handshake/relay/history paths predating v2.3; this @source directive promotes the post-v2.3 additions to explicit line-precise lineage per eux-format-v1.md §3.8.)
-@state
-# consts
-MAX_BODY      : number = 33554432   # 32MB cap for POST /api/feedback body (over → req.destroy)
-A2A_WINDOW    : number = 120000     # §13.8 reply-window fallback (ms)
-HIST_CAP      : number = 200        # per-channel stored-event cap
-# HTTP
-sseClients    : Set<res>            # open SSE subscribers (state pushes)
-# WS registries
-wsConns       : Set<conn>           # all live WS connections (agents + boards)
-wsAgents      : Map<agentId,conn>   # registered agents (HELLO); same id re-connect replaces prior
-WS_PRIMARY_ID : string = env.WS_PRIMARY_AGENT || 'main-agent'  # current main (orchestrator)
-_a2aPending   : Map<agentId,{from,contextId,parentId,at}>  # §13.8 reply-window pairing (responder → original requester)
-wsKeys        : {key,label,role,createdAt}[]   # persisted uk-/ck- registry (ws-keys.json, gitignore)
-_pendingMain  : string = null       # handoff target awaiting HandoffReady (10s timer)
-# history
-wsHistByChan  : Map<chanKey,events[]>   # per-channel ring (cap 200); channel = agentId
-wsBuf         : Map<chanKey,{msg,tool}> # streaming delta/fragment accumulators (compress to 1 stored event)
-@ports
-in   PORT              : number = 7878   # env.PORT
-in   WS_PRIMARY_AGENT  : string          # default main agentId (main-agent)
-in   LIVE_BOARD_WS_TOKEN: string?        # optional token gate (enforced in ws-core upgrade)
-# HTTP routes (out = response surface)
-out  GET  /api/state        : current state.json (no-store)
-out  GET  /api/events       : SSE; emits `state` on connect + on every state.json change (fs.watchFile 500ms); 20s `: ping`
-out  POST /api/feedback      : append entry→feedback.jsonl (≤32MB); data-URL atts → feedback-atts/ (path ref kept inline)
-out  GET  /join/<group>?key=: dynamic onboarding md (key+host embedded; collab group → 403 if wsKeyRole(key)!='collab')
-out  GET  <whitelist docs>  : INTEGRATION_DOCS only — protocol SSoT doc · onboarding doc · reference client · 3 representative .eux (ws-conn-bar · ws-tool-card · ws-collab-invite) · BREW.md (private agreements never whitelisted)
-out  static PUBLIC/         : path-jailed to PUBLIC (../ escape → 403)
-# WS
-out  /ws upgrade            : ws-core.handleUpgrade → conn; query key (?key/?upstreamKey/?collabKey) sets collab/upstream meta
-deps http             : node http server
-deps fs               : state read + watchFile + history/feedback/keys IO
-deps ws-core          : deps-0 WS framing (handleUpgrade, event())
-deps crypto           : randomBytes → key issue (uk-/ck-)
-@behavior
-# --- HTTP ---
-broadcastState   : on state.json change (fs.watchFile 500ms) → write `event: state` to every sseClient (newlines flattened).
-serveFeedback    : POST body (≤MAX_BODY 32MB, destroy if over); JSON parse (400 on bad); stamp receivedAt; map atts via storeAtt; append feedback.jsonl.
-storeAtt         : if att.src is a data-URL → decode (base64/uri) to feedback-atts/<ts-rand.ext>, replace src with {stored:path,bytes,mime}; code/text bodies stay inline.
-joinCollab       : /join/<group>?key= → validate wsKeyRole(key)=='collab' else 403 md; else return wsCollabOnboardMd(host,key) — connect line + IDE/CLI vs autonomous-runtime branch + paste-ready onboarding prompt.
-integrationDocs  : serve only whitelisted files (public protocol SSoT + onboarding doc + reference client + 3 representative .eux + BREW.md); anything else 404. (private agreement docs deliberately absent.)
-# --- WS lifecycle ---
-onUpgrade        : reject non-/ws (socket.destroy); ws-core.handleUpgrade → conn; read key from query → wsKeyRole → set conn.meta.collab/upstream; add to wsConns; emit **`SERVER_HELLO{protocolVersion:'0.3'}` (bare top-level — transport framing)** → **`CUSTOM/AgentList/value:{main,agents,serverTime}`** (role first, so monitors classify A2A) → **`CUSTOM/History/value:{events,cold,archived}`** ONLY if non-empty (active events full + cold/archived stubs, lazy; skipped when events+cold+archived all empty). All three are emitted via `wscore.event(...)` — see @intent envelope convention. The grouped-by-channel storage shape (`channels:[{key,events:[...]}]`) is *internal storage layout only*; the wire `value.events` is a flat per-event array (each event carries its own `agentId`).
-onClose          : delete conn from wsConns; if it was the registered agent-of-record for its agentId → wsAgents.delete + wsPushAgentList.
-# --- agent outbound (conn.meta.role=='agent') ---
-register(HELLO)  : require `msg.agentId`. If missing → set `conn.meta.anonymous = true` + log `{remoteAddr, ua, raw HELLO}` (origin observability), **do NOT** call `wsAgents.set` and **do NOT** `wsPushAgentList` — the anonymous connection is held open at the transport layer but never registered as an agent (no tab, no relay target). Rationale: an exposed-binding server (any external-facing bind for cross-host dev convenience) without auth will receive unauthenticated probes from any LAN client; the legacy behavior of synthesizing a default `'agent-' + conn.id.slice(0,4)` per HELLO turned each probe-reconnect into a fresh phantom tab (real downstream incident: ~100 synthetic channels accumulated from an external probe loop, board sidebar swamped, no actual message ever sent). If present → set role=agent, agentId, clientId, agentName, key-role meta; close+replace any prior conn for same agentId; `wsAgents.set`; `wsPushAgentList`.
-orchestration    : wsHandleOrch (agents AND boards) — RegisterUpstreamKey→issue uk- · RegisterCollabKey→issue ck- + joinUrl · Revoke{Upstream,Collab}Key · SetMain · HandoffReady.
-dropTransient    : Heartbeat / PersistentAdapterSmoke / Typing → swallow (no relay, no record).
-serverNotice     : ServerNotice → wsToAll (agents+boards) + wsRecord (online/offline/restart broadcast).
-sourceStampFallback : before wsToBoards/wsRecord, if `msg.source` is unset → stamp `msg.source = (conn.meta.role === 'agent' ? 'agent' : 'board')`. Backward-compat (existing client-set `source` is preserved, never overwritten). The dashboard's `m.source === 'agent'|'user'|'board'` checks then become **server-stamped truth** instead of client-pass-through (and thus reliable instead of permanently false when the client omits `source`). Pairs with `derive.source_stamp_truth`.
-targetFallback   : if `msg.targetAgentId` is unset but `msg.value?.targetAgentId` is set, fall back to `value.targetAgentId` for routing + emit `console.warn('[server] targetAgentId fallback from value — client envelope shape mismatch')` (single line). Silent-disable principle: acceptance broadened so a misread client still routes correctly, *and* the misread is communicated on the way through so the downstream can fix it (rather than failing silently or hiding behind a working coincidence — see Constellation.md §2 AgentHello shape literal).
-relay            : **skip entirely if `conn.meta.anonymous`** — anonymous senders (HELLO without agentId) cannot author A2A traffic; the message is dropped at the relay gate (origin already logged at HELLO; no relay, no record, no board fan-out). Otherwise: if targetAgentId present & registered → send to that agent + _a2aPending.set(tgt,{from,context,parent,at}). else reply-window fallback — if THIS sender has a pending A2A within A2A_WINDOW(120000ms) and msg isn't telemetry/ConnectionRestored → backfill targetAgentId/contextId/parentId from pending + relay to original requester (only if alive & d!==conn); RUN_FINISHED closes the pairing. else target-unspecified CUSTOM (not telemetry, name!='ConnectionRestored') → wsPrimaryAgent (main, if p!==conn). ALWAYS also wsToBoards(msg) + wsRecord(msg).
-telemetryExclude : wsIsTelemetry (threadId/runId=='codex-watch' or STATE_SNAPSHOT scope=='codex-watch') → board broadcast only; never bound into the A2A reply-window.
-# --- board/user inbound (conn.meta.role!='agent') ---
-boardInbound     : CloseChannel→wsCloseChannelHist+notify boards · RequestChannelHistory→wsLoadChannel→ChannelHistory · ArchiveChannel→wsArchiveChannel · UserPrompt atts→storeAtt. route to targetAgentId else wsPrimaryAgent; mirror to other boards (sender board excluded); wsRecord.
-# --- main handoff (graceful) ---
-setMain(to)      : if to≠current & registered → send current main HandoffRequested{to,reason}; _pendingMain=to; arm 10s timer → wsCommitMain.
-handoffReady     : HandoffReady → clear timer → wsCommitMain immediately.
-commitMain       : WS_PRIMARY_ID=to; wsPushAgentList; broadcast MainChanged. (server uninterrupted — only role/authority moves.)
-# --- history persistence ---
-record           : skip HELLO/SERVER_HELLO + AgentList/Heartbeat/PersistentAdapterSmoke/Typing; channel=agentId (channelId is source-badge only); compress streaming (TEXT/TOOL _START→buffer, _CONTENT/_ARGS→accumulate, _END/_RESULT→store 1 event); truncate large result/content(2000)/text(8000) on store (full at relay); ring cap 200/channel; debounce 1s per-channel .jsonl write. **Each stored event is the full envelope** (`type`, `name`, `value`, `agentId`, `targetAgentId`, `contextId`, `timestamp`, `source`, `channelId`, `threadId` — whatever it carried on the wire). The per-channel filename is *storage layout only* — on boot `wsLoadAll` rebuilds the channel key from event content (`wsMsgChan(ev)`), so the path is recoverable but never authoritative. **Timestamp is source-stamped at emit (`wscore.event(...)`); record/push must NOT clobber `timestamp` (or `at`) at store or replay** — replay must restore the original wall-clock so dashboards reconstruct the real timeline, not the reload moment.
-historyLifecycle : active (in-memory, scanned, sent full on connect when main or a present agent is involved) ↔ cold (no present agent → stub {key,count,lastTs}, loaded on RequestChannelHistory) ↔ archived (✕ close → moved to archived/, excluded from active scan/cap; on RequestChannelHistory the archived file is loaded back to active and deleted from archived/).
-boot             : ws-history/ exists → wsLoadAll (read per-channel .jsonl, re-key by content=agentId, normalize/time-sort/cap, drop orphan files) else wsMigrate (legacy ws-history.json → per-channel compressed split + .bak).
-@machine
-# two-axis: (1) per-connection role classification  (2) main handoff
-# axis 1 — connection role  (reducer: (connRole, event) → connRole)
-states: ANON(initial, on upgrade) · BOARD(default non-agent) · AGENT(after HELLO with agentId) · ANON_PROBE(HELLO without agentId — held but unregistered)
-  upgrade        : → ANON              (entry: SERVER_HELLO + AgentList + History-if-nonempty; key meta set → collab/upstream)
-  HELLO+agentId  : ANON|BOARD → AGENT  (entry: register agentId, replace prior conn, push AgentList)
-  HELLO-no-id    : ANON → ANON_PROBE   (entry: conn.meta.anonymous=true; log {remoteAddr, ua, raw HELLO}; NO wsAgents.set; NO wsPushAgentList; relay path drops anything from this conn)
-  no-HELLO       : ANON → BOARD        (board/user; its inbound routes to agents)
-  close          : * → ⊗              (entry: if agent-of-record → wsAgents.delete + push AgentList)
-derive role: collab(ck- key) · upstream(uk- key) · main(agentId==WS_PRIMARY_ID) · local(other agent) · board(non-agent)
-# axis 2 — main handoff  (reducer: (mainState, event) → mainState)
-states: STABLE(initial) · HANDOFF_PENDING
-  SetMain{to}  : STABLE → HANDOFF_PENDING  (entry: HandoffRequested→current main; arm 10s timer)
-  HandoffReady : HANDOFF_PENDING → STABLE  (entry: wsCommitMain, MainChanged)
-  timeout(10s) : HANDOFF_PENDING → STABLE  (entry: wsCommitMain anyway — current main may be gone)
-derive:
-  board_ssot           ← server only relays+records; state.json authored by main (workers never write board → no multi-session collision)
-  a2a_paired           ← reply-window backfills targetAgentId for adapters that can't echo the A2A envelope (§13.8)
-  doc_safety           ← INTEGRATION_DOCS is an explicit whitelist; private agreements are unreachable by construction
-  envelope_convention  ← application messages MUST emit as `CUSTOM/<name>/value{...}` (3-field shape); transport framing (SERVER_HELLO/HELLO/Heartbeat/PersistentAdapterSmoke) stays bare. Stored events preserve the full envelope including source-stamped timestamp; replay never clobbers. Mismatch = silent dashboard drop ("connected" but channels empty).
-  source_stamp_truth   ← the server, not the client, is authoritative for the `source` role on board-fanout/record paths. `wsToBoards`/`wsRecord` see `msg.source` stamped by `sourceStampFallback` when the client omitted it; the dashboard's `m.source === 'agent'|'user'|'board'` checks therefore measure *connection role at the server*, not client honor. A real incident: a worker join went unclassified for the entire session because dashboards relied on a client-supplied field the client never set, and the server never filled it (Report 2 Finding 1). Same defensive-coding family as `envelope_convention` and `silent_disable` — *acceptance broadened, truth localized, mismatch surfaced*.
+@profile backend-service
+@source constellation/server.eux(pre-split 97 lines — promoted to manifest) split-source for 4 sub-modules · constellation/reference/runtime/server.cjs (799 lines actual, last L798 server.listen) — per-cluster line ranges anchored in each sub-module's @source · WS-PROTOCOL §13 orchestration · eux-format-v1.md(EstreUX commit 77e12f9 §2.5 + §4.5) split format basis
+@deps
+  -core: constellation/server-core.eux          # HTTP + SSE + WS upgrade + connection_role machine + envelope_convention
+  -relay: constellation/server-relay.eux        # A2A relay + reply-window + telemetry + sourceStamp/targetFallback + handoff + §13.19 deadlock + UI6 SelectionPrompt
+  -keys: constellation/server-keys.eux          # KEY-MGMT registry + lifecycle + C7 @hazards credential discipline
+  -history: constellation/server-history.eux    # per-channel ring + streaming compression + lifecycle + DB P2 shim
+  history-store: constellation/history-store.eux  # DB P2 mode A/B/C abstraction (dormant by default; -history delegates on operator opt-in)
+@runtime
+  engine: deps-0 raw HTTP + WS (no framework)
+  concurrency: single-process event-loop (Node http server + ws-core handleUpgrade)
+  keepAlive: SSE 20s `: ping` + WS transport-layer ping
+  poll_interval_ms: 500                          # fs.watchFile state.json change detection
+@redaction
+  hook: pre-send + pre-log
+  targets:
+    - credential (full uk-/ck- key strings — see -keys @hazards for credential authority + redaction discipline)
+    - PII in feedback bodies + UserPrompt content
+    - real service / workspace / repo names (use generic anonymization for public traces)
+    - raw tool result secret leaks (per §13.14 redaction discipline)
+  authority: §13.14 reference-build redaction discipline = canonical redaction SSoT; this manifest scopes the server family
+@operation_discipline
+  principle: server only relays + records; main owns state.json SSoT; workers never write board (see derive board_ssot)
+  derive:
+    board_ssot: state.json authored by main; workers never write board directly → no multi-session collision; server is relay + storage layer only
+    a2a_paired: reply-window backfills targetAgentId for adapters that can't echo A2A envelope (§13.8) — see -relay
+    doc_safety: INTEGRATION_DOCS is explicit whitelist; private agreements unreachable by construction — see -core
+    envelope_convention: application MUST emit CUSTOM/<name>/value{...} (3-field shape); transport framing (SERVER_HELLO/HELLO/Heartbeat/PersistentAdapterSmoke) stays bare — see -core @wire
+    source_stamp_truth: server, not client, is authoritative for source role on board-fanout/record paths — see -relay
+    anonymous_probe_gate: HELLO without agentId is held at transport layer but never registered (security against unauthenticated probe — see -core)
+    credential_authority_split: server owns credential issuance + revoke; client gateway-client-key-mgmt exposes commands but server enforces — see -keys
+    timestamp_source_stamp: record/push MUST NOT clobber timestamp on store or replay (dashboards reconstruct real wall-clock timeline) — see -history
+  anti_patterns:
+    - ack storm: relay does NOT auto-emit AckProcessed / ReviewSLAAck — those are agent-judgment ack tiers per §13.13 layer split
+    - silent envelope mixing: bare-emitted AgentList silently drops at CUSTOM-expecting dashboard → "connected but channels empty" pitfall
+    - credential log leak: full key value to non-redacted stream — see -keys @hazards redaction_discipline
+    - revoke race: connection survives revoke if force-close persisted before revokedAt write — see -keys @hazards revoke_persistence_first

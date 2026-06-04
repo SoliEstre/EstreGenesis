@@ -1,0 +1,77 @@
+@component gateway-client-handshake
+@intent Connection lifecycle + agent identity registration sub-module of the `gateway-client` runtime adapter family (v1.1 split per phase_2 2026-06-04, parent manifest `gateway-client.eux` carries operational directives via `@deps`). Owns: (a) server-first WS handshake (SERVER_HELLO → HELLO ordering — never client-initiated), (b) role-aware connection URL contracts per `@roles.url_patterns`, (c) post-HELLO CUSTOM AgentHello identity emission (top-level `name`/`targetAgentId` + value-nested role/env/capabilities — never value-nested name shape), (d) AgentList authoritative role reconciliation (server classification overrides AgentHello.value.role hint per `role_truth` doctrine), (e) post-handshake OnboardAck routing per @roles.onboard_ack (local = wait Delegate / upstream/collab = informational + continue autonomous peer).
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
+@targets vanilla
+@profile protocol-adapter
+@source constellation/gateway-client.eux(v2.5.3 pre-split, lines 20-31 roles · 33-41 connection_params · 95-131 machines.connection · 157-172 wire.handshake)
+@roles
+  canonical: board · main · local · upstream · collab
+  role_truth: server AgentList authoritative; AgentHello.value.role = hint only (server may reclassify, client follows)
+  onboard_ack:
+    local: inform local worker of policy, then wait for Delegate
+    upstream: informational welcome; continue autonomous peer track (no Delegate-wait)
+    collab: informational welcome; continue autonomous peer track (no Delegate-wait)
+  url_patterns:
+    local_dev: ws://<host>:<port>/ws
+    token_gated: ws://<host>:<port>/ws?token=<token>
+    upstream: ws://<host>:<port>/ws?upstreamKey=<uk-…>
+    collab: ws://<host>:<port>/ws?key=<ck-…>
+  forbidden:
+    - generic key parameter for upstream (must use upstreamKey query, not key)
+    - client-side idle heartbeat pretending to be agent activity (use ws-ping at transport layer, never app-layer Heartbeat as activity proxy)
+@wire
+  handshake:
+    server_first: SERVER_HELLO              # bare top-level transport framing; client MUST receive before sending
+    client_hello: HELLO                      # bare top-level transport framing
+    agent_intro:                             # CUSTOM-wrapped application message
+      type: CUSTOM
+      name: AgentHello                       # top-level — value-nested name shape is the malformed form
+      top_level_fields: [name, targetAgentId]
+      value_fields: [agentId, agentName, role, env, capabilities, idle]
+@deps
+  ws_send: raw WebSocket JSON frame send
+  upstreamKey: upstream registration key; required when role is upstream (uk-* prefix)
+  token: optional token-gated deployment credential
+  collabKey: external collaborator key (ck-* prefix); used as key=<ck-…> for collab role only
+  mainAgentId: AgentHello targetAgentId (typically the main agent the adapter is reporting to)
+@ports
+  in   wsUrl    : string                       # constructed per @roles.url_patterns (caller picks pattern based on role)
+  in   role     : enum                         # board | main | local | upstream | collab (caller-asserted; server may reclassify)
+  cmd  connect  : ()                           # open WS and start server-first handshake (drives @machine connection)
+  out  identityRegistered(agentId, role)       # emitted after AgentList carries our agentId with server-classified role
+  out  serverNoticeSurfaced(kind, payload)     # operational notice (e.g. flap-rejected per §13.16.4) — caller decides recover/abort
+@machine connection
+  initial: DISCONNECTED
+  states:
+    DISCONNECTED:
+      on:
+        connect → CONNECTING
+    CONNECTING:
+      entry: open_websocket_with_role_specific_auth      # builds URL per @roles.url_patterns
+      on:
+        OPEN → AWAIT_SERVER_HELLO
+        ERROR → CONNECTING                                # auto-retry with backoff (caller-managed)
+    AWAIT_SERVER_HELLO:
+      entry: read_first_frame_and_require_SERVER_HELLO    # client never speaks first
+      on:
+        SERVER_HELLO → SEND_HELLO
+        ServerNotice → HANDLE_SERVER_NOTICE                # flap-rejected, online, restart pending, etc.
+        ERROR → CONNECTING
+    SEND_HELLO:
+      entry:
+        - send_HELLO                                       # bare top-level
+        - send_CUSTOM_AgentHello                           # CUSTOM-wrapped identity
+      on:
+        HANDSHAKE_SENT → READY
+        ERROR → CONNECTING
+    HANDLE_SERVER_NOTICE:
+      entry: surface_notice_such_as_flap-rejected          # emit serverNoticeSurfaced(kind, payload)
+      on:
+        RECOVERABLE → CONNECTING
+        FATAL → DISCONNECTED
+    READY:
+      entry: start_sender_receiver_tasks                   # gateway-client-a2a + -streaming sub-modules drive from here
+      on:
+        AgentList → UPDATE_AUTHORITATIVE_ROLE              # role_truth — server classification authoritative; emit identityRegistered
+        CLOSE → DISCONNECTED
+        ERROR → CONNECTING

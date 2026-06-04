@@ -1,0 +1,60 @@
+@component gateway-client-key-mgmt
+@intent KEY-MGMT client-side sub-module of the `gateway-client` runtime adapter family (v1.1 split per phase_2 2026-06-04). Distills `Constellation.md §13.16.11` (KEY-MGMT client-side discipline, v2.5.1+ cycle_b ship + UI 5 key mgmt window) into a formal eux contract — previously implicit in the parent gateway-client.eux, now formalized as a first-class sub-module per phase_2 scope expansion. Owns the client-side surface of the KEY-MGMT family: (a) KeyIssue request / response cycle (operator issues new upstream key uk-* or collab key ck-*; server stamps + returns), (b) KeyList query (display issued keys + connection status + label), (c) KeyRevoke (immediate session-end discriminator — immediate kills active connections, sessionEnd waits for natural close), (d) KeyLabel + AgentNameChanged broadcast (label edits propagate via server-mediated broadcast so all connected boards reflect), (e) KEY-MGMT legacy v0.2 transitional alias deprecation (per v2.5.13 KEY-MGMT §3.1 — supersede + transitional alias + deprecated v0.2 + no-fixed-version retire, zero-traffic gated). Client gateway exposes these as command-tier ports for the host application (UI or programmatic).
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
+@targets vanilla
+@profile protocol-adapter
+@source Constellation.md(v2.3.21+ §13.16.11 KEY-MGMT client-side discipline) · constellation/reference/runtime/server.cjs(L188-360 KEY-MGMT block) · WS-PROTOCOL §13.16.11 KEY-MGMT semantics
+@wire
+  key_mgmt_messages:
+    KeyIssue:
+      type: CUSTOM
+      value_fields: [keyType (uk|ck), label?, expires_at?]
+      response: server emits KeyIssued{key, label, expires_at, issued_at}
+    KeyList:
+      type: CUSTOM
+      value_fields: [filter? (active|revoked|all)]
+      response: server emits KeyListReply{keys[]: {key, label, connectionStatus, lastSeen, agentNameIfConnected}}
+    KeyRevoke:
+      type: CUSTOM
+      value_fields: [key, mode (immediate|sessionEnd), reason?]
+      response: server emits KeyRevoked{key, mode_applied, revoked_at}; if mode=immediate + key has active connection, server force-closes
+    KeyLabel:
+      type: CUSTOM
+      value_fields: [key, newLabel]
+      response: server emits KeyLabelUpdated{key, newLabel}; broadcasts AgentNameChanged if key has active connection
+    AgentNameChanged:
+      type: CUSTOM
+      direction: broadcast (server → all boards)
+      value_fields: [agentId, newAgentName, source (label_edit|self_emit)]
+      effect: receivers update display state for that agentId in AgentList rendering
+  legacy_v0_2_alias_deprecation:                          # per v2.5.13 KEY-MGMT §3.1
+    state: supersede + transitional alias + deprecated v0.2 + no-fixed-version retire
+    retire_gate: zero-traffic on legacy alias for ≥1 minor version cycle
+@routing
+  group: A2A-intent (KEY-MGMT family wakes agent layer when client emits or receives reply)
+  authority:
+    KeyIssue_KeyRevoke_KeyLabel: typically operator-tier (role: main or board) — server may reject if originator lacks permission
+    KeyList: any connected agent MAY query (returns server-filtered view)
+    AgentNameChanged: broadcast, no client authority required to receive
+@deps
+  ws_send: raw WS send via parent -a2a routing
+  storage: optional client-side cache of last-known KeyList (UI rendering cache; invalidated on AgentNameChanged or KeyListReply)
+@ports
+  cmd  issue_key(keyType, label?, expires_at?)        : emit KeyIssue, await KeyIssued response
+  cmd  list_keys(filter?)                              : emit KeyList, await KeyListReply
+  cmd  revoke_key(key, mode, reason?)                  : emit KeyRevoke, await KeyRevoked
+  cmd  label_key(key, newLabel)                        : emit KeyLabel, await KeyLabelUpdated + AgentNameChanged
+  out  keyIssued(key, label, expires_at)
+  out  keyListUpdated(keys[])
+  out  keyRevoked(key, mode_applied)
+  out  agentNameChanged(agentId, newAgentName, source)
+@redaction
+  hook: pre-send + pre-log
+  targets: [issued key values (uk-* / ck-* full strings — surface only first 8 chars in logs), revoke reasons containing credential fragments]
+  rationale: KEY-MGMT messages carry credential material that MUST NOT leak to public logs / committed transcripts (§13.14 redaction discipline)
+@operation_discipline
+  principle: KEY-MGMT is operator-tier; client gateway exposes commands but authority enforcement is server-side
+  anti_patterns:
+    - log full key values to non-redacted stream → credential leak
+    - retain KeyListReply beyond UI render scope without revoke-aware invalidation → stale display + stale UX
+    - emit KeyRevoke {mode: immediate} without surfacing "active session will be killed" warning to operator → unexpected disconnection

@@ -1,0 +1,80 @@
+@component server-relay
+@intent A2A relay + routing sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04). Owns the multi-agent routing core: (a) agent registration via HELLO+agentId (anonymous HELLO held at transport but never registered — §13.16.4 unauthorized-probe gate), (b) §13.8 reply-window pairing (`_a2aPending` Map; responder backfills `targetAgentId`/`contextId`/`parentId` from pending request within 120s window for adapters that can't echo the A2A envelope), (c) telemetry exclusion (codex-watch threadId/runId → board fan-out only, never bound into reply-window — see ws-core §13.16.6 element 1 filter family), (d) server-stamped source truth (`sourceStampFallback` — server is authoritative for `source` role on board-fanout/record paths; client-set `source` preserved when present, server stamps when client omits), (e) `targetAgentId` value-nested fallback for client envelope shape mismatch (silent_disable principle — acceptance broadened, mismatch surfaced via single warning), (f) graceful main handoff (axis 2 `@machine` — STABLE ↔ HANDOFF_PENDING with 10s timeout fallback), (g) orchestration message dispatch (`wsHandleOrch` — SetMain/HandoffReady + key admin delegated to `-keys`), (h) §13.19 deadlock observation layer (`wsBuildWaitEdges` / `wsDetectCycles` / `wsSurfaceEscalation` / `wsEffectiveElapsed` / `wsWaitState` + outbound hooks + probe sweep), (i) UI6 SelectionPrompt/Answer/Cancel routing (`_selPrompts` + `wsSelResolved` + `UI6_SERVER_TTL_MS` hard-TTL sweep).
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
+@targets vanilla
+@profile backend-service
+@source constellation/reference/runtime/server.cjs(L414-625 §13.19 deadlock observation layer · L670 · L674-678 · L795-796) · constellation/reference/runtime/server.cjs(L159-160 · L382-385 · L681-690 · L733-734 · L736-758 · L778-787 UI6 SelectionPrompt) · constellation/reference/runtime/server.cjs(L267-300 wsCommit · wsSetMain · wsHandoffReady · wsHandleOrch dispatch)
+@state
+  A2A_WINDOW       : number = 120000    # §13.8 reply-window fallback (ms)
+  UI6_SERVER_TTL_MS: number              # SelectionPrompt hard-TTL sweep window (see ref impl)
+  wsAgents         : Map<agentId, conn>  # registered agents (HELLO+agentId); same id re-connect replaces prior
+  WS_PRIMARY_ID    : string = env.WS_PRIMARY_AGENT || 'main-agent'   # current main (orchestrator)
+  _a2aPending      : Map<agentId, {from, contextId, parentId, at}>   # §13.8 reply-window pairing
+  _pendingMain     : string = null       # handoff target awaiting HandoffReady (10s timer)
+  _selPrompts      : Map<promptId, {agentId, body, ttl}>             # UI6 SelectionPrompt server-side TTL store
+  _DEADLOCK_*      : (consts)            # §13.19 detection thresholds + classification gates
+@deps
+  ws-core    : conn registry + event() builder
+  -core      : constellation/server-core.eux (provides classified conn from upgrade; wsConns + connection_role machine)
+  -keys      : constellation/server-keys.eux (orchestration delegates Register/Revoke* to -keys)
+  -history   : constellation/server-history.eux (relay path calls record() on every relayed/broadcast message)
+@ports
+  cmd  register(HELLO, conn)                          : require msg.agentId else ANON_PROBE gate; close+replace prior conn for same agentId; wsAgents.set; wsPushAgentList
+  cmd  relay(msg, fromConn)                            : §13.8 reply-window pairing + telemetry exclusion + source/target fallback; ALWAYS wsToBoards + wsRecord (via -history)
+  cmd  setMain(toAgentId)                              : arm handoff axis 2 (HandoffRequested + 10s timer)
+  cmd  handleOrch(msg, conn)                           : dispatch — SetMain/HandoffReady stay here; Register/Revoke* delegated to -keys
+  out  AgentListBroadcast(agents[])                    # wsPushAgentList after register/close
+  out  MainChanged(from, to)                           # after wsCommitMain (axis 2)
+  out  ServerNoticeBroadcast(kind, payload)            # online/offline/restart-pending broadcasts
+  out  DeadlockEscalationSurfaced(decisionId, edges)   # §13.19 wsSurfaceEscalation board surface
+@wire
+  source_stamp_truth:
+    rule: server stamps `msg.source` from `conn.meta.role` on board-fanout/record paths when client omits; client-set source preserved
+    rationale: dashboard's m.source==='agent'|'user'|'board' checks become server-truth, not client-honor (Report 2 Finding 1 — worker join unclassified entire session because dashboard relied on client field client never set)
+  target_fallback:
+    rule: if msg.targetAgentId unset but msg.value?.targetAgentId set → backfill from value + warn
+    silent_disable_principle: acceptance broadened, mismatch surfaced (see Constellation.md §2 AgentHello shape literal)
+@routing
+  groups: A2A-intent (relay-able) · board-directed (UI control) · handshake (HELLO/SERVER_HELLO/AgentHello/OnboardAck) · notice (ServerNotice/Heartbeat/PersistentAdapterSmoke/Typing/AgentList)
+  telemetry_exclude:
+    require_tag: threadId/runId == 'codex-watch' OR STATE_SNAPSHOT.scope == 'codex-watch'
+    excluded_from: [A2A reply-window pairing, main routing]      # board broadcast only
+  a2a_priority_head_of_queue: per §13.16.8 outbound A2A + prerequisites run FIRST (enforced at agent side; server respects ordering)
+  anonymous_gate: relay skip entirely if conn.meta.anonymous (HELLO without agentId class)
+@behavior
+  register(HELLO)  : missing agentId → anonymous gate (origin log only, no agent registry write); present → role=agent + agentId + clientId + agentName + key-role meta; close+replace prior conn for same agentId; wsAgents.set; wsPushAgentList
+  relay            : anonymous skip; targetAgentId present & registered → send to that agent + _a2aPending.set(tgt, {from, context, parent, at}); else reply-window fallback (THIS sender has pending A2A within A2A_WINDOW AND msg not telemetry/ConnectionRestored → backfill from pending + relay to original requester only if alive & d!==conn; RUN_FINISHED closes pairing); else target-unspecified CUSTOM (not telemetry, name!='ConnectionRestored') → WS_PRIMARY_ID (if p!==conn); ALWAYS wsToBoards(msg) + wsRecord(msg via -history)
+  sourceStampFallback : before wsToBoards/wsRecord, if msg.source unset → stamp from conn.meta.role
+  targetFallback   : if msg.targetAgentId unset but msg.value?.targetAgentId set → fallback + warn single line
+  dropTransient    : Heartbeat / PersistentAdapterSmoke / Typing → swallow (no relay, no record)
+  serverNotice     : ServerNotice → wsToAll(agents+boards) + wsRecord (online/offline/restart broadcast)
+  boardInbound     : non-agent conn — CloseChannel → -history wsCloseChannelHist + notify boards; RequestChannelHistory → -history wsLoadChannel → ChannelHistory; ArchiveChannel → -history wsArchiveChannel; UserPrompt atts → -core storeAtt. Route to targetAgentId else WS_PRIMARY_ID; mirror to other boards (sender excluded); wsRecord
+  setMain          : if to≠current & registered → send current main HandoffRequested{to, reason}; _pendingMain=to; arm 10s timer → wsCommitMain
+  handoffReady     : HandoffReady → clear timer → wsCommitMain immediately
+  commitMain       : WS_PRIMARY_ID=to; wsPushAgentList; broadcast MainChanged (server uninterrupted — only role/authority moves)
+  deadlock_observation_§13_19:
+    detect: wsBuildWaitEdges (waitingOn/ackFor/targetAgentId parse from inbound A2A) → wsDetectCycles (naive DFS strict/quasi classification)
+    surface: wsSurfaceEscalation → board EscalationSurfaced{decisionId=esc-msgId, edges}
+    cadence: probe sweep + wsEffectiveElapsed time correction; ReviewSLAAck no-auto-emit (agent-side)
+    state_machine: wsWaitState per §13.19.9 (WAITING → ESCALATED → RESOLVED transitions)
+  ui6_selection_prompt:
+    issue: agent emits SelectionPrompt{promptId, body, audience?, ttl?} → _selPrompts.set + relay to audience
+    answer: user emits SelectionAnswer{promptId, choice} → wsSelResolved → relay to original agent
+    cancel: agent emits SelectionCancel{promptId} → _selPrompts.delete + notify audience
+    hard_ttl_sweep: UI6_SERVER_TTL_MS expiry → wsSelResolved with timeout outcome
+@machine main_handoff
+  # reducer: (mainState, event) → mainState — axis 2 of original two-axis @machine
+  initial: STABLE
+  states:
+    STABLE:
+      on:
+        SetMain{to} → HANDOFF_PENDING    # entry: HandoffRequested → current main; arm 10s timer
+    HANDOFF_PENDING:
+      on:
+        HandoffReady → STABLE              # entry: wsCommitMain, MainChanged
+        timeout_10s → STABLE               # entry: wsCommitMain anyway — current main may be gone
+@operation_discipline
+  derive:
+    a2a_paired: reply-window backfills targetAgentId for adapters that can't echo the A2A envelope (§13.8)
+    source_stamp_truth: server, not client, is authoritative for source role on board-fanout/record paths
+    anti_pattern_ack_storm: relay does NOT auto-emit AckProcessed / ReviewSLAAck — those are agent-judgment ack tiers per §13.13 layer split
