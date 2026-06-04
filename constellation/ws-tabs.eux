@@ -2,6 +2,7 @@
 @intent Channel (agent) tab bar for the WS live board. Host injects channel list + active key via setData; tabs render in 4 fixed groups (upstream / main / local / collab), empty groups hidden. Each tab: connection dot (.on if present), name, unseen badge (clamp "99+", hidden if active or 0), ✕ close (non-monitor). Group header click → onSelect("group:<key>"). Isolated — no own wsState; host performs the actual switch/close and returns an updated snapshot via setData.
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
+@profile ui-component
 @state
 channels : array = []    # host snapshot {id,name,group,present,unseen,active,monitor}
 active   : string = ""   # active channel/group key

@@ -2,6 +2,7 @@
 @intent Detached WS bridge proxying a turn-based local IDE agent (Claude Code session) onto the live board. The real agent can't hold a WS socket in its tool loop (turn ends), so this resident process stands in: it holds the WS connection + HELLO, relays inbound (UserPrompt/Command/Cancel/AgentHello) into an **inbox file** the agent tails at safe points, and ships **outbox file** appends out as WS events (so the agent's progress shows on the board). On `AgentHello` (main role) it auto-replies a formal `OnboardAck` (welcome/guide/modes/policy) but **leaves Delegate to the main PM's judgment** (inbox-preserved, not auto-delegated). Scope = control/A2A bridge ONLY: it does NOT auto-capture the runtime's tool calls — TOOL_CALL/RUN events appear only if the agent explicitly mirrors them to the outbox (or uses a direct-WS adapter). Pure runtime, no DOM. (Distilled from dashboard/live/examples/ws-local-bridge.cjs — WS-PROTOCOL §13.9/§13.11.)
 @expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
 @targets vanilla
+@profile protocol-adapter
 @state
 connected    : boolean = false   # WS open
 backoff      : number = 500      # reconnect backoff ms (cap 8000)

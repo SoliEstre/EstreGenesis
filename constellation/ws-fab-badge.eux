@@ -2,6 +2,7 @@
 @intent Bottom-right floating action button (💬) + unseen-message badge for the live board. Click requests the host to toggle the WS popup (onToggle — popup body/channel state owned by host). Badge shows the sum of unseen across all channels, clamped to "99+"; hidden when sum is 0 or the popup is open. Host resets active-channel unseen and injects the sum via setUnseen. External open changes sync via setOpen WITHOUT re-firing onToggle (callback-loop guard). Isolated unit owning only the FAB + badge DOM.
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
+@profile ui-component
 @state
 unseen : number = 0      # total unseen across channels
 open   : boolean = false # popup open (host-synced)

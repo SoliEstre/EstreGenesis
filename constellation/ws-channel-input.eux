@@ -2,6 +2,7 @@
 @intent Per-channel (per-agent) prompt input for the WS live popup. Each channel gets a lazily-created, cached textarea; tab switch shows only the active channel's (input preserved per tab). Text + unified height persist to localStorage. Auto-grow; the grown height is unified to the max across all channels so switching tabs doesn't shift input height or tab positions. Group/monitor (read-only) tabs show a shared disabled notice input. Ctrl+Enter sends; image/file attach (paste·drop·button) binds to the active input. On send: UserPrompt to the active channel's targetAgentId, then clear + refresh height/persist.
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
+@profile ui-component
 @state
 inputs   : map = {}     # per-channel textarea content cache
 height   : number = 0   # unified max height across channels

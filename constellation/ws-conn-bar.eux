@@ -2,6 +2,7 @@
 @intent Connection status bar for the live board — shows WS connection state (connecting/connected/closed), an accent-colored status dot, optional meta (session/proto), and a repo link. Host injects status via setStatus; the component only reflects it. Isolated — no own WS.
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
+@profile ui-component
 @state
 status : string = "connecting"  # connecting | connected | closed
 meta   : string = ""            # optional session/proto text
