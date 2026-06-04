@@ -21,12 +21,15 @@ p { margin: 0.6rem 0; }
   background: var(--color-header-bg); border-bottom: 1px solid var(--color-border);
   backdrop-filter: blur(8px);
 }
-.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 1300px; margin: 0 auto; padding: 0.8rem 1.5rem; gap: 1rem; }
+.header-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; max-width: 1300px; margin: 0 auto; padding: 0.8rem 1.5rem; gap: 0.6rem 1rem; }
 .brand { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-heading); font-size: 1.05rem; font-weight: 600; color: var(--color-heading); text-decoration: none; }
 .brand:hover { text-decoration: none; }
 .brand img.logo { height: 32px; width: auto; }
 @media (max-width: 720px) { .brand img.logo { height: 26px; } }
-.nav { display: flex; gap: 1.2rem; align-items: center; }
+/* Nav wraps to its own row below brand + controls — keeps top row uncluttered when
+   module count grows (5+ items + brand + 3 controls overflows a single row at most viewports).
+   `order: 99` keeps nav visually last; `flex-basis: 100%` forces a full-width second row. */
+.nav { display: flex; gap: 1.2rem; align-items: center; justify-content: center; flex-basis: 100%; order: 99; padding-top: 0.5rem; margin-top: 0.2rem; border-top: 1px solid var(--color-border); flex-wrap: wrap; }
 .nav a { color: var(--color-text-muted); font-size: 0.92rem; }
 .nav a:hover, .nav a.active { color: var(--color-link); }
 /* Sub-link: per-page Spec / detail link attached to the active page's nav entry.

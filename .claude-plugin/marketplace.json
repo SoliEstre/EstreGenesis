@@ -5,8 +5,8 @@
     "url": "https://github.com/SoliEstre/EstreGenesis"
   },
   "metadata": {
-    "version": "0.3.0",
-    "description": "EstreGenesis self-hosted Claude Code plugin marketplace. Ships three Phase 2 production-ready plugins: Constellation (live multi-agent orchestration with WS server + A2A messaging + dashboard + MCP server with 5 tools), Superscalar (execution-scheduling discipline for parallel sub-agent dispatch + §3.1 Hyperbrief interlock), and Hyperbrief (decision-delegation gating discipline with JSON IR + deterministic renderer + MCP server with 4 tools + PreToolUse/Stop hooks + §11.5 v1.0 readiness rubric). Plugins are Apache-2.0 licensed; the marketplace mirrors the EG repo's main branch. Install via `/plugin marketplace add SoliEstre/EstreGenesis` then `/plugin install <name>@estregenesis-plugins`.",
+    "version": "0.3.1",
+    "description": "EstreGenesis self-hosted Claude Code plugin marketplace. Ships four Phase 2 production-ready plugins: Constellation (live multi-agent orchestration with WS server + A2A messaging + dashboard + MCP server with 5 tools), Superscalar (execution-scheduling discipline for parallel sub-agent dispatch + §3.1 Hyperbrief interlock), Hyperbrief (decision-delegation gating discipline with JSON IR + deterministic renderer + MCP server with 4 tools + PreToolUse/Stop hooks + §11.5 v1.0 readiness rubric), and Greatpractice (practice-codification discipline with 3-tier macro/mezzo/micro hierarchy + 7-event lifecycle hooks + 5-axis multi-criteria maturation gate + frontmatter-driven governance SSoT — backed by 9-axis cross-domain deep research). Plugins are Apache-2.0 licensed; the marketplace mirrors the EG repo's main branch. Install via `/plugin marketplace add SoliEstre/EstreGenesis` then `/plugin install <name>@estregenesis-plugins`.",
     "license": "Apache-2.0"
   },
   "plugins": [
@@ -33,6 +33,14 @@
       "version": "0.5.6",
       "category": "decision-delegation",
       "tags": ["decision-gating", "json-ir", "deterministic-renderer", "mcp", "hooks", "rapid", "cynefin"]
+    },
+    {
+      "name": "greatpractice",
+      "source": "./plugins/greatpractice",
+      "description": "Memory-triggered practice-codification discipline. Wraps Greatpractice.md v0.1.0 as 3 JSON schemas (entry-frontmatter.schema.json + hook-spec.schema.json + voice-rules.schema.json placeholder) + 1 PreToolUse contact hook (outbox-json-validate.cjs) backing the v2.5.50 first canonical entry greatpractice/mezzo/outbox-json-validation. Targets the 'quiet omission' surface — small obligations that should accompany the work (update docs alongside code, check before sending, sync paired surfaces) but slip through as memory notes accumulate. agent-workspace memory feedback (memory/feedback_*.md or equivalent) is the input trigger; raw signals route through a 5-axis multi-criteria maturation gate (frequency + depth + recency + cost + predictability weighted sum, threshold ≥ 18 OR 3-criterion notability gate) into a 3-tier macro/mezzo/micro hierarchy. Ratified entries are enforced via deterministic lifecycle hooks (SessionStart blocking · UserPromptSubmit path-scoped inject · PreToolUse 3-subtype poka-yoke contact/fixed-value/motion-step · PostToolUse SSoT propagation · Stop cycle-end probe · PostCompact working-set restore). phronesis_boundary field carves out judgement-heavy work that should NOT be codified. Frontmatter is governance SSoT (9/9 cross-axis universal convergence). Backed by 9-axis cross-domain deep research (harness · humanities · psychology · management · processor · os · sre · memoization · canonical). Normative justification via Clark-Chalmers coupling condition (Distributed Cognition) + Powell-DiMaggio 3-isomorphism (Organizational Anthropology). v0.1.0 first cut ships the spec + 1 ratified mezzo entry + 1 micro atom + contact-type PreToolUse hook; v0.2-0.4 roadmap defines manifest hash + renderers + voice linter + MESI multi-agent coherence + CMMI L4 effectiveness measurement. 0 npm deps (v0.1.0).",
+      "version": "0.1.0",
+      "category": "practice-codification",
+      "tags": ["practice-tree", "macro-mezzo-micro", "lifecycle-hooks", "maturation-gate", "frontmatter-ssot", "phronesis-boundary", "blameless"]
     }
   ]
 }

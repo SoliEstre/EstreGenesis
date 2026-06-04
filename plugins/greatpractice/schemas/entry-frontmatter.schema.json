@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/SoliEstre/EstreGenesis/blob/main/plugins/greatpractice/schemas/entry-frontmatter.schema.json",
+  "title": "Greatpractice Entry Frontmatter (v0.1.0)",
+  "description": "YAML frontmatter spec for greatpractice/{macro,mezzo,micro}/*.md entries. Canonical definition = Greatpractice.md §3.2. This schema enforces the 7 lint-required fields + tier-conditional + extended warn fields. v0.1 lint scope = block on 7 required, warn on extended (6-cycle grace), silent on v0.2+ deferred placeholders.",
+  "type": "object",
+  "required": ["id", "tier", "binding", "enforcement_level", "trigger", "lifecycle", "last_referenced_turn"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "kebab-case slug, unique within greatpractice/ tree"
+    },
+    "tier": {
+      "enum": ["macro", "mezzo", "micro"],
+      "description": "tier-conditional loading layer (Greatpractice.md §2)"
+    },
+    "binding": {
+      "enum": ["ratio", "obiter", "illustration"],
+      "description": "humanities §1.1 Stare Decisis — binding rule vs advisory commentary vs example"
+    },
+    "enforcement_level": {
+      "enum": ["mandatory", "recommended", "advisory"],
+      "description": "mandatory=PreToolUse exit 2, recommended=warning, advisory=inject only"
+    },
+    "trigger": {
+      "type": "object",
+      "required": ["if", "then", "format", "source"],
+      "properties": {
+        "if": { "type": "string", "description": "condition under which the practice fires" },
+        "then": { "type": "string", "description": "the practice action / discipline" },
+        "format": {
+          "enum": ["json-schema", "command-check-decision", "prose-with-yaml", "regex-match", "ast-pattern"],
+          "description": "psychology §1.8 — format itself yields d≈0.65 effect"
+        },
+        "source": {
+          "enum": ["stop-hook", "a2a-inbound", "user-pivot", "hyperbrief", "autonomous", "post-incident", "retro-backfill"],
+          "description": "processor §1.8 SHCT trigger_source attribution"
+        }
+      }
+    },
+    "lifecycle": {
+      "enum": ["probation", "consolidation", "automatic"],
+      "description": "psychology §1.10 Lally 66-day model — probation 0-30d / consolidation 30-90d / automatic 90+d"
+    },
+    "last_referenced_turn": {
+      "type": "string",
+      "format": "date-time",
+      "description": "os §1.1 Denning backward-window working-set tracking"
+    },
+
+    "title": { "type": "string" },
+    "slug": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "source_evidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "raw evidence sources from which this entry was promoted (memory paths, research file refs, observation citations)"
+    },
+
+    "evidence_quality": {
+      "enum": ["high", "moderate", "low"],
+      "description": "humanities §1.5 GRADE evidence quality axis"
+    },
+    "recommendation_strength": {
+      "enum": ["MUST", "SHOULD", "MAY"],
+      "description": "humanities §1.5 GRADE recommendation strength axis"
+    },
+
+    "maturity_score": {
+      "type": "object",
+      "properties": {
+        "frequency": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "depth": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "recency": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "cost": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "predictability": { "type": "integer", "minimum": 0, "maximum": 5 }
+      },
+      "description": "critic 3.4 — 5-axis multi-criteria weighted sum (Greatpractice.md §5.1). threshold = sum ≥ 18 OR (frequency ≥ 3 AND independent_triggers ≥ 2 AND verifiable_effect)"
+    },
+
+    "last_validated_at": { "type": "string", "format": "date-time" },
+    "validation_cadence_days": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "tier default: micro=30 / mezzo=90 / macro=180 (Greatpractice.md §7.2)"
+    },
+    "freshness_until": { "type": "string", "format": "date-time" },
+    "freshness_inherits_from": {
+      "type": ["string", "null"],
+      "description": "critic 3.3 — derived surface 일 때 master entry id (Greatpractice.md §7.5)"
+    },
+
+    "coherence": {
+      "enum": ["strict", "soft", "none"],
+      "description": "processor §1.11 MESI — default=soft, critical practice 만 strict"
+    },
+    "edit_policy": {
+      "enum": ["ownerless", "owned"],
+      "description": "canonical §1.9 — micro default=ownerless, mezzo/macro default=owned"
+    },
+    "owner": { "type": "string" },
+    "audit_trail": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ts": { "type": "string", "format": "date-time" },
+          "agent": { "type": "string" },
+          "action": { "enum": ["create", "promote", "revise", "supersede", "retire"] },
+          "prev_hash": { "type": ["string", "null"] }
+        }
+      },
+      "description": "ownerless 의 vandalism 방어 (critic 2.5) + owned 의 evolution history"
+    },
+
+    "supersedes": { "type": "array", "items": { "type": "string" } },
+    "superseded_by": { "type": ["string", "null"] },
+    "kaizen_baseline_since": { "type": "string", "format": "date" },
+    "revision_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ts": { "type": "string", "format": "date-time" },
+          "type": { "enum": ["created", "distinguish", "per-incuriam", "overrule", "revise"] },
+          "by": { "type": "string" },
+          "cost_tier": {
+            "enum": ["distinguish", "per-incuriam", "overrule", null]
+          }
+        }
+      }
+    },
+
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "path"],
+        "properties": {
+          "kind": { "enum": ["skill", "hook", "schema", "docs-badge", "memory_stub", "plugin-json", "renderer", "mcp"] },
+          "path": { "type": "string" },
+          "inherits_freshness": { "type": "boolean" }
+        }
+      },
+      "description": "canonical §1.11 — derived view enumeration for SSoT propagation (Greatpractice.md §8)"
+    },
+
+    "parent": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "children": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "phronesis_boundary": {
+      "type": "boolean",
+      "description": "humanities §3.9 — true = codify 금지, inject reference context only (Greatpractice.md §5.3)"
+    },
+
+    "class": {
+      "enum": ["persistent", "session"],
+      "description": "os §1.11 — cross-session 보존 vs single-session ephemeral"
+    },
+
+    "hash": {
+      "type": ["string", "null"],
+      "description": "BLAKE3(canonical_body) — v0.2+ active (memoization §1.8)"
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rrpv": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3,
+      "description": "processor §1.7 RRIP — 0=immediate evict, 3=long-protected, default=2"
+    },
+    "miss_count": {
+      "type": "object",
+      "properties": {
+        "compulsory": { "type": "integer", "minimum": 0 },
+        "capacity": { "type": "integer", "minimum": 0 },
+        "conflict": { "type": "integer", "minimum": 0 },
+        "coherence": { "type": "integer", "minimum": 0 }
+      },
+      "description": "processor §3.8 3C miss diagnostic grid — v0.2+ auto-aggregated"
+    }
+  }
+}
