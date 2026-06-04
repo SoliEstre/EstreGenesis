@@ -52,6 +52,45 @@
   hook: pre-send + pre-log
   targets: [wsKeys[*].key (full string), KeyIssued.key (in subsequent retrievals), revoke reason fragments containing credential context]
   rationale: KEY-MGMT carries credential material that MUST NOT leak per §13.14 redaction discipline — public-repo redaction rules apply
+@invariants
+  # P3 AST 계약스키마 — phase_3 2nd cut per eux-format v1.2 §2.6 (EstreUX edd2fb7 — 4 sub-section state/temporal/transaction/causality + 17 vocabulary keyword).
+  state:
+    - wsKeys 는 prefix-role 일관성 — uk-/upstream · ck-/collab member-of role enum (load_validation gate)
+    - wsKeys 의 revokedAt 은 monotonic — once set, never null again (revoke state preservation)
+    - ws-keys.json content 는 valid_json_pre OR valid_json_post 둘 중 하나 bounded (atomic write — torn-write 금지)
+    - KeyListReply audience-aware view: 비-operator 에 대해 key fragment 제거 (bounded view by role membership)
+    - wsKeys entries 는 createdAt ASC ordered (issuance order preservation)
+  temporal:
+    - KeyIssue → KeyIssued response 의 full key 는 at-most-once delivery (operator only; subsequent KeyList queries return masked, expires-after immediate)
+    - 동일 key 는 KeyRevoke after 동일 key string 재발급 없음 (no re-issue after revocation)
+    - wsKeyRole(key) lookup 결과 within process lifetime stable (wsKeys 변경 없으면 idempotent)
+    - boot ws-keys.json load: 단일 호출 within startup (boot idempotent, re-run 동일 endstate)
+  transaction:
+    - wsKeyRevoke: persist(revokedAt) precedes force-close(conn) — revoke_persistence_first (persist-before; crash mid-revoke 시 revoke 손실 방지)
+    - wsKeyIssue: crypto.randomBytes → persist (ws-keys.json + in-memory wsKeys dual-write) → broadcast KeyIssued atomic (이전 단계 완료 후 다음)
+    - ws-keys.json atomic write: temp file + rename pattern (atomic, rollback-safe — partial write 시 prior valid state 유지)
+    - wsKeyLabel: update label persist-before AgentNameChangedRequest broadcast (commit-then broadcast)
+    - boot reload: load → validate (prefix-role consistency) → reject malformed atomic (rollback-safe; corruption 시 BlockerManifest)
+  causality:
+    - wsKeyRole(key): result == 'upstream' iff key.startsWith('uk-') ∧ ¬revoked (active uk- key)
+    - wsKeyRole(key): result == 'collab' iff key.startsWith('ck-') ∧ ¬revoked (active ck- key)
+    - KeyRevoke immediate mode implies force-close (active conn 의 강제 종료)
+    - boot ws-keys.json corruption implies BlockerManifest surface (silent truncation 금지)
+    - wsKeyIssue authority 결재 precedes wsKeyIssued broadcast (operator-tier authority check 먼저)
+@metamorphic
+  # P4 property/metamorphic 후보 — phase_3 2nd cut per eux-format v1.2 §2.7 (EstreUX edd2fb7).
+  round_trip:
+    - wsKeyIssue(role, label) → wsKeyRevoke(key): wsKeys 에 entry 보존 (revokedAt set) + wsKeyRole(key) == null (revoke 후 lookup null + trace 보존)
+    - wsKeyLabel(key, A) → wsKeyLabel(key, B) → wsKeyLabel(key, A): wsKeys[key].label == A endstate (label round-trip)
+    - boot → ws-keys.json read → wsKeys load: 동일 wsKeys snapshot (boot recovery)
+  idempotency:
+    - wsKeyRevoke(already-revoked-key, mode): no-op (revokedAt 보존, force-close 영향 없음 — revoke idempotent)
+    - wsKeyList(filter) 호출 결과 같은 시점 동일 (wsKeys 변경 없으면 idempotent)
+    - wsKeyLabel(key, sameLabel) 재호출: no-op (label 동일 시 idempotent)
+  determinism:
+    - 동일 wsKeys snapshot + 동일 filter 의 wsKeyList 결과 deterministic
+    - wsKeyRole 의 prefix-based 분류 deterministic (input key → output role 1:1)
+    - ws-keys.json 의 byte representation 은 동일 wsKeys 의 serialize 결과 deterministic
 @operation_discipline
   derive:
     credential_authority_split: server owns issuance + revoke; client gateway-client-key-mgmt exposes commands but server enforces
