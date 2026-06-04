@@ -54,6 +54,48 @@
     archived:
       on:
         RequestChannelHistory → active          # entry: reload archived file + delete from archived/
+@invariants
+  # P3 AST 계약스키마 — phase_3 2nd cut per eux-format v1.2 §2.6 (EstreUX edd2fb7 — 4 sub-section state/temporal/transaction/causality + 17 vocabulary keyword).
+  state:
+    - wsHistByChan: 채널별 events 는 HIST_CAP=200 으로 bounded (ring cap per channel)
+    - 각 stored event 의 channelId 는 wsMsgChan(ev) content-derived key (member-of unique-channel; filename != authoritative)
+    - history_lifecycle state: active/cold/archived 중 정확히 하나 member-of (mutually exclusive)
+    - stored events: timestamp ASC ordered + id monotonic 증가 (boot reload preserves order)
+    - chan key derivation: filename != authoritative; content-derived via wsMsgChan (state bounded membership 보장)
+  temporal:
+    - debounce write: 1s after last update per channel (debounce_safety; crash mid-debounce 시 in-memory loss but disk state intact)
+    - compression: TEXT_/TOOL_ streaming _START → _END 시퀀스 within single message lifetime (temporal grouping; multiple parallel streams permitted)
+    - cold transition: agent_present_lost 시점 after presence change (lifecycle trigger)
+    - boot wsLoadAll: at-most-once per process startup (idempotent reload — disk state authoritative)
+    - active scan: per-channel state 유지 within process lifetime (cold/archived 제외 — expires-after explicit close)
+  transaction:
+    - record(ev): skip set check → channel key derive → compress → ring push → debounced write atomic (all-or-nothing per event)
+    - compression: _START → buffer → _END → store 1 event commit-then (streaming intermediate persist-before final 미저장 — 본문 wire 는 full bytes)
+    - timestamp_invariant: source-stamped at emit (wscore.event), record/replay never clobber persist-before (replay 시 original 보존, rollback-safe)
+    - boot wsLoadAll: per-channel .jsonl parse → re-key by content (wsMsgChan) → time-sort → cap → in-memory load atomic (rollback-safe on disk corruption)
+    - wsArchiveChannel: move .jsonl → archived/ + exclude from active scan dual-write atomic (filesystem rename + memory state 같이 commit)
+  causality:
+    - record: ev.name ∉ skip_set iff record stores event (skip list 우선)
+    - active → cold transition: agent_present_lost implies channel state stub (in-memory ring 제거, cold stub {key,count,lastTs} 보존)
+    - active → archived: explicit_close implies mv ws-history/<key>.jsonl archived/ (filesystem 이동)
+    - archived → active: RequestChannelHistory implies archived file → active 로 reload + delete from archived/
+    - wsMsgChan(ev) content derivation precedes channel key assignment (boot rebuild safety; filename layout 변경 시 자동 복원)
+@metamorphic
+  # P4 property/metamorphic 후보 — phase_3 2nd cut per eux-format v1.2 §2.7 (EstreUX edd2fb7).
+  round_trip:
+    - record(ev) 후 query(_) 결과에 ev 포함 (compress 후에도 동일 — store↔read 정합)
+    - active → cold (agent_present_lost) → active (RequestChannelHistory): events 동일 (lifecycle round-trip preservation)
+    - active → archived (explicit close) → active (RequestChannelHistory): events 동일 (archive round-trip)
+    - boot wsLoadAll 후 in-memory state == disk state (boot recovery roundtrip)
+    - record(ev) → write disk → boot wsLoadAll → query(_): 동일 ev 포함 (full persistence cycle)
+  idempotency:
+    - record(skip_set 내 event 예: HELLO/Heartbeat) 호출 N회: ring 변경 0회 (skip idempotency)
+    - debounced write: 동일 channel 의 N회 record → 1회 disk write (debounce idempotency, batching)
+    - wsLoadAll 재호출: 동일 disk state 의 in-memory representation 동일 (boot idempotent)
+  determinism:
+    - 동일 ev 입력 시 wsMsgChan(ev) 결과 deterministic (content-derived key)
+    - 동일 ring snapshot 의 historyPayload() 결과 deterministic (active/cold/archived enumeration)
+    - compression: 동일 _START → _CONTENT → _END 시퀀스 → 동일 compressed event (deterministic compression)
 @operation_discipline
   derive:
     board_ssot: server only relays + records; state.json authored by main (workers never write board → no multi-session collision)

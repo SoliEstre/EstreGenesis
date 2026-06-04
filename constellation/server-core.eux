@@ -66,6 +66,46 @@
         - conn.meta.anonymous = true
         - log {remoteAddr, ua, raw HELLO}   # origin observability
         - NO wsAgents.set; NO wsPushAgentList; relay path drops anything from this conn (-relay anonymous gate)
+@invariants
+  # P3 AST 계약스키마 — phase_3 2nd cut per eux-format v1.2 §2.6 (EstreUX edd2fb7 — 4 sub-section state/temporal/transaction/causality + 17 vocabulary keyword).
+  state:
+    - sseClients + wsConns membership: ordered (add on connect, remove on close); 동시에 multiple conn 가능 (bounded by OS limits)
+    - INTEGRATION_DOCS whitelist: bounded membership (whitelist-only docs — private agreements unreachable by construction)
+    - PUBLIC static: path-jailed to PUBLIC ('../' escape 금지) — bounded path traversal
+    - WS conn meta (collab/upstream): monotonic per conn lifetime (key meta set on upgrade, never changes thereafter)
+    - connection_role state member-of {ANON, BOARD, AGENT, ANON_PROBE} — exclusive membership
+  temporal:
+    - SSE keep-alive: 20s after each ping interval (`: ping` heartbeat)
+    - fs.watchFile cadence: 500ms after state.json mtime change (broadcastState trigger)
+    - POST /api/feedback body: ≤ MAX_BODY (32MB) within single request lifetime (over → destroy + 413)
+    - WS upgrade 3-frame sequence: SERVER_HELLO first, then AgentList, then History (if nonempty) — within upgrade transaction (ordering)
+    - storeAtt data-URL decode: at-most-once per attachment (file write 1회, src replace 1회 — idempotent)
+  transaction:
+    - onUpgrade 3-frame sequence: SERVER_HELLO → AgentList → History commit-then 진행 (이전 frame 완료 후 다음 frame emit)
+    - serveFeedback: body parse → stamp receivedAt → storeAtt → append feedback.jsonl atomic (실패 시 partial commit 없음, rollback-safe)
+    - storeAtt: data-URL decode → temp file → rename atomic (partial write 시 rollback-safe — feedback-atts/ dir state 보존)
+    - register (delegated to -relay): wsAgents.set persist-before wsPushAgentList broadcast (commit-then 패턴)
+    - boot: HTTP server bind + WS upgrade handler 등록 dual-write atomic (한쪽 실패 시 전체 abort)
+  causality:
+    - HELLO with agentId iff conn → AGENT post-register (register state transition)
+    - HELLO without agentId iff conn → ANON_PROBE (anonymous_probe_gate — security against unauthenticated LAN probe)
+    - no HELLO precedes BOARD classification (default board role for non-HELLO conn)
+    - INTEGRATION_DOCS whitelist 외 path implies 404 (private agreements unreachable by construction)
+    - envelope mismatch (bare framing for application msg) implies silent dashboard drop (mixing_failure_mode)
+@metamorphic
+  # P4 property/metamorphic 후보 — phase_3 2nd cut per eux-format v1.2 §2.7 (EstreUX edd2fb7).
+  round_trip:
+    - state.json change → SSE broadcast → client state re-fetch: 동일 state.json snapshot (broadcast round-trip)
+    - storeAtt: data-URL → decode → temp file → src replace → read back: bytes identical for code/text bodies (att roundtrip)
+    - wscore.event(type, payload) → emit → server receive: envelope structure preserved (canonical builder roundtrip)
+  idempotency:
+    - integrationDocs: 동일 whitelisted path 의 GET 결과 deterministic + idempotent (file content stable)
+    - joinCollab: 동일 key 의 wsKeyRole(key) lookup 결과 동일 (wsKeys 변경 없으면 idempotent)
+    - broadcastState: 동일 state.json snapshot 의 SSE event payload 동일 (idempotent broadcast)
+  determinism:
+    - wscore.event(type, payload): 동일 input → 동일 envelope bytes (canonical builder deterministic)
+    - upgrade sequence: 동일 query key + history state → 동일 3-frame output sequence
+    - storeAtt path generation: 동일 ts + rand seed → 동일 feedback-atts/ 경로 deterministic (단 rand seed 가 process-local)
 @operation_discipline
   derive:
     envelope_convention: application MUST emit as CUSTOM/<name>/value{...} (3-field shape); transport framing (SERVER_HELLO/HELLO/Heartbeat/PersistentAdapterSmoke) stays bare. Stored events preserve full envelope including source-stamped timestamp; replay never clobbers. Mismatch = silent dashboard drop.
