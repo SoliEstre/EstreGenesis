@@ -1,0 +1,59 @@
+@component server-keys
+@intent KEY-MGMT server-side sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04). Owns the upstream-key (`uk-*`) and external-collab-key (`ck-*`) registry + issuance/revoke/label lifecycle + role classification authority. Receives KEY-MGMT commands via `-relay` orchestration dispatch (`wsHandleOrch` RegisterUpstreamKey / RegisterCollabKey / RevokeUpstreamKey / RevokeCollabKey / KeyLabel paths). Persisted store at `ws-keys.json` (gitignored — credential file). The `wsKeyRole(key)` lookup is the authority for `-core` WS upgrade meta classification (collab vs upstream meta) AND `-core` `/join/collab?key=` gating. **Carries C7 `@hazards` per phase_2 — credential surfaces with redaction discipline + filesystem integrity invariants.** Authority enforcement (which roles may issue/revoke/label) is server-side; client gateway exposes commands via `gateway-client-key-mgmt.eux` but server has final say.
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
+@targets vanilla
+@profile backend-service
+@source constellation/reference/runtime/server.cjs(L188-360 KEY-MGMT block — KEY_JSON / keyStore / key* helpers + wsKeyIssue / wsKeyList / wsKeyRevoke / wsKeyLabel) · WS-PROTOCOL §13.16.11 KEY-MGMT semantics + §13.14 redaction discipline
+@state
+  KEY_JSON   : string = 'ws-keys.json'              # persistence path (gitignored — credential file)
+  wsKeys     : {key, label, role, createdAt, lastSeen?, revokedAt?}[]   # persisted registry
+@deps
+  fs       : ws-keys.json read/write (load on boot, sync write on issue/revoke/label)
+  crypto   : crypto.randomBytes → key issue (uk-<16hex> / ck-<16hex>)
+  -relay   : orchestration dispatch entry point (wsHandleOrch); also broadcasts AgentNameChanged after KeyLabel
+  -core    : wsKeyRole(key) consumer (WS upgrade meta + /join/collab? gate)
+@ports
+  cmd  wsKeyIssue(role, label?, expires_at?)         : crypto.randomBytes → 'uk-'+hex | 'ck-'+hex; persist + broadcast KeyIssued
+  cmd  wsKeyList(filter?)                             : return wsKeys filtered (active|revoked|all); audience-aware (operator vs board view)
+  cmd  wsKeyRevoke(key, mode, reason?)                : mark revokedAt; if mode=immediate AND key has active conn → force-close that conn; persist + broadcast KeyRevoked
+  cmd  wsKeyLabel(key, newLabel)                      : update label; if key has active conn → -relay AgentNameChanged broadcast; persist + KeyLabelUpdated
+  cmd  wsKeyRole(key)                                 : lookup → 'upstream' (uk-) | 'collab' (ck-) | null (invalid/revoked)
+  out  KeyIssued(key, label, expires_at)
+  out  KeyListReply(keys[])
+  out  KeyRevoked(key, mode_applied, revoked_at)
+  out  KeyLabelUpdated(key, newLabel)
+  out  AgentNameChangedRequest                          # routed via -relay broadcast
+@hazards
+  # C7 — credential + filesystem integrity surfaces per eux-format v1.1 §2.5 @redaction (credential 한정) + §13.14 redaction discipline
+  credential_surfaces:
+    - wsKeys[*].key                                     # full uk-/ck- strings — MUST NOT log/expose unredacted to public traces, board fan-out, or committed transcripts
+    - issuance_response_bodies                          # KeyIssued payload carries full key (one-time delivery)
+    - filesystem_path: ws-keys.json                     # credential file — gitignored MUST, never commit
+  redaction_discipline:
+    log_surface: show only first 8 chars of key + last 4 (e.g. "uk-1234abcd…wxyz"); full key value NEVER logged
+    relay_surface: KeyListReply to non-operator audience returns label + role + connectionStatus only (key fragments stripped or masked)
+    operator_only_full_key: only the issuing operator's KeyIssued response carries the full key (one-time); subsequent KeyList queries return masked
+  integrity_invariants:
+    ws_keys_json_atomic_write: use temp file + rename pattern (avoid torn write on crash; partial JSON breaks boot reload)
+    ws_keys_json_load_validation: on boot, parse + schema-validate (key prefix matches role: uk-/upstream, ck-/collab); reject malformed entries with explicit BlockerManifest emission
+    revoke_persistence_first: persist revokedAt to disk BEFORE force-closing connection (avoid revoke loss on crash mid-revoke)
+  threat_model:
+    public_log_leak: credential in stdout / committed transcript / public commit (mitigated by redaction_discipline)
+    ws_keys_json_commit: credential file accidentally committed (mitigated by .gitignore + pre-commit hook recommended)
+    revoke_race: connection survives revoke if force-close persisted before revokedAt write (mitigated by revoke_persistence_first)
+    boot_silent_corruption: ws-keys.json partial JSON silently truncates wsKeys → all uk-/ck- effectively revoked (mitigated by ws_keys_json_load_validation + BlockerManifest surfacing)
+@routing
+  authority_per_command:
+    wsKeyIssue / wsKeyRevoke / wsKeyLabel: operator-tier — typically role=main or board; -relay enforces (rejects with PermissionDenied if originator lacks authority)
+    wsKeyList: any connected agent MAY query (returns filtered view per audience)
+    AgentNameChanged broadcast: server-initiated post-KeyLabel, no client authority required to receive
+  trigger_message_names: [RegisterUpstreamKey, RegisterCollabKey, RevokeUpstreamKey, RevokeCollabKey, KeyLabel, KeyList]    # -relay orchestration dispatch consumed
+@redaction
+  hook: pre-send + pre-log
+  targets: [wsKeys[*].key (full string), KeyIssued.key (in subsequent retrievals), revoke reason fragments containing credential context]
+  rationale: KEY-MGMT carries credential material that MUST NOT leak per §13.14 redaction discipline — public-repo redaction rules apply
+@operation_discipline
+  derive:
+    credential_authority_split: server owns issuance + revoke; client gateway-client-key-mgmt exposes commands but server enforces
+    one_time_delivery: KeyIssued payload is the only surface with full key; subsequent KeyList queries return masked
+    revoke_atomicity: persist-then-close ordering avoids revoke loss on mid-operation crash

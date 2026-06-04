@@ -1,264 +1,44 @@
-# constellation/gateway-client.eux
-# Distilled EstreUX specification for Constellation autonomous-runtime WS adapter
-
-metadata:
-  id: "constellation-gateway-client"
-  name: "Constellation Gateway Agent Adapter"
-  version: "2.5.3"
-  author: "hermes-dev-agent, EstreGenesis canonical promoted"
-  description: "Declarative runtime adapter for Constellation upstream/local/collab agents via live-board protocol v0.3. Promoted from constellation/reference/gateway/hermes/_hermes-handoff-20260601/ on 2026-06-01 (v2.5.3 canonical promotion); pre-promotion EG canonical preserved as eg-canonical-pre-promotion.eux in the same audit subfolder."
-
-runtime:
-  engine: "EstreUX"
-  concurrency: "event-driven"
-  keepAlive: true
-  poll_interval_ms: 15000
-  display_heartbeat_ms: 0
-  auto_pong: false
-  idle_heartbeat: false
-
-roles:
-  canonical:
-    - "main"
-    - "local"
-    - "upstream"
-    - "collab"
-    - "board"
-  role_truth: "server-classified AgentList; AgentHello.value.role is a hint"
-  onboard_ack:
-    local: "inform local worker of policy, then wait for Delegate"
-    upstream: "informational welcome; continue autonomous peer track"
-    collab: "informational welcome; continue autonomous peer track"
-
-connection_params:
-  url_rules:
-    local_dev: "ws://<host>:<port>/ws"
-    token_gated: "ws://<host>:<port>/ws?token=<token>"
-    upstream: "ws://<host>:<port>/ws?upstreamKey=<uk-…>"
-    collab: "ws://<host>:<port>/ws?key=<ck-…>"
+@component gateway-client
+@intent Parent manifest of the Constellation gateway-client runtime adapter family (v1.1 split per phase_2 2026-06-04 — supersedes v2.5.3 single-file `metadata:` form). The 12-dim SSoT contract (canonical promoted from Hermes refined on 2026-06-01, commit b4c5e3d) is now expressed via eux-format v1.1's `@directive` super-set + `@deps`-based modular split, addressing G3/G6 from the 2026-06-03 brew-dogfooding gap catalog (large module surface-only validation + single .eux content-cramming). Cluster sub-modules: `-handshake` (connection lifecycle + role + url_patterns), `-a2a` (envelope + routing + delivery + ack tier with Hyperbrief decided extension), `-attachments` (§13.11 rule 5 transport-mode discipline — formalized from prose), `-key-mgmt` (§13.16.11 KEY-MGMT client-side surface — formalized from prose). The parent manifest carries cross-cluster operational directives (`@runtime` / `@redaction` / `@operation_discipline`) so the family shares a single operational policy contract.
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
+@targets vanilla
+@profile protocol-adapter
+@source constellation/gateway-client.eux(v2.5.3 pre-split 264 lines · metadata: 12-dim) split-source for `-handshake` + `-a2a` clusters · Constellation.md(§13.11 rule 5) source for `-attachments` cluster · Constellation.md(§13.16.11) source for `-key-mgmt` cluster · eux-format-v1.md(EstreUX commit 77e12f9 §2.5 7 directive + §4.5 임계) split format basis
+@deps
+  -handshake: constellation/gateway-client-handshake.eux              # connection lifecycle + role + url_patterns + AgentHello
+  -a2a: constellation/gateway-client-a2a.eux                          # envelope + routing + delivery + ack tier (delivered/commitment/application/decided)
+  -attachments: constellation/gateway-client-attachments.eux          # §13.11 rule 5 transport-mode + sha256 verification
+  -key-mgmt: constellation/gateway-client-key-mgmt.eux                # §13.16.11 KeyIssue/List/Revoke/Label + AgentNameChanged broadcast
+@runtime
+  engine: turn-held (15s drain window — see -a2a @machine turn_held)
+  concurrency: single-connection (one WS per adapter instance; multi-instance adopters spawn parallel adapters)
+  keepAlive: ws-ping only (transport layer)
+  poll_interval_ms: 15000                                              # safe-point window for turn-held drain
   forbidden:
-    - "generic key parameter for upstream"
-    - "client-side idle heartbeat pretending to be agent activity"
-
-deps:
-  - name: "ws_send"
-    description: "raw WebSocket JSON frame send"
-  - name: "upstreamKey"
-    description: "upstream registration key; required when role is upstream"
-  - name: "token"
-    description: "optional token-gated deployment credential"
-  - name: "collabKey"
-    description: "external collaborator key; used as key=<ck-…>"
-  - name: "mainAgentId"
-    description: "AgentHello targetAgentId"
-  - name: "storage"
-    description: "local cursor, msgId watermark, and outbox/inbox persistence"
-  - name: "redact"
-    description: "redaction hook before send and log surfaces"
-
-ports:
-  cmd:
-    - name: "connect"
-      description: "open WS and start server-first handshake"
-    - name: "feed_inbound_evt"
-      description: "append inbound event to inbox after dedup"
-    - name: "drain_inbox_safe_point"
-      description: "turn-held drain with a <=15s wait window"
-  out:
-    - name: "emit_RUN_STARTED"
-      event: "RUN_STARTED"
-    - name: "emit_RUN_FINISHED"
-      event: "RUN_FINISHED"
-    - name: "emit_RUN_ERROR"
-      event: "RUN_ERROR"
-    - name: "emit_STEP_STARTED"
-      event: "STEP_STARTED"
-    - name: "emit_STEP_FINISHED"
-      event: "STEP_FINISHED"
-    - name: "emit_TEXT_MESSAGE_START"
-      event: "TEXT_MESSAGE_START"
-    - name: "emit_TEXT_MESSAGE_CONTENT"
-      event: "TEXT_MESSAGE_CONTENT"
-    - name: "emit_TEXT_MESSAGE_END"
-      event: "TEXT_MESSAGE_END"
-    - name: "emit_TOOL_CALL_START"
-      event: "TOOL_CALL_START"
-    - name: "emit_TOOL_CALL_ARGS"
-      event: "TOOL_CALL_ARGS"
-    - name: "emit_TOOL_CALL_END"
-      event: "TOOL_CALL_END"
-    - name: "emit_TOOL_CALL_RESULT"
-      event: "TOOL_CALL_RESULT"
-    - name: "emit_CUSTOM"
-      event: "CUSTOM"
-
-machines:
-  connection:
-    initial: "DISCONNECTED"
-    states:
-      DISCONNECTED:
-        on:
-          connect: "CONNECTING"
-      CONNECTING:
-        entry: "open_websocket_with_role_specific_auth"
-        on:
-          OPEN: "AWAIT_SERVER_HELLO"
-          ERROR: "CONNECTING"
-      AWAIT_SERVER_HELLO:
-        entry: "read_first_frame_and_require_SERVER_HELLO"
-        on:
-          SERVER_HELLO: "SEND_HELLO"
-          ServerNotice: "HANDLE_SERVER_NOTICE"
-          ERROR: "CONNECTING"
-      SEND_HELLO:
-        entry:
-          - "send_HELLO"
-          - "send_CUSTOM_AgentHello"
-        on:
-          HANDSHAKE_SENT: "READY"
-          ERROR: "CONNECTING"
-      HANDLE_SERVER_NOTICE:
-        entry: "surface_notice_such_as_flap-rejected"
-        on:
-          RECOVERABLE: "CONNECTING"
-          FATAL: "DISCONNECTED"
-      READY:
-        entry: "start_sender_receiver_tasks"
-        on:
-          AgentList: "UPDATE_AUTHORITATIVE_ROLE"
-          History: "REPLAY_TO_INBOX_WITH_DEDUP"
-          CLOSE: "DISCONNECTED"
-          ERROR: "CONNECTING"
-
-  turn_held:
-    initial: "IDLE"
-    states:
-      IDLE:
-        on:
-          inbound_message_buffered: "DRAIN_INBOX"
-      DRAIN_INBOX:
-        entry: "wait_up_to_15000ms_then_collect_available_events"
-        on:
-          safe_point: "PROCESS"
-          timeout: "IDLE"
-      PROCESS:
-        entry:
-          - "dedup_by_persistent_msgId_watermark"
-          - "route_to_active_runtime_turn"
-          - "never_auto_emit_Pong_or_AckProcessed_or_ReviewSLAAck"
-        on:
-          processed: "EMIT_TERMINATION_IF_NEEDED"
-      EMIT_TERMINATION_IF_NEEDED:
-        entry: "agent_layer_may_emit_DONE_BLOCKED_NEEDS_HUMAN_AckProcessed"
-        on:
-          complete: "IDLE"
-
-wire:
-  handshake:
-    server_first: "SERVER_HELLO"
-    client_hello: "HELLO"
-    agent_intro:
-      type: "CUSTOM"
-      name: "AgentHello"
-      top_level_fields:
-        - "name"
-        - "targetAgentId"
-      value_fields:
-        - "agentId"
-        - "agentName"
-        - "role"
-        - "env"
-        - "capabilities"
-        - "idle"
-  envelope:
-    common_required:
-      - "type"
-      - "id"
-      - "seq"
-      - "runId"
-      - "threadId"
-      - "timestamp"
-      - "source"
-      - "agentId"
-    reply_echo:
-      - "targetAgentId"
-      - "contextId"
-      - "parentId"
-    channel_key: "agentId"
-
-routing:
-  target_unspecified: "main"
-  telemetry_exclusion:
-    require_tag: true
-    excluded_from:
-      - "A2A reply-window pairing"
-      - "main routing"
-  a2a_priority:
-    rule: "outbound A2A messages and prerequisites move to the head of the action queue"
-    applies_to:
-      - "Delegate"
-      - "Report"
-      - "BlockerManifest"
-      - "BlockerNudge"
-      - "ReviewSLAAck"
-      - "EscalationRequest"
-
-delivery:
-  default: "at-most-once"
-  automatic_retransmit: false
-  msgId:
-    assigner: "sender bridge/client"
-    applies_to: "targeted CUSTOM except Ack/Ping/Pong/telemetry"
-    persistent_watermark: true
-  ack_layer:
-    delivered:
-      name: "Ack"
-      emitter: "server"
-      meaning: "wire relay succeeded"
-    commitment:
-      name: "ReviewSLAAck"
-      emitter: "recipient agent"
-      meaning: "recipient will complete or renegotiate before eta"
-    application:
-      name: "AckProcessed"
-      emitter: "recipient agent"
-      meaning: "recipient acted on the message"
-  liveness:
-    ping: "agent-layer Ping"
-    pong_owner: "active runtime turn only"
-    bridge_auto_pong: false
-  termination_signals:
-    - "DONE"
-    - "BLOCKED"
-    - "NEEDS_HUMAN"
-  deadlock_vocabulary:
-    - "DeadlockProbe"
-    - "PreemptRequest"
-    - "PreemptForce"
-    - "MediationProposal"
-    - "MediationAck"
-    - "EscalationRequest"
-  blocker_vocabulary:
-    - "BlockerManifest"
-    - "BlockerNudge"
-
-redaction:
-  before_send: true
-  before_log: true
-  public_gate:
-    - "no real token/key values"
-    - "no private repo paths"
-    - "no private service names"
-    - "no raw tool result secret leaks"
-
-operation_discipline:
+    - display_heartbeat (app-layer Heartbeat emission for "still here" without actual activity)
+    - auto_pong (bridge auto-emits Pong masks application liveness — Pong owner is active runtime turn only)
+    - idle_heartbeat_as_activity (use ws-ping at transport layer, never app-layer as activity proxy)
+@redaction
+  hook: pre-send + pre-log                                             # both inbound log and outbound emit paths
+  targets:
+    - credential (token, upstreamKey uk-*, collabKey ck-*) — surface only first 8 chars in logs
+    - PII (user-supplied identifiers in UserPrompt bodies)
+    - real service / workspace / repo names (use generic anonymization for public traces)
+    - raw tool result secret leaks (per §13.14 redaction discipline)
+  authority: §13.14 reference-build redaction discipline = canonical redaction SSoT; this manifest scopes the adapter family
+@operation_discipline
+  principle: event-driven emit (activity-linked outbound; no autonomous heartbeat under idle)
   upstream_peer:
-    - "continue own track after informational OnboardAck"
-    - "do not wait for Delegate unless AgentList role is local"
-    - "recommend and proceed for non-branching choices"
-    - "do not defer progressable work to a fresh context"
-    - "materialize large work before context boundary risk"
+    - continue own track after informational OnboardAck (upstream/collab roles)
+    - do not wait for Delegate unless AgentList classifies us as local
+    - recommend-and-proceed for non-branching choices (per Constellation.md §13.18 autonomous execution)
+    - do not defer progressable work to a fresh context (per §13.21 fresh-context defer anti-pattern)
+    - materialize large work before context boundary risk (per §13.16.6 6th element)
   wait_state:
-    - "emit BlockerManifest before all-blocked idle wait"
-    - "emit BlockerNudge by cadence while blocker remains"
-    - "route human escalation to board decisions panel"
+    - emit BlockerManifest before all-blocked idle wait (per §13.20)
+    - emit BlockerNudge by cadence while blocker remains
+    - route human escalation to board decisions panel (per §13.17 — never inline AskUserQuestion structured-choice prompts in main chat)
+  anti_patterns:
+    - false-alive heartbeat
+    - ack storm (auto-emit AckProcessed on every inbound without agent judgment)
+    - silent drop of A2A-intent class (every unknown name → wake fail-safe, never silent absorption)

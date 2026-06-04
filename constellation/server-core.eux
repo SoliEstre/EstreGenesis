@@ -1,0 +1,73 @@
+@component server-core
+@intent HTTP + WS upgrade core sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04, parent manifest `server.eux` carries cross-cluster operational directives). Owns: (a) HTTP request surface — `/api/state` (no-store snapshot), `/api/events` (SSE pushed on `fs.watchFile` 500ms with 20s `: ping` keep-alive), `/api/feedback` (POST ≤ 32MB body, data-URL attachments extracted to `feedback-atts/` per §13.11 rule 5 storage discipline), `/join/<group>?key=` (dynamic collab onboarding md gated by `wsKeyRole`), and `INTEGRATION_DOCS` whitelist (public protocol SSoT + reference client + 3 representative `.eux` + BREW.md only; private agreements absent by construction). (b) WS upgrade handshake — non-`/ws` rejection, key-query→meta translation (collab/upstream key role), the canonical inbound 3-frame sequence (`SERVER_HELLO` bare → `CUSTOM/AgentList` value-nested → `CUSTOM/History` if non-empty). (c) Per-connection role classification reducer (axis 1 of `@machine` — ANON / BOARD / AGENT / ANON_PROBE). The envelope convention (CUSTOM-wrapped application messages vs bare transport framing) is canonically anchored here.
+@expansion temperature=0.2 model=agent/claude template=estreux/v0.1
+@targets vanilla
+@profile backend-service
+@source constellation/reference/runtime/server.cjs(247-277 wsCollabOnboardMd · L267-300 wsHandleOrch dispatch) · constellation/reference/runtime/server.cjs(WS upgrade + SERVER_HELLO/AgentList/History sequence) · WS-PROTOCOL §13.11 attachment storage + §13.16.4 HELLO/flap discipline
+@state
+  MAX_BODY      : number = 33554432   # 32MB cap for POST /api/feedback body (over → req.destroy)
+  HIST_CAP      : number = 200        # per-channel stored-event cap (referenced; ring lives in server-history)
+  sseClients    : Set<res>            # open SSE subscribers (state pushes)
+  wsConns       : Set<conn>           # all live WS connections (agents + boards)
+@ports
+  in   PORT                     : number = 7878        # env.PORT
+  in   LIVE_BOARD_WS_TOKEN      : string?              # optional token gate (enforced in ws-core upgrade)
+  out  GET  /api/state          : current state.json (no-store)
+  out  GET  /api/events         : SSE; emits `state` on connect + on every state.json change (fs.watchFile 500ms); 20s `: ping`
+  out  POST /api/feedback       : append entry → feedback.jsonl (≤32MB); data-URL atts → feedback-atts/ (path ref kept inline)
+  out  GET  /join/<group>?key=  : dynamic onboarding md (key+host embedded; collab → 403 if wsKeyRole(key)!='collab')
+  out  GET  <whitelist docs>    : INTEGRATION_DOCS only — protocol SSoT + onboarding doc + reference client + 3 representative .eux (ws-conn-bar · ws-tool-card · ws-collab-invite) + BREW.md
+  out  static PUBLIC/            : path-jailed to PUBLIC (`../` escape → 403)
+  out  /ws upgrade              : ws-core.handleUpgrade → conn; query key (?key/?upstreamKey/?collabKey) sets collab/upstream meta
+@deps
+  http      : node http server
+  fs        : state read + watchFile + feedback IO + (history IO delegated to server-history)
+  ws-core   : deps-0 WS framing (handleUpgrade, event())
+  -relay    : constellation/server-relay.eux (post-HELLO routing + A2A relay receives classified conn)
+  -history  : constellation/server-history.eux (History frame at upgrade; record() at relay-time)
+  -keys     : constellation/server-keys.eux (wsKeyRole lookup for joinCollab + WS upgrade meta)
+@wire
+  envelope:
+    convention: CUSTOM-wrapped {type:CUSTOM, name, value, ...} for application messages
+    bare_transport: [SERVER_HELLO, HELLO, Heartbeat, PersistentAdapterSmoke]
+    canonical_builder: wscore.event(type, payload)     # NEVER construct {type:...} literals for application messages
+    mixing_failure_mode: silent dashboard drop ("connected" but channels stay empty — real downstream-adoption pitfall)
+  upgrade_sequence_3_frames:
+    1: SERVER_HELLO{protocolVersion:'0.3'}              # bare top-level transport framing
+    2: CUSTOM/AgentList/value:{main, agents, serverTime}# role first, so monitors classify A2A correctly
+    3: CUSTOM/History/value:{events, cold, archived}    # ONLY if non-empty (active + cold/archived stubs); fully delegated to -history
+@behavior
+  broadcastState   : on state.json change (fs.watchFile 500ms) → write `event: state` to every sseClient (newlines flattened)
+  serveFeedback    : POST body (≤MAX_BODY 32MB, destroy if over); JSON parse (400 on bad); stamp receivedAt; map atts via storeAtt; append feedback.jsonl
+  storeAtt         : if att.src is data-URL → decode (base64/uri) to feedback-atts/<ts-rand.ext>, replace src with {stored:path, bytes, mime}; code/text bodies stay inline (§13.11 rule 5 hybrid mode)
+  joinCollab       : /join/<group>?key= → wsKeyRole(key)=='collab' (from -keys) else 403 md; else wsCollabOnboardMd(host, key) — connect line + IDE/CLI vs autonomous-runtime branch + paste-ready onboarding prompt
+  integrationDocs  : serve only whitelisted files; anything else 404 (private agreements deliberately absent — see derive doc_safety)
+  onUpgrade        : reject non-/ws (socket.destroy); ws-core.handleUpgrade → conn; read key from query → wsKeyRole (from -keys) → set conn.meta.collab/upstream; add to wsConns; emit 3-frame sequence
+  onClose          : delete conn from wsConns; if agent-of-record → wsAgents.delete (delegated to -relay) + wsPushAgentList
+@machine connection_role
+  # reducer: (connRole, event) → connRole — axis 1 of original two-axis @machine
+  initial: ANON
+  states:
+    ANON:
+      entry: SERVER_HELLO + AgentList + History-if-nonempty; key meta set → collab/upstream
+      on:
+        HELLO_with_agentId → AGENT      # entry: register agentId, replace prior conn, push AgentList (delegated to -relay)
+        HELLO_without_agentId → ANON_PROBE   # security gate per §13.16.4 unauthorized-probe class
+        no_HELLO → BOARD                  # board/user — its inbound routes to agents (via -relay)
+    BOARD:
+      on:
+        HELLO_with_agentId → AGENT
+        close → ⊗
+    AGENT:
+      on:
+        close → ⊗                          # entry: if agent-of-record → wsAgents.delete + push AgentList
+    ANON_PROBE:
+      entry:
+        - conn.meta.anonymous = true
+        - log {remoteAddr, ua, raw HELLO}   # origin observability
+        - NO wsAgents.set; NO wsPushAgentList; relay path drops anything from this conn (-relay anonymous gate)
+@operation_discipline
+  derive:
+    envelope_convention: application MUST emit as CUSTOM/<name>/value{...} (3-field shape); transport framing (SERVER_HELLO/HELLO/Heartbeat/PersistentAdapterSmoke) stays bare. Stored events preserve full envelope including source-stamped timestamp; replay never clobbers. Mismatch = silent dashboard drop.
+    doc_safety: INTEGRATION_DOCS is an explicit whitelist; private agreements unreachable by construction
+    anonymous_probe_gate: HELLO without agentId is held at transport layer but never registered (security against unauthenticated LAN probe → phantom channel accumulation incident, real ~100 synthetic channels observed)
