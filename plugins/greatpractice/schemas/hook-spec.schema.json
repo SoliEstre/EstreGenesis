@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/SoliEstre/EstreGenesis/blob/main/plugins/greatpractice/schemas/hook-spec.schema.json",
+  "title": "Greatpractice Hook Spec (v0.1.0)",
+  "description": "Hook DSL for entry frontmatter `trigger:` + `surfaces[].kind=hook`. Canonical definition = Greatpractice.md §4.2. psychology §1.8 — schema strict format yields d≈0.65 effect over prose.",
+  "type": "object",
+  "required": ["event", "matcher", "condition", "action", "enforcement_level"],
+  "properties": {
+    "event": {
+      "enum": [
+        "SessionStart",
+        "UserPromptSubmit",
+        "PreToolUse",
+        "PostToolUse",
+        "Stop",
+        "PostCompact"
+      ],
+      "description": "Claude Code lifecycle event (Greatpractice.md §4.1)"
+    },
+    "matcher": {
+      "type": "object",
+      "description": "어느 tool 호출 + 어느 input 패턴에 fire 하는지",
+      "properties": {
+        "tool": {
+          "type": "string",
+          "description": "Bash | Edit | Write | Read | (regex pattern)"
+        },
+        "input_pattern": {
+          "type": "string",
+          "description": "regex on tool input (e.g. file_path or command)"
+        },
+        "path_scope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "critic 2.7 — active file path glob; fire only when (keyword/input matcher) AND path_scope intersect"
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "description": "fire 조건 — if-then 의 if 절 (psychology §1.8)",
+      "properties": {
+        "expr": {
+          "type": "string",
+          "description": "JavaScript expression evaluated on tool input + workspace state"
+        },
+        "trigger_source": {
+          "enum": [
+            "stop-hook",
+            "a2a-inbound",
+            "user-pivot",
+            "hyperbrief",
+            "autonomous",
+            "post-incident",
+            "retro-backfill"
+          ],
+          "description": "processor §1.8 SHCT trigger_source enum"
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["kind"],
+      "description": "fire 시 실행 — if-then 의 then 절",
+      "properties": {
+        "kind": {
+          "enum": ["block", "warn", "inject_context", "rewrite_input", "run_script"]
+        },
+        "payload": {
+          "type": "string",
+          "description": "action 별 payload — block=error message / warn=warning text / inject=additionalContext / rewrite=new input / run_script=cjs path"
+        },
+        "voice_checked": {
+          "type": "boolean",
+          "default": true,
+          "description": "critic 3.2 — block/warn 메시지도 voice linter 통과 필수 (Greatpractice.md §6.4)"
+        }
+      }
+    },
+    "enforcement_level": {
+      "enum": ["mandatory", "recommended", "advisory"],
+      "description": "mandatory=exit 2 차단 / recommended=warning / advisory=inject only"
+    },
+    "tiered_strictness": {
+      "type": "object",
+      "description": "canonical §1.5 BRD — 1st/2nd/3rd violation 처리",
+      "properties": {
+        "first": { "enum": ["BOLD", "REVERT", "DISCUSS"] },
+        "second": { "enum": ["BOLD", "REVERT", "DISCUSS"] },
+        "third": { "enum": ["BOLD", "REVERT", "DISCUSS"] },
+        "window_turns": { "type": "integer", "default": 20 }
+      }
+    },
+    "fatigue_budget_ms": {
+      "type": "integer",
+      "default": 60000,
+      "description": "humanities §1.7 Gawande 60-90s ceiling (Greatpractice.md §4.5)"
+    },
+    "temporal_locus": {
+      "enum": ["in-action", "on-action"],
+      "description": "humanities §1.9 Schön — in-action=즉석, on-action=사후"
+    },
+    "germane_load": {
+      "type": "boolean",
+      "description": "critic 1.2 — true = learning-contributing germane load (mandatory OK), false = extraneous (mandatory 금지)"
+    }
+  }
+}

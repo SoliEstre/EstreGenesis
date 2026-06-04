@@ -1,0 +1,12 @@
+{
+  "name": "greatpractice",
+  "version": "0.1.0",
+  "description": "Memory-triggered practice-codification discipline. Wraps Greatpractice.md v0.1.0 as 3 JSON schemas (entry-frontmatter + hook-spec + voice-rules) + 1 PreToolUse contact hook (outbox-json-validate) backing the v2.5.50 canonical entry `greatpractice/mezzo/outbox-json-validation`. Targets the &quot;quiet omission&quot; surface — small obligations that should accompany the work but slip through as memory notes accumulate; agent-workspace memory feedback is the input trigger, raw signals route through a 5-axis multi-criteria maturation gate into a 3-tier macro/mezzo/micro hierarchy, ratified entries are enforced via deterministic lifecycle hooks. Built on 9-axis cross-domain deep research (harness · humanities · psychology · management · processor · os · sre · memoization · canonical) — see reports/2026-06-04-greatpractice-research/. v0.1.0 = minimum-viable cut (spec + 1 mezzo + 1 micro + 1 hook). v0.2+ roadmap: 4 runtime cjs (lint + promote + voice-check + freshness) + 4 additional hooks (motion-step pre-send-inbound + SessionStart bridge + fixed-value n-way-sync + workspace path) + 5 skills + 3 templates + manifest hash + renderers. 0 npm deps (v0.1.0).",
+  "author": {
+    "name": "SoliEstre",
+    "url": "https://github.com/SoliEstre/EstreGenesis"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/SoliEstre/EstreGenesis/blob/main/Greatpractice.md",
+  "repository": "https://github.com/SoliEstre/EstreGenesis"
+}

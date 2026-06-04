@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/SoliEstre/EstreGenesis/blob/main/plugins/greatpractice/schemas/voice-rules.schema.json",
+  "title": "Greatpractice Voice-Linter Rules (v0.1.0 placeholder)",
+  "description": "Schema for voice-check.cjs regex rules. v0.1.0 = placeholder schema only (runtime not yet implemented). Canonical definition = Greatpractice.md §6.3. Used by both prose lint AND hook block-message lint (critic 3.2 — hook output also lint target).",
+  "type": "object",
+  "required": ["rules"],
+  "properties": {
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "pattern", "severity", "category"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^L[0-9]+$",
+            "description": "rule id (L1-L10 for v0.1, expandable)"
+          },
+          "pattern": {
+            "type": "string",
+            "description": "regex pattern to detect blame/passive-idle/single-cause/hindsight framing"
+          },
+          "severity": {
+            "enum": ["advisory", "recommended", "mandatory"],
+            "description": "v0.1 default = advisory (false positive > false negative safety). v0.2+ promote to recommended. v0.3+ select rules to mandatory."
+          },
+          "category": {
+            "enum": [
+              "blame-attribution",
+              "passive-idle-wait",
+              "single-cause",
+              "hindsight-bias",
+              "negative-framing",
+              "user-attribution-redaction"
+            ],
+            "description": "rule classification (Greatpractice.md §6.3 L1-L10 table)"
+          },
+          "suggestion": {
+            "type": "string",
+            "description": "rewrite suggestion shown alongside the violation"
+          },
+          "negative_examples": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "critic 1.7 — false-positive guard examples"
+          }
+        }
+      }
+    },
+    "intent_classifier": {
+      "type": "object",
+      "description": "v0.2+ ML-based intent classification (regex → ML escalation path, critic 1.7)",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "model_path": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
