@@ -626,6 +626,18 @@ The rubric SHOULD be re-applied at the following events (each event triggers a n
 
 The first scheduled re-evaluation is **2026-09-01** (90 days), the same date as the Entry 01-04 batch revisit per §9 archive_config defaults. Adopters running their own forks SHOULD adopt the same rubric and re-evaluation cadence so cross-project comparisons remain interpretable.
 
+#### 11.5.6 v0.6 candidates triage register (v0.5.6 — 2026-06-05)
+
+The §11.5.3 *Schema stability* evidence column references "3 v0.6 candidates" as a short label; the full enumeration evolved during dogfood Entry 04 archive (§5.1 + §5.5) and the v2.5.53 cycle. The current candidates register lives in `_proposals/006_2026-06-03_hyperbrief/v06-candidates-triage.md` and is the operational SSoT for the "candidates pending" count in §11.5.3 dim #2.
+
+Current count (2026-06-05): **7 candidates** classified into:
+
+- **v0.6 적재** (4 candidates): `recommended_methodology[]` slot + `evaluation_lens` field + `maturity_anchor` field + tone/term-pairing/scope/retroactive-apply axis (the last entered the register at v2.5.53 cycle per user input)
+- **v0.7+ 미룸** (3 candidates): `surface_profile_estimate` heuristic 보정 (technical-domain false-negative refinement) + Hook post-response tone evaluation layer (new architectural surface) + §11.4 host self-config gate user-side guidance 자동화
+- **거절** (0)
+
+The triage doc carries per-candidate spec sketches (schema proposal, rationale, expected work size). When the v0.6 cut ships, the *adopted* candidates close and the register re-snapshots. Triage status moves are themselves dimension #2 score events per §11.5.5 cadence (≥ 2-pt move triggers re-score).
+
 ---
 
 **Adopter installation note — host self-config approval gate (v0.5.4, bundle 008 002 reflection)**: registering the hook with the running Claude Code session requires editing `.claude/settings.json` (or equivalent host config), which the host's auto-mode classifier treats as **agent-runtime self-modification** and blocks without explicit user approval. This is a separate gate from the general migration / file-edit flow — an adopter agent running an EG migration script CANNOT silently install the hook on the user's behalf; the user must explicitly approve the settings.json change (or the adopter project owner must commit the settings update). Adopters integrating Hyperbrief should surface this gate in their installation runbook so the operator understands that "hyperbrief plugin installed" and "hyperbrief hook connected" are two distinct steps. **`$CLAUDE_PROJECT_DIR` vs `${CLAUDE_PLUGIN_ROOT}`**: when Hyperbrief is installed as a Claude Code plugin via the marketplace, `hooks.json` references the wrapper scripts via `${CLAUDE_PLUGIN_ROOT}` (the plugin's install directory). When Hyperbrief is **vendored as a sidecar** (copy of the EG `plugins/hyperbrief/` tree into the adopter's own repo), the wrapper scripts live under the adopter's project tree, not the plugin install path; the hook command should then use `$CLAUDE_PROJECT_DIR/.hyperbrief/hooks/trigger-advise.cjs` (or wherever the adopter placed the vendored copy) for portability. The plugin-tier `hooks.json` ships with the `${CLAUDE_PLUGIN_ROOT}` form; vendored adopters MUST rewrite this when staging.
