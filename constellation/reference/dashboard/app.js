@@ -1570,8 +1570,27 @@ function onWsEvent(m) {
     if (id && wsState.channels.has(id)) { wsState.channels.delete(id); if (wsState.active === id) wsState.active = wsState.channels.keys().next().value || null; if (!wsState.replaying) { wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge(); } }
     return;
   }
-  if (t === 'CUSTOM' && m.name === 'UpstreamKeyIssued') {   // v2.3.23 서버 업스트림 키 발급 응답 → 업스트림 패널 issued (URL 복사 가능)
-    if (wsUpstream) wsUpstream.setIssued(m.value || {});
+  if (t === 'CUSTOM' && m.name === 'UpstreamKeyIssued') {   // transitional alias (RegisterUpstreamKey 응답) — UI 는 setupWsKeyMgmt 의 setIssued 로 통합
+    if (wsKeyMgmt) wsKeyMgmt.setIssued(m.value || {});
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'KeyIssued') {   // v2.4.0 canonical KeyIssue 응답 → 키 관리 패널 issued
+    if (wsKeyMgmt) wsKeyMgmt.setIssued(m.value || {});
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'KeyListResult') {   // v2.4.0 KeyList 응답 → 모달 목록 갱신
+    if (wsKeyMgmt) wsKeyMgmt.setList((m.value || {}).keys || []);
+    return;
+  }
+  if (t === 'CUSTOM' && (m.name === 'KeyRevoked' || m.name === 'KeyLabeled' || m.name === 'KeyRevokePending')) {   // v2.4.0 키 상태 변경 → 모달 목록 새로고침
+    if (wsKeyMgmt) wsKeyMgmt.onMutated();
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'KeyError') {   // v2.4.0 KEY-MGMT 에러 → 패널 표시
+    if (wsKeyMgmt) wsKeyMgmt.setError(m.value || {});
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'AgentNameChanged') {   // v2.4.0 §3.5 라벨 변경 broadcast
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CollabKeyIssued') {   // #168 서버 협업 키 발급 응답(라우팅 무관 직접 reply) → 초대 패널 issued
@@ -1805,7 +1824,7 @@ function wsSendOrch(obj) { const ws = wsState.ws; if (!ws || ws.readyState !== 1
 // ---- #168 외부 협업 초대 (ws-collab-invite.eux 인라인 구현) — RegisterCollabKey 송신 / CollabKeyIssued 수신 → 키·접속 URL ----
 // @machine status: idle → issuing → issued (→ reset → idle). 컨트롤러는 onWsEvent 가 setIssued 로 깨운다.
 let wsInvite = null;
-let wsUpstream = null;   // v2.3.23 — 업스트림 키 발급 panel 컨트롤러 (RegisterUpstreamKey / UpstreamKeyIssued)
+let wsKeyMgmt = null;   // v2.4.0 — 업스트림 키 발급(UI4) + 키 관리 모달(UI5) 통합 컨트롤러 (RegisterUpstreamKey transitional alias + canonical KeyIssue 둘 다 수용)
 function setupWsCollab() {
   const head = $('#ws-pop-head'); if (!head || $('#ws-collab-wrap')) return;
   const wrap = document.createElement('span'); wrap.id = 'ws-collab-wrap'; wrap.className = 'ws-collab-wrap';
@@ -1857,27 +1876,33 @@ function setupWsCollab() {
   render();
 }
 
-// ---- v2.3.23 — 업스트림 키 발급 (RegisterUpstreamKey 송신 / UpstreamKeyIssued 수신 → joinUrl + key) ----
-function setupWsUpstream() {
-  const head = $('#ws-pop-head'); if (!head || $('#ws-upstream-wrap')) return;
-  const wrap = document.createElement('span'); wrap.id = 'ws-upstream-wrap'; wrap.className = 'ws-collab-wrap';
-  const btn = document.createElement('button'); btn.id = 'ws-upstream-btn'; btn.className = 'ws-arch-btn'; btn.type = 'button';
-  btn.title = '업스트림 키 발급 — 다른 main 후보 / 자율 런타임이 합류할 키'; btn.textContent = '⬆';
-  const panel = document.createElement('div'); panel.id = 'ws-upstream-panel'; panel.className = 'ws-collab-panel'; panel.hidden = true;
+// ---- v2.4.0 #406 UI4/UI5 업스트림 키 관리 (WS-PROTOCOL-KEY-MGMT.md v0.2) ----
+// UI4: 🔑 발행 버튼 (협업 🔗 왼쪽) → KeyIssue → KeyIssued{key, joinUrl} 패널 (협업과 동일 패턴)
+// UI5: 키 관리 모달 — KeyList 테이블 (라벨 · 연결 상태 · 마지막 에이전트), 삭제 (즉시 / 세션 유지), 라벨 수정 (KeyLabel)
+// 호환: 발급 패널은 transitional alias RegisterUpstreamKey/UpstreamKeyIssued 와 canonical KeyIssue/KeyIssued 둘 다 setIssued() 수용
+function setupWsKeyMgmt() {
+  const head = $('#ws-pop-head'); if (!head || $('#ws-key-wrap')) return;
+  const wrap = document.createElement('span'); wrap.id = 'ws-key-wrap'; wrap.className = 'ws-collab-wrap';
+  const btn = document.createElement('button'); btn.id = 'ws-key-btn'; btn.className = 'ws-arch-btn'; btn.type = 'button';
+  btn.title = '업스트림 키 발행 + 관리 (#406 UI4/UI5)'; btn.textContent = '⬆';   // EG: 토글 버튼은 화살표 유지 (사용자 선호); 모달 안의 🔑/🔗 chip 은 키 종류 구분으로 그대로
+  const panel = document.createElement('div'); panel.id = 'ws-key-panel'; panel.className = 'ws-collab-panel'; panel.hidden = true;
   wrap.appendChild(btn); wrap.appendChild(panel);
   const collabWrap = head.querySelector('#ws-collab-wrap');
-  if (collabWrap) head.insertBefore(wrap, collabWrap); else head.appendChild(wrap);
+  if (collabWrap) head.insertBefore(wrap, collabWrap); else { const archWrap = head.querySelector('.ws-arch-wrap'); if (archWrap) head.insertBefore(wrap, archWrap); else head.appendChild(wrap); }
 
   let status = 'idle', key = '', joinUrl = '', label = '';
   function render() {
     panel.textContent = '';
-    const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '⬆ 업스트림 키 발급'; panel.appendChild(h);
-    if (status === 'idle') {
-      const inp = document.createElement('input'); inp.className = 'ws-invite-label'; inp.placeholder = '업스트림 대상 라벨'; inp.value = label;
+    const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '🔑 업스트림 키 발행'; panel.appendChild(h);
+    if (status === 'idle' || status === 'error') {
+      const inp = document.createElement('input'); inp.className = 'ws-invite-label'; inp.placeholder = '키 라벨 (예: phone-claude)'; inp.value = label;
       const b = document.createElement('button'); b.className = 'ws-invite-btn'; b.type = 'button'; b.textContent = '키 발급';
-      b.onclick = () => { label = inp.value.trim(); register(); };
-      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { label = inp.value.trim(); register(); } });
+      b.onclick = () => { label = inp.value.trim(); issue(); };
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { label = inp.value.trim(); issue(); } });
       panel.appendChild(inp); panel.appendChild(b);
+      if (status === 'error') { const e = document.createElement('div'); e.className = 'ws-invite-meta'; e.style.color = '#e0455e'; e.textContent = '⚠ ' + (key || '발급 실패'); panel.appendChild(e); }
+      const mg = document.createElement('button'); mg.className = 'ws-invite-new'; mg.type = 'button'; mg.textContent = '🗂 키 관리'; mg.onclick = () => { panel.hidden = true; openManager(); };
+      panel.appendChild(mg);
     } else if (status === 'issuing') {
       const b = document.createElement('button'); b.className = 'ws-invite-btn'; b.type = 'button'; b.textContent = '발급 중…'; b.disabled = true;
       panel.appendChild(b);
@@ -1888,13 +1913,14 @@ function setupWsUpstream() {
       const cpUrl = document.createElement('button'); cpUrl.className = 'ws-invite-copy'; cpUrl.type = 'button'; cpUrl.textContent = 'URL 복사'; cpUrl.onclick = () => copy(cpUrl, joinUrl || key);
       const cpKey = document.createElement('button'); cpKey.className = 'ws-invite-copy'; cpKey.type = 'button'; cpKey.textContent = '키만 복사'; cpKey.onclick = () => copy(cpKey, key);
       const nw = document.createElement('button'); nw.className = 'ws-invite-new'; nw.type = 'button'; nw.textContent = '새 키'; nw.onclick = () => { status = 'idle'; key = ''; joinUrl = ''; render(); };
-      row.appendChild(cpUrl); row.appendChild(cpKey); row.appendChild(nw);
+      const mg = document.createElement('button'); mg.className = 'ws-invite-new'; mg.type = 'button'; mg.textContent = '🗂 관리'; mg.onclick = () => { panel.hidden = true; openManager(); };
+      row.appendChild(cpUrl); row.appendChild(cpKey); row.appendChild(nw); row.appendChild(mg);
       panel.appendChild(meta); panel.appendChild(urlEl); panel.appendChild(row);
     }
   }
-  function register() {
-    if (wsSendOrch({ type: 'CUSTOM', name: 'RegisterUpstreamKey', value: { label } })) { status = 'issuing'; render(); }
-    else { const e = document.createElement('div'); e.className = 'ws-invite-url'; e.textContent = '⚠ WS 연결 안 됨 — 잠시 후 다시'; panel.appendChild(e); }
+  function issue() {   // v2.4.0 canonical KeyIssue
+    if (wsSendOrch({ type: 'CUSTOM', name: 'KeyIssue', value: { label: label || undefined } })) { status = 'issuing'; render(); }
+    else { status = 'error'; key = 'WS 연결 안 됨 — 잠시 후 다시'; render(); }
   }
   function copy(b, text) {
     const done = () => { const o = b.textContent; b.textContent = '복사됨 ✓'; setTimeout(() => { b.textContent = o; }, 1500); };
@@ -1902,10 +1928,74 @@ function setupWsUpstream() {
     else b.textContent = '복사 실패';
   }
   btn.onclick = (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) render(); };
-  document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('#ws-upstream-wrap')) panel.hidden = true; });
-  wsUpstream = {
+  document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('#ws-key-wrap')) panel.hidden = true; });
+
+  // ---- UI5 키 관리 모달 ----
+  let modal = null, modalKeys = [];
+  function buildModal() {
+    if (modal) return modal;
+    modal = document.createElement('div'); modal.id = 'ws-key-modal'; modal.className = 'ws-key-modal'; modal.hidden = true;
+    const box = document.createElement('div'); box.className = 'ws-key-box';
+    const head2 = document.createElement('div'); head2.className = 'ws-key-mhead';
+    const title = document.createElement('b'); title.textContent = '🗂 키 관리 (업스트림 🔑 · 협업 🔗)';
+    const refresh = document.createElement('button'); refresh.className = 'ws-key-refresh'; refresh.type = 'button'; refresh.textContent = '↻'; refresh.title = '새로고침'; refresh.onclick = () => requestList();
+    const x = document.createElement('button'); x.className = 'ws-key-mx'; x.type = 'button'; x.textContent = '✕'; x.onclick = () => closeManager();
+    head2.append(title, refresh, x);
+    const tbl = document.createElement('div'); tbl.id = 'ws-key-tbl'; tbl.className = 'ws-key-tbl';
+    box.append(head2, tbl); modal.append(box);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeManager(); });
+    document.body.appendChild(modal);
+    return modal;
+  }
+  const CONN_DOT = { connected: ['on', '연결됨'], disconnected: ['off', '끊김'], never: ['never', '미사용'] };
+  const STATE_LABEL = { ISSUED: '발급됨', ACTIVE: '활성', REVOKED_PENDING: '폐기 대기', REVOKED: '폐기됨', DELETED: '삭제됨' };
+  function renderTable() {
+    const tbl = $('#ws-key-tbl'); if (!tbl) return;
+    tbl.innerHTML = '';
+    if (!modalKeys.length) { tbl.innerHTML = '<div class="ws-key-empty">발행된 키가 없어요. 🔑 발행 버튼으로 키를 만들어 보세요.</div>'; return; }
+    for (const k of modalKeys) {
+      const rowEl = document.createElement('div'); rowEl.className = 'ws-key-row state-' + (k.state || '').toLowerCase();
+      const top = document.createElement('div'); top.className = 'ws-key-rtop';
+      const [dotCls, connTxt] = CONN_DOT[k.connectionStatus] || CONN_DOT.never;
+      const dot = document.createElement('span'); dot.className = 'ws-key-dot ' + dotCls; dot.title = connTxt;
+      const kindIcon = document.createElement('span'); kindIcon.className = 'ws-key-kind'; kindIcon.textContent = k.kind === 'collab' ? '🔗' : '🔑'; kindIcon.title = k.kind === 'collab' ? '협업 키' : '업스트림 키';
+      const lab = document.createElement('span'); lab.className = 'ws-key-label'; lab.textContent = k.label || '(무라벨)';
+      const st = document.createElement('span'); st.className = 'ws-key-state ' + (k.state || '').toLowerCase(); st.textContent = STATE_LABEL[k.state] || k.state;
+      top.append(dot, kindIcon, lab, st);
+      const sub = document.createElement('div'); sub.className = 'ws-key-sub';
+      const ag = k.lastAgent ? ('에이전트: ' + k.lastAgent) : '미접속';
+      const seen = k.lastSeenAt ? (' · ' + new Date(k.lastSeenAt).toLocaleString()) : '';
+      sub.textContent = k.key.slice(0, 14) + '… · ' + connTxt + ' · ' + ag + seen;
+      const acts = document.createElement('div'); acts.className = 'ws-key-acts';
+      const terminal = k.state === 'REVOKED' || k.state === 'DELETED';
+      if (!terminal) {
+        const ren = document.createElement('button'); ren.className = 'ws-key-act'; ren.type = 'button'; ren.textContent = '✏️ 라벨'; ren.onclick = () => relabel(k); acts.append(ren);
+        const rvImm = document.createElement('button'); rvImm.className = 'ws-key-act danger'; rvImm.type = 'button'; rvImm.textContent = '🗑 즉시 삭제'; rvImm.title = '연결된 에이전트 즉시 차단'; rvImm.onclick = () => revoke(k, 'immediate'); acts.append(rvImm);
+        if (k.connectionStatus === 'connected') { const rvEnd = document.createElement('button'); rvEnd.className = 'ws-key-act'; rvEnd.type = 'button'; rvEnd.textContent = '⏳ 세션 유지 삭제'; rvEnd.title = '현재 세션은 유지, 신규 접속 차단'; rvEnd.onclick = () => revoke(k, 'sessionEnd'); acts.append(rvEnd); }
+      } else { const note = document.createElement('span'); note.className = 'ws-key-term'; note.textContent = STATE_LABEL[k.state] || k.state; acts.append(note); }
+      rowEl.append(top, sub, acts); tbl.append(rowEl);
+    }
+  }
+  function relabel(k) {
+    const nv = prompt('새 라벨 (1~64자):', k.label || ''); if (nv == null) return;
+    const v = nv.trim(); if (!v || v === k.label) return;
+    wsSendOrch({ type: 'CUSTOM', name: 'KeyLabel', value: { key: k.key, newLabel: v } });
+  }
+  function revoke(k, mode) {
+    const msg = mode === 'immediate' ? `'${k.label || k.key.slice(0, 12)}' 키를 즉시 삭제할까요? 연결된 에이전트가 바로 차단돼요.` : `'${k.label || k.key.slice(0, 12)}' 키를 세션 유지 삭제할까요? 현재 세션은 끝까지 유지되고 신규 접속만 막아요.`;
+    if (!confirm(msg)) return;
+    wsSendOrch({ type: 'CUSTOM', name: 'KeyRevoke', value: { key: k.key, mode } });
+  }
+  function requestList() { wsSendOrch({ type: 'CUSTOM', name: 'KeyList', value: { includeRevoked: true } }); }
+  function openManager() { buildModal(); modal.hidden = false; requestList(); }
+  function closeManager() { if (modal) modal.hidden = true; }
+
+  wsKeyMgmt = {
+    openManager,
     setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; if (p.label != null) label = p.label; status = 'issued'; panel.hidden = false; render(); },
-    get status() { return status; }, get key() { return key; }, get joinUrl() { return joinUrl; },
+    setError(p) { status = 'error'; key = (p && (p.message || p.code)) || '발급 실패'; render(); },
+    setList(keys) { modalKeys = Array.isArray(keys) ? keys : []; if (modal && !modal.hidden) renderTable(); },
+    onMutated() { if (modal && !modal.hidden) requestList(); },
   };
   render();
 }
@@ -2031,7 +2121,7 @@ function setupWS() {
   if (arch) arch.onclick = (e) => { e.stopPropagation(); if (archMenu) { wsRenderArchived(); archMenu.hidden = !archMenu.hidden; } };
   document.addEventListener('click', (e) => { if (archMenu && !archMenu.hidden && !e.target.closest('.ws-arch-wrap')) archMenu.hidden = true; });
   setupWsCollab();                                    // #168 외부 협업 초대(🔗) 토글·패널 마운트
-  setupWsUpstream();                                  // v2.3.23 — 업스트림 키 발급(⬆) 토글·패널 마운트 (URL 복사 + 키만 복사)
+  setupWsKeyMgmt();                                   // v2.4.0 #406 UI4/UI5 업스트림 키 발행 🔑 + 키 관리 모달 🗂
   updateWsConn(); updateWsBadge(); wsRenderTabs();
   wsLoadUI();                                         // 팝업 위치·크기·열림 상태 복원
   connectWS();

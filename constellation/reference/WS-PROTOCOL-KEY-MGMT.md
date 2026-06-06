@@ -1,7 +1,9 @@
-# WS-PROTOCOL: Upstream Key Management (Draft v0.1)
+# WS-PROTOCOL: Key Management (v0.2 — IMPLEMENTED)
 
-**Status**: DRAFT — pending main implementation review
+**Status**: **v0.2 IMPLEMENTED** — Constellation v2.4.0 ships canonical impl per this spec (server-side: `wsKeyIssue`/`wsKeyList`/`wsKeyRevoke`/`wsKeyLabel`/`wsHandleOrch` KEY-MGMT branch + 5-state machine + `key.json` atomic-write persistence + main-only permission gating; dashboard-side: `setupWsKeyMgmt` UI4 발급 패널 + UI5 키 관리 모달). EstreUF #406 patch parity achieved.
 **Track**: WS-PROTOCOL extension (companion to §13.11 HELLO / §13.13 A2A ack)
+
+> **v0.2 changelog**: title scope generalized from "Upstream" to "Key Management" (collab key 통합 명시). RegisterUpstreamKey 는 §3.1 retirement schedule 따라 transitional alias 보존. **v0.3 차기 트랙 (v2.5.58)**: (a) **Local key (kind='local')** — 로컬 워커 합류도 키 사용 + 파일 경로 (`${DIR}/local-keys/<label>.key`) / 스크립트 호출 식 등록 (외부 wire 전달 없음, 보안 + 사용성). (b) **KeyIssue value 확장** — `kind: 'local'|'upstream'|'collab'` 명시 옵션 + `roleDescription: string` (자유 텍스트, 합류 에이전트에게 역할 안내). (c) **Dashboard 종류 선택 UI** — 발급 패널에 kind dropdown + roleDescription input. UI5 키 관리 모달에 roleDescription chip. (d) **Onboarding md 에 roleDescription 임베드** — 합류 에이전트가 "당신 역할은 X" 명확히 수신. 사용자 직접 의도. v0.3 draft 가 §3.6 LocalKey + `/join/local` 엔드포인트 + `wsLocalOnboardMd` 헬퍼 정의 예정.
 **Provenance**:
 - User feature **#406** (main hub, 2026-05-31) — Liveboard UI 5 items, of which 3 require upstream key management protocol
 - main delegate **seq 77** (`m-mpt4dja7-76`) introduced the 5-item UI set
