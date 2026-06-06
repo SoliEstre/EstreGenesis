@@ -448,7 +448,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 
 /* #168 외부 협업 초대 (ws-collab-invite) — 헤더 🔗 토글 + 드롭다운 패널 */
 .ws-collab-wrap { position: relative; display: inline-flex; margin-right: 10px; }
-.ws-collab-panel { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 240px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 30; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ws-collab-panel { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 320px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 30; padding: 8px; display: flex; flex-direction: column; gap: 6px; }   /* v2.4.2 폭 240→320 (kind 옵션 한 줄 fit) */
 .ws-collab-panel[hidden] { display: none; }
 .ws-invite-h { font-weight: 600; color: var(--ink); font-size: .8rem; }
 .ws-invite-label { background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 7px; color: var(--ink); font: inherit; font-size: .75rem; }
@@ -621,11 +621,18 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-key-term { font-size: .7rem; color: var(--muted); align-self: center; }
 
 /* v2.4.1 — kind 선택 + roleDescription input + 모달 chip */
-.ws-invite-kindrow { display: flex; gap: 6px; margin-bottom: 6px; }
-.ws-invite-kindopt { flex: 1; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: .72rem; cursor: pointer; color: var(--muted); background: var(--panel); }
-.ws-invite-kindopt input { margin: 0; }
+.ws-invite-kindrow { display: flex; gap: 4px; margin-bottom: 6px; }
+.ws-invite-kindopt { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 6px; font-size: .72rem; cursor: pointer; color: var(--muted); background: var(--panel); min-width: 0; }
+.ws-invite-kindopt input { margin: 0; flex: 0 0 auto; }
+.ws-invite-kindopt-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* v2.4.2 한 줄 fit */
 .ws-invite-kindopt.active { border-color: var(--accent); color: var(--ink); background: var(--panel2, var(--panel)); }
 .ws-invite-kindopt:hover { border-color: var(--accent); color: var(--ink); }
+
+/* v2.4.2 키 관리 모달 탭 (전체 / 업스트림 / 로컬워커 / 외부협업) */
+.ws-key-tabs { display: flex; gap: 2px; padding: 6px 8px 0 8px; border-bottom: 1px solid var(--line); }
+.ws-key-tab { flex: 0 1 auto; padding: 5px 12px; border: 1px solid var(--line); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--panel); color: var(--muted); cursor: pointer; font: inherit; font-size: .76rem; margin-bottom: -1px; white-space: nowrap; }
+.ws-key-tab:hover { color: var(--ink); border-color: var(--accent); }
+.ws-key-tab.active { background: var(--panel2, var(--panel)); color: var(--ink); border-color: var(--accent); border-bottom: 1px solid var(--panel2, var(--panel)); font-weight: 600; }
 .ws-invite-roledesc { width: 100%; box-sizing: border-box; resize: vertical; min-height: 38px; max-height: 120px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; font-size: .76rem; margin-bottom: 6px; }
 .ws-invite-roledesc:focus { outline: none; border-color: var(--accent); }
 .ws-invite-roledesc-show { font-size: .72rem; color: var(--ink); background: var(--panel2, var(--panel)); border-left: 2px solid var(--accent); padding: 4px 8px; margin: 4px 0; white-space: pre-wrap; word-break: break-word; }
