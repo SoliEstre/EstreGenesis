@@ -1,7 +1,7 @@
 {
   "name": "constellation",
-  "version": "0.2.3",
-  "description": "Live multi-agent orchestration: WebSocket server + A2A messaging + dashboard + Stop hook helper + MCP server (full Phase 2 impl: WS proxy + 5 tools incl. a2a_wait_ack 3-tier + session-lifecycle + §13.13.2 dedup + chunked transfer reassembly). Bundles the v2.5.x reference runtime, the v2.5.3 SSoT-compliant gateway-client, the v0.4 MCP integration (§8), the v2.5.8 cross-environment Stop hook helper, the v2.5.10 attachment transport-mode (§13.11 rule 5), and the v2.5.11 at-least-once relay reliability (§13.13.2). Plugin v0.2.0 = Phase 2 production-ready (npm dep: ws ^8.18.0).",
+  "version": "0.2.4",
+  "description": "Live multi-agent orchestration: WebSocket server + A2A messaging + dashboard + Stop hook helper + MCP server (full Phase 2 impl: WS proxy + 5 tools incl. a2a_wait_ack 3-tier + session-lifecycle + §13.13.2 dedup + chunked transfer reassembly). Bundles the v2.5.x reference runtime, the v2.5.3 SSoT-compliant gateway-client, the v0.4 MCP integration (§8), the v2.5.8 cross-environment Stop hook helper, the v2.5.10 attachment transport-mode (§13.11 rule 5), and the v2.5.11 at-least-once relay reliability (§13.13.2). v0.2.4 / Constellation v2.3.23 adds dashboard reference parity (upstream invite UI symmetric to collab — `UpstreamKeyIssued{joinUrl}` + `/join/upstream` onboarding md + URL/key dual-copy buttons; archived-tab button always-visible counter; collab/upstream onboarding md both inline a normative `메시지 채널 구분 — A2A vs 보드` guide directing joining agents to set `targetAgentId` explicitly on every outbound CUSTOM). Plugin v0.2.0 = Phase 2 production-ready (npm dep: ws ^8.18.0).",
   "author": {
     "name": "SoliEstre",
     "url": "https://github.com/SoliEstre/EstreGenesis"
