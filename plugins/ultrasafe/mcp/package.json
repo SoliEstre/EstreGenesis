@@ -1,0 +1,21 @@
+{
+  "name": "ultrasafe-mcp",
+  "version": "0.2.0",
+  "description": "Ultrasafe MCP server — v0.2.0 runtime activation cut. 5 tools (ultrasafe_run_fanout / ultrasafe_finding_aggregate / ultrasafe_clean_signal_check / ultrasafe_report_generate / ultrasafe_release_gate) over stdio JSON-RPC. Advisory-mode (v0.2.x) — no publish blocking; blocking authority deferred to v0.3+. Per Ultrasafe.md §16. Single npm dep (ajv) for schema validation; schemas in sibling plugins/ultrasafe/schemas/.",
+  "main": "server.cjs",
+  "bin": {
+    "ultrasafe-mcp": "server.cjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "SoliEstre",
+    "url": "https://github.com/SoliEstre/EstreGenesis"
+  },
+  "repository": "https://github.com/SoliEstre/EstreGenesis"
+}

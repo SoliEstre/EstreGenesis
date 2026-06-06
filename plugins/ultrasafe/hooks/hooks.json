@@ -1,0 +1,19 @@
+{
+  "_comment": "ultrasafe v0.2.0 — advisory mode hooks. PreToolUse(Bash): publish-equivalent matcher (npm publish / pip-twine upload / cargo publish / gh release create / git push --tags / docker push / etc.) → ultrasafe-trigger.cjs emits ULTRASAFE_RELEASE_GATE A2A intent (stage=pre-publish-detected, mode=advisory) + records pre-publish event in .ultrasafe/state.json. Stop(*): cycle-end → ultrasafe-clean-signal.cjs evaluates 4-condition AND-gate (regression_free + monotonic_finding_reduction + coverage_floor + consecutive_clean_iterations≥2) + advances any pending pre-publish gate events + emits ULTRASAFE_ITERATION_BOUNDARY when orchestrator flagged a boundary crossed this cycle. All hooks exit 0 (advisory invariant — NEVER block in v0.2). Blocking mode enables in v0.3+. Per Ultrasafe.md v0.2.0 §17 (hooks spec) + §18 (Constellation §13.16 5-intent integration) + §19 (advisory→blocking transition).",
+  "PreToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ultrasafe-trigger.cjs\" --tool=Bash" }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ultrasafe-clean-signal.cjs\"" }
+      ]
+    }
+  ]
+}

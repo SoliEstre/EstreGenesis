@@ -1,8 +1,21 @@
-<!-- module: Ultrasafe; layer: pre-release-security-verification; part-of: EstreGenesis 2.5.x; version: v0.1.0; date: 2026-06-06; status: design draft v0.1.0 (initial cut — 17-axis cross-domain synthesis backing; 8-agent v0.1.0 minimum fan-out + ≥3 iteration multi-condition AND termination + 3-layer synthesis report OSCAL/Hyperbrief/Greatpractice + 5 new Constellation A2A intents + dual pre-release trigger + Tier A 5 critic patches absorbed inline; advisory-only mode v0.1.x → blocking mode v0.2.x); depends-on: none (optional synergy: Constellation §13 A2A — 5 new intents; Superscalar §3 fan-out — direct host; Hyperbrief §1 escalation routing — auto-mapping; Greatpractice §5 tree promotion — bidirectional feed); license: Apache-2.0 -->
+<!-- module: Ultrasafe; layer: pre-release-security-verification; part-of: EstreGenesis 2.5.x; version: v0.2.0; date: 2026-06-06; status: runtime activation cut v0.2.0 (advisory mode runtime — 8 attacker skills + 2 hooks PreToolUse/Stop + MCP server 5 tools over stdio JSON-RPC + Constellation §13.16 5 intent 통합 ULTRASAFE_FINDING/ULTRASAFE_ITERATION_BOUNDARY/ULTRASAFE_RELEASE_GATE/SECURITY_DISCLOSURE_INTAKE/MPCVD_COORDINATION + Workflow fan-out 적용 evidence; v0.1.0 design draft 본문 보존; blocking mode v0.3+ 후속 — clean-signal-gate 4-condition AND-gate 도달 + user gate + ≥3 iteration consecutive clean 시 전환); depends-on: none (optional synergy: Constellation §13 A2A — 5 new intents wire-integrated; Superscalar §3 fan-out — direct host; Hyperbrief §1 escalation routing — auto-mapping; Greatpractice §5 tree promotion — bidirectional feed); license: Apache-2.0 -->
 
-# Ultrasafe — Pre-Release Multi-Perspective Simulated Penetration Testing with ≥3 Iteration Clean-Signal Gate (design draft v0.1.0)
+# Ultrasafe — Pre-Release Multi-Perspective Simulated Penetration Testing with ≥3 Iteration Clean-Signal Gate (v0.2.0 runtime activation — advisory mode)
 
-> **EstreGenesis optional module — design draft v0.1.0.** Constellation 이 *agent 간 통신* 을, Superscalar 가 *agent 안의 dispatch* 를, Hyperbrief 가 *사용자에게 결정 위임* 을, Greatpractice 가 *반복 누락의 결정적 방지* 를 다룬다면, Ultrasafe 는 다섯 번째 축 — **release 직전 / release 시점 / release 직후 의 공격자 시점 병렬 fan-out + 합성 + 보강 cycle 의 ≥3 iteration 다중 조건 AND clean-signal 통과 후에만 release 를 허가하는 pre-release security attestation 체계** 를 다뤄요. 8-agent 최소 fan-out (AI/LLM · Web/API · Supply · Crypto · Social · Method/Comp · TM/Lifecycle · Synthesizer) + GTA/DSP cross-cutting + 3-layer 합성 보고서 (OSCAL machine schema + Hyperbrief 9-section IR + Greatpractice tree candidate) + dual pre-release trigger (PreToolUse hook + /ultrasafe skill) + 5 신규 Constellation A2A intent. 17-axis cross-domain 딥리서치 (harness · web · AI · threat-modeling · multi-agent · adversarial-ml · fuzzing · supply-chain · devsecops · IR · crypto · human-factors · game-theory · compliance · cognitive · visualization · protocol-trust-evolution) backing.
+> **EstreGenesis optional module — v0.2.0 runtime activation cut (advisory mode).** v0.1.0 의 *minimum-viable spec scaffold* 가 17 축 cross-domain synthesis backing + 8-agent fan-out + ≥3 iteration multi-condition AND-gate + 3-layer synthesis report 의 *설계 문서* 였다면, v0.2.0 은 그 설계를 **runtime activation** — 8 attacker SKILL 디렉토리 + 2 hook (PreToolUse `ultrasafe-trigger.cjs` + Stop `ultrasafe-clean-signal.cjs`) + MCP server (5 tools over stdio JSON-RPC) + Constellation §13.16 5 신규 A2A intent 통합 + Workflow fan-out 적용 evidence — 의 cut 이에요. **본 cut 의 모든 finding emit / hook trigger / MCP tool return 은 *advisory-only* — 실제 publish 차단 없음.** Blocking mode (v0.3+) 는 후속 — clean-signal-gate 의 4-condition AND-gate 도달 + user gate 통과 + ≥3 iteration consecutive clean 의 3-AND 조건 후 전환.
+>
+> **v0.2.0 runtime 의 5 신규 surface (본 cut 의 ship 단위)**:
+> 1. **8 attacker SKILL.md** (`plugins/ultrasafe/skills/ultrasafe-{ai-llm,web-api,supply-chain,crypto,social-eng,methodology,threat-model,synthesizer}/SKILL.md`) — 각 attacker 의 input/output/tools/when-to-fire/severity rubric 명시.
+> 2. **PreToolUse hook `ultrasafe-trigger.cjs`** — publish-equivalent command (npm publish / pip upload / git push --tags to public) 직전 trigger, advisory mode = report-only emit, blocking mode (v0.3+) 는 user gate.
+> 3. **Stop hook `ultrasafe-clean-signal.cjs`** — cycle-end clean-signal check, ≥3 iteration 의 clean-signal 도달 여부 verify.
+> 4. **MCP server `mcp/server.cjs`** — 5 tools over stdio JSON-RPC: `ultrasafe_run_fanout` / `ultrasafe_finding_aggregate` / `ultrasafe_clean_signal_check` / `ultrasafe_report_generate` / `ultrasafe_release_gate`.
+> 5. **Constellation §13.16 5 신규 intent 통합** — `ULTRASAFE_FINDING` / `ULTRASAFE_ITERATION_BOUNDARY` / `ULTRASAFE_RELEASE_GATE` / `SECURITY_DISCLOSURE_INTAKE` / `MPCVD_COORDINATION` (자세히 §8.1 + §15 통합 명세 참조).
+>
+> **v0.1.0 본문 보존**. v0.1.0 의 §1-§13 + 부록 A/B/C 는 *전부 보존*. v0.2.0 의 본문 확장은 §14 (Runtime Architecture), §15 (8-Agent Fan-Out Runtime Detail), §16 (MCP Server Tools), §17 (2 Hooks Spec), §18 (Constellation 통합 5 intent — runtime wire spec), §19 (Advisory vs Blocking Mode) 의 6 신규 § + 끝의 Revision History 만 추가돼요. 기존 §1-§13 본문의 *forward reference* (예: §8 의 5 intent → §18 의 wire spec, §10 의 PreToolUse hook → §17 의 hook spec, §13.5 의 advisory-only → §19 의 mode transition) 가 v0.2.0 에서 *backward resolve* 돼요.
+>
+> # Ultrasafe — Pre-Release Multi-Perspective Simulated Penetration Testing with ≥3 Iteration Clean-Signal Gate (design draft v0.1.0, body preserved in v0.2.0)
+
+> **EstreGenesis optional module — design draft v0.1.0 (body preserved as v0.2.0 backing).** Constellation 이 *agent 간 통신* 을, Superscalar 가 *agent 안의 dispatch* 를, Hyperbrief 가 *사용자에게 결정 위임* 을, Greatpractice 가 *반복 누락의 결정적 방지* 를 다룬다면, Ultrasafe 는 다섯 번째 축 — **release 직전 / release 시점 / release 직후 의 공격자 시점 병렬 fan-out + 합성 + 보강 cycle 의 ≥3 iteration 다중 조건 AND clean-signal 통과 후에만 release 를 허가하는 pre-release security attestation 체계** 를 다뤄요. 8-agent 최소 fan-out (AI/LLM · Web/API · Supply · Crypto · Social · Method/Comp · TM/Lifecycle · Synthesizer) + GTA/DSP cross-cutting + 3-layer 합성 보고서 (OSCAL machine schema + Hyperbrief 9-section IR + Greatpractice tree candidate) + dual pre-release trigger (PreToolUse hook + /ultrasafe skill) + 5 신규 Constellation A2A intent. 17-axis cross-domain 딥리서치 (harness · web · AI · threat-modeling · multi-agent · adversarial-ml · fuzzing · supply-chain · devsecops · IR · crypto · human-factors · game-theory · compliance · cognitive · visualization · protocol-trust-evolution) backing.
 >
 > **Cost-honest framing.** Ultrasafe 는 공짜가 아니에요. 매 release 마다 17 (full) 또는 8 (minimum) 공격 에이전트 병렬 호출의 토큰 비용 + ≥3 iteration loop 의 wall-clock 비용 (대략 patch=15분 / minor=30분 / major=60분+) + false positive 처리의 인지 부담 + LLM-only finding 의 hallucination 위험 + 본 모듈 자체가 Hyperbrief 결정 위임을 강제하므로 자동 결정의 속도 손실. 이 비용을 trade 해서 얻는 것은 — *release 시점 zero-known-critical-finding 의 결정적 보장* (한 번도 안 발견된 vulnerability 가 아닌, 모든 17 축이 모의로 공격해본 후의 attested clean state), *공급망 + AI 적대적 + 인적 social engineering + multi-agent trust erosion 의 모든 inflection 점에서 미리 빠진 layer 가 없는지 검증*, *세 모듈 (Constellation + Hyperbrief + Greatpractice) 와의 자연 통합 으로 발견 → 결정 → codify 의 full cycle 자동화*.
 >
@@ -27,9 +40,16 @@
 - [§11. Self-Spec-Gaming Hazard](#11-self-spec-gaming-hazard)
 - [§12. Untested Surfaces + Known Gaps](#12-untested-surfaces--known-gaps)
 - [§13. Adoption Thresholds](#13-adoption-thresholds)
+- [§14. Runtime Architecture (v0.2.0)](#14-runtime-architecture-v020)
+- [§15. 8-Agent Fan-Out Runtime Detail (v0.2.0)](#15-8-agent-fan-out-runtime-detail-v020)
+- [§16. MCP Server Tools (v0.2.0)](#16-mcp-server-tools-v020)
+- [§17. Hooks Spec — PreToolUse + Stop (v0.2.0)](#17-hooks-spec--pretooluse--stop-v020)
+- [§18. Constellation 통합 — 5 신규 intent runtime wire (v0.2.0)](#18-constellation-통합--5-신규-intent-runtime-wire-v020)
+- [§19. Advisory vs Blocking Mode — v0.2.x advisory + v0.3+ blocking 전환 조건 (v0.2.0)](#19-advisory-vs-blocking-mode--v02x-advisory--v03-blocking-전환-조건-v020)
 - [부록 A. Cross-Axis Convergence Cluster Catalog](#부록-a-cross-axis-convergence-cluster-catalog)
 - [부록 B. 4 Strong Isomorphism + Normative 정당화](#부록-b-4-strong-isomorphism--normative-정당화)
 - [부록 C. Self-Application — 본 spec 자체의 entry](#부록-c-self-application--본-spec-자체의-entry)
+- [Revision History](#revision-history)
 
 ---
 
@@ -2181,6 +2201,897 @@ Ultrasafe spec 만 채택하고 위 5 risk 를 *acknowledge 하지 않는* 상�
 
 ---
 
+## §14. Runtime Architecture (v0.2.0)
+
+> v0.1.0 의 §2 가 *8-agent fan-out 의 design shape* 였다면, 본 §14 는 그 shape 의 **runtime activation** — orchestrator / aggregator / clean-signal-gate / 8 attacker skill / 2 hook / MCP server 가 어떻게 connect 되고 어떤 flow 로 dispatch 되는지의 wire-level 명세예요. v0.2.0 의 모든 출력은 *advisory* — finding report-only, publish 차단 없음 (자세히 §19 mode transition 참조). Constellation §13.16 5 신규 intent 가 transport 표면 (자세히 §18 참조). Workflow fan-out (Superscalar §3 의 read fan-out + retire-barrier) 이 본 cut 의 dispatch substrate.
+
+### §14.1 Runtime 컴포넌트 토폴로지 (5 surface)
+
+v0.2.0 runtime 의 5 신규 surface — 각 surface 의 위치 / 역할 / 인접 컴포넌트 관계:
+
+| # | Surface | 경로 | 역할 | 인접 |
+|---|---|---|---|---|
+| 1 | **8 attacker SKILL.md** | `plugins/ultrasafe/skills/ultrasafe-<role>/SKILL.md` | 각 attacker 의 system prompt + tool grant + when-to-fire trigger + severity rubric | orchestrator 가 SKILL 을 invoke, finding 을 aggregator 로 emit |
+| 2 | **PreToolUse hook** | `plugins/ultrasafe/hooks/ultrasafe-trigger.cjs` | publish-equivalent 명령 감지 시 trigger — advisory mode 는 report-only | Claude Code `.claude/settings.json` hooks 등록 + orchestrator 호출 |
+| 3 | **Stop hook** | `plugins/ultrasafe/hooks/ultrasafe-clean-signal.cjs` | cycle-end 시점에 clean-signal 도달 verify | `.claude/settings.json` Stop event 등록 + clean-signal-gate 호출 |
+| 4 | **MCP server** | `plugins/ultrasafe/mcp/server.cjs` | 5 tools over stdio JSON-RPC (run_fanout / finding_aggregate / clean_signal_check / report_generate / release_gate) | Claude Code MCP 또는 외부 client 가 stdio JSON-RPC 로 호출 |
+| 5 | **Constellation §13.16 5 intent** | (transport surface, payload schema 는 §18) | finding / iteration-boundary / release-gate / disclosure intake / MPCVD coordination 5 신규 A2A intent | broker WS + 라이브보드 카드 surface |
+
+### §14.2 Runtime flow — 5-stage operational pipeline 의 v0.2.0 wire activation
+
+§1.2 의 5-stage pipeline (Pre-release trigger → Fan-out → Synthesize at retire-barrier → Iterate ≥3 with multi-condition AND termination → Gate + attest) 의 v0.2.0 runtime activation 매핑:
+
+```
+[Stage 1: Pre-release trigger]
+  PreToolUse hook (§17.1) 가 publish-equivalent command 감지
+    → orchestrator (`plugins/ultrasafe/runtime/orchestrator.cjs`) 호출
+    → tier 분류 (§10.3) + axis-set 선택 (§10.4) + iteration_min (§10.5) 결정
+
+[Stage 2: Fan-out]
+  orchestrator 가 MCP tool `ultrasafe_run_fanout` 호출 (§16.1)
+    → 8 attacker SKILL (§15) 병렬 dispatch (Workflow fan-out 적용)
+    → 각 attacker 가 finding 을 ULTRASAFE_FINDING intent 로 emit (§18.1)
+
+[Stage 3: Synthesize at retire-barrier]
+  aggregator (`plugins/ultrasafe/runtime/aggregator.cjs`) 가 retire-barrier 에서 finding aggregate
+    → MCP tool `ultrasafe_finding_aggregate` 호출 (§16.2)
+    → cross-axis dedup + severity ranking + correlation
+    → ULTRASAFE_ITERATION_BOUNDARY intent emit (§18.2)
+
+[Stage 4: Iterate ≥3 with multi-condition AND termination]
+  orchestrator 가 iteration N → N+1 전환 결정
+    → MCP tool `ultrasafe_clean_signal_check` 호출 (§16.3)
+    → 4-condition AND-gate (regression-free + monotonic finding-reduction + coverage-floor + 2 iter consecutive)
+    → clean signal 미도달 시 Stage 2 로 loop, 도달 시 Stage 5 진행
+
+[Stage 5: Gate + attest]
+  clean-signal-gate (`plugins/ultrasafe/runtime/clean-signal-gate.cjs`) 가 attestation 생성
+    → MCP tool `ultrasafe_report_generate` 호출 (§16.4) — 3-layer report 생성
+    → MCP tool `ultrasafe_release_gate` 호출 (§16.5) — release-gate state 결정
+    → ULTRASAFE_RELEASE_GATE intent emit (§18.3)
+    → Stop hook (§17.2) 가 cycle-end 시점에 clean-signal verify
+    → advisory mode: report-only, publish 차단 X
+    → blocking mode (v0.3+): user gate 통과 후에만 publish 허용
+```
+
+### §14.3 Runtime 디렉토리 트리 (v0.2.0 ship 단위)
+
+```
+plugins/ultrasafe/
+├── .claude-plugin/
+│   └── plugin.json                          # plugin manifest (v0.2.0 bump)
+├── README.md                                # plugin 진입 안내 + 5 risk acknowledgement
+├── runtime/
+│   ├── orchestrator.cjs                     # 8-agent dispatch + iteration loop 제어
+│   ├── aggregator.cjs                       # retire-barrier 합성 + cross-axis dedup
+│   └── clean-signal-gate.cjs                # 4-condition AND-gate 의 deterministic check
+├── schemas/
+│   ├── finding.schema.json                  # §4 finding output contract 의 JSON schema
+│   ├── iteration-boundary.schema.json       # §8.1 ITERATION_BOUNDARY value schema
+│   └── release-gate.schema.json             # §8.1 RELEASE_GATE value schema
+├── skills/
+│   ├── ultrasafe-ai-llm/SKILL.md            # §15.1
+│   ├── ultrasafe-web-api/SKILL.md           # §15.2
+│   ├── ultrasafe-supply-chain/SKILL.md      # §15.3
+│   ├── ultrasafe-crypto/SKILL.md            # §15.4
+│   ├── ultrasafe-social-eng/SKILL.md        # §15.5
+│   ├── ultrasafe-methodology/SKILL.md       # §15.6
+│   ├── ultrasafe-threat-model/SKILL.md      # §15.7
+│   └── ultrasafe-synthesizer/SKILL.md       # §15.8 (fan-out sink)
+├── hooks/
+│   ├── ultrasafe-trigger.cjs                # PreToolUse hook (§17.1)
+│   ├── ultrasafe-clean-signal.cjs           # Stop hook (§17.2)
+│   └── hooks.json                           # Claude Code hooks registration
+└── mcp/
+    ├── server.cjs                           # MCP server entry (5 tools over stdio JSON-RPC)
+    └── package.json                         # MCP server dependencies
+```
+
+### §14.4 Advisory mode 명시 (v0.2.x)
+
+v0.2.0 의 모든 출력 — 8 attacker skill 의 finding emit / 2 hook 의 trigger / MCP tool 5 종의 return / 5 신규 Constellation intent emit — 은 **advisory** 표시. 의미:
+
+- **report-only**: finding 발견 시 dashboard 카드 + outbox.jsonl 영속 + Hyperbrief routing 후보, 실제 publish 차단 0.
+- **PreToolUse hook 의 exit code = 0**: 항상 pass-through. 차단 로직은 v0.3+ blocking mode 에서 활성.
+- **Stop hook 의 surface only**: clean-signal 미도달 시 *경고 surface* (stderr alert + 다음 cycle 의 권장 action) 만, 현재 cycle 차단 X.
+- **MCP tool return 의 `advisory_mode: true` flag**: 5 tool 모두 return value 에 `advisory_mode: true` mandatory — consumer 측에서 차단 결정 내리지 않도록.
+- **Constellation intent 의 `advisory: true` value field**: 5 신규 intent 의 `value` body 에 `advisory: true` mandatory — 라이브보드 카드 + A2A counterpart 가 *결정적 신호* 로 오인하지 않도록.
+
+advisory → blocking 전환 조건은 §19 에서 명세 (v0.3+ 후속 cut).
+
+---
+
+## §15. 8-Agent Fan-Out Runtime Detail (v0.2.0)
+
+> §2.1 의 8-agent design table 이 *roster shape* 였다면, 본 §15 는 그 8 agent 각각의 **SKILL.md runtime detail** — input / output / tools / when-to-fire / severity rubric / advisory mode 표시 — 의 명세예요. 각 agent 의 SKILL.md 는 `plugins/ultrasafe/skills/ultrasafe-<role>/SKILL.md` 에 배치, orchestrator (`plugins/ultrasafe/runtime/orchestrator.cjs`) 가 fanout 시점에 invoke.
+
+### §15.1 Agent 1 — AI/LLM Red Team (`skills/ultrasafe-ai-llm/SKILL.md`)
+
+- **톤**: technical-precise. *direct/indirect prompt injection · model extraction · jailbreak · hallucination-leverage · alignment-faking* 의 4-family + agentic misalignment probe.
+- **Input**: `{target_commit_sha, catalog_versions: {OWASP_LLM_TOP10, EU_AI_ACT_Art15, ATLAS}, iteration: N, prior_findings_set: F_{N-1}}` + Spotlighting-wrapped repo context.
+- **Output**: `ULTRASAFE_FINDING` intent emit per finding (자세히 §18.1 wire spec). finding payload schema = `schemas/finding.schema.json` 의 `perspective.primary = "ai-red-team"` variant.
+- **Tools**: Read (repo file), Grep (pattern search), Bash (read-only — `git log`, `cat` for spec inspection; mutation 금지).
+- **When to fire**: orchestrator 가 axis-set 에 `usf-ai-llm` 또는 `usf-ai-agentic` 또는 `usf-ai-aml` 포함 시 자동 dispatch (§3.1 13-axis 매트릭스 참조). Tier 1-3 모두 활성 (모든 tier 에서 minimum mandatory axis).
+- **Severity rubric**: 4-tuple (severity × scope × reversibility × external_impact) 의 ai-red-team variant — `severity ∈ {info, low, medium, high, critical}` × `scope ∈ {single-prompt, agent-level, session-level, persistent}` × `reversibility ∈ {full, partial, none}` × `external_impact ∈ {none, internal-only, public-disclosure-risk}`. 4-tuple 합이 ≥ 4 시 Hyperbrief routing (§7).
+- **Minimum attack diversity** (§2.5.1 mandatory item 1): FGSM + PGD + C&W + black-box 4-family 모두 attempt mandatory.
+- **Advisory mode marking**: 모든 finding emit 의 `value.advisory: true` (v0.2.x 동안), `value.would_block_in_v03: bool` 로 future blocking state hint.
+
+### §15.2 Agent 2 — Web/API Attacker (`skills/ultrasafe-web-api/SKILL.md`)
+
+- **톤**: web-sec-focused. *OWASP Top 10 · API contract violation · auth-bypass · SQLi/XSS · SSRF · CSRF · open-redirect · IDOR* 의 web-sec coverage.
+- **Input**: `{target_commit_sha, catalog_versions: {OWASP_WSTG, MITRE_ATTACK_v15, CWE_v4.14}, iteration: N, prior_findings_set: F_{N-1}}` + repo + dependency manifest snapshot.
+- **Output**: `ULTRASAFE_FINDING` intent + `attack_path_graph_candidate` 후보 (v0.2.0 은 *flat list*, v0.3+ 에서 node/edge graph 로 promotion).
+- **Tools**: Read, Grep, Bash (read-only — `git log`, `cat package.json`, `npm ls`, `pip list`; 외부 endpoint 호출 금지).
+- **When to fire**: axis-set 에 `usf-web-sast-dast` 또는 `usf-web-infra` 포함 시 자동 dispatch.
+- **Severity rubric**: CVSS v4 + EPSS + KEV trump 의 priority matrix (§2.1.2). 6-condition AND gate (§2.1.2) 통과 시 자동 PR 후보 emit (v0.2.0 advisory mode 에서는 *후보 표시만*, 실제 PR 생성은 v0.3+).
+- **Minimum attack diversity**: OWASP × MITRE ATT&CK 8 sub-perspective (SAST / DAST / API / container / IaC / SSRF / supply-chain dependency / call-graph) 모두 attempt mandatory.
+- **Advisory mode marking**: `value.advisory: true` + `value.auto_pr_candidate: bool` (advisory 에서는 후보 표시만).
+
+### §15.3 Agent 3 — Supply Chain Auditor (`skills/ultrasafe-supply-chain/SKILL.md`)
+
+- **톤**: dependency-graph-aware. *dependency vulnerability · SBOM mismatch · typosquatting · signing chain · maintainer history anomaly · transitive vulnerability · reproducibility failure* 의 SCS 5-way coverage.
+- **Input**: `{target_commit_sha, catalog_versions: {SLSA_v1.0, NIST_SSDF, OSV}, iteration: N, prior_findings_set: F_{N-1}}` + SBOM (CycloneDX / SPDX) + dependency lockfile snapshot.
+- **Output**: `ULTRASAFE_FINDING` intent + PURL canonical id + attestation chain (cosign cert + Rekor proof + timestamp) + `maintainer_anomaly_flag`.
+- **Tools**: Read, Grep, Bash (read-only — `cosign verify`, `osv-scanner`, `npm audit --json`; 외부 endpoint 호출 금지 — 로컬 cache 만 사용).
+- **When to fire**: axis-set 에 `usf-supply-chain` 포함 시 자동 dispatch.
+- **Severity rubric**: OSV CVE match → severity 자동 매핑 (CVSS) + EPSS 가중. `maintainer_anomaly_flag = true` 는 *자동 차단 안 함* — 항상 human review lane (§2.1.3 cross-axis Contradiction CT1).
+- **Auto-block 금지** (§2.1.3): maintainer anomaly 는 *자동 차단 안 함*. 자동 차단 후보는 *결정론적 signal* (cosign signature mismatch / SLSA provenance 부재 / OSV CVE match) 한정. v0.2.0 advisory mode 에서는 *어떤 finding 도 자동 차단 안 함* — 모두 report-only.
+- **Advisory mode marking**: `value.advisory: true` + `value.would_auto_block_in_v03_blocking: bool` (deterministic signal 의 future blocking hint).
+
+### §15.4 Agent 4 — Crypto Reviewer (`skills/ultrasafe-crypto/SKILL.md`)
+
+- **톤**: crypto-formal. *key management · random source · TLS misuse · signature scheme · constant-time violation · PQC readiness · cryptographic agility envelope* 의 C1-C15 15-pattern catalog coverage.
+- **Input**: `{target_commit_sha, catalog_versions: {Ultrasafe_Crypto_C1-15_v0.1, TLS_1.3_strict_profile}, iteration: N, prior_findings_set: F_{N-1}}` + crypto-related file (key generation / TLS config / signature impl) snapshot.
+- **Output**: `ULTRASAFE_FINDING` intent + `pattern_id` (C1-C15) + `agility_envelope_status` + `pqc_readiness_metric` + `constant_time_binary_evidence`.
+- **Tools**: Read, Grep, Bash (read-only — `openssl`, `nettle-test`, `cryptography-py` test; 실제 key generation / signing 금지).
+- **When to fire**: axis-set 에 `usf-crypto` 포함 시 자동 dispatch.
+- **Severity rubric**: pattern_id 별 severity matrix — C1 (key generation) / C2 (key storage) / C4 (constant-time) 는 *영구 critical*. Binary constant-time finding + cryptographic key rotation + external endpoint change 는 *영구 auto-apply 금지* (§2.1.4 Contradiction CT6) — score 무관 forced Hyperbrief escalate.
+- **Permanent-manual category** (§2.1.4): v0.2.0 advisory mode 에서도 *permanent-manual category 명시 유지* — 모든 finding 의 `value.permanent_manual: bool` flag 가 true 일 시 advisory → blocking 전환 후에도 자동 fix 금지.
+- **Advisory mode marking**: `value.advisory: true` + `value.permanent_manual: bool` (auto-apply 금지 category 표시 mandatory).
+
+### §15.5 Agent 5 — Social Engineer (`skills/ultrasafe-social-eng/SKILL.md`)
+
+- **톤**: human-factor-aware. *phishing surface · docs leak · OPSEC fail · human-factor weakness · prompt-injection signature · A2A inbound Spotlighting bypass attempt* 의 Cialdini 6 × Hadnagy 9 × FBI 8-elicitation 직교 fan-out.
+- **Input**: `{target_commit_sha, catalog_versions: {HFS_Direct_Catalog_v0.1}, iteration: N, prior_findings_set: F_{N-1}}` + docs (README, CHANGELOG, *.md) + A2A inbound log snapshot.
+- **Output**: `ULTRASAFE_FINDING` intent + `cialdini_principle` + `hadnagy_vector` + `elicitation_technique` + `injection_canary_status`.
+- **Tools**: Read, Grep (sensitive pattern — credential, internal hostname, OPSEC slip), Bash (read-only — `git log --grep` for sensitive commit message; 외부 channel 송신 금지).
+- **When to fire**: axis-set 에 `usf-social-eng` 포함 시 자동 dispatch. Tier 2+ 에서 활성 (Tier 1 patch 는 sensitivity 낮음).
+- **Severity rubric**: Cialdini principle × Hadnagy vector × elicitation technique 의 cross-tuple 별 severity matrix. LLM-classifier 기반 sensitive topic 분류 결과는 *항상 human gate* — auto-block 금지 (§2.1.5 cross-axis CT1 rule).
+- **Human review default**: v0.2.0 advisory mode 에서도 *human gate default 명시 유지* — `value.human_gate_required: true` flag mandatory.
+- **Advisory mode marking**: `value.advisory: true` + `value.human_gate_required: true` (LLM-classifier 기반은 항상 human gate).
+
+### §15.6 Agent 6 — Methodology / Compliance (`skills/ultrasafe-methodology/SKILL.md`)
+
+- **톤**: process-formal. *test methodology gap · coverage cliff · compliance (NIST 800-115 / OSSTMM / OWASP Testing Guide / PTES / ISO 27001:2022 / CIS v8.1)* 의 16-cell 2D dispatch matrix.
+- **Input**: `{target_commit_sha, catalog_versions: {NIST_800-115, OSSTMM, OWASP_WSTG, PTES, ISO_27001_2022, CIS_v8.1}, iteration: N, prior_findings_set: F_{N-1}}` + test artifact (test coverage report · CI log) snapshot.
+- **Output**: `ULTRASAFE_FINDING` intent + `methodology_anchor` + `iso_theme` + `rav_score` + `cis_control_id` + `catalog_version` + `coverage_percentage_under_catalog` + `untested_classes[]`.
+- **Tools**: Read, Grep, Bash (read-only — `git log`, coverage report parse; external compliance scanner 호출 금지).
+- **When to fire**: axis-set 에 `usf-iam-config` 또는 methodology-related axis 포함 시 자동 dispatch. Tier 2+ 에서 활성.
+- **Severity rubric**: methodology gap 의 RAV-style quantified release gate (PM §5) + ISO 27001 4-theme × CIS v8.1 mapping.
+- **Catalog version mandatory** (§2.1.6): 매 finding 의 `catalog_version` + `coverage_percentage_under_catalog` + `untested_classes[]` 명시 강제 — "secure" 단어 사용 금지, *"passed coverage X% under catalog v_Y as of date Z"* 한정 표현.
+- **Advisory mode marking**: `value.advisory: true` + `value.coverage_attestation: {catalog_version, coverage_pct, untested_classes[]}` (mandatory).
+
+### §15.7 Agent 7 — Threat Model / Lifecycle (`skills/ultrasafe-threat-model/SKILL.md`)
+
+- **톤**: lifecycle-systematic. *threat modeling (STRIDE per-Element/per-Interaction · LINDDUN 7-category · UKC 18-phase) · incident lifecycle (PICERL 6-phase) · disclosure timing · attack-defense tree · secondary-surface iteration guard* 의 13-17 cell 직교 coverage.
+- **Input**: `{target_commit_sha, catalog_versions: {STRIDE_v1, LINDDUN_v3.0, UKC_v2.0, LM_CKC_v1, PTE_Protocol_Matrix_v0.1}, iteration: N, prior_findings_set: F_{N-1}}` + architecture diagram (manual input or doc reference) + lifecycle metadata snapshot.
+- **Output**: `ULTRASAFE_FINDING` intent + `stride_category` + `linddun_category` + `ukc_phase` + `pte_layer` + `lifecycle_stage` + `secondary_surface_origin_id`.
+- **Tools**: Read (architecture doc), Grep (lifecycle pattern), Bash (read-only — `git log`, signature verify; 외부 PKI 호출 금지).
+- **When to fire**: axis-set 에 `usf-stride` 또는 `usf-linddun` 또는 `usf-kill-chain` 또는 `usf-protocol-lifecycle` 포함 시 자동 dispatch. Tier 2+ 에서 활성.
+- **Severity rubric**: STRIDE + LINDDUN + UKC 의 cross-cell severity matrix. Attack-defense tree fragment 의 bottom-up propagation (TM §2). Secondary-surface iteration guard — F_{N+1} = (F_N − sealed) + secondary_new 의 diff 추출 mandatory.
+- **TOFU hardening** (PTE §2): admit-time Ed25519 signature + DID 등록 + trust anchor lifetime metadata mandatory (advisory mode 에서도 명시 유지).
+- **Advisory mode marking**: `value.advisory: true` + `value.secondary_surface_diff: {sealed_prior, new_secondary}` (mandatory, regression baseline computation 의 input).
+
+### §15.8 Agent 8 — Synthesizer (fan-out sink) (`skills/ultrasafe-synthesizer/SKILL.md`)
+
+- **톤**: synthesis-meta. *7 attacker finding 의 cross-axis dedup + severity ranking + correlation + 3-layer report 생성* 의 retire-barrier 합성 단독.
+- **Input**: `{iteration: N, finding_set_from_7_attackers: [F_1, ..., F_7], catalog_versions: {...}, agent_roster_snapshot_hash: sha256(...)}` + 직전 iteration boundary snapshot.
+- **Output**: 3-layer hybrid (자세히 §3 합성 보고서 양식 + §18.2 ITERATION_BOUNDARY wire spec 참조):
+  - **Layer 1**: OSCAL Assessment Result (`oscal.findings[]` + `oscal.iteration_summary` 4-set diff + `oscal.alignment_matrix`).
+  - **Layer 2**: Hyperbrief 9-section IR (score ≥ 4 finding 마다).
+  - **Layer 3**: Greatpractice tree entry candidate (macro / mezzo / micro 자동 분류).
+- **Tools**: Read (직전 iteration boundary JSONL), Grep (finding cross-correlate), Bash (read-only — JSON aggregate · BLAKE3 hash compute; mutation 금지).
+- **When to fire**: orchestrator 가 7 attacker 의 모든 finding emit 완료 시 자동 dispatch (retire-barrier 시점). Tier 1-3 모두 활성.
+- **Synthesis rubric**:
+  - BFT quorum 2f+1 (n=7, f=2 까지 견딤) → 동일 finding 5 agent 보고 시 `confirmed` tier, f+1=3 agent 보고 시 `needs-corroboration`, 단일 보고 시 `low-confidence draft`.
+  - Diversity-enforced source independence (MAD §2 + §3.2) — (perspective × prompt_template_hash × seed) 3-tuple distinct ≥ 3 강제.
+  - ACH matrix multi-hypothesis (CDB §1) — 동일 finding 의 다중 hypothesis 제시.
+  - CIM normalization tri-format export (SVD §4) — SARIF 2.1.0 + STIX 2.1 bundle + ATT&CK Navigator JSON layer.
+- **Coverage definition** (§6.3 + §2.1.8): `coverage_percentage_under_catalog` = (탐색된 catalog cell / 해당 catalog 전체 cell) — 단순 "발견 0" ambiguous "clean" 이 아닌 *catalog cell 단위 명시적 측정*. 매 iteration boundary 의 `untested_classes[]` mandatory.
+- **Self-spec-gaming hazard check** (§2.5): synthesizer 자체가 spec-gaming target 일 위험 회피 — broker (§2.5.2) 가 *외부 process* 로 4 mandatory check (attack family coverage / token consumption distribution / external_standard_anchor presence / untested_surfaces[] non-empty) 수행. broker hit 시 Hyperbrief MUST-trigger.
+- **Advisory mode marking**: ITERATION_BOUNDARY 의 `value.advisory: true` + `value.clean_signal_4_condition_AND_gate_state: {regression_free, monotonic, coverage_floor, consecutive_2_iter}` (mandatory) + `value.would_release_in_blocking_mode: bool` (future blocking state hint).
+
+### §15.9 8-agent dispatch sequence (Workflow fan-out 적용)
+
+```
+orchestrator (`runtime/orchestrator.cjs`)
+  ↓ Phase A (read-only enumeration, Stackelberg leader observation, §3.2)
+  ↓ 7 attacker (1-7) 병렬 dispatch — Workflow fan-out
+  ↓ 각 attacker SKILL invoke + tool grant (Read / Grep / Bash read-only)
+  ↓ 각 attacker 가 ULTRASAFE_FINDING intent emit (§18.1)
+  ↓
+[retire-barrier]
+  ↓ orchestrator 가 7 attacker 완료 대기
+  ↓ Phase B (informed best-response attack simulation, Stackelberg follower, §3.2)
+  ↓ synthesizer (agent 8) dispatch — Workflow fan-out sink
+  ↓ synthesizer SKILL invoke + 7 attacker finding aggregate
+  ↓ ULTRASAFE_ITERATION_BOUNDARY intent emit (§18.2)
+  ↓
+orchestrator → clean-signal-gate (`runtime/clean-signal-gate.cjs`)
+  ↓ MCP tool `ultrasafe_clean_signal_check` 호출 (§16.3)
+  ↓ 4-condition AND-gate evaluate
+  ↓
+clean signal 미도달 → iteration N+1 으로 loop (Stage 2 재진입)
+clean signal 도달 → MCP tool `ultrasafe_report_generate` 호출 (§16.4)
+  ↓ 3-layer report 생성
+  ↓ ULTRASAFE_RELEASE_GATE intent emit (§18.3)
+  ↓ advisory mode: report-only (publish 차단 X)
+  ↓ blocking mode (v0.3+): user gate 통과 후에만 publish 허용
+```
+
+Workflow fan-out 적용 evidence: orchestrator 가 7 attacker 를 *병렬* dispatch (Superscalar §3 read fan-out 패턴) + retire-barrier 에서 synthesizer 의 단일 sink 합성 — v0.1.0 design 의 *single-thread serial* 가정에서 v0.2.0 의 *parallel fan-out* 으로 runtime upgrade.
+
+---
+
+## §16. MCP Server Tools (v0.2.0)
+
+> v0.2.0 의 5 MCP tools — `ultrasafe_run_fanout` / `ultrasafe_finding_aggregate` / `ultrasafe_clean_signal_check` / `ultrasafe_report_generate` / `ultrasafe_release_gate` — 는 `plugins/ultrasafe/mcp/server.cjs` 의 stdio JSON-RPC 인터페이스로 노출돼요. 각 tool 의 input/output schema + tool-level deterministic guarantee + advisory mode return flag mandatory.
+
+### §16.1 `ultrasafe_run_fanout` — 8 attacker 병렬 dispatch
+
+- **Description**: 7 attacker (agent 1-7) 를 병렬 dispatch + retire-barrier 에서 synthesizer (agent 8) 합성. v0.2.0 의 fan-out 진입점.
+- **Input schema**:
+  ```json
+  {
+    "target_commit_sha": "string (40-char hex)",
+    "tier": "1 | 2 | 3",
+    "axis_set": "string[] (e.g., ['usf-ai-llm', 'usf-web-sast-dast', ...])",
+    "iteration": "integer (≥ 1)",
+    "prior_findings_set": "Finding[] (직전 iteration 의 F_{N-1})",
+    "catalog_versions": "{[axis_id]: catalog_version_string}",
+    "agent_roster_snapshot_hash": "string (sha256 hex)"
+  }
+  ```
+- **Output schema**:
+  ```json
+  {
+    "advisory_mode": true,
+    "iteration": "integer",
+    "findings": "Finding[]",
+    "iteration_boundary": "IterationBoundary",
+    "synthesis_layer_1_oscal": "object (OSCAL Assessment Result)",
+    "synthesis_layer_2_hyperbrief": "object[] (Hyperbrief IR, score ≥ 4)",
+    "synthesis_layer_3_greatpractice": "object[] (tree entry candidate)",
+    "agent_diversity_check_passed": "bool",
+    "broker_meta_safety_check_passed": "bool"
+  }
+  ```
+- **Tool-level deterministic guarantee**: 동일 input (target_commit_sha + tier + axis_set + iteration + prior_findings_set + catalog_versions + agent_roster_snapshot_hash) 에 대해 output 의 `findings` set 이 deterministic — agent diversity 4-tuple hash 가 박제되어 LLM stochasticity 가 *iteration boundary 내* 에서만 변동, 동일 input 의 재호출은 동일 finding set return.
+- **Advisory mode**: `output.advisory_mode = true` mandatory. 모든 finding 의 `value.advisory: true`.
+
+### §16.2 `ultrasafe_finding_aggregate` — cross-axis dedup + severity rank
+
+- **Description**: 7 attacker 의 finding 을 cross-axis 합성 — dedup + severity ranking + correlation + 3-layer report 생성. `ultrasafe_run_fanout` 의 retire-barrier 단계가 본 tool 을 invoke.
+- **Input schema**:
+  ```json
+  {
+    "iteration": "integer",
+    "finding_set_from_7_attackers": "Finding[]",
+    "catalog_versions": "{[axis_id]: catalog_version_string}",
+    "agent_roster_snapshot_hash": "string"
+  }
+  ```
+- **Output schema**:
+  ```json
+  {
+    "advisory_mode": true,
+    "iteration": "integer",
+    "deduped_findings": "Finding[] (cross-axis 합성 후)",
+    "severity_ranked_findings": "Finding[] (severity desc 정렬)",
+    "correlation_map": "{[finding_id]: finding_id[] (correlated findings)}",
+    "confirmation_tier": "{[finding_id]: 'confirmed' | 'needs-corroboration' | 'low-confidence draft'}",
+    "synthesis_layer_1_oscal": "object",
+    "synthesis_layer_2_hyperbrief": "object[]",
+    "synthesis_layer_3_greatpractice": "object[]"
+  }
+  ```
+- **Tool-level deterministic guarantee**: dedup 알고리즘 = (file × line × pattern_id) 3-tuple match → merge. Severity ranking = (severity × scope × reversibility × external_impact) 4-tuple 의 lexicographic order. Confirmation tier 결정 = BFT quorum 2f+1 (n=7, f=2) 의 deterministic count.
+- **Advisory mode**: `output.advisory_mode = true` mandatory.
+
+### §16.3 `ultrasafe_clean_signal_check` — 4-condition AND-gate
+
+- **Description**: iteration N → N+1 전환 또는 release 진입 결정을 위한 clean-signal-gate evaluation. 4-condition AND-gate 의 deterministic check.
+- **Input schema**:
+  ```json
+  {
+    "iteration": "integer (≥ 3)",
+    "current_findings": "Finding[] (F_N)",
+    "prior_findings": "Finding[] (F_{N-1})",
+    "regression_baseline": "Finding[] (직전 release 의 ITER 최종 finding set + 본 release ITER 1 finding set 합)",
+    "coverage_pct": "{[axis_id]: number (0-100)}",
+    "applicable_subset_size": "{[axis_id]: integer}",
+    "untested_classes": "{[axis_id]: string[]}",
+    "iteration_history": "{[iter: integer]: {findings_count, regression_count, coverage_pct_avg}}",
+    "tier": "1 | 2 | 3"
+  }
+  ```
+- **Output schema**:
+  ```json
+  {
+    "advisory_mode": true,
+    "clean_signal_reached": "bool",
+    "condition_1_regression_free": "bool (sealed_verification + prior_findings_retest + secondary_surface_absence 3-component AND)",
+    "condition_2_monotonic_improvement": "bool (K-iteration window trend, K=3)",
+    "condition_3_coverage_floor": "bool (Tier 1: 50% / Tier 2: 75% / Tier 3: 90%)",
+    "condition_4_consecutive_2_iter": "bool",
+    "recommended_action": "'continue_iteration' | 'release_ready_advisory' | 'hyperbrief_escalate'",
+    "would_block_in_v03_blocking": "bool"
+  }
+  ```
+- **Tool-level deterministic guarantee**: 4-condition AND-gate 의 *모든 sub-condition 이 deterministic predicate* — LLM judgment 없이 numerical comparison 만. K-iteration window trend = `findings_count[N], findings_count[N-1], findings_count[N-2]` 의 monotonic descending check.
+- **Advisory mode**: `output.advisory_mode = true` mandatory. `clean_signal_reached = true` 라도 v0.2.0 에서는 *recommended_action = 'release_ready_advisory'* 만, 실제 publish 차단/허용 결정 X.
+
+### §16.4 `ultrasafe_report_generate` — 3-layer report 생성
+
+- **Description**: clean-signal 도달 또는 max_iter 도달 시점에 3-layer 합성 report 생성 — OSCAL Assessment Result + Hyperbrief 9-section IR + Greatpractice tree candidate.
+- **Input schema**:
+  ```json
+  {
+    "iteration_history": "IterationBoundary[]",
+    "final_findings": "Finding[]",
+    "clean_signal_state": "object (§16.3 의 output)",
+    "tier": "1 | 2 | 3",
+    "target_commit_sha": "string",
+    "catalog_versions": "{[axis_id]: catalog_version_string}",
+    "untested_classes": "{[axis_id]: string[]}"
+  }
+  ```
+- **Output schema**:
+  ```json
+  {
+    "advisory_mode": true,
+    "layer_1_oscal_assessment_result": {
+      "uuid": "string",
+      "metadata": "object",
+      "findings": "Finding[]",
+      "iteration_summary": {"resolved": [], "regression": [], "persistent": [], "new": []},
+      "alignment_matrix": "{[axis_pair]: cross_confirmation_count}",
+      "attestation_text": "string (\"passed coverage X% under catalog v_Y as of date Z\" 한정 표현)"
+    },
+    "layer_2_hyperbrief_irs": "HyperbriefIR[] (score ≥ 4 finding)",
+    "layer_3_greatpractice_candidates": "GreatpracticeTreeEntry[] (macro/mezzo/micro 자동 분류)",
+    "sarif_2_1_0_export": "object (SARIF bundle)",
+    "stix_2_1_export": "object (STIX bundle)",
+    "attack_navigator_layer": "object (ATT&CK Navigator JSON layer)"
+  }
+  ```
+- **Tool-level deterministic guarantee**: 3-layer report 의 schema 가 박제 — OSCAL v1.1.0 + Hyperbrief.md §1 9-section schema + Greatpractice.md §3 schema. Attestation text 의 형식이 *"passed coverage X% under catalog v_Y as of date Z"* 한정 — *"secure"* 단어 영구 금지.
+- **Advisory mode**: `output.advisory_mode = true` mandatory. report 의 `attestation_text` 가 *advisory-only* 명시 — *"advisory-mode report — not a blocking attestation"* prefix.
+
+### §16.5 `ultrasafe_release_gate` — release-gate state query
+
+- **Description**: release-gate 의 current state query + Hyperbrief 4-score routing 의 input emit. v0.2.0 advisory mode 에서는 *상태 조회만*, publish 차단/허용 결정 X.
+- **Input schema**:
+  ```json
+  {
+    "iteration": "integer",
+    "clean_signal_state": "object (§16.3 의 output)",
+    "report": "object (§16.4 의 output)",
+    "tier": "1 | 2 | 3",
+    "target_commit_sha": "string",
+    "release_candidate_tag": "string (e.g., 'v2.5.43')"
+  }
+  ```
+- **Output schema**:
+  ```json
+  {
+    "advisory_mode": true,
+    "release_candidate": "string",
+    "verdict": "'release_advisory' | 'hold_advisory' | 'escalate'",
+    "grading": "'minimal' | 'standard' | 'high'",
+    "findings_residual": "Finding[]",
+    "hyperbrief_id": "string | null (escalation 시)",
+    "methodology": "string[] (NIST/OSSTMM/OWASP/PTES 4-tuple default)",
+    "would_block_in_v03_blocking": "bool",
+    "user_gate_required_in_v03": "bool"
+  }
+  ```
+- **Tool-level deterministic guarantee**: verdict 결정 = clean_signal_state.clean_signal_reached + findings_residual.severity_max + tier 의 deterministic predicate. Grading = (severity_max × external_impact_max × tier) 의 lexicographic mapping.
+- **Advisory mode**: `output.advisory_mode = true` mandatory. verdict 가 *'release_advisory'* 라도 v0.2.0 에서는 publish 차단/허용 결정 X — *consumer 측 (Claude Code / orchestrator) 이 advisory mode 임을 인지하고 차단 결정 내리지 않도록* 강제.
+
+### §16.6 MCP server entry — `server.cjs` 구조
+
+```javascript
+// plugins/ultrasafe/mcp/server.cjs (v0.2.0 skeleton)
+const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
+const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
+
+const server = new Server(
+  { name: 'ultrasafe', version: '0.2.0' },
+  { capabilities: { tools: {} } }
+);
+
+const TOOLS = {
+  ultrasafe_run_fanout:         require('./tools/run-fanout.cjs'),
+  ultrasafe_finding_aggregate:  require('./tools/finding-aggregate.cjs'),
+  ultrasafe_clean_signal_check: require('./tools/clean-signal-check.cjs'),
+  ultrasafe_report_generate:    require('./tools/report-generate.cjs'),
+  ultrasafe_release_gate:       require('./tools/release-gate.cjs'),
+};
+
+server.setRequestHandler('tools/list', () => ({
+  tools: Object.entries(TOOLS).map(([name, t]) => ({
+    name, description: t.description, inputSchema: t.inputSchema
+  }))
+}));
+
+server.setRequestHandler('tools/call', async (req) => {
+  const tool = TOOLS[req.params.name];
+  if (!tool) throw new Error(`Unknown tool: ${req.params.name}`);
+  const result = await tool.handler(req.params.arguments);
+  // v0.2.0 advisory mode mandatory injection
+  result.advisory_mode = true;
+  return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+});
+
+const transport = new StdioServerTransport();
+server.connect(transport);
+```
+
+`@modelcontextprotocol/sdk` 는 `mcp/package.json` 에 dependency. 각 tool 의 individual implementation 은 `mcp/tools/*.cjs` 에 분리 — v0.2.0 의 ship 단위는 *skeleton + 5 tool stub*, full implementation 은 v0.2.x dogfood evidence 누적 후 점진 확장.
+
+---
+
+## §17. Hooks Spec — PreToolUse + Stop (v0.2.0)
+
+> v0.2.0 의 2 hook — PreToolUse `ultrasafe-trigger.cjs` + Stop `ultrasafe-clean-signal.cjs` — 의 registration / condition / action 명세예요. 두 hook 모두 *advisory mode* — exit code 0 + stderr alert + surface only, 실제 차단 X.
+
+### §17.1 PreToolUse hook — `ultrasafe-trigger.cjs`
+
+- **위치**: `plugins/ultrasafe/hooks/ultrasafe-trigger.cjs`
+- **Hook event**: `PreToolUse` (Claude Code SDK hook event)
+- **Matcher**: `Bash` (Bash tool 호출 직전)
+- **Trigger condition**: publish-equivalent command 7 종 매처 일치 시 (§10.1 의 7 종 매처 그대로 차용):
+  - `git push.*--tags`
+  - `gh release create`
+  - `npm publish` (or `pnpm/yarn publish`)
+  - `twine upload` 또는 `python -m build.*upload`
+  - `docker push.*\b[\w.-]+:[\w.-]+`
+  - `cargo publish`
+  - `gh pr merge.*--squash\|--merge` (main 대상)
+- **Action** (v0.2.0 advisory mode):
+  1. tier 분류 (§10.3) — semver bump rubric
+  2. axis-set 선택 (§10.4) — Tier 별 8/13/17 agent
+  3. iteration_min 결정 (§10.5) — Tier 별 3/4/5+
+  4. orchestrator dispatch — MCP tool `ultrasafe_run_fanout` 호출
+  5. clean-signal-gate evaluate — MCP tool `ultrasafe_clean_signal_check` 호출
+  6. 3-layer report 생성 — MCP tool `ultrasafe_report_generate` 호출
+  7. release-gate state — MCP tool `ultrasafe_release_gate` 호출
+  8. **stderr alert emit** — `verdict` 표시 + `findings_residual` summary + Hyperbrief routing 후보
+  9. **exit code 0** — pass-through (publish 명령은 정상 진행)
+- **Registration** (`.claude/settings.json` 또는 `plugins/ultrasafe/hooks/hooks.json`):
+  ```json
+  {
+    "hooks": {
+      "PreToolUse": [{
+        "matcher": "Bash",
+        "hooks": [{
+          "type": "command",
+          "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/ultrasafe-trigger.cjs --command \"$TOOL_INPUT\""
+        }]
+      }]
+    }
+  }
+  ```
+- **Advisory mode 명시**: 본 hook 의 모든 stderr alert 가 *"[ULTRASAFE ADVISORY]"* prefix mandatory. exit code 0 fixed — *어떤 finding 도 publish 차단 안 함*.
+- **Blocking mode 전환 (v0.3+)**: clean_signal_reached = false 또는 findings_residual.severity_max ≥ high → exit code 1 (block) — user gate 통과 (Hyperbrief 4-score gate 또는 explicit `--allow-with-risk` flag) 필요. v0.2.x 에서는 *exit code 1 never*.
+
+### §17.2 Stop hook — `ultrasafe-clean-signal.cjs`
+
+- **위치**: `plugins/ultrasafe/hooks/ultrasafe-clean-signal.cjs`
+- **Hook event**: `Stop` (Claude Code SDK turn-end event)
+- **Trigger condition**: 매 turn-end 시점 — orchestrator 의 iteration boundary 가 최근 N turn 안에 있는 경우 (orchestrator state 가 `iteration_in_progress = true` 일 때).
+- **Action** (v0.2.0 advisory mode):
+  1. orchestrator state 조회 — 현재 iteration N + clean-signal state
+  2. clean-signal-gate evaluate — MCP tool `ultrasafe_clean_signal_check` 호출
+  3. 4-condition AND-gate 의 각 sub-condition 의 current state surface
+  4. **stderr alert emit** — clean signal 미도달 시 *"[ULTRASAFE ADVISORY] iteration N: condition X not met — recommend continue iteration"* 표시
+  5. **exit code 0** — pass-through (turn 정상 종료)
+- **Registration** (`.claude/settings.json` 또는 `plugins/ultrasafe/hooks/hooks.json`):
+  ```json
+  {
+    "hooks": {
+      "Stop": [{
+        "hooks": [{
+          "type": "command",
+          "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/ultrasafe-clean-signal.cjs"
+        }]
+      }]
+    }
+  }
+  ```
+- **Advisory mode 명시**: 본 hook 의 모든 stderr alert 가 *"[ULTRASAFE ADVISORY]"* prefix mandatory. exit code 0 fixed — *어떤 cycle 도 차단 안 함*.
+- **Cycle-end probe 와의 관계**: 본 hook 은 *Constellation §13.16.10 의 cycle-end probe* 와 직교 — Constellation cycle-end probe 는 inbox/outbox 정합성, Ultrasafe Stop hook 은 iteration boundary 의 clean-signal state. 두 hook 이 같은 Stop event 에 등록될 수 있음 — `.claude/settings.json` 의 hooks array 가 둘 다 호출.
+
+### §17.3 `hooks.json` 통합 registration
+
+`plugins/ultrasafe/hooks/hooks.json` 의 통합 registration manifest — Claude Code plugin loader 가 본 파일을 읽고 settings.json 의 hooks 섹션에 자동 merge:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Bash",
+      "hooks": [{
+        "type": "command",
+        "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/ultrasafe-trigger.cjs --command \"$TOOL_INPUT\"",
+        "description": "Ultrasafe PreToolUse trigger — publish-equivalent command 감지 + advisory mode emit"
+      }]
+    }],
+    "Stop": [{
+      "hooks": [{
+        "type": "command",
+        "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/ultrasafe-clean-signal.cjs",
+        "description": "Ultrasafe Stop hook — cycle-end clean-signal check, advisory surface only"
+      }]
+    }]
+  }
+}
+```
+
+### §17.4 Hook implementation skeleton — `ultrasafe-trigger.cjs`
+
+```javascript
+// plugins/ultrasafe/hooks/ultrasafe-trigger.cjs (v0.2.0 skeleton)
+#!/usr/bin/env node
+const { spawn } = require('child_process');
+const path = require('path');
+
+const args = process.argv.slice(2);
+const cmdIdx = args.indexOf('--command');
+const command = cmdIdx >= 0 ? args[cmdIdx + 1] : '';
+
+// 7 종 매처
+const MATCHERS = [
+  { id: 'gpush-tags',    regex: /git push.*--tags/ },
+  { id: 'gh-release',    regex: /gh release create/ },
+  { id: 'npm-publish',   regex: /(npm|pnpm|yarn)\s+publish/ },
+  { id: 'pypi-upload',   regex: /(twine upload|python -m build.*upload)/ },
+  { id: 'docker-push',   regex: /docker push.*\b[\w.-]+:[\w.-]+/ },
+  { id: 'cargo-publish', regex: /cargo publish/ },
+  { id: 'gh-pr-merge',   regex: /gh pr merge.*(--squash|--merge)/ },
+];
+
+const hit = MATCHERS.find(m => m.regex.test(command));
+if (!hit) process.exit(0);  // pass-through
+
+// orchestrator 호출 — MCP server 의 ultrasafe_run_fanout 등 5 tool 순차 dispatch
+const orchestrator = path.join(__dirname, '..', 'runtime', 'orchestrator.cjs');
+const child = spawn('node', [orchestrator, '--matcher', hit.id, '--command', command], {
+  stdio: ['ignore', 'pipe', 'inherit']
+});
+
+let output = '';
+child.stdout.on('data', d => output += d.toString());
+child.on('close', code => {
+  // v0.2.0 advisory mode: exit code 0 fixed, stderr alert only
+  if (output) {
+    process.stderr.write(`[ULTRASAFE ADVISORY] ${output}\n`);
+  }
+  process.exit(0);  // advisory mode: pass-through always
+});
+```
+
+### §17.5 Hook implementation skeleton — `ultrasafe-clean-signal.cjs`
+
+```javascript
+// plugins/ultrasafe/hooks/ultrasafe-clean-signal.cjs (v0.2.0 skeleton)
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+
+const STATE_FILE = path.join(process.env.CLAUDE_PROJECT_DIR || '.', '.ultrasafe', 'state.json');
+if (!fs.existsSync(STATE_FILE)) process.exit(0);  // no iteration in progress
+
+const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+if (!state.iteration_in_progress) process.exit(0);
+
+// clean-signal-gate evaluate — MCP tool `ultrasafe_clean_signal_check` 호출 (in-process)
+const cleanSignalCheck = require('../mcp/tools/clean-signal-check.cjs');
+const result = cleanSignalCheck.handler({
+  iteration: state.iteration,
+  current_findings: state.current_findings,
+  prior_findings: state.prior_findings,
+  regression_baseline: state.regression_baseline,
+  coverage_pct: state.coverage_pct,
+  applicable_subset_size: state.applicable_subset_size,
+  untested_classes: state.untested_classes,
+  iteration_history: state.iteration_history,
+  tier: state.tier,
+});
+
+// v0.2.0 advisory mode: stderr alert only
+if (!result.clean_signal_reached) {
+  const unmet = [];
+  if (!result.condition_1_regression_free) unmet.push('regression-free');
+  if (!result.condition_2_monotonic_improvement) unmet.push('monotonic-improvement');
+  if (!result.condition_3_coverage_floor) unmet.push('coverage-floor');
+  if (!result.condition_4_consecutive_2_iter) unmet.push('consecutive-2-iter');
+  process.stderr.write(`[ULTRASAFE ADVISORY] iteration ${state.iteration}: clean signal not reached — unmet: ${unmet.join(', ')} — recommend: ${result.recommended_action}\n`);
+}
+process.exit(0);  // advisory mode: pass-through always
+```
+
+---
+
+## §18. Constellation 통합 — 5 신규 intent runtime wire (v0.2.0)
+
+> §8 의 5 신규 A2A intent (ULTRASAFE_FINDING / ITERATION_BOUNDARY / RELEASE_GATE / SECURITY_DISCLOSURE_INTAKE / MPCVD_COORDINATION) 가 v0.1.0 에서 *design schema* 였다면, 본 §18 은 그 schema 의 **runtime wire activation** — Constellation §13.16 의 A2A-intent allowlist 에 5 name 등록 + ack_tier 적용 + payload schema mandatory 검증 + Spotlighting wrapper 자동 적용 + 라이브보드 카드 surface 의 runtime 결선예요. v0.2.0 의 5 intent 는 모두 *advisory* — finding emit 은 dashboard surface + outbox.jsonl 영속, 실제 publish 차단/허용 결정 X.
+
+### §18.1 `ULTRASAFE_FINDING` — runtime wire spec
+
+- **방향**: red-team agent → main / dashboard
+- **ack_tier**: `commitment` (Constellation §13.13 의 application-tier)
+- **paired companion**: 없음 (단독 envelope)
+- **Payload schema** (v0.2.0):
+  ```json
+  {
+    "type": "CUSTOM",
+    "name": "ULTRASAFE_FINDING",
+    "targetAgentId": "main",
+    "value": {
+      "finding_id": "us-{ISO8601_date}-{seq}",
+      "iteration": "integer",
+      "axis": "string (axis_id, §3.1)",
+      "agent_id": "string (attacker agent identifier)",
+      "attack_pattern": {"stix_id": "string", "mitre_technique": "string"},
+      "severity": {
+        "cvss": "number (0-10)",
+        "epss_estimate": "number | null",
+        "ultrasafe_exploited": "bool",
+        "asr_pct": "number (0-100)",
+        "ci95": "[number, number]"
+      },
+      "diamond": {"adversary": "string", "capability": "string", "infrastructure": "string", "victim": "string"},
+      "evidence_ref": "string (sarif:// 또는 stix:// URI)",
+      "redaction": "'external_summary_only' | 'internal_full'",
+      "spotlight_wrap": true,
+      "advisory": true,
+      "would_block_in_v03_blocking": "bool",
+      "external_standard_anchor": {
+        "catalog_version": "string",
+        "catalog_cell_id": "string",
+        "coverage_pct_under_catalog": "number"
+      }
+    }
+  }
+  ```
+- **Constellation §13.16 등록**: `ULTRASAFE_FINDING` 이 A2A-intent allowlist 에 추가 — `targetAgentId` 미지정 시 fail-safe default branch (§13.16.9) 가 main agent inbox 로 라우팅, watcher 의 meaningful-inbound 필터가 wake 대상으로 인식.
+- **Spotlighting wrapper 자동 적용** (§8.2): inbox cursor advance 시점에 `<<UNTRUSTED_A2A name="ULTRASAFE_FINDING" sender="..." iso="...">>...<<END_UNTRUSTED_A2A>>` fence 자동 삽입.
+- **라이브보드 카드** (§8.5 Tier 2): finding 마다 1 카드 슬라이드인 — severity color (5×5 cell) + MITRE ATT&CK technique badge + Kill Chain phase lane + 1-line evidence.
+- **Advisory mode 명시**: `value.advisory: true` mandatory. 라이브보드 카드의 corner badge 가 *"ADVISORY"* 표시.
+
+### §18.2 `ULTRASAFE_ITERATION_BOUNDARY` — runtime wire spec
+
+- **방향**: orchestrator → main / dashboard
+- **ack_tier**: `commitment`
+- **paired companion**: 없음
+- **Payload schema** (v0.2.0):
+  ```json
+  {
+    "type": "CUSTOM",
+    "name": "ULTRASAFE_ITERATION_BOUNDARY",
+    "targetAgentId": "main",
+    "value": {
+      "iteration_from": "integer",
+      "iteration_to": "integer",
+      "summary": {"findings_total": "integer", "resolved": "integer", "new": "integer", "regressed": "integer"},
+      "coverage": {"axes_run": "string[]", "asset_coverage_pct": "number", "perspective_diversity": "number"},
+      "clean_signal_4_condition_AND_gate_state": {
+        "condition_1_regression_free": "bool",
+        "condition_2_monotonic_improvement": "bool",
+        "condition_3_coverage_floor": "bool",
+        "condition_4_consecutive_2_iter": "bool"
+      },
+      "clean_signal_reached": "bool",
+      "agent_roster_snapshot_hash": "string",
+      "untested_classes": "{[axis_id]: string[]}",
+      "advisory": true,
+      "would_release_in_blocking_mode": "bool"
+    }
+  }
+  ```
+- **Constellation §13.16 등록**: `ULTRASAFE_ITERATION_BOUNDARY` allowlist 추가.
+- **라이브보드 카드** (§8.5 Tier 3): iteration boundary 카드 — delta heatmap (resolved=green / new=red / regressed=orange) + cumulative metric 3-tuple.
+- **외부 commit channel**: SARIF 2.1.0 + STIX 2.1 bundle + ATT&CK Navigator JSON layer 가 같은 body 를 소비 — 별도 commit 으로 evidence 영속.
+- **Advisory mode 명시**: `value.advisory: true` mandatory.
+
+### §18.3 `ULTRASAFE_RELEASE_GATE` — runtime wire spec
+
+- **방향**: orchestrator → main
+- **ack_tier**: `decided` (Hyperbrief 와 동일 application-tier — 사용자측 signed receipt)
+- **paired companion**: `HyperbriefCard` (verdict='escalate' 시)
+- **Payload schema** (v0.2.0):
+  ```json
+  {
+    "type": "CUSTOM",
+    "name": "ULTRASAFE_RELEASE_GATE",
+    "targetAgentId": "main",
+    "value": {
+      "release_candidate": "string (tag, e.g., 'v2.5.43')",
+      "verdict": "'release_advisory' | 'hold_advisory' | 'escalate'",
+      "grading": "'minimal' | 'standard' | 'high'",
+      "findings_residual": "Finding[]",
+      "hyperbrief_id": "string | null",
+      "methodology": "string[] (NIST/OSSTMM/OWASP/PTES 4-tuple default)",
+      "advisory": true,
+      "would_block_in_v03_blocking": "bool",
+      "user_gate_required_in_v03": "bool",
+      "attestation_text": "string (\"passed coverage X% under catalog v_Y as of date Z\" 한정 표현 + \"ADVISORY MODE\" prefix)",
+      "_sig": "string (Ed25519 signature of value 본체 — broker compromise 회피)"
+    }
+  }
+  ```
+- **Constellation §13.16 등록**: `ULTRASAFE_RELEASE_GATE` allowlist 추가 + `ack_tier='decided'` 의 application-tier 적용 (사용자 signed receipt).
+- **paired HyperbriefCard**: `verdict='escalate'` 시 동일 `parentId` 로 `HyperbriefCard` 함께 emit — 라이브보드가 한 카드로 렌더 (§8.1 paired-envelope 패턴).
+- **라이브보드 카드** (§8.5 Tier 3): release gate 카드 — verdict badge + grading badge + paired HyperbriefCard link (escalate 시).
+- **out-of-band 검증** (§8.4): broker compromise 회피 — `value._sig` Ed25519 signature 의무 + 사용자측 dashboard direct view cross-verification.
+- **Advisory mode 명시**: `value.advisory: true` mandatory + `value.attestation_text` 가 *"ADVISORY MODE"* prefix.
+
+### §18.4 `SECURITY_DISCLOSURE_INTAKE` — runtime wire spec
+
+- **방향**: external researcher gateway → main
+- **ack_tier**: `commitment` + 인증 layer (`value._sig` Ed25519 mandatory)
+- **paired companion**: 없음 (단독)
+- **Payload schema** (v0.2.0):
+  ```json
+  {
+    "type": "CUSTOM",
+    "name": "SECURITY_DISCLOSURE_INTAKE",
+    "targetAgentId": "main",
+    "value": {
+      "disclosure_id": "string (UUID)",
+      "reporter_did": "string (DID identifier)",
+      "reporter_public_key": "string (Ed25519 public key)",
+      "vulnerability_summary": "string (1-line)",
+      "vulnerability_details_encrypted": "string (encrypted under reporter+receiver shared secret)",
+      "cvss_estimate": "number | null",
+      "affected_component": "string",
+      "affected_version_range": "string",
+      "disclosure_timing_preference": "'immediate' | '90_day_embargo' | 'mpcvd_coordinate'",
+      "bug_bounty_eligible": "bool",
+      "advisory": true,
+      "_sig": "string (Ed25519 signature of value 본체)"
+    }
+  }
+  ```
+- **Constellation §13.16 등록**: `SECURITY_DISCLOSURE_INTAKE` allowlist 추가 + 인증 layer mandatory (signature 검증 실패 envelope 은 main inbox 라우팅 전 *server-side 차단*).
+- **인증 layer**: protocol-trust-evolution §1.4 의 PKI chain-of-trust 패턴 차용 — Ed25519 signature 필드를 `value._sig` 에 mandatory + reporter_did + reporter_public_key 를 broker 가 사전 등록한 trust anchor 와 cross-verify.
+- **Greatpractice promotion path** (§9): 신규 disclosure pattern 이 N 회 누적 시 Greatpractice mezzo 노드 자동 promotion.
+- **Advisory mode 명시**: `value.advisory: true` — v0.2.0 에서는 disclosure 수신 후 processing 자동화 없음, manual triage 만.
+
+### §18.5 `MPCVD_COORDINATION` — runtime wire spec
+
+- **방향**: coordinator ↔ 다자 vendor
+- **ack_tier**: `decided`
+- **paired companion**: 자체 broadcast cohort (모든 vendor 가 같은 cohort 의 paired companion)
+- **Payload schema** (v0.2.0):
+  ```json
+  {
+    "type": "CUSTOM",
+    "name": "MPCVD_COORDINATION",
+    "targetAgentId": "string (vendor agent id, broadcast 시 'cohort:*')",
+    "value": {
+      "mpcvd_id": "string (UUID, cohort 식별자)",
+      "coordinator_did": "string",
+      "vendor_cohort": "string[] (vendor DID array)",
+      "vulnerability_summary": "string",
+      "vulnerability_details_encrypted": "string",
+      "embargo_state": "'draft' | 'embargo_active' | 'embargo_lifted' | 'public_disclosure'",
+      "embargo_end_iso": "string (ISO8601)",
+      "patch_readiness_per_vendor": "{[vendor_did]: 'not_started' | 'in_progress' | 'patch_ready' | 'patch_deployed'}",
+      "staged_release_plan": {
+        "stage_1_vendors": "string[]",
+        "stage_1_iso": "string",
+        "stage_2_vendors": "string[]",
+        "stage_2_iso": "string",
+        "public_disclosure_iso": "string"
+      },
+      "advisory": true,
+      "_sig": "string (Ed25519 signature)"
+    }
+  }
+  ```
+- **Constellation §13.16 등록**: `MPCVD_COORDINATION` allowlist 추가 + `ack_tier='decided'` 적용 + broadcast cohort 패턴 (paired companion 이 자체 cohort 의 모든 vendor).
+- **out-of-band 검증** (§8.4): broker compromise 회피 — `value._sig` Ed25519 signature 의무 + 별도 채널 (Hyperbrief md_permalink + 사용자측 dashboard direct view) cross-verification.
+- **embargo state machine**: `draft` → `embargo_active` → `embargo_lifted` → `public_disclosure` 의 4-state machine, 각 transition 이 cohort 의 모든 vendor 의 `decided` ack 통과 후에만 진행.
+- **Advisory mode 명시**: `value.advisory: true` — v0.2.0 에서는 coordination state machine 자동 진행 없음, manual coordinator 결정만.
+
+### §18.6 Constellation §13.16 등록부 (v0.2.0 ship 시점)
+
+본 cut 의 ship 시점에 Constellation §13.16.9 의 A2A-intent allowlist 에 5 신규 name 등록 mandatory:
+
+| Name | Category | ack_tier | Spotlighting wrap | Outbox 라우팅 |
+|---|---|---|---|---|
+| `ULTRASAFE_FINDING` | A2A-intent | `commitment` | mandatory | self-board (응답 패턴 아님 — broadcast) |
+| `ULTRASAFE_ITERATION_BOUNDARY` | A2A-intent | `commitment` | mandatory | self-board |
+| `ULTRASAFE_RELEASE_GATE` | A2A-intent | `decided` | mandatory + signature | self-board |
+| `SECURITY_DISCLOSURE_INTAKE` | A2A-intent | `commitment` + auth | mandatory + signature 검증 | self-board (server-side filter) |
+| `MPCVD_COORDINATION` | A2A-intent | `decided` | mandatory + signature | broadcast (cohort) |
+
+5 name 의 등록은 Constellation.md §13.16.9 의 4-group classification table 갱신 + N-way sync (AGENTS.md §5.8 항목 추가) 가 동반 — 같은 cut 에서 Ultrasafe.md + Constellation.md + plugin manifest 모두 갱신.
+
+---
+
+## §19. Advisory vs Blocking Mode — v0.2.x advisory + v0.3+ blocking 전환 조건 (v0.2.0)
+
+> v0.1.0 의 §13.5 가 *advisory → blocking 전환의 design intent* 였다면, 본 §19 은 그 intent 의 **runtime activation 시점에 측정 가능한 조건 명세** — v0.2.x 동안 advisory mode 유지의 정당화 + v0.3+ blocking mode 전환의 3-AND 조건 (clean-signal-gate 4-condition AND-gate 도달 + user gate 통과 + ≥3 iteration consecutive clean) + 전환 결정 자체의 Hyperbrief gate.
+
+### §19.1 v0.2.x advisory mode 의 운영 의미
+
+v0.2.x 동안 (v0.2.0 ship → v0.3.0 cut 전까지) Ultrasafe runtime 의 모든 출력은 *advisory*:
+
+| 출력 surface | Advisory 의미 |
+|---|---|
+| 8 attacker SKILL 의 finding emit | dashboard 카드 + outbox.jsonl 영속 + Hyperbrief routing 후보. publish 차단 X. |
+| PreToolUse hook `ultrasafe-trigger.cjs` | exit code 0 fixed. stderr alert 만, publish 명령 정상 진행. |
+| Stop hook `ultrasafe-clean-signal.cjs` | exit code 0 fixed. stderr alert 만, cycle 정상 종료. |
+| MCP tool 5 종 return | `output.advisory_mode: true` mandatory. consumer 측에서 차단 결정 내리지 않도록 강제. |
+| 5 Constellation intent emit | `value.advisory: true` mandatory. 라이브보드 카드의 corner badge *"ADVISORY"* 표시. |
+| 3-layer report 의 attestation text | *"ADVISORY MODE"* prefix mandatory. *"passed coverage X% under catalog v_Y as of date Z"* 한정 표현 + advisory prefix. |
+
+v0.2.x 동안의 운영 목적:
+- **FP rate baseline 수집**: 8 attacker 의 finding 중 *실제 vulnerability 가 아닌 false positive* 비율 측정. FP rate threshold (default 10%) 미달 시 blocking mode 전환 후보.
+- **Dogfood evidence 누적**: ≥ 5 cycle 의 dogfood 실행 + 각 cycle 의 clean-signal-gate evaluation 기록. evidence 누적이 blocking mode 전환의 prerequisite.
+- **Self-spec-gaming hazard 검증**: §2.5 의 4 mandatory item + broker (§2.5.2) 의 hit pattern 분석 — 어떤 finding 의 promotion path 가 *spec-gaming reward* 인지 추적.
+- **Advisory → Blocking 전환 절차의 codification**: 본 절 자체가 Greatpractice mezzo 노드 후보 — "Ultrasafe advisory → blocking 전환 procedure" 의 promotion.
+
+### §19.2 Blocking mode 전환 3-AND 조건 (v0.3+)
+
+v0.2.x → v0.3+ blocking mode 전환은 다음 **3 조건 모두** 만족 시에만 진행:
+
+| # | 조건 | 측정 | 임계 |
+|---|---|---|---|
+| 1 | **Clean-signal-gate 4-condition AND-gate 도달** | `ultrasafe_clean_signal_check` 의 `clean_signal_reached = true` 가 ≥ N consecutive cycle 동안 유지 | N ≥ 5 cycle |
+| 2 | **User gate 통과** | maintainer 의 explicit Hyperbrief 4-score gate 통과 — score ≥ 4 + 운영 기간 ≥ 3 month + FP rate < 10% | Hyperbrief IR 의 escalation decision = "blocking_mode_transition_approved" |
+| 3 | **≥3 iteration consecutive clean** | 직전 N release 의 모든 iteration boundary 에서 clean signal 도달 | N ≥ 3 release × ≥ 3 iteration |
+
+3 조건 모두 만족 시 v0.3.0 cut 에서 blocking mode default 활성. 미달 시 v0.2.x advisory mode 유지.
+
+### §19.3 Blocking mode 의 운영 의미 (v0.3+)
+
+blocking mode 전환 후의 runtime 변경:
+
+| 출력 surface | Blocking 의미 |
+|---|---|
+| PreToolUse hook | `clean_signal_reached = false` 또는 `findings_residual.severity_max ≥ high` 시 **exit code 1** — publish 명령 차단. user gate 통과 (Hyperbrief 4-score gate 또는 explicit `--allow-with-risk` flag) 필요. |
+| Stop hook | `clean_signal_reached = false` + iteration max_iter 도달 시 **exit code 1** — cycle 차단, Hyperbrief MUST-trigger 활성. |
+| MCP tool 5 종 return | `output.advisory_mode: false`. consumer 측이 verdict 에 따라 실제 차단/허용 결정 내림. |
+| 5 Constellation intent emit | `value.advisory: false`. 라이브보드 카드의 corner badge *"BLOCKING"* 표시. |
+| 3-layer report 의 attestation text | *"BLOCKING MODE"* prefix. *"passed coverage X% under catalog v_Y as of date Z"* 한정 표현은 유지 (Cluster C8 falsifiability invariant). |
+
+### §19.4 전환 결정 자체의 Hyperbrief gate
+
+v0.2.x → v0.3+ 전환 결정 자체가 Hyperbrief 4-score gate 의 dispatch target — `Hyperbrief.md §1` 의 9-section JSON IR 양식:
+
+- **Section 1 (audience_profile)**: EG maintainers (한국어 prevailing language).
+- **Section 2 (decision_context)**: "Ultrasafe v0.2.x advisory mode 운영 후 blocking mode 전환 결정".
+- **Section 3 (4-score)**: severity × scope × reversibility × external_impact 의 4-tuple — blocking mode 전환은 *reversibility=partial* (전환 후 advisory 회귀 가능하나 cost 큼) + *external_impact=high* (publish 차단 강제로 외부 release cadence 영향) — 4-score 합 일반적으로 ≥ 5.
+- **Section 4 (3-AND condition state)**: 위 §19.2 의 3 조건 current state.
+- **Section 5 (recommended_methodology)**: Tier 별 axis-set 차등 + iteration_min 차등 + bypass mechanism (§10.6) 의 명시.
+- **Section 6 (rollback_plan)**: blocking mode 진입 후 advisory 회귀 procedure — 환경변수 `ULTRASAFE_MODE=advisory` 강제 override (전환 결정 후 N month 동안 maintainer manual override 허용).
+- **Section 7-9**: per Hyperbrief.md §1.
+
+전환 결정 IR emit 시점에 audience_profile_fallback.button_label + trigger_phrases_md 가 한국어 auto-localize (Hyperbrief.md §5.6.7 v0.5.6).
+
+### §19.5 본 §19 의 self-application 함의
+
+본 §19 의 advisory → blocking 전환 절차 자체가 *Ultrasafe spec 의 self-application* — Ultrasafe 가 자기 자신의 runtime mode 전환을 *Hyperbrief 4-score gate* 로 routing 하는 reflexive 구조. 부록 C 의 self-application dogfood + §1.4 의 advisory-only boundary 와 정합.
+
+이 self-application 이 *Ultrasafe 의 self-trust* 의 두 번째 anchor — 첫 번째는 부록 C 의 Greatpractice macro entry, 두 번째는 본 §19 의 mode transition Hyperbrief gate. v0.3+ blocking mode 진입 시 본 §19 자체도 *blocking 화* — 즉 v0.3.x 의 advisory → blocking 전환 retro-decision 도 동일 §19 procedure 따름 (Greatpractice §5.4-§5.6 promotion path 와 동형).
+
+---
+
 ## 부록 A: Cross-Axis Convergence Cluster Catalog
 
 > 본 부록은 Ultrasafe spec 의 backing research 인 17축 cross-domain deep dive 의 §1 convergence-cluster 결과를 *spec drafting 의 첫 참조 카드* 형태로 정리한 카탈로그예요. 14 cluster 각각의 (정의, 등장 축 수, EG 적용 우선순위, 핵심 인용, spec 본문 cross-ref) 를 표로 박제 + 17-axis × cluster coverage matrix + cluster 별 1-2 핵심 학술/표준 인용 + 우선순위 rationale 4 sub-section 으로 구성. Greatpractice.md 부록 A "domain catalog" 패턴 정합. (cross-axis-patterns §1, synthesis §3.1-§3.4)
@@ -2540,5 +3451,72 @@ class: persistent                         # os §1.11 — cross-session
 - **부정**: trigger.format · children topology · source_evidence redaction · self_spec_gaming 4 지점에서 schema 가 *합성 layer module* 을 정확히 host 못 함. v0.2 backfill 필수 — Greatpractice 부록 C.3 의 4 gap 중 2 종 (trigger.format · children topology) 이 동일 패턴으로 재발견된 점은 *합성 layer 가 universal entry 보다 schema stress 가 강함* 의 evidence (Powell-DiMaggio 1983 normative isomorphism 의 *2-차 적용*).
 
 본 부록 자체가 Ultrasafe 의 *self-trust* 시작점이자 §11 self-spec-gaming meta-safety 의 *첫 audit pass* 예요. v0.2+ 의 본 spec 각 cut 마다 본 부록을 *재실행* — maturity_score · lifecycle · audit_trail 갱신 + 4 PARTIAL gap 의 해소 여부 표기. v0.5+ 에 PARTIAL → PASS 전환 완료 시 본 부록은 *macro tier ratified entry* + *합성 layer reference exemplar* 로 격상 가능 (Greatpractice §5.4-§5.6 promotion path 와 동형).
+
+---
+
+## Revision History
+
+### v0.2.0 — 2026-06-06 (runtime activation cut, advisory mode)
+
+**Summary**: v0.1.0 의 *minimum-viable spec scaffold* → v0.2.0 의 *runtime activation cut*. 8 attacker SKILL.md + 2 hooks (PreToolUse `ultrasafe-trigger.cjs` + Stop `ultrasafe-clean-signal.cjs`) + MCP server (5 tools over stdio JSON-RPC) + Constellation §13.16 5 신규 A2A intent 통합 + Workflow fan-out 적용 evidence. **본 cut 의 모든 출력은 advisory** — finding report-only, publish 차단 없음.
+
+**v0.2.0 신규 surface (5)**:
+1. 8 attacker SKILL.md (`plugins/ultrasafe/skills/ultrasafe-{ai-llm,web-api,supply-chain,crypto,social-eng,methodology,threat-model,synthesizer}/SKILL.md`) — 각 attacker 의 input/output/tools/when-to-fire/severity rubric 명시 (§15).
+2. PreToolUse hook `ultrasafe-trigger.cjs` — publish-equivalent command 7 종 매처 + advisory mode emit (§17.1).
+3. Stop hook `ultrasafe-clean-signal.cjs` — cycle-end clean-signal check + advisory stderr alert (§17.2).
+4. MCP server `mcp/server.cjs` — 5 tools (`ultrasafe_run_fanout` / `ultrasafe_finding_aggregate` / `ultrasafe_clean_signal_check` / `ultrasafe_report_generate` / `ultrasafe_release_gate`) over stdio JSON-RPC (§16).
+5. Constellation §13.16 5 신규 A2A intent 통합 (`ULTRASAFE_FINDING` / `ULTRASAFE_ITERATION_BOUNDARY` / `ULTRASAFE_RELEASE_GATE` / `SECURITY_DISCLOSURE_INTAKE` / `MPCVD_COORDINATION`) — ack_tier 적용 + payload schema + Spotlighting wrapper + 라이브보드 카드 surface (§18).
+
+**본문 확장 §** (v0.1.0 §1-§13 + 부록 A/B/C 본문 전부 보존):
+- §14 Runtime Architecture (v0.2.0) — 5 surface topology + 5-stage operational pipeline 의 wire activation + runtime 디렉토리 트리 + advisory mode 명시.
+- §15 8-Agent Fan-Out Runtime Detail (v0.2.0) — 8 attacker 각각의 SKILL.md detail (input/output/tools/when-to-fire/severity rubric) + 9 절 (8 agent + dispatch sequence).
+- §16 MCP Server Tools (v0.2.0) — 5 tools 의 input/output schema + tool-level deterministic guarantee + MCP server entry skeleton (`server.cjs`).
+- §17 Hooks Spec — PreToolUse + Stop (v0.2.0) — registration + condition + action + hooks.json + implementation skeleton.
+- §18 Constellation 통합 — 5 신규 intent runtime wire (v0.2.0) — 각 intent 의 payload schema + ack_tier + Spotlighting wrapper + 라이브보드 카드 surface + §13.16 등록부.
+- §19 Advisory vs Blocking Mode (v0.2.0) — v0.2.x advisory mode 운영 의미 + v0.3+ blocking 전환 3-AND 조건 + blocking mode 운영 의미 + 전환 결정 자체의 Hyperbrief gate + self-application 함의.
+
+**Workflow fan-out 적용 evidence**: orchestrator (`plugins/ultrasafe/runtime/orchestrator.cjs`) 가 7 attacker 를 *병렬* dispatch (Superscalar §3 read fan-out 패턴) + retire-barrier 에서 synthesizer 의 단일 sink 합성 — v0.1.0 design 의 *single-thread serial* 가정에서 v0.2.0 의 *parallel fan-out* 으로 runtime upgrade (§15.9).
+
+**Advisory mode 명시 강제**:
+- 모든 MCP tool return 의 `output.advisory_mode: true` mandatory.
+- 모든 Constellation intent emit 의 `value.advisory: true` mandatory.
+- 2 hook 의 exit code 0 fixed — *어떤 finding 도 publish 차단 안 함*.
+- 모든 attestation text 의 *"ADVISORY MODE"* prefix mandatory.
+
+**v0.1.0 forward reference 의 backward resolve**:
+- §8 의 5 신규 A2A intent → §18 의 runtime wire spec 로 resolve.
+- §10 의 PreToolUse hook → §17.1 의 hook spec 으로 resolve.
+- §13.5 의 advisory-only mode → §19 의 mode transition 으로 resolve.
+
+**Constellation §13.16 등록 mandatory** (같은 cut N-way sync):
+- Constellation.md §13.16.9 A2A-intent allowlist 에 5 name 추가.
+- AGENTS.md §5.8 N-way sync 등록부에 항목 추가 (Ultrasafe 모듈 버전 + 5 신규 intent 등록).
+- plugin manifest (`plugins/ultrasafe/.claude-plugin/plugin.json`) v0.2.0 bump.
+
+**Blocking mode (v0.3+) deferred**: clean-signal-gate 4-condition AND-gate 도달 + user gate 통과 + ≥3 iteration consecutive clean 의 3-AND 조건 후 전환. 전환 결정 자체가 Hyperbrief 4-score gate dispatch target (§19.4).
+
+### v0.1.0 — 2026-06-06 (initial design draft cut)
+
+**Summary**: 17-axis cross-domain synthesis backing + 8-agent v0.1.0 minimum fan-out + ≥3 iteration multi-condition AND termination + 3-layer synthesis report (OSCAL Assessment Result + Hyperbrief 9-section IR + Greatpractice tree candidate) + 5 new Constellation A2A intents 설계 + dual pre-release trigger (PreToolUse hook + /ultrasafe skill) + Tier A 5 critic patches absorbed inline. Advisory-only v0.1.x → blocking v0.2.x (당시 design intent — v0.2.0 cut 에서 *runtime activation = advisory mode 유지*, blocking 은 v0.3+ 로 재조정).
+
+**v0.1.0 본문 (§1-§13 + 부록 A/B/C)**:
+- §1 Concept — Ultrasafe 의 정체 + 4 가지 흔한 오독 차단 + 5-stage operational pipeline + Three backbones + advisory-only boundary.
+- §2 Module Shape — 8-agent v0.1.0 minimum fan-out + GTA/DSP cross-cutting + diversity invariant + self-spec-gaming hazard 회피.
+- §3 Fan-out Matrix — taxonomy × methodology × actor-profile 직교 + 13-axis dispatch matrix + Stackelberg commit-aware 2-phase.
+- §4 Finding Output Contract — 공격 에이전트 발견 schema.
+- §5 Synthesis Report 3-Layer — OSCAL + Hyperbrief IR + Greatpractice candidate.
+- §6 ≥3 Iteration Loop — multi-condition AND clean signal + coverage definition + regression baseline.
+- §7 Hyperbrief 4-score Routing — strict-mode reconciliation.
+- §8 Constellation A2A — 5 신규 intent (design schema) + Spotlighting wrapper + outbox 정적 마커 스캔 + broker compromise surface analysis + 라이브보드 카드 stream.
+- §9 Greatpractice Tree 통합.
+- §10 Pre-release Trigger + Tier — PreToolUse hook 매처 + /ultrasafe skill + 3-tier 분류 + axis-set 차등 + iteration minimum + bypass mechanism.
+- §11 Self-Spec-Gaming Hazard.
+- §12 Untested Surfaces + Known Gaps + schema evolution policy.
+- §13 Adoption Thresholds — 3 조건 AND + anti-criteria + Tier 1 static gate floor + plugin 의존성 분리 + Tier A risk warning + advisory-only mode.
+- 부록 A Cross-Axis Convergence Cluster Catalog — 14 cluster.
+- 부록 B 4 Strong Isomorphism + Normative 정당화.
+- 부록 C Self-Application — 본 spec 자체의 Greatpractice macro entry frontmatter.
+
+**Backing research**: 17-axis cross-domain 딥리서치 (`reports/2026-06-05-ultrasafe-research/` 91 파일) — harness · web · AI · threat-modeling · multi-agent · adversarial-ml · fuzzing · supply-chain · devsecops · IR · crypto · human-factors · game-theory · compliance · cognitive · visualization · protocol-trust-evolution.
 
 ---
