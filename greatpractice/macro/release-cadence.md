@@ -69,15 +69,15 @@ surfaces:
 
 parent: []
 children:
-  # Mezzo decomposition planned (see §2.3) — scheduled v2.5.56+ ratification batch
-  # - greatpractice/mezzo/n-way-sync-registry.md (pending)
-  # - greatpractice/mezzo/package-files-validate.md (pending — conditional, public-distribution)
-  # - greatpractice/mezzo/bin-entry-validate.md (pending — conditional)
-  # - greatpractice/mezzo/link-integrity-check.md (pending)
-  # - greatpractice/mezzo/dry-run-smoke-test.md (pending — conditional)
-  # - greatpractice/mezzo/pre-publish-user-gate.md (pending)
-  # - greatpractice/mezzo/naming-hygiene-grep.md (pending — conditional)
-  # - greatpractice/mezzo/auth-2fa-discipline.md (pending — conditional)
+  # Mezzo decomposition ratified at v2.5.61 (batch) — see §2.3
+  - greatpractice/mezzo/n-way-sync-registry.md
+  - greatpractice/mezzo/package-files-validate.md
+  - greatpractice/mezzo/bin-entry-validate.md
+  - greatpractice/mezzo/link-integrity-check.md
+  - greatpractice/mezzo/dry-run-smoke-test.md
+  - greatpractice/mezzo/pre-publish-user-gate.md
+  - greatpractice/mezzo/naming-hygiene-grep.md
+  - greatpractice/mezzo/auth-2fa-discipline.md
 
 phronesis_boundary: false
 class: persistent
@@ -106,7 +106,7 @@ _ratified_state:
     validation_status: 'criterion §7.3 met at N=1; continued monitoring N=2/N=3 in subsequent publishing releases'
   acknowledged_risk:
     - 'N=1 single-data-point ratification — standard statistical confidence requires N≥3; user steering overrode this'
-    - 'children decomposition (8 mezzo candidates per §2.3) pending — scheduled v2.5.56+ ratification batch'
+    - 'children decomposition (8 mezzo candidates per §2.3) ratified at v2.5.61 batch (Workflow wk5a6jh5k fan-out) — 8 mezzo entries (5-axis sum range 17-24/25, threshold 18 분포: 5 above + 2 at-or-above + 1 below with notability-gate backing); v2.5.62+ micro decomposition + hook 구현 pending'
     - 'hub bidirectional cross-link not yet established (hub owner decision)'
 ---
 
