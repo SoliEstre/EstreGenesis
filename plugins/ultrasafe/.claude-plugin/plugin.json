@@ -1,0 +1,12 @@
+{
+  "name": "ultrasafe",
+  "version": "0.1.0",
+  "description": "Pre-release / pre-update simulated penetration testing discipline. Wraps Ultrasafe.md v0.1.0 as a module spec for parallel red-team attack agents (8-agent v0.1.0 minimum fan-out — AI/LLM · Web/API · Supply · Crypto · Social · Method/Comp · TM/Lifecycle · Synthesizer + GTA/DSP cross-cutting) producing 3-layer synthesis reports (OSCAL Assessment Result + Hyperbrief 9-section IR + Greatpractice tree candidate). ≥3 iteration loop with 4-condition AND clean-signal gate (regression-free + monotonic + coverage + 2 iter consecutive). Dual pre-release trigger (PreToolUse hook + /ultrasafe skill). 5 new Constellation A2A intents (ULTRASAFE_FINDING / ITERATION_BOUNDARY / RELEASE_GATE / SECURITY_DISCLOSURE_INTAKE / MPCVD_COORDINATION). v0.1.x = advisory-only mode (stderr alerts only, no release blocking) → v0.2.x = blocking mode (Tier 3 release strict, Tier 1/2 opt-in). Backed by 17-axis cross-domain deep research (harness · web · AI · threat-modeling · multi-agent · adversarial-ml · fuzzing · supply-chain · devsecops · IR · crypto · human-factors · game-theory · compliance · cognitive · visualization · protocol-trust-evolution) — see reports/2026-06-05-ultrasafe-research/. v0.1.0 ships the spec + plugin manifest + README; full plugin scaffold (schemas + skills + hooks + 5 A2A intent handlers + iteration runner) deferred to v0.2.x roadmap. 0 npm deps (v0.1.0).",
+  "author": {
+    "name": "SoliEstre",
+    "url": "https://github.com/SoliEstre/EstreGenesis"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/SoliEstre/EstreGenesis/blob/main/Ultrasafe.md",
+  "repository": "https://github.com/SoliEstre/EstreGenesis"
+}
