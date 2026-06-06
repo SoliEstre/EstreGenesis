@@ -122,3 +122,49 @@ table.data .highlight { color: var(--color-highlight); font-weight: 600; }
   .controls { flex-wrap: wrap; }
   .nav { display: none; }
 }
+
+/* === v2.5.59 promo docs 통합 — install/audience section + use cases 세로 스택 + 복사 버튼 === */
+
+/* install section: 두 단계 명령 카드 (A + B) */
+.install-step-card { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 1rem 1.2rem; margin: 0.8rem 0; }
+.install-step-card .step-header { display: flex; align-items: baseline; gap: 0.7rem; margin-bottom: 0.4rem; }
+.install-step-card .step-num { background: var(--color-accent); color: var(--color-card-bg); padding: 0.15rem 0.55rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700; }
+.install-step-card .step-title { color: var(--color-heading); font-weight: 600; font-size: 0.98rem; }
+.install-step-card .step-desc { color: var(--color-text-muted); font-size: 0.88rem; margin: 0 0 0.6rem 0; }
+.install-step-card .cmd-row { display: flex; align-items: stretch; gap: 0.4rem; }
+.install-step-card pre { flex: 1; margin: 0; padding: 0.6rem 0.8rem; background: var(--color-code-bg, rgba(0,0,0,0.05)); border-radius: 6px; overflow-x: auto; }
+.install-step-card pre code { font-family: var(--font-mono); font-size: 0.85rem; color: var(--color-heading); background: none; padding: 0; }
+
+/* 복사 버튼 — install step + plugin card 공용 */
+.copy-btn { flex: 0 0 auto; background: var(--color-card-bg); border: 1px solid var(--color-border); color: var(--color-text-muted); padding: 0.4rem 0.7rem; border-radius: 5px; font: inherit; font-size: 0.78rem; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s; }
+.copy-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.copy-btn.copied { border-color: var(--color-accent); color: var(--color-accent); background: rgba(0,200,100,0.06); }
+
+/* plugin cards — 2 col grid + 좁은 패딩 + 한 화면 fit */
+.plugin-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.7rem; margin: 0.6rem 0 1.2rem 0; }
+.plugin-card { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 6px; padding: 0.7rem 0.85rem; }
+.plugin-card:hover { border-color: var(--color-accent); }
+.plugin-card h4 { margin: 0 0 0.25rem 0; color: var(--color-heading); font-size: 0.95rem; }
+.plugin-card p { color: var(--color-text-muted); font-size: 0.78rem; margin: 0 0 0.45rem 0; line-height: 1.4; }
+.plugin-card .plugin-cmd-row { display: flex; align-items: stretch; gap: 0.35rem; margin-bottom: 0.35rem; }
+.plugin-card .plugin-cmd-row code { flex: 1; padding: 0.35rem 0.5rem; background: var(--color-code-bg, rgba(0,0,0,0.05)); border-radius: 4px; font-family: var(--font-mono); font-size: 0.72rem; color: var(--color-heading); overflow-x: auto; white-space: nowrap; }
+.plugin-card .copy-btn { padding: 0.25rem 0.5rem; font-size: 0.7rem; }
+.plugin-card .note { color: var(--color-text-muted); font-size: 0.7rem; margin: 0; opacity: 0.85; }
+
+@media (max-width: 640px) {
+  .plugin-cards { grid-template-columns: 1fr; }
+  .install-step-card .cmd-row { flex-direction: column; }
+}
+
+/* use cases section (모듈 페이지 5개) — 세로 스택 (1 col) */
+.use-cases-stack { display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0; }
+.use-cases-stack .use-case-card, .use-cases-stack .card { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.2rem 1.4rem; transition: border-color .2s; }
+.use-cases-stack .use-case-card:hover, .use-cases-stack .card:hover { border-color: var(--color-accent); transform: none; }
+.use-cases-stack h3 { margin-top: 0; color: var(--color-heading); }
+.use-cases-stack .when, .use-cases-stack .result { color: var(--color-text-muted); font-size: 0.92rem; }
+.use-cases-stack ul, .use-cases-stack ol { padding-left: 1.4rem; }
+.use-cases-stack li { color: var(--color-text-muted); font-size: 0.92rem; margin-bottom: 0.25rem; }
+.use-cases-stack code { background: var(--color-code-bg, rgba(0,0,0,0.05)); padding: 0.1rem 0.35rem; border-radius: 3px; font-family: var(--font-mono); font-size: 0.85em; }
+.use-cases-stack pre { background: var(--color-code-bg, rgba(0,0,0,0.05)); padding: 0.6rem 0.8rem; border-radius: 6px; overflow-x: auto; }
+.use-cases-stack .use-case-subsection { margin: 0.8rem 0; }
+.use-cases-stack .use-case-subsection h4 { margin: 0.6rem 0 0.3rem 0; color: var(--color-heading); font-size: 0.95rem; }
