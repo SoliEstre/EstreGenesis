@@ -4,9 +4,10 @@
 
 > macro tier 의 always-on chunk summary 예요. ≤300 token cap 으로 본 spec 의 macro entry 들을 1 줄씩 요약. v0.1 은 manual curation, v0.2+ 에 `eg_build_index.cjs` 가 macro entry frontmatter 의 `title` + `binding` + `enforcement_level` 발췌해서 자동 생성해요.
 
-## Macro Tier (v0.1 — 1 entry)
+## Macro Tier (v0.1 — 2 entries)
 
 - `communication-discipline` (v0.1.1+ shipped) — A2A · bridge · outbox · inbox cursor 계열의 macro parent. mezzo: outbox-json-validation, pre-send-inbound-check, n-way-sync-registry, session-resume-bridge-spawn, watcher-liveness, a2a-relay-reliability.
+- `release-cadence` (v2.5.55 ratified, N=1 user steering) — Pre-publish 11-item checklist (9 hub-validated + 2 conditional) + N-way sync discipline. mezzo decomposition (8 candidates) scheduled v2.5.56+. enforcement_level: recommended.
 
 ## Mezzo Tier (v0.1 — 1 entry)
 
