@@ -16,6 +16,26 @@
 
 {{post_notify_message}}
 
+{{#if audience_profile_fallback.term_pairing}}
+---
+
+### 🧩 Term-pairing policy (v0.6)
+
+| Field | Value |
+|---|---|
+| Mode | `{{audience_profile_fallback.term_pairing.mode}}` ({{#ifEquals audience_profile_fallback.term_pairing.mode "E"}}every occurrence{{/ifEquals}}{{#ifEquals audience_profile_fallback.term_pairing.mode "I"}}initial per scope-unit (≤3 occurrences ⇒ pair every time){{/ifEquals}}{{#ifEquals audience_profile_fallback.term_pairing.mode "N"}}none — per AudienceProfile.jargon{{/ifEquals}}) |
+| Scope | {{#each audience_profile_fallback.term_pairing.scope}}`{{this}}`{{#unless @last}} · {{/unless}}{{/each}} ({{#each audience_profile_fallback.term_pairing.scope}}{{#ifEquals this "C"}}conversation{{/ifEquals}}{{#ifEquals this "D"}}document{{/ifEquals}}{{#ifEquals this "B"}}board{{/ifEquals}}{{#ifEquals this "R"}}review{{/ifEquals}}{{#unless @last}} + {{/unless}}{{/each}}) |
+| Retroactive apply | `{{audience_profile_fallback.term_pairing.retroactive_apply}}` |
+{{#if audience_profile_fallback.term_pairing.dictionary_ref}}
+| Dictionary ref | `{{audience_profile_fallback.term_pairing.dictionary_ref}}` |
+{{/if}}
+{{#if audience_profile_fallback.term_pairing.dictionary_inline}}
+| Inline dictionary | {{#each audience_profile_fallback.term_pairing.dictionary_inline}}`{{@key}}` → {{this}}{{#unless @last}}; {{/unless}}{{/each}} |
+{{/if}}
+
+{{!-- C-scope is structurally forward-only; retroactive_apply is ignored for C and auto-applies to new output only. --}}
+{{/if}}
+
 ---
 
 *This is a `BlockedStub` IR per Hyperbrief.md §2 routing — rendered as a compact post-notify card. If you wanted a full brief, raise an axis (irreversibility / blast_radius / time_horizon / reversal_cost) so escalation_sum reaches 4, or set one of the 5 MUST-triggers (`irreversibility ≥ 2` / cross-module blast / external-consumer notification / resource-threshold breach / supersession of parent decision).*

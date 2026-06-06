@@ -22,6 +22,24 @@ To change content, edit the source IR JSON and re-render via:
 > ⚠️ **Low-confidence brief** — inferred + unknown 비율이 40%를 초과합니다. 결정 전 §4c hidden assumptions와 §8 falsification trigger를 특히 주의 깊게 검토하세요.
 {{/if}}
 
+{{#if section_0_decision_header.audience_profile_fallback.term_pairing}}
+### Term-pairing policy (v0.6)
+
+| Field | Value |
+|---|---|
+| Mode | `{{section_0_decision_header.audience_profile_fallback.term_pairing.mode}}` ({{#ifEquals section_0_decision_header.audience_profile_fallback.term_pairing.mode "E"}}every occurrence{{/ifEquals}}{{#ifEquals section_0_decision_header.audience_profile_fallback.term_pairing.mode "I"}}initial per scope-unit (≤3 occurrences ⇒ pair every time){{/ifEquals}}{{#ifEquals section_0_decision_header.audience_profile_fallback.term_pairing.mode "N"}}none — per AudienceProfile.jargon{{/ifEquals}}) |
+| Scope | {{#each section_0_decision_header.audience_profile_fallback.term_pairing.scope}}`{{this}}`{{#unless @last}} · {{/unless}}{{/each}} ({{#each section_0_decision_header.audience_profile_fallback.term_pairing.scope}}{{#ifEquals this "C"}}conversation{{/ifEquals}}{{#ifEquals this "D"}}document{{/ifEquals}}{{#ifEquals this "B"}}board{{/ifEquals}}{{#ifEquals this "R"}}review{{/ifEquals}}{{#unless @last}} + {{/unless}}{{/each}}) |
+| Retroactive apply | `{{section_0_decision_header.audience_profile_fallback.term_pairing.retroactive_apply}}` |
+{{#if section_0_decision_header.audience_profile_fallback.term_pairing.dictionary_ref}}
+| Dictionary ref | `{{section_0_decision_header.audience_profile_fallback.term_pairing.dictionary_ref}}` |
+{{/if}}
+{{#if section_0_decision_header.audience_profile_fallback.term_pairing.dictionary_inline}}
+| Inline dictionary | {{#each section_0_decision_header.audience_profile_fallback.term_pairing.dictionary_inline}}`{{@key}}` → {{this}}{{#unless @last}}; {{/unless}}{{/each}} |
+{{/if}}
+
+> C (대화) 범위는 retroactive_apply 와 무관하게 "이후 신규 출력만" 적용됩니다. I 모드라도 scope-unit 안 총 용어 빈도 ≤ 3 이면 매번 병기합니다.
+{{/if}}
+
 ---
 
 ## §0 Decision Header
@@ -69,8 +87,39 @@ flowchart LR
 | Reputation | {{section_0_decision_header.stake.reputation}} |
 | Tech debt | {{section_0_decision_header.stake.tech_debt}} |
 
+{{#if section_0_decision_header.evaluation_lenses}}
+### Evaluation Lenses (multi-lens scoring · v0.6)
+
+| Lens | Dimensions | Simple mean (threshold) | Weighted mean (threshold) | Verdict | Methodology |
+|---|---|---|---|---|---|
+{{#each section_0_decision_header.evaluation_lenses}}| **{{name}}** (`{{id}}`) | {{#each dimensions}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} | {{current_simple}}{{#if threshold_simple_mean}} ({{threshold_simple_mean}}){{/if}} | {{current_weighted}}{{#if threshold_weighted_mean}} ({{threshold_weighted_mean}}){{/if}} | **{{verdict}}** | {{#if methodology_ref}}`{{methodology_ref}}`{{else}}—{{/if}} |
+{{/each}}
+
+{{#each section_0_decision_header.evaluation_lenses}}{{#if rationale_one_line}}- *{{name}}*: {{rationale_one_line}}
+{{/if}}{{/each}}
+{{/if}}
+
 ---
 
+{{#if maturity_anchor}}
+## Maturity Anchor (v0.6){{#if maturity_anchor.verdict}} — **{{maturity_anchor.verdict}}**{{/if}}
+
+| Field | Value |
+|---|---|
+| Claimed label | **`{{maturity_anchor.claimed_label}}`** |
+| Anchor methodology | `{{maturity_anchor.anchor_methodology}}` |
+| Current — simple mean | {{maturity_anchor.current_score.simple_mean}} |
+| Current — weighted mean | {{maturity_anchor.current_score.weighted_mean}} |
+| Threshold — simple mean | {{maturity_anchor.threshold.simple_mean}} |
+| Threshold — weighted mean | {{maturity_anchor.threshold.weighted_mean}} |
+
+**Gap analysis:** {{maturity_anchor.gap_analysis}}
+
+> 자의적 라벨 (v1.0 / GA / production-ready / stable) 은 anchor methodology 가 명시된 측정 기준과 함께만 의미를 가집니다.
+
+---
+
+{{/if}}
 ## §1 Context Horizon
 
 - **Preconditions** —
@@ -340,6 +389,17 @@ flowchart TD
 ### Falsification trigger
 
 Observe `{{section_8_recommendation.falsification_trigger.what_to_observe}}` at `{{section_8_recommendation.falsification_trigger.when}}`; threshold `{{section_8_recommendation.falsification_trigger.threshold}}`.
+
+{{#if section_8_recommendation.recommended_methodology}}
+### Recommended Methodology (v0.6 · decision-evaluation tools used)
+
+{{#each section_8_recommendation.recommended_methodology}}
+- **{{name}}** (`{{id}}`{{#if version}} · v{{version}}{{/if}}) — anchored at `{{anchor_path}}`
+  - *Rationale:* {{rationale_one_line}}
+{{#if applicability}}  - *Applicability:* {{#each applicability}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{/each}}
+{{/if}}
 
 {{#if section_8_recommendation.i_accept_irreversibility_required}}
 ---

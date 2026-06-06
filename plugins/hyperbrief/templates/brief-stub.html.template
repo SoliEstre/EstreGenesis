@@ -11,6 +11,9 @@
     h2 { font-size: 14px; margin: 16px 0 6px; color: #14532d; }
     .footer { margin-top: 22px; font-size: 12px; color: #5b6573; font-style: italic; }
     code { font-family: ui-monospace, "SFMono-Regular", monospace; background: #fff; padding: 1px 5px; border-radius: 3px; border: 1px solid #e2e8f0; }
+    .term-pairing-box { margin-top: 14px; padding: 10px 12px; background: #fff; border: 1px solid #d9e2ec; border-radius: 6px; font-size: 12px; color: #465160; }
+    .term-pairing-box .label { font-weight: 600; color: #14532d; margin-right: 6px; }
+    .term-pairing-box code { font-size: 11px; }
   </style>
 </head>
 <body>
@@ -32,6 +35,18 @@
 
     <h2>Post-notify message</h2>
     <p>{{post_notify_message}}</p>
+
+    <!-- ===== v0.6 term_pairing surfacing (AudienceProfileFallback) =====
+         Renders only when section_0_decision_header.audience_profile_fallback.term_pairing
+         is populated. Empty IR paths resolve to empty strings via the mini-engine
+         placeholder substitution, so an absent slot collapses the inline values
+         without breaking layout. Per Hyperbrief v0.6 schema slot #7. -->
+    <div class="term-pairing-box">
+      <span class="label">term pairing</span>
+      mode <code>{{section_0_decision_header.audience_profile_fallback.term_pairing.mode}}</code>
+      &nbsp;·&nbsp; scope <code>{{section_0_decision_header.audience_profile_fallback.term_pairing.scope}}</code>
+      &nbsp;·&nbsp; retroactive <code>{{section_0_decision_header.audience_profile_fallback.term_pairing.retroactive_apply}}</code>
+    </div>
 
     <p class="footer">
       <code>BlockedStub</code> IR per <a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Hyperbrief.md">Hyperbrief.md</a> §2 routing — rendered as a compact post-notify card. To force a FullBrief: raise an axis (irreversibility / blast_radius / time_horizon / reversal_cost) so <code>escalation_sum ≥ 4</code>, or trigger one of the 5 MUST-triggers.

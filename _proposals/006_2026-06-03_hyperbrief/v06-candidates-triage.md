@@ -3,7 +3,8 @@
 > **What this is**: dogfood Entry 04 (`dogfood-entry-04.md`) §5.1 / §5.5 + 본 v2.5.53 cycle 의 사용자 추가 입력으로부터 누적된 v0.6 사전 후보 안건들의 정리표. 각 항목별 *우선순위* (v0.6 통합 / v0.7+ 미룸 / 거절) + *상태* (definition 완성도) + *근거* 명시. Hyperbrief.md §11.5.3 *Schema stability* 점수 dimension 의 "candidates pending" 카운트 정합.
 
 **작성 시점**: 2026-06-05 (v2.5.53 cut)  
-**Hyperbrief 본 spec 버전**: v0.5.6  
+**최종 갱신**: 2026-06-06 (v2.5.62 cut — v0.6.0 ratified + closed 4 candidates)  
+**Hyperbrief 본 spec 버전**: v0.6.0 (이전 v0.5.6)  
 **Entry 04 archive**: `dogfood-entry-04.md` (2026-06-03)  
 **상위 SSoT**: `Hyperbrief.md` §11.5
 
@@ -13,16 +14,16 @@
 
 | # | 안건명 | 출처 | 우선순위 | 상태 | 추정 작업량 |
 |---|---|---|---|---|---|
-| 1 | `recommended_methodology[]` 슬롯 | Entry 04 §5.1.1 | **v0.6** | 사양 정의 부분 완료 | mid (schema + renderer) |
-| 2 | `evaluation_lens` 필드 | Entry 04 §5.1.2 | **v0.6** | 사양 정의 부분 완료 | mid (schema + renderer) |
-| 3 | `maturity_anchor` 필드 | Entry 04 §5.1.3 | **v0.6** | 사양 정의 부분 완료 | mid (schema + renderer) |
+| 1 | `recommended_methodology[]` 슬롯 | Entry 04 §5.1.1 | **v0.6** | ✅ v0.6.0 ratified (v2.5.62 cut) | mid (schema + renderer) |
+| 2 | `evaluation_lens` 필드 | Entry 04 §5.1.2 | **v0.6** | ✅ v0.6.0 ratified (v2.5.62 cut) — `evaluation_lenses[]` 복수형으로 ship | mid (schema + renderer) |
+| 3 | `maturity_anchor` 필드 | Entry 04 §5.1.3 | **v0.6** | ✅ v0.6.0 ratified (v2.5.62 cut) | mid (schema + renderer) |
 | 4 | `surface_profile_estimate` 기술 도메인 heuristic 보정 | Entry 03/04 §5.5 | v0.7 | 진단 명시, 보정 미정 | small (renderer heuristic only) |
 | 5 | Hook post-response 톤 평가 layer | Entry 04 §5.5 | v0.7 | 개념만, 사양 부재 | large (hook + skill 새 layer) |
 | 6 | §11.4 host self-config gate user-side guidance 자동화 | Entry 04 §5.5 | v0.7 | 진단 명시, 자동화 미정 | small-mid (skill + runbook) |
-| 7 | 톤 + 용어 병기 + 적용 범위 + 소급 적용 옵션 | **v2.5.53 cycle 사용자 입력** | **v0.6** | 사양 정의 완료 (본 cycle) | mid (schema + skill + renderer) |
+| 7 | 톤 + 용어 병기 + 적용 범위 + 소급 적용 옵션 | **v2.5.53 cycle 사용자 입력** | **v0.6** | ✅ v0.6.0 ratified (v2.5.62 cut) — `term_pairing` 으로 ship | mid (schema + skill + renderer) |
 
-**v0.6 적재**: #1, #2, #3, #7 (총 4건)  
-**v0.7+ 미룸**: #4, #5, #6 (총 3건)  
+**v0.6 적재 (ship 완료, 2026-06-06 v2.5.62 cut)**: #1 ✅ + #2 ✅ + #3 ✅ + #7 ✅ (총 4건 closed)  
+**v0.7+ 미룸**: #4, #5, #6 (총 3건 — status 유지)  
 **거절**: 없음
 
 ---
@@ -210,33 +211,43 @@
 
 ---
 
-## 4. 다음 사이클 (post-v2.5.53) 진입 흐름
+## 4. 다음 사이클 (post-v2.5.62 v0.6.0 ship) 진입 흐름
 
-본 triage 가 v2.5.53 cut 의 *문서 산출물* — 실제 사전 변경은 안 함. 다음 단계:
+**v2.5.62 ship 완료 (2026-06-06)** — v0.6 적재 4 안건 (#1/#2/#3/#7) 모두 ratified + closed. Workflow fan-out mezzo batch ratification 패턴 적용 (7 implementation agents + 1 ratification agent).
 
-1. **v2.5.54+** (별도 cut): v0.6 schema cut — 안건 #1/#2/#3/#7 통합 (스키마 + 렌더러 + skill 수정 + smoke test 결정성 재검증)
-2. **EG cut 시점**: user steering 또는 자연 cadence 시점 (현재 emergency-fix cadence 안정 14+ days 이후 권장)
+ship 산출물:
+- `Hyperbrief.md` v0.6.0 (frontmatter + §3 + §5.6.8 신설 + §8 + §11.1 + §11.5 self-application + §11.5.6 post-ship snapshot)
+- `plugins/hyperbrief/schema/hyperbrief.schema.json` 881 lines (4 슬롯 추가, back-compat)
+- `plugins/hyperbrief/renderers/mini-engine.cjs` 856 lines (454 → 856, +402; `buildV06Sections` / `buildV06SectionsHtml` / `applyTermPairing` post-processor)
+- `plugins/hyperbrief/templates/brief.md.template` 425 lines (366 → 425, +59)
+- `plugins/hyperbrief/templates/brief.html.template` 989 lines (755 → 989, +234)
+- `plugins/hyperbrief/templates/brief-stub.{md,html}.template` (term_pairing 인라인)
+- `plugins/hyperbrief/skills/{hyperbrief, hyperbrief-trigger-check, hyperbrief-revisit}/SKILL.md` 모두 v0.6.0 으로 bump (audience-profile command routing + v0.6 schema-aware revisit + back-compat detection)
+
+다음 단계:
+
+1. **v0.7 자재 누적 시점**: 미룸 3 안건 (#4 `surface_profile_estimate` 기술 도메인 heuristic + #5 Hook post-response 톤 평가 layer + #6 §11.4 host self-config 자동화) — 각 진입 조건 충족 시 차기 cycle 진입
+2. **EG cut cadence**: emergency-fix cadence 안정 14+ days 누적 후 v0.6.x patch cut 의 자연 흐름 권장
 3. **재평가 trigger**: §11.5.5 cadence — 한 dimension 점수 ≥ 2 이동 시 자동 재산출
 
-본 cut (v2.5.53) 의 schema stability 차원 효과:
-- candidates "pending" 카운트 변동 없음 (모두 명시적 분류 완료 — pending → triaged)
-- 단 *triaged* 와 *closed* 의 anchor 해석에 따라 +0~1 pt
+본 cut (v2.5.62 v0.6.0) 의 §11.5 점수 효과:
+- **Schema stability (dim #2)**: candidates pending 7 → 3 (4 closed). 추정 +1~2 pt — 단 last-major 가 오늘이라 emergency-fix cadence 와 동일 패턴 (timer reset). net 5 → 5-6 추정.
+- **Spec completeness (dim #1)**: §5.6.8 신설 + §3 슬롯 정의 + §8 추가 + §11.5 self-application + §11.5.6 snapshot 갱신 → +0~1 pt (8 → 8-9 추정)
+- **Determinism guarantee (dim #7)**: v0.6 추가 후 smoke test PASS 확인됨 → +0 (8 유지, 결정성 invariant 보존)
 
-본 cycle 의 docs maturity 차원 효과:
-- one-page quick-start + troubleshooting catalogue 추가 → 7 → 9 (+2 pts)
+**현재 추정 (post v2.5.62)**:
+- Lens A simple mean: 5.3 + 약 0.3 ≈ 5.6 (threshold 8.0 미달)
+- Lens B simple mean: 5.5 + 약 0.3 ≈ 5.8 (threshold 7.5 미달)
 
-**현재 추정 (post v2.5.53)**:
-- Lens A simple mean: 5.3 + 2/7 ≈ 5.6 (threshold 8.0 미달)
-- Lens B simple mean: 5.5 + 2/6 ≈ 5.8 (threshold 7.5 미달)
-
-여전히 binding constraints (emergency-fix cadence + external adopter validation) 가 남음. 본 cut 은 *부수 dimension 보강* 의 단계적 진행.
+여전히 binding constraints (emergency-fix cadence + external adopter validation) 가 남음. v0.6 ship 은 schema-tier 확장의 **substantive** cut 으로 *spec completeness + schema stability* 의 점진적 보강.
 
 ---
 
 ## 5. 본 triage 의 self-application
 
-본 문서 자체가 Hyperbrief 의 §1.5 (dogfood self-application) 의 또 다른 사례 — *결정 방법론* 을 박제하는 dogfood 패턴이 본 triage 의 *우선순위 결정 방법론* 에도 적용. 안건 #1 의 `recommended_methodology[]` 슬롯이 v0.6 에 ship 되면 본 triage 자체가 그 슬롯의 첫 사용 사례 (방법론 = "Hyperbrief v0.6 candidates triage rubric" — 우선순위 = high/medium/low + 의존성).
+본 문서 자체가 Hyperbrief 의 §1.5 (dogfood self-application) 의 또 다른 사례 — *결정 방법론* 을 박제하는 dogfood 패턴이 본 triage 의 *우선순위 결정 방법론* 에도 적용. 안건 #1 의 `recommended_methodology[]` 슬롯이 v0.6.0 에 **ship 완료** (2026-06-06 v2.5.62 cut) — 본 triage 자체가 그 슬롯의 첫 사용 사례 (방법론 = "Hyperbrief v0.6 candidates triage rubric" — 우선순위 = v0.6 / v0.7+ / 거절 + 의존성). 차기 v0.6.x 또는 v0.7 candidates triage doc 작성 시 `recommended_methodology[]` 슬롯 명시 사용 가능.
 
 ---
 
-*마지막 수정: 2026-06-05 (v2.5.53 cycle).*
+*마지막 수정: 2026-06-06 (v2.5.62 cycle — v0.6.0 ratified).*  
+*이전 수정: 2026-06-05 (v2.5.53 cycle — 초안 작성).*
