@@ -286,6 +286,386 @@ function stampRecommendedArtifacts(ir) {
   }
 }
 
+// ─── v0.6 slot renderers ───────────────────────────────────────────────────
+// Each renderer is pure: same input slot → same string output. No timestamps,
+// no Math.random, no Date.now. Output is rendered as markdown text; the HTML
+// surface re-uses the same markdown blocks since the existing template pipeline
+// inlines the MD-style placeholders as text fragments (escaping handled at
+// substitute time for IR-path placeholders; v0.6 blocks are pre-rendered and
+// injected after substitution to remain deterministic).
+
+function tagText(v) {
+  // tagged_text may be a string OR an object {tag, text}. Normalize to display string.
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "object") {
+    const tag = v.tag ? `[${v.tag}]` : "";
+    const text = v.text || "";
+    return tag ? `${tag} ${text}` : text;
+  }
+  return String(v);
+}
+
+// §0 — evaluation_lenses[] table renderer (markdown). Empty input → "".
+function renderEvaluationLensesMd(lenses) {
+  if (!Array.isArray(lenses) || lenses.length === 0) return "";
+  const lines = [];
+  lines.push("### §0.6 Evaluation lenses (multi-lens)");
+  lines.push("");
+  lines.push("| Lens id | Name | Dimensions | Current (simple) | Threshold (simple) | Current (weighted) | Threshold (weighted) | Verdict | Methodology |");
+  lines.push("|---|---|---|---|---|---|---|---|---|");
+  for (const l of lenses) {
+    const dims = Array.isArray(l.dimensions) ? l.dimensions.join(", ") : "";
+    const ts = (l.threshold_simple_mean === null || l.threshold_simple_mean === undefined) ? "—" : String(l.threshold_simple_mean);
+    const tw = (l.threshold_weighted_mean === null || l.threshold_weighted_mean === undefined) ? "—" : String(l.threshold_weighted_mean);
+    const cs = (l.current_simple === null || l.current_simple === undefined) ? "—" : String(l.current_simple);
+    const cw = (l.current_weighted === null || l.current_weighted === undefined) ? "—" : String(l.current_weighted);
+    const verdict = l.verdict || "—";
+    const methodology = l.methodology_ref || "—";
+    lines.push(`| \`${l.id || ""}\` | ${l.name || ""} | ${dims} | ${cs} | ${ts} | ${cw} | ${tw} | **${verdict}** | ${methodology} |`);
+  }
+  // Optional rationale rows underneath
+  const rationales = lenses
+    .map((l) => ({ id: l.id, r: tagText(l.rationale_one_line) }))
+    .filter((x) => x.r);
+  if (rationales.length > 0) {
+    lines.push("");
+    for (const x of rationales) {
+      lines.push(`- \`${x.id}\` — ${x.r}`);
+    }
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+// §8 — recommended_methodology[] list renderer (markdown). Empty → "".
+function renderRecommendedMethodologyMd(items) {
+  if (!Array.isArray(items) || items.length === 0) return "";
+  const lines = [];
+  lines.push("### §8.6 Recommended methodology (meta-decision)");
+  lines.push("");
+  for (const m of items) {
+    const ver = m.version ? ` v${m.version}` : "";
+    const applic = Array.isArray(m.applicability) && m.applicability.length
+      ? ` *(applicability: ${m.applicability.join(", ")})*`
+      : "";
+    const rationale = tagText(m.rationale_one_line);
+    lines.push(
+      `- \`${m.id || ""}\`${ver} — **${m.name || ""}** — \`${m.anchor_path || ""}\`${applic}` +
+        (rationale ? ` — ${rationale}` : "")
+    );
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+// Top-level — maturity_anchor box (markdown). Absent → "".
+function renderMaturityAnchorMd(ma) {
+  if (!ma || typeof ma !== "object") return "";
+  const cs = ma.current_score || {};
+  const th = ma.threshold || {};
+  const lines = [];
+  lines.push("### §M Maturity anchor");
+  lines.push("");
+  lines.push(`> **Claimed label:** \`${ma.claimed_label || ""}\` — anchored to methodology \`${ma.anchor_methodology || ""}\``);
+  lines.push("");
+  lines.push("| Metric | Current | Threshold |");
+  lines.push("|---|---|---|");
+  lines.push(`| Simple mean | ${cs.simple_mean ?? "—"} | ${th.simple_mean ?? "—"} |`);
+  lines.push(`| Weighted mean | ${cs.weighted_mean ?? "—"} | ${th.weighted_mean ?? "—"} |`);
+  if (ma.verdict) {
+    lines.push("");
+    lines.push(`**Verdict:** \`${ma.verdict}\``);
+  }
+  const gap = tagText(ma.gap_analysis);
+  if (gap) {
+    lines.push("");
+    lines.push(`**Gap analysis:** ${gap}`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+// AudienceProfileFallback — term_pairing display row (markdown line list). Absent → "".
+function renderTermPairingMd(tp) {
+  if (!tp || typeof tp !== "object") return "";
+  const mode = tp.mode || "N";
+  const scope = Array.isArray(tp.scope) && tp.scope.length ? tp.scope.join("+") : "—";
+  const retro = tp.retroactive_apply || "prompt";
+  const dictRef = tp.dictionary_ref || "";
+  const dictInline = tp.dictionary_inline && typeof tp.dictionary_inline === "object"
+    ? Object.keys(tp.dictionary_inline).length
+    : 0;
+  const lines = [];
+  lines.push("**Term-pairing policy** (v0.6):");
+  lines.push(`- Mode: \`${mode}\` *(E=every / I=initial-with-low-frequency-override / N=none)*`);
+  lines.push(`- Scope: \`${scope}\` *(C=conversation, D=document, B=board, R=review)*`);
+  lines.push(`- Retroactive apply: \`${retro}\``);
+  if (dictRef) lines.push(`- Dictionary ref: \`${dictRef}\``);
+  if (dictInline > 0) lines.push(`- Dictionary inline: ${dictInline} entries`);
+  return lines.join("\n");
+}
+
+// ─── v0.6 term_pairing post-process stub ────────────────────────────────────
+// Applies first-occurrence (I) or every-occurrence (E) pairing for terms found
+// in a minimal inline dictionary, extended by tp.dictionary_inline. v0.6 ships
+// a placeholder hard-coded map; v0.7+ will load full dictionary via dictionary_ref.
+//
+// Determinism contract:
+//   - Dictionary keys are sorted alphabetically before substitution → stable order
+//   - Pairing format: `TERM (expansion)` — fixed, no locale/timestamp variance
+//   - mode === 'N' is a no-op (return input unchanged)
+//   - scope must include 'D' for document/MD or HTML rendering; otherwise no-op
+//
+// Low-frequency override (I mode): if a term appears <= 3 times in the surface,
+// pair every occurrence (treats it as effectively the same as E for that term).
+// Counted on the input text BEFORE rewriting.
+//
+// TODO(v0.7+): replace TERM_PAIRING_DEFAULT_DICT with dictionary_ref-loaded map;
+// add C/B/R surface re-emit hooks (currently only D is in-band for this renderer).
+
+const TERM_PAIRING_DEFAULT_DICT = Object.freeze({
+  IR: "intermediate representation",
+  ADR: "architecture decision record",
+  GA: "general availability",
+  MCDA: "multi-criteria decision analysis",
+  RAPID: "역할 배분 표 (Recommend/Agree/Perform/Input/Decide)",
+  MCP: "model context protocol",
+  // Keep minimal — full dictionary deferred per v0.6 placeholder discipline.
+});
+
+function buildTermPairingDict(tp) {
+  const inline = (tp && tp.dictionary_inline && typeof tp.dictionary_inline === "object") ? tp.dictionary_inline : {};
+  // Inline overrides default on key collision.
+  const merged = Object.assign({}, TERM_PAIRING_DEFAULT_DICT, inline);
+  // Sort keys for deterministic substitution order.
+  const keys = Object.keys(merged).sort();
+  return { keys, map: merged };
+}
+
+function applyTermPairing(text, tp, surfaceCode /* 'D' for document */, warnings) {
+  if (!tp || typeof tp !== "object") return text;
+  const mode = tp.mode || "N";
+  if (mode === "N") return text;
+  const scope = Array.isArray(tp.scope) && tp.scope.length ? tp.scope : ["D"];
+  if (!scope.includes(surfaceCode)) return text;
+
+  const { keys, map } = buildTermPairingDict(tp);
+  if (keys.length === 0) return text;
+
+  let out = text;
+  for (const term of keys) {
+    const expansion = map[term];
+    if (!expansion) continue;
+    // Word-boundary match on canonical surface form. Skip terms already paired (TERM (...)).
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const reCountAll = new RegExp("\\b" + escaped + "\\b", "g");
+    const matches = out.match(reCountAll);
+    const count = matches ? matches.length : 0;
+    if (count === 0) continue;
+
+    // Skip if every occurrence already paired (heuristic: same number of "TERM (" sequences).
+    const reAlreadyPaired = new RegExp("\\b" + escaped + "\\s*\\(", "g");
+    const pairedMatches = out.match(reAlreadyPaired);
+    const pairedCount = pairedMatches ? pairedMatches.length : 0;
+    if (pairedCount >= count) continue;
+
+    const lowFreqOverride = count <= 3;
+    const effectiveMode = (mode === "I" && lowFreqOverride) ? "E" : mode;
+
+    if (effectiveMode === "E") {
+      // Pair every occurrence not already followed by "(".
+      out = out.replace(
+        new RegExp("\\b" + escaped + "\\b(?!\\s*\\()", "g"),
+        `${term} (${expansion})`
+      );
+    } else {
+      // I mode (high-frequency): pair first occurrence only.
+      out = out.replace(
+        new RegExp("\\b" + escaped + "\\b(?!\\s*\\()"),
+        `${term} (${expansion})`
+      );
+    }
+  }
+
+  // Surface re-emit signal for non-document scopes (Hyperbrief.md §13 cross-module hook).
+  // The renderer only handles surface 'D'; B/R scopes are signaled to caller via warnings
+  // so Constellation A2A can re-emit. C (conversation) is structurally forward-only and
+  // handled outside the renderer.
+  for (const s of scope) {
+    if (s !== "D" && s !== "C") {
+      warnings.push(`term_pairing scope '${s}' requires cross-surface re-emit via Constellation A2A — handled outside renderer (v0.6 placeholder).`);
+    }
+  }
+  return out;
+}
+
+// ─── v0.6 IR-based section injection ────────────────────────────────────────
+// Compose the 4 v0.6 blocks into a single appended section. Order is fixed for
+// determinism. Empty individual blocks are skipped so absent slots produce no
+// output drift.
+
+function buildV06Sections(ir) {
+  const blocks = [];
+  const lenses = ir?.section_0_decision_header?.evaluation_lenses;
+  const lensesBlock = renderEvaluationLensesMd(lenses);
+  if (lensesBlock) blocks.push(lensesBlock);
+
+  const methodologies = ir?.section_8_recommendation?.recommended_methodology;
+  const methBlock = renderRecommendedMethodologyMd(methodologies);
+  if (methBlock) blocks.push(methBlock);
+
+  const ma = ir?.maturity_anchor;
+  const maBlock = renderMaturityAnchorMd(ma);
+  if (maBlock) blocks.push(maBlock);
+
+  const tp = ir?.section_0_decision_header?.audience_profile_fallback?.term_pairing;
+  const tpBlock = renderTermPairingMd(tp);
+  if (tpBlock) blocks.push(tpBlock);
+
+  if (blocks.length === 0) return "";
+  return "\n---\n\n## §v0.6 Extensions\n\n" + blocks.join("\n") + "\n";
+}
+
+// HTML variants — emit minimal semantic HTML so the HTML surface stays valid.
+// Same determinism contract as the MD variants.
+
+function renderEvaluationLensesHtml(lenses) {
+  if (!Array.isArray(lenses) || lenses.length === 0) return "";
+  const parts = [];
+  parts.push('<section class="v06-evaluation-lenses">');
+  parts.push("<h3>§0.6 Evaluation lenses (multi-lens)</h3>");
+  parts.push("<table><thead><tr>");
+  parts.push("<th>Lens id</th><th>Name</th><th>Dimensions</th><th>Current (simple)</th><th>Threshold (simple)</th><th>Current (weighted)</th><th>Threshold (weighted)</th><th>Verdict</th><th>Methodology</th>");
+  parts.push("</tr></thead><tbody>");
+  for (const l of lenses) {
+    const dims = Array.isArray(l.dimensions) ? l.dimensions.join(", ") : "";
+    const ts = (l.threshold_simple_mean === null || l.threshold_simple_mean === undefined) ? "—" : String(l.threshold_simple_mean);
+    const tw = (l.threshold_weighted_mean === null || l.threshold_weighted_mean === undefined) ? "—" : String(l.threshold_weighted_mean);
+    const cs = (l.current_simple === null || l.current_simple === undefined) ? "—" : String(l.current_simple);
+    const cw = (l.current_weighted === null || l.current_weighted === undefined) ? "—" : String(l.current_weighted);
+    const verdict = l.verdict || "—";
+    const methodology = l.methodology_ref || "—";
+    parts.push(
+      `<tr><td><code>${escapeHtml(l.id || "")}</code></td>` +
+        `<td>${escapeHtml(l.name || "")}</td>` +
+        `<td>${escapeHtml(dims)}</td>` +
+        `<td>${escapeHtml(cs)}</td><td>${escapeHtml(ts)}</td>` +
+        `<td>${escapeHtml(cw)}</td><td>${escapeHtml(tw)}</td>` +
+        `<td><strong>${escapeHtml(verdict)}</strong></td>` +
+        `<td>${escapeHtml(methodology)}</td></tr>`
+    );
+  }
+  parts.push("</tbody></table>");
+  const rationales = lenses
+    .map((l) => ({ id: l.id, r: tagText(l.rationale_one_line) }))
+    .filter((x) => x.r);
+  if (rationales.length > 0) {
+    parts.push("<ul>");
+    for (const x of rationales) {
+      parts.push(`<li><code>${escapeHtml(x.id)}</code> — ${escapeHtml(x.r)}</li>`);
+    }
+    parts.push("</ul>");
+  }
+  parts.push("</section>");
+  return parts.join("\n");
+}
+
+function renderRecommendedMethodologyHtml(items) {
+  if (!Array.isArray(items) || items.length === 0) return "";
+  const parts = [];
+  parts.push('<section class="v06-recommended-methodology">');
+  parts.push("<h3>§8.6 Recommended methodology (meta-decision)</h3>");
+  parts.push("<ul>");
+  for (const m of items) {
+    const ver = m.version ? ` v${escapeHtml(m.version)}` : "";
+    const applic = Array.isArray(m.applicability) && m.applicability.length
+      ? ` <em>(applicability: ${escapeHtml(m.applicability.join(", "))})</em>`
+      : "";
+    const rationale = tagText(m.rationale_one_line);
+    parts.push(
+      `<li><code>${escapeHtml(m.id || "")}</code>${ver} — <strong>${escapeHtml(m.name || "")}</strong> — ` +
+        `<code>${escapeHtml(m.anchor_path || "")}</code>${applic}` +
+        (rationale ? ` — ${escapeHtml(rationale)}` : "") +
+        "</li>"
+    );
+  }
+  parts.push("</ul>");
+  parts.push("</section>");
+  return parts.join("\n");
+}
+
+function renderMaturityAnchorHtml(ma) {
+  if (!ma || typeof ma !== "object") return "";
+  const cs = ma.current_score || {};
+  const th = ma.threshold || {};
+  const parts = [];
+  parts.push('<section class="v06-maturity-anchor">');
+  parts.push("<h3>§M Maturity anchor</h3>");
+  parts.push(
+    `<blockquote><strong>Claimed label:</strong> <code>${escapeHtml(ma.claimed_label || "")}</code> — ` +
+      `anchored to methodology <code>${escapeHtml(ma.anchor_methodology || "")}</code></blockquote>`
+  );
+  parts.push("<table><thead><tr><th>Metric</th><th>Current</th><th>Threshold</th></tr></thead><tbody>");
+  parts.push(`<tr><td>Simple mean</td><td>${escapeHtml(cs.simple_mean ?? "—")}</td><td>${escapeHtml(th.simple_mean ?? "—")}</td></tr>`);
+  parts.push(`<tr><td>Weighted mean</td><td>${escapeHtml(cs.weighted_mean ?? "—")}</td><td>${escapeHtml(th.weighted_mean ?? "—")}</td></tr>`);
+  parts.push("</tbody></table>");
+  if (ma.verdict) {
+    parts.push(`<p><strong>Verdict:</strong> <code>${escapeHtml(ma.verdict)}</code></p>`);
+  }
+  const gap = tagText(ma.gap_analysis);
+  if (gap) {
+    parts.push(`<p><strong>Gap analysis:</strong> ${escapeHtml(gap)}</p>`);
+  }
+  parts.push("</section>");
+  return parts.join("\n");
+}
+
+function renderTermPairingHtml(tp) {
+  if (!tp || typeof tp !== "object") return "";
+  const mode = tp.mode || "N";
+  const scope = Array.isArray(tp.scope) && tp.scope.length ? tp.scope.join("+") : "—";
+  const retro = tp.retroactive_apply || "prompt";
+  const dictRef = tp.dictionary_ref || "";
+  const dictInline = tp.dictionary_inline && typeof tp.dictionary_inline === "object"
+    ? Object.keys(tp.dictionary_inline).length
+    : 0;
+  const parts = [];
+  parts.push('<section class="v06-term-pairing">');
+  parts.push("<p><strong>Term-pairing policy</strong> (v0.6):</p>");
+  parts.push("<ul>");
+  parts.push(`<li>Mode: <code>${escapeHtml(mode)}</code> <em>(E=every / I=initial-with-low-frequency-override / N=none)</em></li>`);
+  parts.push(`<li>Scope: <code>${escapeHtml(scope)}</code> <em>(C=conversation, D=document, B=board, R=review)</em></li>`);
+  parts.push(`<li>Retroactive apply: <code>${escapeHtml(retro)}</code></li>`);
+  if (dictRef) parts.push(`<li>Dictionary ref: <code>${escapeHtml(dictRef)}</code></li>`);
+  if (dictInline > 0) parts.push(`<li>Dictionary inline: ${dictInline} entries</li>`);
+  parts.push("</ul>");
+  parts.push("</section>");
+  return parts.join("\n");
+}
+
+function buildV06SectionsHtml(ir) {
+  const blocks = [];
+  const lenses = ir?.section_0_decision_header?.evaluation_lenses;
+  const lensesBlock = renderEvaluationLensesHtml(lenses);
+  if (lensesBlock) blocks.push(lensesBlock);
+
+  const methodologies = ir?.section_8_recommendation?.recommended_methodology;
+  const methBlock = renderRecommendedMethodologyHtml(methodologies);
+  if (methBlock) blocks.push(methBlock);
+
+  const ma = ir?.maturity_anchor;
+  const maBlock = renderMaturityAnchorHtml(ma);
+  if (maBlock) blocks.push(maBlock);
+
+  const tp = ir?.section_0_decision_header?.audience_profile_fallback?.term_pairing;
+  const tpBlock = renderTermPairingHtml(tp);
+  if (tpBlock) blocks.push(tpBlock);
+
+  if (blocks.length === 0) return "";
+  return '\n<hr>\n<section class="v06-extensions"><h2>§v0.6 Extensions</h2>\n' + blocks.join("\n") + "\n</section>\n";
+}
+
 // ─── Render entrypoints ─────────────────────────────────────────────────────
 
 function resolveProfile(ir, opts) {
@@ -358,7 +738,18 @@ function renderMd(ir, opts = {}) {
 
   const template = loadTemplate(selectTemplate(ir, "md"));
   const substituted = substitute(template, renderIr, "md");
-  const output = applyToneAxes(substituted, profile, warnings);
+
+  // v0.6: append optional v0.6 sections (evaluation_lenses / recommended_methodology /
+  // maturity_anchor / term_pairing display) BEFORE tone-axis transforms so the same
+  // bracket-tag rewrites apply to the new sections too. Each block is empty when the
+  // corresponding IR slot is absent, preserving back-compat output for v0.5 IRs.
+  const withV06 = substituted + buildV06Sections(renderIr);
+  let output = applyToneAxes(withV06, profile, warnings);
+
+  // v0.6: term_pairing post-process — applies to document surface ('D') when policy
+  // declares it. Deterministic dictionary; no-op on mode 'N' or scope without 'D'.
+  const tpPolicy = renderIr?.section_0_decision_header?.audience_profile_fallback?.term_pairing;
+  output = applyTermPairing(output, tpPolicy, "D", warnings);
 
   // v0.5: surface_profile_estimate + AF-18 declared-vs-estimate gap warning
   const estimate = estimateSurfaceProfile(output, profile);
@@ -419,7 +810,18 @@ function renderHtml(ir, opts = {}) {
   // Inline the IR_JSON before regular substitution so {{...}} markers inside the IR string don't recurse.
   const substituted = substitute(template, renderIr, "html");
 
-  let output = applyToneAxes(substituted, profile, warnings);
+  // v0.6: append optional v0.6 sections as semantic HTML so they live alongside the
+  // template-rendered HTML body. Order + emptiness rules match the MD path.
+  const withV06 = substituted + buildV06SectionsHtml(renderIr);
+
+  let output = applyToneAxes(withV06, profile, warnings);
+
+  // v0.6: term_pairing post-process on the HTML surface. Applies the same dictionary
+  // rewrites; since HTML escaping already happened for IR placeholders, we operate
+  // on the assembled string and trust that pairing inserts plain parentheses (no
+  // angle-bracket injection).
+  const tpPolicy = renderIr?.section_0_decision_header?.audience_profile_fallback?.term_pairing;
+  output = applyTermPairing(output, tpPolicy, "D", warnings);
 
   if (opts.self_contained_assets) {
     warnings.push("self_contained_assets requested but inline asset bundling is deferred to v0.4.3 — output still references external CDN scripts.");

@@ -74,6 +74,40 @@
             "log_path": { "type": "string", "description": "Path to a jsonl phrase-learning log; default .agent/_decisions/hyperbrief-trigger-phrase-log.jsonl" },
             "promotion_threshold": { "type": "integer", "default": 3, "minimum": 1, "description": "Phrase must recur this many times across distinct decision_ids before promotion is offered." }
           }
+        },
+        "term_pairing": {
+          "type": "object",
+          "description": "v0.6 — term-pairing display policy. Controls when abbreviations / jargon are paired with their expanded forms across surfaces. Composes with the 3-axis AudienceProfile (which sets tone level); this slot controls FREQUENCY (mode) and SCOPE of pairing display. Skill parses command-form strings like 'L1.I.C', 'L2.E.A', 'L1.I.C+B', with suffix '!' = retroactive_apply force-yes, '?' = always-prompt. Default mode 'N' / scope ['D'].",
+          "properties": {
+            "mode": {
+              "enum": ["E", "I", "N"],
+              "default": "N",
+              "description": "Pairing frequency policy. E = every occurrence pairs the expansion; I = initial occurrence per scope-unit pairs (subsequent abbreviated), with low-frequency override (≤ 3 occurrences in scope-unit ⇒ pair every time); N = none, surface terms as-is per AudienceProfile.jargon level."
+            },
+            "scope": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "enum": ["C", "D", "B", "R"]
+              },
+              "default": ["D"],
+              "description": "Surfaces where the pairing policy applies. C = conversation (live chat output), D = document (rendered MD/HTML brief), B = board (Constellation A2A board emit), R = review (inline review lines). Shortcut 'A' in command-form expands to [C, D, B, R]. Multi-scope supported (e.g., C+B)."
+            },
+            "retroactive_apply": {
+              "enum": ["Y", "N", "prompt"],
+              "default": "prompt",
+              "description": "Whether to retroactively rewrite already-emitted surfaces in scope upon policy change. Y = force retroactive apply, N = forward-only, prompt = ask user. C (conversation) scope is structurally forward-only and ignores this field (auto-applies to new output only without prompting)."
+            },
+            "dictionary_ref": {
+              "type": "string",
+              "description": "Optional reference to an external term dictionary (path or anchor) the renderer should consult to classify abbrev / jargon and supply expansions. When absent, renderer falls back to an inline minimal map or skips pairing for unknown terms."
+            },
+            "dictionary_inline": {
+              "type": "object",
+              "description": "Optional inline minimal term map keyed by surface form, with expanded form as value. Used when dictionary_ref is absent or as override. Renderer prefers inline over ref on key collision.",
+              "additionalProperties": { "type": "string" }
+            }
+          }
         }
       }
     },
@@ -293,6 +327,60 @@
             "surface_profile_estimate": {
               "$ref": "#/$defs/SurfaceProfileEstimate",
               "description": "v0.5 — auto-computed by renderer; not part of LLM-emitted IR. Populated post-render and persisted into the archived IR for audit."
+            },
+            "evaluation_lenses": {
+              "type": "array",
+              "description": "v0.6 — multi-lens evaluation carrier. Same decision subject scored through different perspectives (e.g., module-GA lens vs host-marketplace lens). Each lens declares its dimensions + thresholds + current scores + verdict; renderer surfaces all lenses side-by-side so the reader sees which lens passes and which fails. Optional; absent ⇒ single-lens (implicit) decision.",
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "dimensions", "current_simple", "current_weighted", "verdict"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9_-]*$",
+                    "description": "Lens identifier; lowercase alphanum + hyphen / underscore."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Human-readable lens name (e.g., 'Lens A: Module GA Readiness')."
+                  },
+                  "dimensions": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "type": "string" },
+                    "description": "Dimensions / criteria the lens scores across (e.g., ['stability', 'docs-coverage', 'dogfood-evidence'])."
+                  },
+                  "threshold_simple_mean": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Pass threshold for the unweighted simple mean across dimensions."
+                  },
+                  "threshold_weighted_mean": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Pass threshold for the weighted mean across dimensions."
+                  },
+                  "current_simple": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Current observed simple mean."
+                  },
+                  "current_weighted": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Current observed weighted mean."
+                  },
+                  "verdict": {
+                    "enum": ["below", "at", "above"],
+                    "description": "Aggregate verdict relative to thresholds. 'at' = within rounding-tolerance of threshold."
+                  },
+                  "methodology_ref": {
+                    "type": "string",
+                    "description": "Optional reference to a methodology id under section_8_recommendation.recommended_methodology[] or an anchor_path; documents what produced the scores."
+                  },
+                  "rationale_one_line": { "$ref": "#/$defs/tagged_text" }
+                }
+              }
             }
           }
         },
@@ -701,6 +789,42 @@
                 "when": { "type": "string" },
                 "threshold": { "type": "string" }
               }
+            },
+            "recommended_methodology": {
+              "type": "array",
+              "description": "v0.6 — meta-decision methodology carrier. Captures the evaluation methodologies / rubrics / frameworks used to PRODUCE this recommendation (not the recommendation itself). Enables downstream readers / future revisits to reapply the same lens. First-class slot eliminates the prior gap where methodologies like the §11.5 readiness rubric had no explicit IR placement.",
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "anchor_path", "rationale_one_line"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9_.-]*$",
+                    "description": "Methodology identifier (e.g., 'hyperbrief-v1-readiness-rubric'). Lowercase alphanum + hyphen / underscore / dot."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Human-readable methodology name."
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "Methodology version (semver or freeform). Optional but recommended for reproducibility."
+                  },
+                  "anchor_path": {
+                    "type": "string",
+                    "description": "Body location pointer (e.g., 'Hyperbrief.md §11.5'). MUST resolve to a stable anchor where the methodology is defined."
+                  },
+                  "applicability": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Where the methodology is applicable (e.g., ['module-GA', 'host-marketplace-listing'])."
+                  },
+                  "rationale_one_line": {
+                    "$ref": "#/$defs/tagged_text",
+                    "description": "Why this methodology was selected for this decision."
+                  }
+                }
+              }
             }
           }
         },
@@ -734,6 +858,47 @@
             "low_confidence_banner": {
               "type": "boolean",
               "description": "true if (inferred + unknown) / total > 0.4"
+            }
+          }
+        },
+
+        "maturity_anchor": {
+          "type": "object",
+          "description": "v0.6 — maturity-label anchoring. When the recommendation claims a self-asserted maturity label (e.g., 'v1.0', 'GA', 'production-ready', 'stable'), this slot enforces an anchored measurable criterion: the label MUST cite a methodology id (from section_8_recommendation.recommended_methodology[]) and report current scores vs threshold, with explicit gap_analysis. Eliminates label inflation where 'GA' is asserted without measurable basis. Optional; absent ⇒ no maturity claim being made.",
+          "required": ["claimed_label", "anchor_methodology", "current_score", "threshold", "gap_analysis"],
+          "properties": {
+            "claimed_label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The self-asserted maturity label being made (e.g., 'v1.0', 'GA', 'production-ready', 'stable', 'beta', 'rc1')."
+            },
+            "anchor_methodology": {
+              "type": "string",
+              "description": "Reference to a methodology id under section_8_recommendation.recommended_methodology[] (.id). MUST resolve so the label has measurable backing."
+            },
+            "current_score": {
+              "type": "object",
+              "required": ["simple_mean", "weighted_mean"],
+              "properties": {
+                "simple_mean": { "type": "number", "minimum": 0 },
+                "weighted_mean": { "type": "number", "minimum": 0 }
+              }
+            },
+            "threshold": {
+              "type": "object",
+              "required": ["simple_mean", "weighted_mean"],
+              "properties": {
+                "simple_mean": { "type": "number", "minimum": 0 },
+                "weighted_mean": { "type": "number", "minimum": 0 }
+              }
+            },
+            "gap_analysis": {
+              "$ref": "#/$defs/tagged_text",
+              "description": "Explicit narrative of where current vs threshold sit; if below, what closes the gap; if above, justification for label fit."
+            },
+            "verdict": {
+              "enum": ["meets", "near", "short"],
+              "description": "Aggregate label-fit verdict. 'meets' = at/above both thresholds, 'near' = within rounding-tolerance on at least one, 'short' = below on both. Optional convenience field; renderer may compute from scores."
             }
           }
         }

@@ -1,6 +1,7 @@
 ---
 name: hyperbrief-trigger-check
-description: ALWAYS run BEFORE composing any message that asks the user for a decision, approval, or choice. Cheap escalation rubric (4-score + 5 MUST-trigger conditions) that returns one of {AUTONOMOUS_DECIDE, FULL_HYPERBRIEF, MINIMAL_BRIEF, BLOCK_FRAMING}. Triggered by message-intent patterns ('괜찮을까요','할까요','should we','which option','approve','confirm','choose between','OK to') OR by Superscalar opening a write/deploy/send lane OR by inbound Constellation DECISION_REQUEST. Invokes the full hyperbrief skill ONLY when outcome != AUTONOMOUS_DECIDE. Skip for pure read-only fan-outs.
+version: 0.6.0
+description: ALWAYS run BEFORE composing any message that asks the user for a decision, approval, or choice. Cheap escalation rubric (4-score + 5 MUST-trigger conditions) that returns one of {AUTONOMOUS_DECIDE, FULL_HYPERBRIEF, MINIMAL_BRIEF, BLOCK_FRAMING}. Triggered by message-intent patterns ('괜찮을까요','할까요','should we','which option','approve','confirm','choose between','OK to') OR by Superscalar opening a write/deploy/send lane OR by inbound Constellation DECISION_REQUEST. Also routes audience-profile commands (tone L<n>.<n>.<n> + term_pairing L<n>.{E|I|N}.{C|D|B|R|A}[!|?]) to the hyperbrief skill for AudienceProfileFallback population. Invokes the full hyperbrief skill ONLY when outcome != AUTONOMOUS_DECIDE. Skip for pure read-only fan-outs.
 ---
 
 # Hyperbrief Trigger Check — the escalation gate
@@ -20,6 +21,29 @@ Run this skill if ANY of these apply:
 
 - All fan-out lanes are read-only (no side effects).
 - This is a continuation of an already-decided plan within the same approved Phase (Constellation §4: "no confirming planned dispatch").
+
+## 1.5 Audience-profile command routing (v0.6+)
+
+Independent of the escalation rubric, certain user inputs are **audience-profile commands** that must be forwarded to the `hyperbrief` skill (which owns `AudienceProfileFallback` IR population) for parsing + persistence, regardless of whether a decision is being made.
+
+Recognized command shapes (parse BEFORE the escalation rubric; if matched, route AND continue):
+
+- **Tone profile**: `L<a>.<b>.<c>` (e.g. `L1.1.1`, `L2.2.2`) — sets `audience_profile_fallback.tone_profile`.
+- **term_pairing command** (v0.6, additive): `L<a>.<mode>.<scope>[suffix]` where:
+  - `mode` ∈ `{E, I, N}` (every / initial / none).
+  - `scope` ∈ `{C, D, B, R}` (conversation / document / board / review) — multi-scope via `+` (e.g. `C+B`), or shortcut `A` (= `C+D+B+R`).
+  - optional `suffix`: `!` (force retroactive_apply = Y), `?` (force retroactive_apply = prompt).
+  - Examples: `L1.I.C` / `L1.E.A` / `L2.N.D` / `L1.I.C+B` / `L2.E.D!` / `L1.I.A?`.
+- **Combined** (single token, dot-chained): tone command followed by term_pairing command in the same utterance — both apply.
+
+Routing behavior:
+
+1. Capture the matched command token(s) verbatim.
+2. Invoke the `hyperbrief` skill with `{audience_profile_command: "<token>", caller_context: "trigger-check-routed"}` regardless of the escalation verdict below.
+3. The `hyperbrief` skill is responsible for: command parsing → `AudienceProfileFallback` population (incl. `term_pairing.mode/scope/retroactive_apply`) → low-frequency override (≤3 occurrences in scope unit → I mode still pairs every occurrence) → C-scope auto-forward semantics (conversation scope skips retroactive prompt; documents/board/review honor `retroactive_apply`) → dictionary resolution (`dictionary_ref` or `dictionary_inline`, placeholder if absent).
+4. Then proceed with the escalation rubric (§2-§6) for whatever else the user message contains.
+
+If the user message is **only** an audience-profile command (no decision content), the verdict is `AUTONOMOUS_DECIDE` (profile updates are reversible, in-scope, agent-decider).
 
 ## 2. Escalation 4-score (each 0-3)
 
@@ -108,12 +132,19 @@ Return a structured handoff to the caller:
   "cynefin_domain": "clear" | "complicated" | "complex" | "chaotic" | "confused",
   "reversibility_class": "two_way" | "one_way_with_migration_path" | "one_way",
   "rapid_decider": "user" | "agent" | "external",
-  "autonomy_refusal_reason": "<1 line — why this is not autonomous>" // null if verdict == AUTONOMOUS_DECIDE
+  "autonomy_refusal_reason": "<1 line — why this is not autonomous>", // null if verdict == AUTONOMOUS_DECIDE
+  "audience_profile_command": "<token>" | null  // v0.6+: captured tone/term_pairing command if matched in §1.5; null otherwise
 }
 ```
 
-If `verdict == FULL_HYPERBRIEF` or `MINIMAL_BRIEF`, immediately invoke the `hyperbrief` skill with this handoff as context. If `verdict == AUTONOMOUS_DECIDE`, proceed with the decision and emit the one-line post-notify. If `verdict == BLOCK_FRAMING`, surface domain confusion to the user before any option enumeration.
+If `verdict == FULL_HYPERBRIEF` or `MINIMAL_BRIEF`, immediately invoke the `hyperbrief` skill with this handoff as context. If `verdict == AUTONOMOUS_DECIDE`, proceed with the decision and emit the one-line post-notify. If `verdict == BLOCK_FRAMING`, surface domain confusion to the user before any option enumeration. If `audience_profile_command != null`, the `hyperbrief` skill must also be invoked for command parsing + AudienceProfileFallback population (orthogonal to the verdict path).
+
+## 9. Back-compat (v0.6 cut)
+
+- v0.5.6 callers that do NOT emit an `audience_profile_command` field: unchanged behavior. The §1.5 routing simply does not fire (no match → no command captured → null in output).
+- v0.5.6 IR shapes remain valid against the v0.6 schema (all 4 new slots are optional): `section_0_decision_header.evaluation_lenses`, `section_8_recommendation.recommended_methodology`, `maturity_anchor` (top-level), `audience_profile_fallback.term_pairing`. This skill does not depend on those slots being populated.
+- New `version` field in frontmatter (`0.6.0`) is informational; callers that pin `name: hyperbrief-trigger-check` resolve unchanged.
 
 ## Reference
 
-Full spec: https://github.com/SoliEstre/EstreGenesis/blob/main/Hyperbrief.md (§2 Trigger Rubric)
+Full spec: https://github.com/SoliEstre/EstreGenesis/blob/main/Hyperbrief.md (§2 Trigger Rubric, §5.6 Audience Profile, §11.5 Readiness Rubric)
