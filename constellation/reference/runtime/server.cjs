@@ -264,6 +264,127 @@ function wsValidKey(key) { return !!key && wsKeys.some((k) => k.key === key); }
 function wsKeyRole(key) { const k = wsKeys.find((x) => x.key === key); return k ? (k.role || 'upstream') : null; }   // #168 키 role 조회(collab/upstream)
 function wsRevokeKey(key) { const n = wsKeys.length; wsKeys = wsKeys.filter((k) => k.key !== key); if (wsKeys.length !== n) wsSaveKeys(); }
 function wsJoinUrl(group, key, host) { return `http://${host || process.env.WS_PUBLIC_HOST || ('localhost:' + PORT)}/join/${group}?key=${encodeURIComponent(key)}`; }   // #168 그룹별 접속 URL(키 포함 → /join 온보딩 md)
+// === KEY-MGMT (v2.4.0 — WS-PROTOCOL-KEY-MGMT.md v0.2 구현 · 본격 #406 patch parity) ===
+// keyStore = key.json (5-state machine + TTL + lastAgent/lastSeenAt + connectionStatus 매타 영속).
+// 레거시 ws-keys.json (role lookup, HELLO/upgrade 판정) 와 dual-layer 운영 — 레거시 entry 가 정본 role, keyStore 가 정본 metadata.
+const KEY_JSON = path.join(DIR, 'key.json');
+const KEY_TTL_DEFAULT = 1209600000;   // §3.1 기본 14일 (msec)
+const KEY_MAX_ACTIVE = Number(process.env.WS_KEY_MAX_ACTIVE) || 32;   // §3.1 활성 키 캡
+const KEY_REVOKE_PENDING_GRACE_MS = Number(process.env.WS_KEY_REVOKE_PENDING_GRACE_MS) || 300000;   // §4 grace 5분 (sessionEnd live conn 후)
+let keyStore = { version: 1, updatedAt: 0, keys: [] };
+try { const j = JSON.parse(fs.readFileSync(KEY_JSON, 'utf8')); if (j && Array.isArray(j.keys)) keyStore = j; }
+catch (e) { try { if (fs.existsSync(KEY_JSON)) fs.renameSync(KEY_JSON, KEY_JSON + '.corrupt-' + Date.now()); } catch {} }   // §6 손상 파일 보존(forensic), fresh 시작
+const _keyGraceTimers = new Map();   // key → grace setTimeout (REVOKED_PENDING)
+function keySave() {   // §6 atomic write + fsync
+  keyStore.updatedAt = Date.now();
+  try { const tmp = KEY_JSON + '.tmp'; const fd = fs.openSync(tmp, 'w'); fs.writeSync(fd, JSON.stringify(keyStore)); fs.fsyncSync(fd); fs.closeSync(fd); fs.renameSync(tmp, KEY_JSON); } catch {}
+}
+function keyFind(k) { return keyStore.keys.find((x) => x.key === k); }
+function keyIsExpired(k) { return k.ttl > 0 && Date.now() > k.issuedAt + k.ttl; }   // §4.1 lazy
+function keyConnStatus(k) {   // §3.2 connected/disconnected/never
+  for (const c of wsAgents.values()) if (c.alive && c.meta.upstreamKey === k.key) return 'connected';
+  return k.lastSeenAt ? 'disconnected' : 'never';
+}
+function keyEffectiveState(k) {   // §4.1 read-time invariant: TTL 만료는 즉시 REVOKED 노출(쓰기는 lazy)
+  if ((k.state === 'ISSUED' || k.state === 'ACTIVE' || k.state === 'REVOKED_PENDING') && keyIsExpired(k)) return 'REVOKED';
+  return k.state;
+}
+function keyValidate(label) { return typeof label === 'string' && label.length > 0 && label.length <= 64 && !/[\x00-\x1f]/.test(label); }   // §3.1 >0 ≤64 no-ctrl
+function keyActiveCount() { return keyStore.keys.filter((k) => { const s = keyEffectiveState(k); return s === 'ISSUED' || s === 'ACTIVE' || s === 'REVOKED_PENDING'; }).length; }
+function keyTransition(k, to) {   // 상태 전이 + revokedAt 스탬프 + persist
+  k.state = to;
+  if ((to === 'REVOKED_PENDING' || to === 'REVOKED') && !k.revokedAt) k.revokedAt = Date.now();
+  if (to === 'DELETED') k.deletedAt = Date.now();
+  keySave();
+}
+function keyError(conn, msg, code, message) { const ev = wscore.event('CUSTOM', { name: 'KeyError', value: { code, message: message || code, re_msgId: msg && (msg.msgId || msg.messageId) } }); ev.source = 'server'; if (conn.meta.agentId) ev.targetAgentId = conn.meta.agentId; conn.send(ev); }
+function keyObserveHello(key, agentId) {   // §3.2/§4: HELLO 가 키 들고오면 lastAgent/lastSeenAt + ISSUED→ACTIVE
+  if (!key) return; const k = keyFind(key); if (!k) return;
+  k.lastAgent = agentId || k.lastAgent; k.lastSeenAt = Date.now();
+  if (k.state === 'ISSUED') k.state = 'ACTIVE';   // §4 invariant 1: 일방
+  keySave();
+}
+function keyAgentNameChanged(key, oldLabel, newLabel) {   // §3.5 라벨 변경 → 해당 키 보유 live conn 에 unicast 통보
+  for (const c of wsAgents.values()) {
+    if (c.alive && c.meta.upstreamKey === key) {
+      const ev = wscore.event('CUSTOM', { name: 'AgentNameChanged', value: { key, oldLabel, newLabel } });
+      ev.source = 'server'; ev.targetAgentId = c.meta.agentId; c.send(ev);
+    }
+  }
+}
+function keyKickConns(key, closeReason) {   // §3.3 immediate: 해당 키 live conn 전부 close(4003)
+  let n = 0;
+  for (const c of [...wsAgents.values()]) if (c.alive && c.meta.upstreamKey === key) { try { c.close(4003, closeReason || 'key revoked'); } catch {} n++; }
+  return n;
+}
+function keyOnConnClose(conn) {   // §4: REVOKED_PENDING 키의 마지막 live conn 닫히면 REVOKED 확정 + 두 번째 KeyRevoked
+  const key = conn.meta && conn.meta.upstreamKey; if (!key) return;
+  const k = keyFind(key); if (!k || k.state !== 'REVOKED_PENDING') return;
+  for (const c of wsAgents.values()) if (c !== conn && c.alive && c.meta.upstreamKey === key) return;   // 다른 live conn 존재
+  const t = _keyGraceTimers.get(key); if (t) { clearTimeout(t); _keyGraceTimers.delete(key); }
+  keyTransition(k, 'REVOKED');
+  const m = wsPrimaryAgent();   // 두 번째 KeyRevoked → 메인
+  if (m && m.alive) { const ev = wscore.event('CUSTOM', { name: 'KeyRevoked', value: { key, mode: 'sessionEnd', agentsDisconnected: 1, agentsNotified: 1 } }); ev.source = 'server'; ev.targetAgentId = m.meta.agentId; m.send(ev); }
+}
+function wsKeyReply(conn, name, value, ackForMsg) { const ev = wscore.event('CUSTOM', { name, value }); ev.source = 'server'; if (ackForMsg && (ackForMsg.msgId || ackForMsg.messageId)) ev.value.re_msgId = ackForMsg.msgId || ackForMsg.messageId; if (conn.meta.agentId) ev.targetAgentId = conn.meta.agentId; conn.send(ev); }
+function wsKeyIssue(conn, msg, v) {   // §3.1 새 업스트림 키 발행 (기존 wsIssueKey('uk-…') 재사용 + key.json 메타 등록)
+  const label = (v.label != null && v.label !== '') ? String(v.label) : 'upstream';
+  if (!keyValidate(label)) return keyError(conn, msg, 'INVALID_LABEL', 'label must be 1..64 chars, no control chars');
+  let ttl = (v.ttl == null) ? KEY_TTL_DEFAULT : Number(v.ttl);
+  if (!Number.isFinite(ttl) || ttl < 0) return keyError(conn, msg, 'INVALID_TTL', 'ttl must be >= 0');
+  if (keyActiveCount() >= KEY_MAX_ACTIVE) return keyError(conn, msg, 'LIMIT_EXCEEDED', `too many active keys (max ${KEY_MAX_ACTIVE})`);
+  const key = wsIssueKey(label);   // 레거시 ws-keys.json (role 판정) + 'uk-' 키
+  const issuedAt = Date.now();
+  keyStore.keys.push({ key, label, state: 'ISSUED', kind: 'upstream', issuedAt, ttl, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null });
+  keySave();
+  const joinUrl = `ws://${process.env.WS_PUBLIC_HOST || ('localhost:' + PORT)}/ws?upstreamKey=${encodeURIComponent(key)}`;   // §3.1 §13.11 connect URL
+  wsKeyReply(conn, 'KeyIssued', { key, joinUrl, label, ttl, issuedAt }, msg);
+}
+function wsKeyList(conn, msg, v) {   // §3.2 전체 키 enumerate (상태 + connectionStatus + lastAgent + TTL)
+  const incRevoked = !!v.includeRevoked, incDeleted = !!v.includeDeleted;
+  const keys = [];
+  for (const k of keyStore.keys) {
+    const state = keyEffectiveState(k);
+    if (state === 'DELETED' && !incDeleted) continue;
+    if (state === 'REVOKED' && !incRevoked) continue;
+    keys.push({ key: k.key, label: k.label, kind: k.kind || 'upstream', lastAgent: k.lastAgent || null, lastSeenAt: k.lastSeenAt || null, connectionStatus: keyConnStatus(k), ttl: k.ttl, issuedAt: k.issuedAt, state });
+  }
+  wsKeyReply(conn, 'KeyListResult', { keys }, msg);
+}
+function wsKeyRevoke(conn, msg, v) {   // §3.3 immediate(즉시 kick) / sessionEnd(세션 유지 후 폐기)
+  const k = keyFind(v.key); if (!k) return keyError(conn, msg, 'KEY_NOT_FOUND', 'unknown key');
+  const eff = keyEffectiveState(k);
+  if (eff === 'REVOKED' || eff === 'DELETED') return keyError(conn, msg, 'ALREADY_REVOKED', 'key already revoked');
+  const mode = v.mode === 'sessionEnd' ? 'sessionEnd' : (v.mode === 'immediate' ? 'immediate' : null);
+  if (!mode) return keyError(conn, msg, 'INVALID_MODE', 'mode must be immediate|sessionEnd');
+  const hasLive = [...wsAgents.values()].some((c) => c.alive && c.meta.upstreamKey === k.key);
+  if (mode === 'immediate' || !hasLive) {   // immediate, 또는 sessionEnd 인데 live conn 없음 → 즉시 REVOKED
+    wsRevokeKey(k.key);
+    const n = mode === 'immediate' ? keyKickConns(k.key, 'key revoked') : 0;
+    keyTransition(k, 'REVOKED');
+    wsKeyReply(conn, 'KeyRevoked', { key: k.key, mode, agentsDisconnected: n, agentsNotified: n }, msg);
+  } else {   // sessionEnd + live conn → REVOKED_PENDING
+    wsRevokeKey(k.key);
+    keyTransition(k, 'REVOKED_PENDING');
+    let notified = 0;
+    for (const c of wsAgents.values()) if (c.alive && c.meta.upstreamKey === k.key) { const ev = wscore.event('CUSTOM', { name: 'KeyRevokePending', value: { key: k.key, mode: 'sessionEnd' } }); ev.source = 'server'; ev.targetAgentId = c.meta.agentId; c.send(ev); notified++; }
+    if (!_keyGraceTimers.has(k.key)) _keyGraceTimers.set(k.key, setTimeout(() => { _keyGraceTimers.delete(k.key); if (keyFind(k.key) && keyFind(k.key).state === 'REVOKED_PENDING') { keyKickConns(k.key, 'key revoke pending grace expired'); } }, KEY_REVOKE_PENDING_GRACE_MS));
+    wsKeyReply(conn, 'KeyRevoked', { key: k.key, mode: 'sessionEnd', agentsDisconnected: 0, agentsNotified: notified }, msg);
+  }
+}
+function wsKeyLabel(conn, msg, v) {   // §3.4 라벨 변경 + AgentNameChanged 통보
+  const k = keyFind(v.key); if (!k) return keyError(conn, msg, 'KEY_NOT_FOUND', 'unknown key');
+  const eff = keyEffectiveState(k);
+  if (eff === 'REVOKED' || eff === 'DELETED') return keyError(conn, msg, 'KEY_NOT_FOUND', 'key terminal');
+  const newLabel = String(v.newLabel == null ? '' : v.newLabel);
+  if (!keyValidate(newLabel)) return keyError(conn, msg, 'INVALID_LABEL', 'label must be 1..64 chars, no control chars');
+  const oldLabel = k.label;
+  if (newLabel === oldLabel) return keyError(conn, msg, 'NOOP_LABEL', 'label unchanged');
+  k.label = newLabel; keySave();
+  const lk = wsKeys.find((x) => x.key === k.key); if (lk) { lk.label = newLabel; wsSaveKeys(); }   // 레거시 라벨 동기화
+  wsKeyReply(conn, 'KeyLabeled', { key: k.key, oldLabel, newLabel }, msg);
+  keyAgentNameChanged(k.key, oldLabel, newLabel);
+}
 // v2.3.23 — 메시지 채널 구분 (A2A relay vs 보드 broadcast) 공용 가이드. 합류 에이전트가 라우팅 의도 명시하도록 안내.
 function wsChannelGuideMd() {
   return [
@@ -355,9 +476,19 @@ function wsHandoffReady() { if (_pendingMain) { if (_pendingTimer) clearTimeout(
 function wsHandleOrch(conn, msg) {
   if (!msg || msg.type !== 'CUSTOM') return false;
   const n = msg.name, v = msg.value || {};
-  if (n === 'RegisterUpstreamKey') { const key = wsIssueKey(v.label); const joinUrl = wsJoinUrl('upstream', key); conn.send(wscore.event('CUSTOM', { name: 'UpstreamKeyIssued', value: { key, label: v.label || 'upstream', joinUrl } })); return true; }   // v2.3.23 — joinUrl 포함 (URL 만으로 /join/upstream 가이드 진입 가능)
-  if (n === 'RegisterCollabKey') { const key = wsIssueKey(v.label, 'collab'); const joinUrl = wsJoinUrl('collab', key); conn.send(wscore.event('CUSTOM', { name: 'CollabKeyIssued', value: { key, label: v.label || 'collab', joinUrl } })); return true; }   // #168 외부협업 키+접속 URL
+  if (n === 'RegisterUpstreamKey') { const key = wsIssueKey(v.label); const joinUrl = wsJoinUrl('upstream', key); conn.send(wscore.event('CUSTOM', { name: 'UpstreamKeyIssued', value: { key, label: v.label || 'upstream', joinUrl } })); return true; }   // v2.3.23 transitional alias — KeyIssue 가 canonical, RegisterUpstreamKey 는 §3.1 retirement schedule 따라 zero-traffic gate 후 제거
+  if (n === 'RegisterCollabKey') { const key = wsIssueKey(v.label, 'collab'); const clabel = v.label || 'collab'; const joinUrl = wsJoinUrl('collab', key); keyStore.keys.push({ key, label: clabel, state: 'ISSUED', kind: 'collab', issuedAt: Date.now(), ttl: KEY_TTL_DEFAULT, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null }); keySave(); conn.send(wscore.event('CUSTOM', { name: 'CollabKeyIssued', value: { key, label: clabel, joinUrl } })); return true; }   // #168 외부협업 키+접속 URL (v2.4.0 KEY-MGMT 통합: keyStore 등록 kind=collab)
   if (n === 'RevokeCollabKey' || n === 'RevokeUpstreamKey') { wsRevokeKey(v.key); return true; }
+  // === KEY-MGMT (v2.4.0 — WS-PROTOCOL-KEY-MGMT.md v0.2) ===
+  if (n === 'KeyIssue' || n === 'KeyList' || n === 'KeyRevoke' || n === 'KeyLabel') {
+    const isAgent = conn.meta.role === 'agent';
+    if (isAgent && wsAgentRole(conn) !== 'main') { keyError(conn, msg, 'PERMISSION_DENIED', 'only main may manage keys'); return true; }
+    if (n === 'KeyIssue') wsKeyIssue(conn, msg, v);
+    else if (n === 'KeyList') wsKeyList(conn, msg, v);
+    else if (n === 'KeyRevoke') wsKeyRevoke(conn, msg, v);
+    else if (n === 'KeyLabel') wsKeyLabel(conn, msg, v);
+    return true;
+  }
   if (n === 'SetMain') { wsSetMain(v.agentId, v.reason); return true; }
   if (n === 'HandoffReady') { wsHandoffReady(); return true; }
   return false;
@@ -479,13 +610,14 @@ server.on('upgrade', (req, socket) => {
   if (req.url.split('?')[0] !== '/ws') { socket.destroy(); return; }
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
-  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('upstreamKey') || u.get('collabKey'); const kr = wsKeyRole(k); if (kr === 'collab') conn.meta.collab = true; else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) conn.meta.upstream = true; if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정(collab/upstream)
+  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('upstreamKey') || u.get('collabKey'); const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
   conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
   { const _h = wsHistoryPayload(); if (_h.events.length || _h.cold.length || _h.archived.length) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand)
   conn.onclose = () => {
     wsConns.delete(conn);
+    keyOnConnClose(conn);                                       // v2.4.0 §4 REVOKED_PENDING 마지막 conn 종료 시 REVOKED 확정
     if (conn.meta.role === 'agent' && conn.meta.agentId && wsAgents.get(conn.meta.agentId) === conn) {
       wsAgents.delete(conn.meta.agentId);
       wsPushAgentList();                                        // 해제 알림 → 대시보드 탭 갱신
@@ -499,7 +631,7 @@ server.on('upgrade', (req, socket) => {
       conn.meta.agentId = _hadId ? msg.agentId : ('agent-' + conn.id.slice(0, 4));
       conn.meta.clientId = msg.clientId;
       conn.meta.agentName = msg.agentName || conn.meta.agentId;
-      { const k = msg.key || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') conn.meta.collab = true; else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) conn.meta.upstream = true; }   // #168 HELLO 키 role 판정(collab/upstream)
+      { const k = msg.key || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } }   // #168 HELLO 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
       conn.meta.roleHint = msg.role || '';                       // local/upstream 힌트(최종 판정은 키·main)
       console.log('[ws HELLO]%s agent=%s ip=%s ua=%s upstreamKey=%s → role=%s', _hadId ? '' : ' [ANON]', conn.meta.agentId, conn.remoteAddr || '?', (conn.ua || '').slice(0, 50) || '-', msg.upstreamKey ? String(msg.upstreamKey).slice(0, 14) + '…' : '(none)', wsAgentRole(conn));   // role 전환 audit + 출처(ip/ua)
       if (!_hadId) { console.log('[ws HELLO][ANON] 익명 HELLO 등록 거부(AgentList/relay/탭 제외) raw=%s', JSON.stringify(msg).slice(0, 240)); return; }   // 익명(agentId 누락) = 보드 탭 미생성·relay 제외, 출처 로깅만
@@ -507,6 +639,7 @@ server.on('upgrade', (req, socket) => {
       if (prev && prev !== conn) { try { prev.close(); } catch {} }
       wsAgents.set(conn.meta.agentId, conn);
       wsPushAgentList();
+      if (conn.meta.upstreamKey) keyObserveHello(conn.meta.upstreamKey, conn.meta.agentId);   // v2.4.0 §3.2/§4 lastAgent·lastSeenAt + ISSUED→ACTIVE
       return;
     }
     if (conn.meta.role === 'agent') {                           // 에이전트 outbound
