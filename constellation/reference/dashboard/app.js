@@ -1890,16 +1890,31 @@ function setupWsKeyMgmt() {
   const collabWrap = head.querySelector('#ws-collab-wrap');
   if (collabWrap) head.insertBefore(wrap, collabWrap); else { const archWrap = head.querySelector('.ws-arch-wrap'); if (archWrap) head.insertBefore(wrap, archWrap); else head.appendChild(wrap); }
 
-  let status = 'idle', key = '', joinUrl = '', label = '';
+  let status = 'idle', key = '', joinUrl = '', label = '', kind = 'upstream', roleDescription = '', joinHint = '', joinFile = '';
   function render() {
     panel.textContent = '';
-    const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '🔑 업스트림 키 발행'; panel.appendChild(h);
+    const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '🔑 키 발행 (UI4)'; panel.appendChild(h);
     if (status === 'idle' || status === 'error') {
-      const inp = document.createElement('input'); inp.className = 'ws-invite-label'; inp.placeholder = '키 라벨 (예: phone-claude)'; inp.value = label;
+      // v2.4.1 kind 선택
+      const kindRow = document.createElement('div'); kindRow.className = 'ws-invite-kindrow';
+      ['upstream', 'collab', 'local'].forEach((kv) => {
+        const lab = document.createElement('label'); lab.className = 'ws-invite-kindopt' + (kind === kv ? ' active' : '');
+        const rd = document.createElement('input'); rd.type = 'radio'; rd.name = 'ws-key-kind'; rd.value = kv; rd.checked = kind === kv;
+        rd.onchange = () => { kind = kv; render(); };
+        const txt = document.createElement('span'); txt.textContent = kv === 'upstream' ? '🔑 업스트림' : kv === 'collab' ? '🔗 협업' : '🏠 로컬';
+        lab.append(rd, txt); kindRow.append(lab);
+      });
+      panel.appendChild(kindRow);
+      const inp = document.createElement('input'); inp.className = 'ws-invite-label';
+      inp.placeholder = kind === 'local' ? '워커 라벨 (alphanumeric, 예: worker-1)' : '키 라벨 (예: phone-claude)';
+      inp.value = label;
+      panel.appendChild(inp);
+      const rdInp = document.createElement('textarea'); rdInp.className = 'ws-invite-roledesc'; rdInp.placeholder = '역할 설명 — 합류할 에이전트에게 전달 (선택)'; rdInp.rows = 2; rdInp.value = roleDescription;
+      panel.appendChild(rdInp);
       const b = document.createElement('button'); b.className = 'ws-invite-btn'; b.type = 'button'; b.textContent = '키 발급';
-      b.onclick = () => { label = inp.value.trim(); issue(); };
-      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { label = inp.value.trim(); issue(); } });
-      panel.appendChild(inp); panel.appendChild(b);
+      b.onclick = () => { label = inp.value.trim(); roleDescription = rdInp.value.trim(); issue(); };
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); label = inp.value.trim(); roleDescription = rdInp.value.trim(); issue(); } });
+      panel.appendChild(b);
       if (status === 'error') { const e = document.createElement('div'); e.className = 'ws-invite-meta'; e.style.color = '#e0455e'; e.textContent = '⚠ ' + (key || '발급 실패'); panel.appendChild(e); }
       const mg = document.createElement('button'); mg.className = 'ws-invite-new'; mg.type = 'button'; mg.textContent = '🗂 키 관리'; mg.onclick = () => { panel.hidden = true; openManager(); };
       panel.appendChild(mg);
@@ -1907,19 +1922,34 @@ function setupWsKeyMgmt() {
       const b = document.createElement('button'); b.className = 'ws-invite-btn'; b.type = 'button'; b.textContent = '발급 중…'; b.disabled = true;
       panel.appendChild(b);
     } else {   // issued
-      const meta = document.createElement('div'); meta.className = 'ws-invite-meta'; meta.textContent = (label || 'upstream') + ' · ' + key.slice(0, 14) + '…';
-      const urlEl = document.createElement('div'); urlEl.className = 'ws-invite-url'; urlEl.textContent = joinUrl || key;
-      const row = document.createElement('div'); row.className = 'ws-invite-row';
-      const cpUrl = document.createElement('button'); cpUrl.className = 'ws-invite-copy'; cpUrl.type = 'button'; cpUrl.textContent = 'URL 복사'; cpUrl.onclick = () => copy(cpUrl, joinUrl || key);
-      const cpKey = document.createElement('button'); cpKey.className = 'ws-invite-copy'; cpKey.type = 'button'; cpKey.textContent = '키만 복사'; cpKey.onclick = () => copy(cpKey, key);
-      const nw = document.createElement('button'); nw.className = 'ws-invite-new'; nw.type = 'button'; nw.textContent = '새 키'; nw.onclick = () => { status = 'idle'; key = ''; joinUrl = ''; render(); };
-      const mg = document.createElement('button'); mg.className = 'ws-invite-new'; mg.type = 'button'; mg.textContent = '🗂 관리'; mg.onclick = () => { panel.hidden = true; openManager(); };
-      row.appendChild(cpUrl); row.appendChild(cpKey); row.appendChild(nw); row.appendChild(mg);
-      panel.appendChild(meta); panel.appendChild(urlEl); panel.appendChild(row);
+      const kindIcon = kind === 'collab' ? '🔗' : kind === 'local' ? '🏠' : '🔑';
+      const meta = document.createElement('div'); meta.className = 'ws-invite-meta'; meta.textContent = kindIcon + ' ' + (label || kind) + (kind === 'local' ? '' : ' · ' + key.slice(0, 14) + '…');
+      panel.appendChild(meta);
+      if (roleDescription) { const rdEl = document.createElement('div'); rdEl.className = 'ws-invite-roledesc-show'; rdEl.textContent = '🎭 ' + roleDescription; panel.appendChild(rdEl); }
+      if (kind === 'local') {
+        const hintEl = document.createElement('div'); hintEl.className = 'ws-invite-url'; hintEl.textContent = joinHint || ('LOCAL_KEY_FILE=' + joinFile + ' WS_AGENT_ID=' + label + ' node scripts/join-local.cjs'); panel.appendChild(hintEl);
+        const note = document.createElement('div'); note.className = 'ws-invite-meta'; note.style.fontSize = '.7rem'; note.style.color = 'var(--muted)'; note.textContent = '키는 ' + joinFile + ' 파일에 저장됨 (외부 wire 미전달).'; panel.appendChild(note);
+        const row = document.createElement('div'); row.className = 'ws-invite-row';
+        const cpHint = document.createElement('button'); cpHint.className = 'ws-invite-copy'; cpHint.type = 'button'; cpHint.textContent = '명령 복사'; cpHint.onclick = () => copy(cpHint, joinHint);
+        const nw = document.createElement('button'); nw.className = 'ws-invite-new'; nw.type = 'button'; nw.textContent = '새 키'; nw.onclick = () => { status = 'idle'; key = ''; joinUrl = ''; joinHint = ''; joinFile = ''; roleDescription = ''; render(); };
+        const mg = document.createElement('button'); mg.className = 'ws-invite-new'; mg.type = 'button'; mg.textContent = '🗂 관리'; mg.onclick = () => { panel.hidden = true; openManager(); };
+        row.appendChild(cpHint); row.appendChild(nw); row.appendChild(mg);
+        panel.appendChild(row);
+      } else {
+        const urlEl = document.createElement('div'); urlEl.className = 'ws-invite-url'; urlEl.textContent = joinUrl || key;
+        const row = document.createElement('div'); row.className = 'ws-invite-row';
+        const cpUrl = document.createElement('button'); cpUrl.className = 'ws-invite-copy'; cpUrl.type = 'button'; cpUrl.textContent = 'URL 복사'; cpUrl.onclick = () => copy(cpUrl, joinUrl || key);
+        const cpKey = document.createElement('button'); cpKey.className = 'ws-invite-copy'; cpKey.type = 'button'; cpKey.textContent = '키만 복사'; cpKey.onclick = () => copy(cpKey, key);
+        const nw = document.createElement('button'); nw.className = 'ws-invite-new'; nw.type = 'button'; nw.textContent = '새 키'; nw.onclick = () => { status = 'idle'; key = ''; joinUrl = ''; roleDescription = ''; render(); };
+        const mg = document.createElement('button'); mg.className = 'ws-invite-new'; mg.type = 'button'; mg.textContent = '🗂 관리'; mg.onclick = () => { panel.hidden = true; openManager(); };
+        row.appendChild(cpUrl); row.appendChild(cpKey); row.appendChild(nw); row.appendChild(mg);
+        panel.appendChild(urlEl); panel.appendChild(row);
+      }
     }
   }
-  function issue() {   // v2.4.0 canonical KeyIssue
-    if (wsSendOrch({ type: 'CUSTOM', name: 'KeyIssue', value: { label: label || undefined } })) { status = 'issuing'; render(); }
+  function issue() {   // v2.4.0 canonical KeyIssue + v2.4.1 kind + roleDescription
+    const value = { label: label || undefined, kind, roleDescription: roleDescription || undefined };
+    if (wsSendOrch({ type: 'CUSTOM', name: 'KeyIssue', value })) { status = 'issuing'; render(); }
     else { status = 'error'; key = 'WS 연결 안 됨 — 잠시 후 다시'; render(); }
   }
   function copy(b, text) {
@@ -1958,14 +1988,17 @@ function setupWsKeyMgmt() {
       const top = document.createElement('div'); top.className = 'ws-key-rtop';
       const [dotCls, connTxt] = CONN_DOT[k.connectionStatus] || CONN_DOT.never;
       const dot = document.createElement('span'); dot.className = 'ws-key-dot ' + dotCls; dot.title = connTxt;
-      const kindIcon = document.createElement('span'); kindIcon.className = 'ws-key-kind'; kindIcon.textContent = k.kind === 'collab' ? '🔗' : '🔑'; kindIcon.title = k.kind === 'collab' ? '협업 키' : '업스트림 키';
+      const kindIcon = document.createElement('span'); kindIcon.className = 'ws-key-kind'; kindIcon.textContent = k.kind === 'collab' ? '🔗' : k.kind === 'local' ? '🏠' : '🔑'; kindIcon.title = k.kind === 'collab' ? '협업 키' : k.kind === 'local' ? '로컬 키 (파일 경로 등록)' : '업스트림 키';
       const lab = document.createElement('span'); lab.className = 'ws-key-label'; lab.textContent = k.label || '(무라벨)';
       const st = document.createElement('span'); st.className = 'ws-key-state ' + (k.state || '').toLowerCase(); st.textContent = STATE_LABEL[k.state] || k.state;
       top.append(dot, kindIcon, lab, st);
       const sub = document.createElement('div'); sub.className = 'ws-key-sub';
       const ag = k.lastAgent ? ('에이전트: ' + k.lastAgent) : '미접속';
       const seen = k.lastSeenAt ? (' · ' + new Date(k.lastSeenAt).toLocaleString()) : '';
-      sub.textContent = k.key.slice(0, 14) + '… · ' + connTxt + ' · ' + ag + seen;
+      const keyDisp = k.key ? (k.key.slice(0, 14) + '…') : (k.kind === 'local' ? 'local-keys/' + k.label + '.key (파일)' : '(no key)');
+      sub.textContent = keyDisp + ' · ' + connTxt + ' · ' + ag + seen;
+      if (k.roleDescription) { const rd = document.createElement('div'); rd.className = 'ws-key-roledesc'; rd.textContent = '🎭 ' + k.roleDescription; rowEl.append(top, sub, rd); }
+      else { rowEl.append(top, sub); }
       const acts = document.createElement('div'); acts.className = 'ws-key-acts';
       const terminal = k.state === 'REVOKED' || k.state === 'DELETED';
       if (!terminal) {
@@ -1973,7 +2006,7 @@ function setupWsKeyMgmt() {
         const rvImm = document.createElement('button'); rvImm.className = 'ws-key-act danger'; rvImm.type = 'button'; rvImm.textContent = '🗑 즉시 삭제'; rvImm.title = '연결된 에이전트 즉시 차단'; rvImm.onclick = () => revoke(k, 'immediate'); acts.append(rvImm);
         if (k.connectionStatus === 'connected') { const rvEnd = document.createElement('button'); rvEnd.className = 'ws-key-act'; rvEnd.type = 'button'; rvEnd.textContent = '⏳ 세션 유지 삭제'; rvEnd.title = '현재 세션은 유지, 신규 접속 차단'; rvEnd.onclick = () => revoke(k, 'sessionEnd'); acts.append(rvEnd); }
       } else { const note = document.createElement('span'); note.className = 'ws-key-term'; note.textContent = STATE_LABEL[k.state] || k.state; acts.append(note); }
-      rowEl.append(top, sub, acts); tbl.append(rowEl);
+      rowEl.append(acts); tbl.append(rowEl);
     }
   }
   function relabel(k) {
@@ -1992,7 +2025,7 @@ function setupWsKeyMgmt() {
 
   wsKeyMgmt = {
     openManager,
-    setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; if (p.label != null) label = p.label; status = 'issued'; panel.hidden = false; render(); },
+    setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; joinHint = p.joinHint || ''; joinFile = p.joinFile || ''; if (p.label != null) label = p.label; if (p.kind != null) kind = p.kind; if (p.roleDescription != null) roleDescription = p.roleDescription; status = 'issued'; panel.hidden = false; render(); },
     setError(p) { status = 'error'; key = (p && (p.message || p.code)) || '발급 실패'; render(); },
     setList(keys) { modalKeys = Array.isArray(keys) ? keys : []; if (modal && !modal.hidden) renderTable(); },
     onMutated() { if (modal && !modal.hidden) requestList(); },

@@ -619,3 +619,14 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-key-act.danger { color: var(--ws-danger, #e0455e); }
 .ws-key-act.danger:hover { background: rgba(224,69,94,.14); border-color: var(--ws-danger, #e0455e); color: var(--ws-danger, #e0455e); }
 .ws-key-term { font-size: .7rem; color: var(--muted); align-self: center; }
+
+/* v2.4.1 — kind 선택 + roleDescription input + 모달 chip */
+.ws-invite-kindrow { display: flex; gap: 6px; margin-bottom: 6px; }
+.ws-invite-kindopt { flex: 1; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: .72rem; cursor: pointer; color: var(--muted); background: var(--panel); }
+.ws-invite-kindopt input { margin: 0; }
+.ws-invite-kindopt.active { border-color: var(--accent); color: var(--ink); background: var(--panel2, var(--panel)); }
+.ws-invite-kindopt:hover { border-color: var(--accent); color: var(--ink); }
+.ws-invite-roledesc { width: 100%; box-sizing: border-box; resize: vertical; min-height: 38px; max-height: 120px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; font-size: .76rem; margin-bottom: 6px; }
+.ws-invite-roledesc:focus { outline: none; border-color: var(--accent); }
+.ws-invite-roledesc-show { font-size: .72rem; color: var(--ink); background: var(--panel2, var(--panel)); border-left: 2px solid var(--accent); padding: 4px 8px; margin: 4px 0; white-space: pre-wrap; word-break: break-word; }
+.ws-key-roledesc { font-size: .68rem; color: var(--ink); background: var(--panel); border-left: 2px solid var(--accent); padding: 3px 6px; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
