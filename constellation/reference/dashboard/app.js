@@ -1211,7 +1211,7 @@ function wsRestoreChannel(id) {
 function wsRenderArchived() {   // "닫은 세션" 버튼 + 드롭다운 — 닫은(hidden) 채널 목록, 선택 시 복원
   const btn = $('#ws-arch-btn'), menu = $('#ws-arch-menu'); if (!btn || !menu) return;
   const hidden = [...wsState.channels.entries()].filter(([id, c]) => c.hidden && !wsIsMon(id));
-  btn.hidden = hidden.length === 0;
+  btn.hidden = false;   // v2.3.23: 항상 표시 (닫은 세션 0개일 때도 카운터 보임 — 사용자 발견성 향상)
   btn.textContent = '🗂 ' + hidden.length;
   menu.innerHTML = '';
   if (!hidden.length) { menu.hidden = true; return; }
@@ -1570,6 +1570,10 @@ function onWsEvent(m) {
     if (id && wsState.channels.has(id)) { wsState.channels.delete(id); if (wsState.active === id) wsState.active = wsState.channels.keys().next().value || null; if (!wsState.replaying) { wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge(); } }
     return;
   }
+  if (t === 'CUSTOM' && m.name === 'UpstreamKeyIssued') {   // v2.3.23 서버 업스트림 키 발급 응답 → 업스트림 패널 issued (URL 복사 가능)
+    if (wsUpstream) wsUpstream.setIssued(m.value || {});
+    return;
+  }
   if (t === 'CUSTOM' && m.name === 'CollabKeyIssued') {   // #168 서버 협업 키 발급 응답(라우팅 무관 직접 reply) → 초대 패널 issued
     if (wsInvite) wsInvite.setIssued(m.value || {});
     return;
@@ -1801,6 +1805,7 @@ function wsSendOrch(obj) { const ws = wsState.ws; if (!ws || ws.readyState !== 1
 // ---- #168 외부 협업 초대 (ws-collab-invite.eux 인라인 구현) — RegisterCollabKey 송신 / CollabKeyIssued 수신 → 키·접속 URL ----
 // @machine status: idle → issuing → issued (→ reset → idle). 컨트롤러는 onWsEvent 가 setIssued 로 깨운다.
 let wsInvite = null;
+let wsUpstream = null;   // v2.3.23 — 업스트림 키 발급 panel 컨트롤러 (RegisterUpstreamKey / UpstreamKeyIssued)
 function setupWsCollab() {
   const head = $('#ws-pop-head'); if (!head || $('#ws-collab-wrap')) return;
   const wrap = document.createElement('span'); wrap.id = 'ws-collab-wrap'; wrap.className = 'ws-collab-wrap';
@@ -1848,6 +1853,59 @@ function setupWsCollab() {
   wsInvite = {
     setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; if (p.label != null) label = p.label; status = 'issued'; panel.hidden = false; render(); },
     get status() { return status; }, get joinUrl() { return joinUrl; },
+  };
+  render();
+}
+
+// ---- v2.3.23 — 업스트림 키 발급 (RegisterUpstreamKey 송신 / UpstreamKeyIssued 수신 → joinUrl + key) ----
+function setupWsUpstream() {
+  const head = $('#ws-pop-head'); if (!head || $('#ws-upstream-wrap')) return;
+  const wrap = document.createElement('span'); wrap.id = 'ws-upstream-wrap'; wrap.className = 'ws-collab-wrap';
+  const btn = document.createElement('button'); btn.id = 'ws-upstream-btn'; btn.className = 'ws-arch-btn'; btn.type = 'button';
+  btn.title = '업스트림 키 발급 — 다른 main 후보 / 자율 런타임이 합류할 키'; btn.textContent = '⬆';
+  const panel = document.createElement('div'); panel.id = 'ws-upstream-panel'; panel.className = 'ws-collab-panel'; panel.hidden = true;
+  wrap.appendChild(btn); wrap.appendChild(panel);
+  const collabWrap = head.querySelector('#ws-collab-wrap');
+  if (collabWrap) head.insertBefore(wrap, collabWrap); else head.appendChild(wrap);
+
+  let status = 'idle', key = '', joinUrl = '', label = '';
+  function render() {
+    panel.textContent = '';
+    const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '⬆ 업스트림 키 발급'; panel.appendChild(h);
+    if (status === 'idle') {
+      const inp = document.createElement('input'); inp.className = 'ws-invite-label'; inp.placeholder = '업스트림 대상 라벨'; inp.value = label;
+      const b = document.createElement('button'); b.className = 'ws-invite-btn'; b.type = 'button'; b.textContent = '키 발급';
+      b.onclick = () => { label = inp.value.trim(); register(); };
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { label = inp.value.trim(); register(); } });
+      panel.appendChild(inp); panel.appendChild(b);
+    } else if (status === 'issuing') {
+      const b = document.createElement('button'); b.className = 'ws-invite-btn'; b.type = 'button'; b.textContent = '발급 중…'; b.disabled = true;
+      panel.appendChild(b);
+    } else {   // issued
+      const meta = document.createElement('div'); meta.className = 'ws-invite-meta'; meta.textContent = (label || 'upstream') + ' · ' + key.slice(0, 14) + '…';
+      const urlEl = document.createElement('div'); urlEl.className = 'ws-invite-url'; urlEl.textContent = joinUrl || key;
+      const row = document.createElement('div'); row.className = 'ws-invite-row';
+      const cpUrl = document.createElement('button'); cpUrl.className = 'ws-invite-copy'; cpUrl.type = 'button'; cpUrl.textContent = 'URL 복사'; cpUrl.onclick = () => copy(cpUrl, joinUrl || key);
+      const cpKey = document.createElement('button'); cpKey.className = 'ws-invite-copy'; cpKey.type = 'button'; cpKey.textContent = '키만 복사'; cpKey.onclick = () => copy(cpKey, key);
+      const nw = document.createElement('button'); nw.className = 'ws-invite-new'; nw.type = 'button'; nw.textContent = '새 키'; nw.onclick = () => { status = 'idle'; key = ''; joinUrl = ''; render(); };
+      row.appendChild(cpUrl); row.appendChild(cpKey); row.appendChild(nw);
+      panel.appendChild(meta); panel.appendChild(urlEl); panel.appendChild(row);
+    }
+  }
+  function register() {
+    if (wsSendOrch({ type: 'CUSTOM', name: 'RegisterUpstreamKey', value: { label } })) { status = 'issuing'; render(); }
+    else { const e = document.createElement('div'); e.className = 'ws-invite-url'; e.textContent = '⚠ WS 연결 안 됨 — 잠시 후 다시'; panel.appendChild(e); }
+  }
+  function copy(b, text) {
+    const done = () => { const o = b.textContent; b.textContent = '복사됨 ✓'; setTimeout(() => { b.textContent = o; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => { b.textContent = '복사 실패'; });
+    else b.textContent = '복사 실패';
+  }
+  btn.onclick = (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) render(); };
+  document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('#ws-upstream-wrap')) panel.hidden = true; });
+  wsUpstream = {
+    setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; if (p.label != null) label = p.label; status = 'issued'; panel.hidden = false; render(); },
+    get status() { return status; }, get key() { return key; }, get joinUrl() { return joinUrl; },
   };
   render();
 }
@@ -1973,6 +2031,7 @@ function setupWS() {
   if (arch) arch.onclick = (e) => { e.stopPropagation(); if (archMenu) { wsRenderArchived(); archMenu.hidden = !archMenu.hidden; } };
   document.addEventListener('click', (e) => { if (archMenu && !archMenu.hidden && !e.target.closest('.ws-arch-wrap')) archMenu.hidden = true; });
   setupWsCollab();                                    // #168 외부 협업 초대(🔗) 토글·패널 마운트
+  setupWsUpstream();                                  // v2.3.23 — 업스트림 키 발급(⬆) 토글·패널 마운트 (URL 복사 + 키만 복사)
   updateWsConn(); updateWsBadge(); wsRenderTabs();
   wsLoadUI();                                         // 팝업 위치·크기·열림 상태 복원
   connectWS();
