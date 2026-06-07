@@ -4,6 +4,10 @@
 # Constellation reference runtime — single-instance lockfile (per _proposals/003 Fix 1, local-bridge.cjs L53)
 # Per-agentId PID lockfile written by the single-instance guard; never tracked.
 constellation/reference/runtime/.*-bridge.lock
+# v2.5.65 — runtime/single-instance.cjs helper 가 작성하는 PID lock 파일들 (agentId 별 분리).
+# join-local / watchdog / 기타 client 가 동일 패턴으로 lock 파일 생성.
+constellation/reference/runtime/.*.pid
+constellation/reference/runtime/scripts/.*.pid
 
 # Constellation reference runtime — operational JSONL streams (inbox / outbox / etc.)
 # Written by the running runtime when it acts as the local bridge for an interactive

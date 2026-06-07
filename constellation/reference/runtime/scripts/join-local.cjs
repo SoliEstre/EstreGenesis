@@ -19,6 +19,9 @@ const THREAD_ID = process.env.WS_THREAD_ID || AGENT_ID || 'local-worker';
 if (!KEY_FILE) { console.error('[join-local] LOCAL_KEY_FILE env required'); process.exit(1); }
 if (!AGENT_ID) { console.error('[join-local] WS_AGENT_ID env required'); process.exit(1); }
 
+// single-instance 가드 (2026-06-07 incident 후속): 같은 agentId 로 중복 spawn 차단.
+require('../single-instance').acquire(path.join(DIR, `.join-local.${AGENT_ID}.pid`), 'join-local');
+
 const resolvedKeyFile = path.isAbsolute(KEY_FILE) ? KEY_FILE : path.join(DIR, KEY_FILE);
 let key;
 try { key = fs.readFileSync(resolvedKeyFile, 'utf8').trim(); }
