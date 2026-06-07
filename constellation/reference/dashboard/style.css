@@ -492,11 +492,11 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-body.ws-md strong { color: var(--ink); }
 
 /* 연결바 + 스트림 + 입력 */
-.ws-conn { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel2); margin-bottom: 12px; font-size: .85rem; }
+.ws-conn { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel2); margin-bottom: 8px; font-size: .85rem; }   /* bottom 12→8 */
 .ws-dot2 { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
 .ws-dot2.on { background: #39d353; box-shadow: 0 0 6px #39d353; }
 .ws-meta { color: var(--muted); font-size: .78rem; }
-.ws-h { font-size: .78rem; color: var(--muted); margin: 4px 1px 7px; display: flex; align-items: center; gap: 6px; }
+.ws-h { font-size: .78rem; color: var(--muted); margin: 0 1px 0; display: flex; align-items: center; gap: 6px; }   /* 상하 spacing 축소 — top 4→0 / bottom 7→0 */
 .ws-stream { flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: auto; padding: 5px; }
 .ws-empty { color: var(--muted); font-size: .82rem; padding: 14px 10px; }
 /* raw 이벤트 debug drawer (개발자용 — 기본 timeline 과 전환) */
