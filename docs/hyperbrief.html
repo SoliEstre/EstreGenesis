@@ -164,23 +164,46 @@
       </div>
     </section>
 
-    <section>
-      <h2 data-aud="general" data-en="Try it yourself" data-ko="직접 써보고 싶다면">Try it yourself</h2>
-      <h2 data-aud="dev" data-en="Install the plugin" data-ko="플러그인 설치">Install the plugin</h2>
-      <h2 data-aud="expert" data-en="Plugin deployment" data-ko="플러그인 배치">Plugin deployment</h2>
-      <p data-aud="general" data-en="If you are using Claude Code (Anthropic's terminal-based AI coding tool — the &quot;CLI&quot;, command-line interface), you can add Hyperbrief as a plug-in module (plugin), and the AI assistant will then start producing the structured information sheet every time a decision comes up. There are two typed shortcut commands (slash commands). The plug-in bundle includes three helper modules (skills), the renderer that always produces the same output for the same input (deterministic renderer), and a small server that lets the AI call four extra tools through a standard tool-connection protocol (MCP — Model Context Protocol): produce the sheet (render), check the sheet against the format rules (validate), add a record to the decision log (ledger append), and search the decision log (ledger query)." data-ko="Claude Code (Anthropic 이 만든 터미널 기반 AI 코딩 도구 — 「CLI」, 터미널 명령) 를 쓰신다면, Hyperbrief 를 끼워 넣는 모듈 (플러그인) 로 추가해 두면, AI 도우미가 모든 결정 질문 시점마다 구조화된 정보 정리 시트를 만들기 시작해요. 입력 명령 (슬래시 명령) 두 개로 끝나요. 플러그인 묶음에는 도우미 모듈 (스킬) 3 개, 같은 입력에 항상 같은 출력을 내는 렌더러 (결정론적 렌더러), 그리고 AI 가 외부 도구를 표준 규약으로 호출할 수 있게 해 주는 작은 서버 (MCP — 외부 도구 연결 규약, Model Context Protocol) 가 함께 들어 있어요. 그 서버를 통해 네 가지 도구를 쓸 수 있어요: 시트 만들기 (render), 형식 규칙에 맞는지 점검 (validate), 결정 기록부에 추가 (ledger append), 결정 기록부에서 찾기 (ledger query).">Add Hyperbrief as a Claude Code plug-in. Two commands. Bundle: 3 helpers + renderer + small tool-connection server (4 tools).</p>
-      <p data-aud="dev" data-en="Hyperbrief is distributed as a Claude Code plugin with an embedded MCP server. v0.5.2 is install-ready through the EstreGenesis plugin marketplace, requires a single npm dependency (ajv ^8.17.0) for schema validation, and exposes four MCP tools (hyperbrief_render / hyperbrief_validate / decision_ledger_append / decision_ledger_query). No environment variables are required; the optional HYPERBRIEF_LEDGER_PATH env overrides the default decision-ledger location:" data-ko="Hyperbrief는 embedded MCP 서버를 포함하는 Claude Code 플러그인 형태로 배포됩니다. v0.5.2는 EstreGenesis 플러그인 marketplace를 통해 install 가능하며, schema validation을 위해 단일 npm 의존성(ajv ^8.17.0)만 요구하고, 4개의 MCP tool(hyperbrief_render / hyperbrief_validate / decision_ledger_append / decision_ledger_query)을 노출합니다. 환경 변수는 필수 아니며, optional HYPERBRIEF_LEDGER_PATH env가 default decision-ledger 위치를 override합니다:">Hyperbrief ships as a Claude Code plugin with embedded MCP server. v0.5.2 needs single npm dep (ajv) + 0 mandatory env. 4 MCP tools exposed.</p>
-      <p data-aud="expert" data-en="Hyperbrief is distributed as a Claude Code plugin with an embedded MCP server. v0.5.2 is in an install-ready state and may be deployed by means of the following sequence:" data-ko="Hyperbrief는 embedded MCP 서버를 갖춘 Claude Code 플러그인의 형태로 배포된다. v0.5.2는 install 가능 상태에 있으며, 아래의 순서를 통해 배치할 수 있다:">Hyperbrief ships as a Claude Code plugin with embedded MCP server. v0.5.2 install-ready.</p>
-<pre><code><span data-en="# Add the EstreGenesis plug-in marketplace (the catalog the plug-in comes from):" data-ko="# EstreGenesis 플러그인 마켓플레이스 (플러그인이 들어 있는 카탈로그) 추가:"># Add the EstreGenesis plug-in marketplace (the catalog the plug-in comes from):</span>
-/plugin marketplace add SoliEstre/EstreGenesis
+    <section id="install-hyperbrief">
+      <h2 data-en="Install" data-ko="설치">Install</h2>
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">A</span>
+          <span class="step-title" data-en="Register the marketplace (one time)" data-ko="마켓플레이스 등록 (한 번만)">Register the marketplace (one time)</span>
+        </div>
+        <p class="step-desc" data-en="Add the EstreGenesis marketplace to Claude Code. You only need to do this once per machine." data-ko="EstreGenesis 마켓플레이스를 Claude Code 에 등록해요. 컴퓨터당 한 번만 하면 돼요.">Add the EstreGenesis marketplace to Claude Code. You only need to do this once per machine.</p>
+        <div class="cmd-row">
+          <pre><code data-en="/plugin marketplace add SoliEstre/EstreGenesis" data-ko="/plugin marketplace add SoliEstre/EstreGenesis">/plugin marketplace add SoliEstre/EstreGenesis</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
 
-<span data-en="# Install the Hyperbrief plug-in:" data-ko="# Hyperbrief 플러그인 설치:"># Install the Hyperbrief plug-in:</span>
-/plugin install hyperbrief@estregenesis-plugins
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">B</span>
+          <span class="step-title" data-en="Install Hyperbrief" data-ko="Hyperbrief 설치">Install Hyperbrief</span>
+        </div>
+        <p class="step-desc" data-en="Install the Hyperbrief plugin from the marketplace." data-ko="마켓플레이스에서 Hyperbrief 플러그인을 설치해요.">Install the Hyperbrief plugin from the marketplace.</p>
+        <div class="cmd-row">
+          <pre><code data-en="/plugin install hyperbrief@estregenesis-plugins" data-ko="/plugin install hyperbrief@estregenesis-plugins">/plugin install hyperbrief@estregenesis-plugins</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+    </section>
 
-<span data-en="# Optional setting — where the decision log file is kept (default: .agent/_decisions/hyperbrief-ledger.jsonl):" data-ko="# 선택 설정 — 결정 기록부 파일을 둘 곳 (기본값: .agent/_decisions/hyperbrief-ledger.jsonl):"># Optional setting — where the decision log file is kept (default: .agent/_decisions/hyperbrief-ledger.jsonl):</span>
-HYPERBRIEF_LEDGER_PATH=/path/to/hyperbrief-ledger.jsonl</code></pre>
-      <p data-aud="general" data-en="No outside real-time communication server (WebSocket — real-time two-way communication server) or other infrastructure is needed — Hyperbrief works on its own. Two optional combinations: install Constellation alongside it, and the decision cards (including placeholders for items that the hooks have noticed are waiting for review) get pushed to the live dashboard's &quot;to review&quot; panel; install Superscalar alongside it, and parallel work lanes (writing, deploying, sending) automatically pass through Hyperbrief's check at the finishing step." data-ko="외부 실시간 양방향 통신 서버 (WebSocket — 실시간 양방향 통신 서버) 나 다른 인프라가 필요하지 않아요 — Hyperbrief 는 그 자체로 동작해요. 선택적인 두 가지 조합이 있어요: Constellation 을 함께 설치하면 결정 카드 (훅이 알아챈 검토 대기 placeholder 포함) 가 실시간 대시보드의 「검토할 것」 패널에 올라가요. Superscalar 를 함께 설치하면 병렬 작업 갈래 (쓰기 · 배포 · 전송) 가 마무리 단계에서 자동으로 Hyperbrief 의 점검을 거치게 돼요.">No outside real-time server (WebSocket) needed. Optional combinations: Constellation (decision cards on live dashboard) + Superscalar (parallel lanes auto-checked at finish).</p>
-      <p data-aud="dev" data-en="v0.5.3 adds PreToolUse + Stop hooks in advise mode (exit 0, never block). The PreToolUse hook fires on AskUserQuestion + Bash-write/deploy/send-whitelist and routes per a 4-way decision tree: Constellation reachable → DECISION_REQUEST envelope posted to the board's review-items panel; Constellation off + auto_generate_review_doc=on → `.hyperbrief/pending-reviews/<id>.md` placeholder; default 'ask' → stderr advise + setup hint; off → simple alert. The Stop hook scans the decision ledger + pending-reviews for unreviewed items and emits a single advisory line. Adds a silent-skip detection layer on top of the model-invoked SKILL.md discipline; does NOT replace it (cross-host portability preserved)." data-ko="v0.5.3가 PreToolUse + Stop hook을 advise mode(exit 0, 차단 안 함)로 추가. PreToolUse hook이 AskUserQuestion + Bash-write/deploy/send-whitelist에서 fire하고 4-way decision tree로 routing: Constellation 가용 → DECISION_REQUEST envelope이 보드의 검토 사안 패널에 등록; Constellation off + auto_generate_review_doc=on → `.hyperbrief/pending-reviews/<id>.md` placeholder; 기본 'ask' → stderr advise + 설정 안내; off → 단순 알림. Stop hook이 결정 ledger + pending-reviews에서 미검토 항목 스캔하고 단일 advisory line emit. model-invoked SKILL.md 규율 위에 silent-skip 감지 layer 추가; 대체하지 않음 (cross-host portability 보존).">v0.5.3 adds advise-mode PreToolUse + Stop hooks with a 4-way review-queue routing tree (Constellation board / standalone placeholder / setup-ask / silent). Adds silent-skip detection on top of model-invoked SKILL.md; does NOT replace it.</p>
+    <section id="example-prompts">
+      <h2 data-en="Example prompts" data-ko="사용 예시">Example prompts</h2>
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">1</span>
+          <span class="step-title" data-en="Hyperbrief — decision brief at a specific tone" data-ko="Hyperbrief — 지정 톤으로 결정 브리핑">Hyperbrief — decision brief at a specific tone</span>
+        </div>
+        <p class="step-desc" data-en="When you are losing track of what is being decided, ask for a Hyperbrief at the simplest tone (L1.1.1 — general audience, full sentences, no jargon). The 9-section brief lays out situation, options, recommendation, and risks cleanly." data-ko="결정 흐름이 잘 안 잡힐 때, 가장 친절한 톤 (L1.1.1 — 일반 청중 + 자연 문장 + 전문용어 풀어쓰기) 으로 Hyperbrief 를 요청하세요. 9 섹션 브리프가 상황 · 선택지 · 권장 · 위험을 깔끔하게 정리해줘요.">When you are losing track of what is being decided, ask for a Hyperbrief at the simplest tone (L1.1.1 — general audience, full sentences, no jargon). The 9-section brief lays out situation, options, recommendation, and risks cleanly.</p>
+        <div class="cmd-row">
+          <pre><code data-en="I'm having trouble following this — give me a Hyperbrief at L1.1.1 (the simplest tone profile)." data-ko="이 사항 이해가 잘 안되는데 Hyperbrief L1.1.1 (가장 쉬운 표현 옵션) 로 브리핑해줘.">I'm having trouble following this — give me a Hyperbrief at L1.1.1 (the simplest tone profile).</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
     </section>
 
     <section id="use-cases">

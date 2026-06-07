@@ -229,6 +229,72 @@
       </table>
     </section>
 
+    <section id="install-constellation">
+      <h2 data-en="Install the plugin" data-ko="플러그인 설치">Install the plugin</h2>
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">A</span>
+          <span class="step-title" data-en="Register the marketplace (one time)" data-ko="마켓플레이스 등록 (한 번만)">Register the marketplace (one time)</span>
+        </div>
+        <p class="step-desc" data-en="Add the EstreGenesis marketplace to Claude Code. You only need to do this once per machine." data-ko="EstreGenesis 마켓플레이스를 Claude Code 에 등록해요. 한 컴퓨터에서 한 번만 하면 돼요.">Add the EstreGenesis marketplace to Claude Code. You only need to do this once per machine.</p>
+        <div class="cmd-row">
+          <pre><code data-en="/plugin marketplace add SoliEstre/EstreGenesis" data-ko="/plugin marketplace add SoliEstre/EstreGenesis">/plugin marketplace add SoliEstre/EstreGenesis</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">B</span>
+          <span class="step-title" data-en="Install Constellation" data-ko="Constellation 설치">Install Constellation</span>
+        </div>
+        <p class="step-desc" data-en="Install the Constellation plugin from the marketplace — it brings the live-board, A2A tools, and dashboard surface into your Claude Code session." data-ko="마켓플레이스에서 Constellation 플러그인을 설치해요 — 라이브 보드, A2A 도구, 대시보드 표면이 Claude Code 세션에 들어와요.">Install the Constellation plugin from the marketplace — it brings the live-board, A2A tools, and dashboard surface into your Claude Code session.</p>
+        <div class="cmd-row">
+          <pre><code data-en="/plugin install constellation@estregenesis-plugins" data-ko="/plugin install constellation@estregenesis-plugins">/plugin install constellation@estregenesis-plugins</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="example-prompts">
+      <h2 data-en="Example prompts" data-ko="사용 예시">Example prompts</h2>
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">1</span>
+          <span class="step-title" data-en="Constellation — set up the live board and start it automatically" data-ko="Constellation — 라이브보드 도입 및 자동 기동">Constellation — set up the live board and start it automatically</span>
+        </div>
+        <p class="step-desc" data-en="The very first call to make after installing Constellation. The agent installs the live board, sets up the reference WebSocket server, and starts it as soon as everything is ready — no manual server command required." data-ko="Constellation 설치 직후 가장 먼저 호출하는 패턴이에요. 에이전트가 라이브보드를 도입하고, reference WebSocket 서버 준비까지 마친 다음 자동으로 기동해줘요. 사용자 측 서버 명령 입력 없음.">The very first call to make after installing Constellation. The agent installs the live board, sets up the reference WebSocket server, and starts it as soon as everything is ready — no manual server command required.</p>
+        <div class="cmd-row">
+          <pre><code data-en="Set up the Constellation live board and start it as soon as it's ready." data-ko="Constellation 라이브보드 도입해주고 준비되면 바로 기동해줘.">Set up the Constellation live board and start it as soon as it's ready.</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">2</span>
+          <span class="step-title" data-en="Constellation + Hyperbrief — refresh the dashboard at a specific tone" data-ko="Constellation + Hyperbrief — 지정 톤으로 대시보드 현행화">Constellation + Hyperbrief — refresh the dashboard at a specific tone</span>
+        </div>
+        <p class="step-desc" data-en="Typical first call right after Constellation setup, when the live board is still empty. The agent populates the board with your current work and uses the Hyperbrief tone profile (L1.1.1 is the simplest)." data-ko="Constellation 처음 셋팅 직후 대시보드가 비어 있을 때 쓰는 첫 호출 패턴이에요. 에이전트가 현재 진행 중인 작업으로 보드를 채우고, Hyperbrief 톤 프로파일 (L1.1.1 이 가장 친절한 옵션) 을 적용해요.">Typical first call right after Constellation setup, when the live board is still empty. The agent populates the board with your current work and uses the Hyperbrief tone profile (L1.1.1 is the simplest).</p>
+        <div class="cmd-row">
+          <pre><code data-en="Bring the Constellation dashboard up to date. Tone for any new copy: Hyperbrief L1.1.1." data-ko="Constellation 대시보드 현행화해줘. 내용 톤은 Hyperbrief 기준 L1.1.1 으로.">Bring the Constellation dashboard up to date. Tone for any new copy: Hyperbrief L1.1.1.</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">3</span>
+          <span class="step-title" data-en="Constellation + Hyperbrief — post a decision to the live review queue" data-ko="Constellation + Hyperbrief — 라이브 보드 검토 큐에 등재">Constellation + Hyperbrief — post a decision to the live review queue</span>
+        </div>
+        <p class="step-desc" data-en="When something needs multi-angle review before you commit, push it onto the board's review queue at a chosen tone so collaborators (or your future self) can pick it up." data-ko="commit 전에 여러 측면 검토가 필요한 사안을 보드의 검토 큐에 지정 톤으로 올려서, 협업자나 본인 (future self) 이 이어 받아 처리할 수 있게 해요.">When something needs multi-angle review before you commit, push it onto the board's review queue at a chosen tone so collaborators (or your future self) can pick it up.</p>
+        <div class="cmd-row">
+          <pre><code data-en="That last item needs multi-angle review — post it to the live board's review queue at L1.1.1 tone." data-ko="방금 건은 다방면으로 검토가 필요하니까 라이브 보드의 검토 사안에 L1.1.1 톤으로 등재해줘.">That last item needs multi-angle review — post it to the live board's review queue at L1.1.1 tone.</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+    </section>
+
     <section id="use-cases">
       <h2 data-aud="general" data-en="How people use it" data-ko="이렇게 써요">How people use it</h2>
       <h2 data-aud="dev" data-en="Use cases" data-ko="활용 사례">Use cases</h2>
@@ -289,43 +355,6 @@
           <ul data-aud="expert" data-en-html="&lt;li&gt;Key issuance: the dashboard invite-issuance surface emits a Remote-scheme Upstream key under §13.16.10 KEY-MGMT v0.3, with the &lt;code&gt;roleDescription&lt;/code&gt; field encoding the upstream principal's scope of authority and the decision-class taxonomy admissible to them. The field is embedded in the key envelope and surfaces at §13.9.1 AgentHello opt-in.&lt;/li&gt;&lt;li&gt;Admission: the upstream agent attains Upstream-tier residency in the AgentList — structurally peer-like (no addressed-dispatch admission discipline) but bearing the decision-authority capability that distinguishes the tier from Collaborator. The §13.9.2 canonical-id alias mechanism is applicable for cross-environment identity resolution.&lt;/li&gt;&lt;li&gt;Request/response semantics: the requesting principal emits a &lt;code&gt;hyperbrief.decision-request&lt;/code&gt; intent (§13.16.9) addressed to the upstream principal, carrying the decision-frame and contextual payload. The upstream principal processes the request — typically through its in-process Hyperbrief evaluation (Hyperbrief.md §1) — and emits a &lt;code&gt;hyperbrief.decision-response&lt;/code&gt; intent in reply. At-least-once relay semantics (§13.13.2) govern delivery; idempotent reception is the responsibility of the receiver.&lt;/li&gt;&lt;li&gt;Blocking primitive: the requesting principal invokes a localised &lt;code&gt;await_decision&lt;/code&gt; primitive that suspends solely the dependent task-graph node — independent branches retain forward progress, in conformance with the Superscalar parallel-dispatch invariant. Upon arrival of the response intent, the suspended node resumes with the decision payload bound to its continuation.&lt;/li&gt;" data-ko-html="&lt;li&gt;키 발급: 대시보드 invite-issuance 표면이 §13.16.10 KEY-MGMT v0.3 하의 Remote-scheme Upstream 키를 emit 한다. &lt;code&gt;roleDescription&lt;/code&gt; 필드는 upstream principal 의 권한 범위와 해당 principal 에게 admissible 한 결정 부류 taxonomy 를 encode 한다. 해당 필드는 key envelope 에 embed 되어 §13.9.1 AgentHello opt-in 에서 surface 된다.&lt;/li&gt;&lt;li&gt;Admission: upstream 에이전트는 AgentList 의 Upstream-tier residency 에 도달한다 — 구조적으로는 peer-like (addressed-dispatch admission 규율의 부재) 이지만, Collaborator 와 본 tier 를 식별하는 decision-authority capability 를 보유한다. 환경 간 정체성 해소에 대해서는 §13.9.2 canonical-id alias 메커니즘이 applicable 하다.&lt;/li&gt;&lt;li&gt;Request/response 의미론: 요청 principal 이 upstream principal 앞으로 &lt;code&gt;hyperbrief.decision-request&lt;/code&gt; intent (§13.16.9) 를 emit 하며, decision-frame 과 맥락적 payload 를 동반한다. upstream principal 은 — 전형적으로 in-process Hyperbrief 평가 (Hyperbrief.md §1) 를 통해 — 요청을 처리하고 &lt;code&gt;hyperbrief.decision-response&lt;/code&gt; intent 를 회신한다. 전달은 at-least-once relay 의미론 (§13.13.2) 의 통제를 받으며, 멱등적 수신은 수신측의 책임이다.&lt;/li&gt;&lt;li&gt;Blocking primitive: 요청 principal 은 국소화된 &lt;code&gt;await_decision&lt;/code&gt; primitive 를 invoke 하여 종속적 task-graph node 만을 suspend 한다 — 독립적 branch 들은 Superscalar 병렬-dispatch invariant 에 부합하여 forward progress 를 유지한다. response intent 의 도착 시 suspend 된 node 는 decision payload 를 자신의 continuation 에 bind 한 상태로 resume 한다.&lt;/li&gt;"><li>Key issuance: the dashboard invite-issuance surface emits a Remote-scheme Upstream key under §13.16.10 KEY-MGMT v0.3, with the <code>roleDescription</code> field encoding the upstream principal's scope of authority and the decision-class taxonomy admissible to them. The field is embedded in the key envelope and surfaces at §13.9.1 AgentHello opt-in.</li><li>Admission: the upstream agent attains Upstream-tier residency in the AgentList — structurally peer-like (no addressed-dispatch admission discipline) but bearing the decision-authority capability that distinguishes the tier from Collaborator. The §13.9.2 canonical-id alias mechanism is applicable for cross-environment identity resolution.</li><li>Request/response semantics: the requesting principal emits a <code>hyperbrief.decision-request</code> intent (§13.16.9) addressed to the upstream principal, carrying the decision-frame and contextual payload. The upstream principal processes the request — typically through its in-process Hyperbrief evaluation (Hyperbrief.md §1) — and emits a <code>hyperbrief.decision-response</code> intent in reply. At-least-once relay semantics (§13.13.2) govern delivery; idempotent reception is the responsibility of the receiver.</li><li>Blocking primitive: the requesting principal invokes a localised <code>await_decision</code> primitive that suspends solely the dependent task-graph node — independent branches retain forward progress, in conformance with the Superscalar parallel-dispatch invariant. Upon arrival of the response intent, the suspended node resumes with the decision payload bound to its continuation.</li></ul>
         </div>
       </div>
-    </section>
-
-    <section>
-      <h2 data-aud="general" data-en="Try it yourself" data-ko="직접 써보고 싶다면">Try it yourself</h2>
-      <h2 data-aud="dev" data-en="Install the plugin" data-ko="플러그인 설치">Install the plugin</h2>
-      <h2 data-aud="expert" data-en="Plugin deployment" data-ko="플러그인 배치">Plugin deployment</h2>
-      <p data-aud="general" data-en="If you're using Claude Code (Anthropic's coding assistant, a terminal command (CLI) tool), you can add Constellation as a plug-in (extension that adds features). Your session will then show up on the shared screen (dashboard) alongside the other agents. It takes two terminal commands (CLI) plus three small settings:" data-ko="Claude Code (Anthropic 의 코딩 도우미, 터미널 명령 (CLI) 도구) 를 쓰신다면, Constellation 을 플러그인 (기능을 추가해 주는 확장) 으로 등록해 두면 이 세션이 다른 에이전트들과 함께 공유 화면 (대시보드) 에 나타나요. 터미널 명령 (CLI) 2개와 작은 설정값 3개면 끝나요.">If you're using Claude Code (Anthropic's coding assistant, a terminal command (CLI) tool), add Constellation as a plug-in (an extension that adds features) and your session shows up on the shared screen (dashboard). Two terminal commands (CLI) plus three small settings:</p>
-      <p data-aud="dev" data-en="Constellation is distributed as a Claude Code plugin with an embedded MCP server. The Phase 2 prototype (v0.2.0) is installable through the EstreGenesis plugin marketplace and requires a single npm dependency (ws ^8.18.0) together with role-keyed environment authentication:" data-ko="Constellation은 embedded MCP 서버를 포함하는 Claude Code 플러그인 형태로 배포됩니다. Phase 2 prototype(v0.2.0)은 EstreGenesis 플러그인 marketplace를 통해 설치할 수 있으며, 단일 npm 의존성(ws ^8.18.0)과 역할 기반 환경 변수 인증을 함께 요구합니다:">Constellation ships as a Claude Code plugin with embedded MCP server. v0.2.0 needs npm dep + env auth:</p>
-      <p data-aud="expert" data-en="Constellation is distributed as a Claude Code plugin with an embedded MCP server. The Phase 2 prototype, identified as v0.2.0, is in an install-ready state and may be deployed by means of the following sequence:" data-ko="Constellation은 embedded MCP 서버를 갖춘 Claude Code 플러그인의 형태로 배포된다. v0.2.0으로 식별되는 Phase 2 prototype은 install 가능 상태에 있으며, 아래의 순서를 통해 배치할 수 있다:">Constellation ships as a Claude Code plugin with embedded MCP server.</p>
-<pre><code data-en="# Step 1 — Register the EstreGenesis plug-in marketplace (where plug-ins live):
-/plugin marketplace add SoliEstre/EstreGenesis
-
-# Step 2 — Install the constellation plug-in:
-/plugin install constellation@estregenesis-plugins
-
-# Step 3 — Set three small settings (environment variables) so the plug-in knows where the shared workspace is and how to log in:
-CONSTELLATION_WS_URL=ws://localhost:7878/ws    # the address of the shared workspace (the real-time messaging hub)
-CONSTELLATION_TOKEN=...    # your login key — use either this OR one of: CONSTELLATION_UPSTREAM_KEY (decision-authority key) / CONSTELLATION_COLLAB_KEY (guest-partner key)
-CONSTELLATION_STATE_PATH=/path/to/state.json    # the file path where your session state is kept" data-ko="# 1단계 — EstreGenesis 플러그인 장터 (플러그인이 모여 있는 곳) 를 등록:
-/plugin marketplace add SoliEstre/EstreGenesis
-
-# 2단계 — constellation 플러그인 설치:
-/plugin install constellation@estregenesis-plugins
-
-# 3단계 — 작은 설정값 (환경 변수) 3개를 지정해서, 공유 작업 공간 위치와 로그인 방법을 플러그인에 알려 줘요:
-CONSTELLATION_WS_URL=ws://localhost:7878/ws    # 공유 작업 공간 (실시간 메시징 허브) 의 주소
-CONSTELLATION_TOKEN=...    # 로그인 열쇠 — 이 값 또는 CONSTELLATION_UPSTREAM_KEY (결정 권한 열쇠) / CONSTELLATION_COLLAB_KEY (손님 동료 열쇠) 중 하나를 지정
-CONSTELLATION_STATE_PATH=/path/to/state.json    # 이 세션의 상태가 저장되는 파일 경로"># Step 1 — Register the EstreGenesis plug-in marketplace (where plug-ins live):
-/plugin marketplace add SoliEstre/EstreGenesis
-
-# Step 2 — Install the constellation plug-in:
-/plugin install constellation@estregenesis-plugins
-
-# Step 3 — Set three small settings (environment variables) so the plug-in knows where the shared workspace is and how to log in:
-CONSTELLATION_WS_URL=ws://localhost:7878/ws    # the address of the shared workspace (the real-time messaging hub)
-CONSTELLATION_TOKEN=...    # your login key — use either this OR one of: CONSTELLATION_UPSTREAM_KEY (decision-authority key) / CONSTELLATION_COLLAB_KEY (guest-partner key)
-CONSTELLATION_STATE_PATH=/path/to/state.json    # the file path where your session state is kept</code></pre>
     </section>
 
     <section>
