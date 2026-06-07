@@ -35,9 +35,17 @@
  *   node ws-agent-client.cjs --once          (데모 1회 run 후 종료 — CI/스모크용)
  */
 
+const path = require('path');
 const WS_URL = process.env.WS_URL || 'ws://127.0.0.1:7878/ws';
 const TOKEN = process.env.LIVE_BOARD_WS_TOKEN || process.env.WS_TOKEN || '';
 const AGENT_ID = process.env.WS_AGENT_ID || 'ref-agent';
+
+// single-instance 가드 (2026-06-07 incident 후속): 같은 agentId 로 중복 spawn 차단.
+// lock 파일은 caller 가 실행하는 디렉토리 기준 — agentId 별 분리로 다른 agentId 는 동시 운영 가능.
+require('../../runtime/single-instance').acquire(
+  path.join(process.cwd(), `.ws-agent-client.${AGENT_ID}.pid`),
+  'ws-agent-client',
+);
 const UPSTREAM_KEY = process.env.WS_UPSTREAM_KEY || '';   // v0.3: 설정 시 upstream role 로 접속(메인 발급 키)
 const ROLE = process.env.WS_ROLE || 'local';              // role 힌트(local/upstream) — 서버 최종 판정
 const ONCE = process.argv.includes('--once');

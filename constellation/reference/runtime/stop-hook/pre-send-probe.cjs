@@ -74,10 +74,34 @@ function writeCursor(n) {
   }
 }
 
+// ---- runaway 보호 (2026-06-07 incident 후속) ----
+// inbox.log 가 비정상적으로 폭증하면 (예: 합류 중복 → reconnect loop → AgentHello/transport 이벤트 폭주)
+// readFileSync 가 메모리 폭발 + surface 가 context 폭발 → API Usage Policy block.
+// 임계 size 넘으면: streaming line count → cursor advance to tail → surface skip → 사용자에 alarm.
+const RUNAWAY_BYTES = parseInt(process.env.PROBE_RUNAWAY_BYTES || '', 10) || 32 * 1024 * 1024;   // 32 MiB default
+const MAX_MEANINGFUL_SURFACE = 50;                                                                // probe 당 surface 항목 상한
+function countLinesStream(file) {
+  const buf = Buffer.alloc(64 * 1024);
+  let fd; try { fd = fs.openSync(file, 'r'); } catch { return 0; }
+  let count = 0, read;
+  while ((read = fs.readSync(fd, buf, 0, buf.length, null)) > 0) {
+    for (let i = 0; i < read; i++) if (buf[i] === 0x0A) count++;
+  }
+  fs.closeSync(fd);
+  return count;
+}
 function probe(cursor) {
   if (!fs.existsSync(INBOX)) {
     console.error(`[probe] inbox.log not found at ${INBOX} (cursor=${cursor})`);
     return { total: 0, newCount: 0, meaningful: [] };
+  }
+  // runaway guard — 임계 size 넘으면 readFileSync 안 함 + cursor 를 tail 로 advance + alarm
+  const st = fs.statSync(INBOX);
+  if (st.size > RUNAWAY_BYTES) {
+    const tail = countLinesStream(INBOX);
+    console.error(`[probe] ⚠ RUNAWAY DETECTED — inbox.log size=${st.size} bytes (${(st.size / 1048576).toFixed(1)} MiB) exceeds cap=${RUNAWAY_BYTES}. Likely duplicate-client reconnect loop or transport-event flood. Skipping surface + advancing cursor ${cursor} → ${tail} (tail). Investigate bridge state + rotate inbox.log manually.`);
+    writeCursor(tail);
+    return { total: tail, newCount: 0, meaningful: [], runaway: true };
   }
   const raw = fs.readFileSync(INBOX, 'utf8');
   const realLines = raw.split('\n').filter(Boolean);
@@ -177,9 +201,15 @@ const result = probe(CURSOR);
 console.error(`[probe] mode=${REARM_MODE ? 'rearm' : 'pre-send'} cursor=${CURSOR} total=${result.total} new=${result.newCount} meaningful=${result.meaningful.length}`);
 
 if (result.meaningful.length > 0) {
-  for (const m of result.meaningful) {
+  // runaway 보호 — meaningful 폭주 시 surface 상한 (2026-06-07 incident 후속). cap 초과분은 count 만 요약.
+  const surfaceCount = Math.min(result.meaningful.length, MAX_MEANINGFUL_SURFACE);
+  for (let i = 0; i < surfaceCount; i++) {
+    const m = result.meaningful[i];
     const v = m.body?.msg?.value || m.body?.value || {};
     console.error(`  - line ${m.idx} ${m.name}: ${JSON.stringify(v).slice(0, 400)}`);
+  }
+  if (result.meaningful.length > MAX_MEANINGFUL_SURFACE) {
+    console.error(`[probe] … +${result.meaningful.length - MAX_MEANINGFUL_SURFACE} more meaningful items truncated (cap=${MAX_MEANINGFUL_SURFACE}). Inspect inbox.log directly or raise PROBE_RUNAWAY_BYTES if intentional.`);
   }
   if (REARM_MODE) {
     // Cycle-end probe found meaningful — log for next-turn agent review.

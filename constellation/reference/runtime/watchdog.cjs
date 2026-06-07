@@ -56,6 +56,10 @@ const MAIN_ID = process.env.MAIN_ID || 'main-agent';
 const NODE = process.execPath;
 const SPAWN_COOLDOWN = 8000;   // 같은 대상 연속 재시작 억제(기동 중 중복 spawn 방지)
 
+// single-instance 가드 (2026-06-07 incident 후속): watchdog 중복 spawn 차단 — 두 개가 동시에
+// server/bridge 재시작 trigger 하면 SPAWN_COOLDOWN 우회 + AgentList 다중 구독 등 혼선 발생.
+require('./single-instance').acquire(path.join(DIR, `.watchdog.${PORT}.pid`), 'watchdog');
+
 function log(...a) {
   const line = `[${new Date().toISOString()}] ${a.join(' ')}`;
   console.log(line);
