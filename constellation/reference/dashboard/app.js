@@ -1229,11 +1229,37 @@ function wsRenderArchived() {   // "닫은 세션" 버튼 + 드롭다운 — 닫
   }
   for (const [id, c] of hidden) {
     const item = el('div', 'ws-arch-item');
-    item.textContent = (c.name || id) + (c.role && c.role !== 'local' ? ' · ' + c.role : '');
-    item.title = '복원: ' + id;
-    item.onclick = () => wsRestoreChannel(id);
+    const present = wsState.present.has(c.routeId || id);   // 현재 연결 여부 — 닫힌 세션도 에이전트가 다시 붙어 있으면 표시
+    const dot = el('span', 'ws-arch-dot' + (present ? ' on' : ''));
+    dot.title = present ? '현재 연결됨' : '연결 끊김(닫힌 세션)';
+    const lbl = el('span', 'ws-arch-lbl'); lbl.textContent = (c.name || id) + (c.role && c.role !== 'local' ? ' · ' + c.role : '');
+    lbl.title = '복원: ' + id; lbl.onclick = () => wsRestoreChannel(id);
+    const del = el('span', 'ws-arch-del'); del.textContent = '🗑'; del.title = '이 세션 기록 영구 삭제';
+    del.onclick = (e) => { e.stopPropagation(); wsDeleteChannel(id, c.name || id); };
+    item.append(dot, lbl, del);
     menu.appendChild(item);
   }
+  const all = el('div', 'ws-arch-all');
+  const ab = el('button', 'ws-arch-allbtn'); ab.type = 'button'; ab.textContent = '🗑 전체 삭제 (' + hidden.length + ')';
+  ab.onclick = (e) => { e.stopPropagation(); wsDeleteAllChannels(); };
+  all.appendChild(ab); menu.appendChild(all);
+}
+async function wsDeleteChannel(id, name) {   // 개별 기록 삭제 — wsConfirm 후 server 통지 + 로컬 채널 제거
+  if (!(await wsConfirm(`'${name}' 세션 기록을 영구 삭제할까요? 복원할 수 없어요.`, { title: '세션 기록 삭제', danger: true, okLabel: '삭제' }))) return;
+  const ws = wsState.ws; if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ ...wsCommon(), type: 'CUSTOM', name: 'DeleteChannelHistory', value: { agentId: id } })); } catch {} }
+  wsState.channels.delete(id);
+  if (wsState.active === id) wsState.active = [...wsState.channels.keys()].find((k) => !wsState.channels.get(k).hidden && !wsIsMon(k)) || null;
+  wsSaveHidden(); wsRenderTabs(); wsRenderArchived(); wsRenderActiveStream(); updateWsConn(); updateWsBadge();
+}
+async function wsDeleteAllChannels() {   // 전체삭제 — 닫은 세션 전부 영구 삭제 (wsConfirm)
+  const hidden = [...wsState.channels.entries()].filter(([id, c]) => c.hidden && !wsIsMon(id));
+  if (!hidden.length) return;
+  if (!(await wsConfirm(`닫은 세션 ${hidden.length}개 기록을 모두 영구 삭제할까요? 복원할 수 없어요.`, { title: '전체 세션 기록 삭제', danger: true, okLabel: '전체 삭제' }))) return;
+  const ws = wsState.ws; if (ws && ws.readyState === 1) { for (const [id] of hidden) { try { ws.send(JSON.stringify({ ...wsCommon(), type: 'CUSTOM', name: 'DeleteChannelHistory', value: { agentId: id } })); } catch {} } }
+  for (const [id] of hidden) { if (wsState.active === id) wsState.active = null; wsState.channels.delete(id); }
+  if (!wsState.active) wsState.active = [...wsState.channels.keys()].find((k) => !wsState.channels.get(k).hidden && !wsIsMon(k)) || null;
+  wsSaveHidden(); wsRenderTabs(); wsRenderArchived(); wsRenderActiveStream(); updateWsConn(); updateWsBadge();
+  const menu = $('#ws-arch-menu'); if (menu) menu.hidden = true;
 }
 
 // ---- TOOL_CALL aggregate 카드 (toolCallId 기준 start/args/end/result 한 카드) ----
@@ -1244,6 +1270,88 @@ function wsToolStat(s) {
   if (s === 'error' || s === 'failed' || s === 'denied') return ['err', '⚠ ' + (s === 'denied' ? '거부됨' : '실패')];
   if (s === 'running' || s === 'pending' || s === 'in_progress' || s === 'started') return ['running', '● 실행 중'];
   return ['done', '✓ 완료'];
+}
+// ---- A2A-intent CUSTOM 카드 (Report·BlockerManifest·ReviewSLAAck·PR* / Deadlock* family — §13.16.9 allowlist) ----
+// 이전엔 ✦ <name> 단일 text row(+hover full)로 흘러 "raw/TEXT" 로 보였다. 이제 아이콘 + envelope summary + 펼침 details 카드.
+// raw JSON 은 timeline 에 직접 노출하지 않음(§1) — 의미 필드만 key/value 로, 전체 원본은 debug drawer.
+const WS_A2A_INTENT = {   // name → { icon, label, summaryKeys[] } (summaryKeys: 한 줄 요약 후보, 앞에서부터 첫 비어있지 않은 값)
+  Report:            { icon: '📄', label: 'Report',        sum: ['re', 'subject', 'summary', 'status'] },
+  BlockerManifest:   { icon: '🚧', label: 'Blocker',       sum: ['re', 'subject', 'summary', 'reason', 'status'] },
+  BlockerNudge:      { icon: '🚧', label: 'Blocker nudge', sum: ['re', 'subject', 'reason', 'summary', 'status'] },
+  ReviewSLAAck:      { icon: '⏱', label: 'SLA ack',        sum: ['re', 'subject', 'kind', 'commitment', 'status'] },
+  PRRequest:         { icon: '🔀', label: 'PR 요청',       sum: ['re', 'subject', 'title', 'summary', 'sourceRepo'] },
+  PRMergeRequest:    { icon: '🔀', label: 'PR 머지 요청',  sum: ['re', 'subject', 'title', 'summary', 'targetRepo'] },
+  PRDraftReady:      { icon: '🔀', label: 'PR draft',      sum: ['re', 'subject', 'draftRef', 'summary', 'status'] },
+  PRRequestRejected: { icon: '🚫', label: 'PR 반려',       sum: ['reason', 're', 'subject', 'suggest', 'status'] },
+  PRMergeAck:        { icon: '✅', label: 'PR 머지 ack',   sum: ['re', 'subject', 'status', 'prUrl', 'summary'] },
+  PRMergeRejected:   { icon: '🚫', label: 'PR 머지 반려',  sum: ['reason', 're', 'subject', 'status'] },
+  PRStatusUpdate:    { icon: '🔃', label: 'PR 상태',       sum: ['status', 're', 'subject', 'prUrl', 'summary'] },
+  DeadlockProbe:     { icon: '🔁', label: 'Deadlock probe', sum: ['reason', 're', 'trigger', 'subject', 'status'] },
+  PreemptRequest:    { icon: '🔁', label: 'Preempt 요청',  sum: ['re', 'subject', 'reason', 'target', 'status'] },
+  PreemptForce:      { icon: '🔁', label: 'Preempt 강제',  sum: ['re', 'subject', 'reason', 'target', 'status'] },
+  MediationProposal: { icon: '⚖️', label: 'Mediation 제안', sum: ['re', 'subject', 'proposal', 'summary', 'status'] },
+  MediationAck:      { icon: '⚖️', label: 'Mediation ack', sum: ['re', 'subject', 'status', 'summary'] },
+  EscalationRequest: { icon: '⚠️', label: 'Escalation 요청', sum: ['re', 'subject', 'reason', 'tier', 'status'] },
+  EscalationSurfaced:{ icon: '⚠️', label: 'Escalation', sum: ['re', 'subject', 'reason', 'tier', 'decisionId', 'status'] },
+};
+function wsA2aSummary(spec, v) {   // summary 1줄 — spec.sum 키 순서대로 첫 비어있지 않은 문자열
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  for (const k of (spec.sum || [])) { const s = v[k]; if (s != null && String(s).trim() !== '' && (typeof s === 'string' || typeof s === 'number')) return String(s); }
+  return '';
+}
+// §13.16.12 Pattern 7 fallback — 미정합 adopter 가 A2A Report 를 envelope 대신 TEXT_MESSAGE.text 에
+// [자연어 + ```json{...}``` ] 직렬화로 보낼 때 코드블록 JSON 을 파싱해 A2A-intent 면 a2acard 로 승격(raw text 깨짐 방지).
+function wsExtractA2aReport(text) {
+  if (!text || typeof text !== 'string') return null;
+  const m = text.match(/```(?:json)?\s*\n?(\{[\s\S]*?\})\s*```/);
+  if (!m) return null;
+  let obj; try { obj = JSON.parse(m[1]); } catch { return null; }
+  if (!obj || typeof obj !== 'object') return null;
+  const name = (obj.name && obj.name !== 'CUSTOM') ? obj.name : obj.type;   // structured CUSTOM wrapper {type:"CUSTOM",name:"Report"} 도 잡음 + {type:"Report"} fallback
+  if (!name || !WS_A2A_INTENT[name]) return null;
+  const prefix = text.slice(0, m.index).replace(/\[A2A Report[^\]]*\]/gi, '').trim();
+  return { name, value: obj, prefix };
+}
+function wsA2aCardEl(row) {
+  const a = row.a2a || {};
+  const spec = a.spec || { icon: '✦', label: a.name || 'CUSTOM', sum: [] };
+  const v = a.value || {};
+  const card = el('div', 'ws-a2a');
+  const head = el('div', 'ws-a2a-h');
+  const ic = el('span', 'ws-a2a-ic'); ic.textContent = spec.icon || '✦';
+  const nm = el('span', 'ws-a2a-name'); nm.textContent = spec.label || a.name || 'CUSTOM';
+  const sm = el('span', 'ws-a2a-sum'); sm.textContent = a.summary || '';
+  head.append(ic, nm, sm);
+  card.append(head);
+  // details — value 의 의미 필드 key/value (요약으로 이미 보인 키 포함, 전체 envelope 의 가독 뷰). raw 원본은 debug drawer.
+  // 헤더 hover/클릭은 wsRowHover(미리보기 + 단독 플로팅 창) 전용 — collapse 는 최우측 별도 ▸/▾ 버튼으로만(충돌 방지: 버튼 onclick 에서 e.stopPropagation).
+  const fields = (v && typeof v === 'object' && !Array.isArray(v)) ? Object.entries(v).filter(([k]) => k !== 'type') : null;
+  if (fields && fields.length) {
+    const body = el('div', 'ws-a2a-body');
+    for (const [k, val] of fields) {
+      const r = el('div', 'ws-a2a-row');
+      const kk = el('span', 'ws-a2a-k'); kk.textContent = k;
+      const vv = el('span', 'ws-a2a-v');
+      vv.textContent = (val == null) ? '' : (typeof val === 'string' ? val : (Array.isArray(val) ? val.map(z => typeof z === 'string' ? z : JSON.stringify(z)).join('\n') : JSON.stringify(val, null, 2)));
+      r.append(kk, vv); body.append(r);
+    }
+    card.append(body);
+    { const _atts = wsAttachments(row.full); if (_atts.length) { const ab = el('div', 'ws-att-row'); for (const a of _atts) ab.appendChild(wsAttChipEl(a)); card.append(ab); } }   // A2A 카드 첨부 칩(접힘 무관 항상 표시)
+    const expanded = !!row._expanded;
+    body.hidden = !expanded;
+    const tg = el('button', 'ws-a2a-toggle'); tg.type = 'button';
+    tg.textContent = '◀'; tg.classList.toggle('expanded', expanded);
+    tg.title = expanded ? '접기' : '펼치기'; tg.setAttribute('aria-label', tg.title); tg.setAttribute('aria-expanded', String(expanded));
+    tg.onclick = (ev) => {
+      ev.stopPropagation(); ev.preventDefault();
+      row._expanded = body.hidden; body.hidden = !body.hidden;
+      tg.classList.toggle('expanded', !body.hidden);
+      tg.title = body.hidden ? '펼치기' : '접기'; tg.setAttribute('aria-label', tg.title); tg.setAttribute('aria-expanded', String(!body.hidden));
+    };
+    head.append(tg);
+  }
+  return card;
 }
 function wsToolMergeDisplay(tool, d) {
   if (!d) return;
@@ -1395,33 +1503,183 @@ function wsRowEl(row, showChan = true) {   // showChan: 출처 뱃지 표시 여
     const t = el('span', 'ws-t'); t.textContent = row.t;
     wrap.append(t); if (row.src) wrap.append(wsSrcEl(row)); if (row.chan && showChan) wrap.append(wsChanEl(row)); wrap.append(wsAttachCardEl(row)); return wrap;
   }
+  if (row.kind === 'a2acard') {   // A2A-intent CUSTOM 카드(Report·Blocker·PR*·Deadlock* — §13.16.9)
+    const wrap = el('div', 'ws-ev ws-a2arow');
+    const t = el('span', 'ws-t'); t.textContent = row.t;
+    wrap.append(t); if (row.src) wrap.append(wsSrcEl(row)); if (row.chan && showChan) wrap.append(wsChanEl(row)); wrap.append(wsA2aCardEl(row));
+    if (row.full) wsRowHover(wrap, row);   // 다른 A2A row 와 동일: hover→미리보기, 클릭→단독 플로팅 창(최우측 토글 버튼은 stopPropagation 으로 제외)
+    return wrap;
+  }
+  if (row.kind === 'selection') {   // #406 UI6 SelectionPrompt chip 카드
+    const wrap = el('div', 'ws-ev ws-selrow');
+    const t = el('span', 'ws-t'); t.textContent = row.t;
+    wrap.append(t); if (row.chan && showChan) wrap.append(wsChanEl(row)); const c = wsSelectionCardEl(row); row._sel = c; wrap.append(c); return wrap;
+  }
   const e = el('div', 'ws-ev' + (row.kind === 'user' ? ' ws-userline' : '') + (row.kind === 'status' ? ' ws-statusline' : ''));
   const t = el('span', 'ws-t'); t.textContent = row.t;
   const k = el('span', 'ws-k ' + row.kind); k.textContent = row.label;
   const md = row.kind === 'text' || row.kind === 'user';   // 대화 내용만 마크다운 렌더
   const b = el('span', 'ws-body' + (row.dim ? ' dim' : '') + (md ? ' ws-md' : ''));
   if (md) b.innerHTML = wsMd(row.body || ''); else b.textContent = row.body || '';
-  e.append(t); if (row.src) e.append(wsSrcEl(row)); if (row.chan && showChan) e.append(wsChanEl(row)); e.append(k, b); row._b = b; row._md = md;
+  e.append(t); if (row.src) e.append(wsSrcEl(row)); if (row.chan && showChan) e.append(wsChanEl(row)); e.append(k, b);
+  { const _atts = wsAttachments(row.full); if (_atts.length) { const ab = el('div', 'ws-att-row'); for (const a of _atts) ab.appendChild(wsAttChipEl(a)); e.append(ab); } }   // 일반 A2A row 첨부 칩
+  row._b = b; row._md = md;
   if (row.full) wsRowHover(e, row);   // 요약 가능한 A2A 메시지(WorkerReport·Delegate 등): hover 시 커서 4분면 팝업에 전체 렌더
   return e;
+}
+// ---- 날짜 변경선 (A2A 대화 stream 안 일자 구분, sticky top:0) ----
+function wsDayKey(ts) { if (!ts) return ''; const d = new Date(ts); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function wsDayLabel(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), now = new Date(), y = new Date(now); y.setDate(now.getDate() - 1);
+  const base = d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+  return d.toDateString() === now.toDateString() ? base + ' · 오늘'
+       : d.toDateString() === y.toDateString()   ? base + ' · 어제'
+       : base;
+}
+function wsDatelineEl(ts) {
+  const dl = el('div', 'ws-dateline');
+  const dt = el('span', 'ws-dl-date'); dt.textContent = wsDayLabel(ts);
+  dl.append(el('span', 'ws-dl-wave'), dt, el('span', 'ws-dl-wave'));
+  return dl;
+}
+// ---- A2A row 안 첨부(value 의 attachments[]/atts/files/attachment/zip/file 추출 + 칩) — Attachment kind 와 별개(저건 단일 첨부 카드) ----
+function wsAttachments(v) {
+  if (!v || typeof v !== 'object') return [];
+  let list = v.attachments || v.atts || v.files || (v.attachment ? [v.attachment] : (v.zip ? [v.zip] : (v.file ? [v.file] : [])));
+  if (!Array.isArray(list)) list = [list];
+  return list.filter(a => a && typeof a === 'object' && (a.filename || a.name || a.url || a.dataUrl));
+}
+function wsAttIcon(mime, name) {
+  const m = (mime || '') + ' ' + (name || '');
+  if (/image\//.test(mime) || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(name || '')) return '🖼';
+  if (/zip|tar|gz|7z|rar/i.test(m)) return '🗜';
+  if (/pdf/i.test(m)) return '📕';
+  if (/audio\//.test(mime)) return '🎵';
+  if (/video\//.test(mime)) return '🎬';
+  if (/json|javascript|text\/|\.(md|txt|js|ts|json|csv|log|cjs|mjs|html|css|ya?ml)$/i.test(m)) return '📄';
+  return '📎';
+}
+function wsAttChipEl(a) {
+  const name = a.filename || a.name || 'file';
+  const mime = a.mime || a.type || '';
+  const data = a.dataUrl || a.url || null;
+  const chip = el('div', 'ws-att-chip');
+  const ic = el('span', 'ws-att-ic'); ic.textContent = wsAttIcon(mime, name);
+  const info = el('span', 'ws-att-info'); info.textContent = name + (a.size != null ? ' · ' + fmtBytes(a.size) : '');
+  if (a.sha256) info.title = 'sha256: ' + a.sha256;
+  chip.append(ic, info);
+  const isImg = /image\//.test(mime) || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(name);
+  const isText = /json|text\/|javascript/.test(mime) || /\.(md|txt|js|ts|json|csv|log|cjs|mjs|html|css|ya?ml)$/i.test(name);
+  if (data) {
+    if (isImg || isText) { const pv = el('button', 'ws-att-pv'); pv.type = 'button'; pv.textContent = '👁'; pv.title = '미리보기'; pv.onclick = (e) => { e.stopPropagation(); wsAttPreview(name, data, isImg ? 'image' : 'text'); }; chip.append(pv); }
+    const dl = el('a', 'ws-att-dl'); dl.textContent = '⬇'; dl.href = data; dl.download = name; dl.title = '다운로드'; dl.onclick = (e) => e.stopPropagation(); chip.append(dl);
+  } else { const no = el('span', 'ws-att-no'); no.textContent = a.localPath ? '메타만(원격)' : '데이터 없음'; no.title = a.localPath || '데이터(dataUrl/url) 미동봉'; chip.append(no); }
+  return chip;
+}
+function wsAttPreview(name, data, kind) {
+  let modal = document.getElementById('ws-att-modal');
+  if (!modal) { modal = document.createElement('div'); modal.id = 'ws-att-modal'; modal.className = 'ws-att-modal'; modal.onclick = (e) => { if (e.target === modal) modal.hidden = true; }; document.body.appendChild(modal); }
+  modal.innerHTML = ''; modal.hidden = false;
+  const box = el('div', 'ws-att-box');
+  const hd = el('div', 'ws-att-mhead'); const tt = el('b'); tt.textContent = name; const x = el('button', 'ws-att-mx'); x.type = 'button'; x.textContent = '✕'; x.onclick = () => { modal.hidden = true; }; hd.append(tt, x);
+  const body = el('div', 'ws-att-mbody');
+  if (kind === 'image') { const img = el('img'); img.src = data; img.alt = name; body.append(img); }
+  else { const pre = el('pre'); pre.textContent = '불러오는 중…'; fetch(data).then(r => r.text()).then(t => { pre.textContent = t.length > 40000 ? t.slice(0, 40000) + '\n…(생략)' : t; }).catch(() => { pre.textContent = '(미리보기 불가)'; }); body.append(pre); }
+  box.append(hd, body); modal.append(box);
+}
+// ---- #406 UI6 SelectionPrompt chip 카드 (에이전트 발 선택지 → 사용자 답/취소 → board→server) ----
+function wsSelectionCardEl(row) {
+  const s = row.sel || {};
+  const answered = s.state === 'ANSWERED', cancelled = s.state === 'CANCELLED';
+  const done = answered || cancelled;
+  const card = el('div', 'ws-sel ' + (done ? (answered ? 'answered' : 'cancelled') : 'issued'));
+  const head = el('div', 'ws-sel-h');
+  const ic = el('span', 'ws-sel-ic'); ic.textContent = answered ? '✅' : cancelled ? '✖️' : '❔';
+  const txt = el('span', 'ws-sel-text'); txt.textContent = s.text || '선택해 주세요';
+  head.append(ic, txt); card.append(head);
+  if (cancelled) { const note = el('div', 'ws-sel-note'); note.textContent = '취소됨' + (s.reason ? ' · ' + s.reason : ''); card.append(note); return card; }
+  const picked = new Set(s.picked || []);
+  const chips = el('div', 'ws-sel-chips');
+  for (const o of s.options) {
+    const label = o && typeof o === 'object' ? o.label : String(o);
+    const chip = el('button', 'ws-sel-chip' + (picked.has(label) ? ' sel' : '') + (answered && (s.picked || []).indexOf(label) >= 0 ? ' chosen' : ''));
+    chip.type = 'button'; chip.textContent = label;
+    if (o && o.description) chip.title = o.description;
+    chip.disabled = done;
+    if (!done) chip.onclick = () => {
+      if (s.multiSelect) { if (picked.has(label)) picked.delete(label); else picked.add(label); s.picked = [...picked]; const fresh = wsSelectionCardEl(row); row._sel.replaceWith(fresh); row._sel = fresh; }
+      else { wsAnswerSelection(row, [label], ''); }
+    };
+    chips.append(chip);
+  }
+  card.append(chips);
+  if (!done && (s.allowFreeText || s.multiSelect)) {
+    const foot = el('div', 'ws-sel-foot');
+    let ftInp = null;
+    if (s.allowFreeText) { ftInp = el('input', 'ws-sel-ft'); ftInp.placeholder = '직접 입력…'; ftInp.value = s.freeText || ''; ftInp.oninput = () => { s.freeText = ftInp.value; }; foot.append(ftInp); }
+    const submit = el('button', 'ws-sel-submit'); submit.type = 'button'; submit.textContent = '답변';
+    submit.onclick = () => wsAnswerSelection(row, [...picked], ftInp ? ftInp.value.trim() : '');
+    const dismiss = el('button', 'ws-sel-dismiss'); dismiss.type = 'button'; dismiss.textContent = '취소'; dismiss.title = '응답하지 않고 닫기';
+    dismiss.onclick = () => wsCancelSelection(row, 'user-dismiss');
+    foot.append(submit, dismiss); card.append(foot);
+  } else if (!done) {
+    const foot = el('div', 'ws-sel-foot');
+    const dismiss = el('button', 'ws-sel-dismiss'); dismiss.type = 'button'; dismiss.textContent = '취소';
+    dismiss.onclick = () => wsCancelSelection(row, 'user-dismiss');
+    foot.append(dismiss); card.append(foot);
+  }
+  return card;
+}
+function wsAnswerSelection(row, selectedLabels, freeText) {
+  const s = row.sel || {};
+  if ((!selectedLabels || !selectedLabels.length) && !(freeText && freeText.trim())) return;   // §3.2 빈 답 금지
+  const value = { promptId: s.promptId, selectedLabels: selectedLabels || [], answeredAt: Date.now() };
+  if (freeText && freeText.trim()) value.freeText = freeText.trim();
+  if (wsSendOrch({ type: 'CUSTOM', name: 'SelectionAnswer', value })) { s.state = 'ANSWERED'; s.picked = selectedLabels || []; wsRefreshSelectionCard(row); }
+}
+function wsCancelSelection(row, reason) {
+  const s = row.sel || {};
+  if (wsSendOrch({ type: 'CUSTOM', name: 'SelectionCancel', value: { promptId: s.promptId, reason: reason || 'user-dismiss' } })) { s.state = 'CANCELLED'; s.reason = reason; wsRefreshSelectionCard(row); }
+}
+function wsRefreshSelectionCard(row) {   // chip 카드 in-place 재렌더(현 DOM 에 있으면)
+  if (row._sel && row._sel.parentNode) { const fresh = wsSelectionCardEl(row); row._sel.replaceWith(fresh); row._sel = fresh; }
+}
+function wsResolveSelection(promptId, resolution, reason) {   // SelectionResolved(다른 board 답) → 모든 채널 row 검색해 해당 chip dim
+  if (!promptId) return;
+  for (const ch of wsState.channels.values()) {
+    for (const row of ch.rows) {
+      if (row.kind === 'selection' && row.sel && row.sel.promptId === promptId && row.sel.state === 'ISSUED') {
+        row.sel.state = (resolution === 'answered') ? 'ANSWERED' : 'CANCELLED';
+        if (reason) row.sel.reason = reason;
+        wsRefreshSelectionCard(row);
+      }
+    }
+  }
 }
 function wsRenderRow(row) {
   const s = $('#ws-stream'); if (!s) return;
   const empty = s.querySelector('.ws-empty'); if (empty) empty.remove();
+  const dk = wsDayKey(row.ts); if (dk && s._lastDay !== dk) { s.appendChild(wsDatelineEl(row.ts)); s._lastDay = dk; }   // 날짜 바뀌면 변경선 삽입
   s.appendChild(wsRowEl(row));
   while (s.children.length > 300) s.removeChild(s.firstChild);
   s.scrollTop = s.scrollHeight;
 }
 function wsRenderActiveStream() {
   const s = $('#ws-stream'); if (!s) return;
-  s.innerHTML = '';
+  s.innerHTML = ''; s._lastDay = null;
   wsRenderChanFilter();   // 대화 위 출처(채널) 필터 탭 동기
   if (wsIsGroup(wsState.active)) {   // §13.6 그룹 병합: 멤버 채널 rows 를 ts 정렬, 출처 라벨
     const merged = [];
     for (const cid of wsGroupMembers(wsState.active)) { const c = wsState.channels.get(cid); if (c) for (const row of c.rows) merged.push({ row, src: c.name || cid }); }
     merged.sort((a, b) => (a.row.ts || 0) - (b.row.ts || 0));
     if (!merged.length) { s.innerHTML = '<div class="ws-empty">이 그룹에 아직 수신한 이벤트가 없어요.</div>'; return; }
-    for (const { row, src } of merged) { const e = wsRowEl(row); const sp = el('span', 'ws-src'); sp.textContent = src; e.insertBefore(sp, e.firstChild ? e.firstChild.nextSibling : null); s.appendChild(e); }
+    let lastDay = null;
+    for (const { row, src } of merged) {
+      const dk = wsDayKey(row.ts); if (dk && dk !== lastDay) { s.appendChild(wsDatelineEl(row.ts)); lastDay = dk; }
+      const e = wsRowEl(row); const sp = el('span', 'ws-src'); sp.textContent = src; e.insertBefore(sp, e.firstChild ? e.firstChild.nextSibling : null); s.appendChild(e);
+    }
+    s._lastDay = lastDay;
     s.scrollTop = s.scrollHeight;
     return;
   }
@@ -1429,8 +1687,13 @@ function wsRenderActiveStream() {
   if (!ch || !ch.rows.length) { s.innerHTML = '<div class="ws-empty">아직 수신한 이벤트가 없어요. 에이전트가 연결되면 여기에 표시됩니다.</div>'; return; }
   const f = ch._chanFilter || '*';            // 출처 필터 (* = 전체)
   const showChan = (f === '*');               // 전체 보기일 때만 출처 뱃지(개별 채널은 이미 필터됨)
-  let n = 0;
-  for (const row of ch.rows) { if (f !== '*' && (row.chan || '') !== f) continue; s.appendChild(wsRowEl(row, showChan)); n++; }
+  let n = 0, lastDay = null;
+  for (const row of ch.rows) {
+    if (f !== '*' && (row.chan || '') !== f) continue;
+    const dk = wsDayKey(row.ts); if (dk && dk !== lastDay) { s.appendChild(wsDatelineEl(row.ts)); lastDay = dk; }
+    s.appendChild(wsRowEl(row, showChan)); n++;
+  }
+  s._lastDay = lastDay;
   if (!n) { s.innerHTML = '<div class="ws-empty">이 출처에 표시할 이벤트가 없어요.</div>'; return; }
   s.scrollTop = s.scrollHeight;
 }
@@ -1663,7 +1926,15 @@ function onWsEvent(m) {
       break;
     }
     case 'TEXT_MESSAGE_END': delete ch.msgBuf[m.messageId || '_']; break;
-    case 'TEXT_MESSAGE': push('text', '💬 TEXT', m.text || '', false); break;   // History 재생: 압축 완성형 메시지 1건
+    case 'TEXT_MESSAGE': {   // History 재생: 압축 완성형 메시지 1건. §13.16.12 Pattern 7 — text 직렬화 A2A Report 면 a2acard 로 승격
+      const rep = wsExtractA2aReport(m.text);
+      if (rep) {
+        const spec = WS_A2A_INTENT[rep.name]; const v = rep.value;
+        const sum = (rep.prefix && rep.prefix.length <= 200 ? rep.prefix : '') || wsA2aSummary(spec, v);
+        wsPushRow(chId, { kind: 'a2acard', a2a: { name: rep.name, spec, value: v, summary: sum }, _expanded: false, label: (spec.label || rep.name), full: v, src: _src, chan: _chan, chanFull: _chanFull, t: _msgT });
+      } else push('text', '💬 TEXT', m.text || '', false);
+      break;
+    }
     case 'TOOL_CALL_START': {
       const id = m.toolCallId || ('_t' + (ch.seq || 0));
       const row = { kind: 'toolcard', toolCallId: id, src: _src, chan: _chan, chanFull: _chanFull, t: nowHM(), _expanded: false,
@@ -1737,6 +2008,18 @@ function onWsEvent(m) {
         }
       }
       else if (m.name === 'Attachment') { wsPushRow(chId, { kind: 'attach', src: _src, att: m.value || {}, t: nowHM(), chan: _chan, chanFull: _chanFull }); }   // §6 첨부 카드(image/audio/video/file)
+      else if (m.name === 'SelectionPrompt') {   // #406 UI6 — 에이전트 발 선택지 → 인라인 chip 카드(답/취소 시 board→server)
+        const v = m.value || {};
+        wsPushRow(chId, { kind: 'selection', sel: { promptId: v.promptId, text: v.text || '', options: Array.isArray(v.options) ? v.options : [], allowFreeText: !!v.allowFreeText, multiSelect: !!v.multiSelect, state: 'ISSUED', routeId: agentId }, t: _msgT, chan: _chan, chanFull: _chanFull });
+      }
+      else if (m.name === 'SelectionResolved') {   // #406 UI6 — 다른 board 가 답함 → 해당 promptId 모든 chip 카드 dim
+        const v = m.value || {};
+        wsResolveSelection(v.promptId, v.resolution, v.reason);
+      }
+      else if (WS_A2A_INTENT[m.name]) {   // §13.16.9 A2A-intent allowlist(Report·BlockerManifest·ReviewSLAAck·PR* / Deadlock* family) → 카드 form(아이콘+요약+펼침 details), NOT raw/TEXT fallback
+        const spec = WS_A2A_INTENT[m.name]; const v = m.value || {};
+        wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (spec.label || m.name || 'CUSTOM'), full: (v && typeof v === 'object') ? v : (v != null ? { value: v } : null), src: _src, chan: _chan, chanFull: _chanFull, t: _msgT });
+      }
       else { const v = m.value; const disp = (v == null) ? '' : (typeof v === 'string' ? v : (v.re || v.text || v.message || v.notice || v.summary || v.label || v.ask || v.body || v.detail || '')); push('text', `✦ ${m.name || 'CUSTOM'}`, disp, true, v); }   // raw JSON 미노출(§1) — 원본은 hover 팝업 + debug drawer; fallback chain 에 v.re/ask/body/detail 추가 (Report 등 generic 분기 메시지의 inline 표시 정합)
       break;
     case 'STATE_SNAPSHOT': case 'STATE_DELTA': push('step', `≡ ${t}`, m.scope || '', true); break;
@@ -2042,14 +2325,14 @@ function setupWsKeyMgmt() {
       rowEl.append(acts); tbl.append(rowEl);
     }
   }
-  function relabel(k) {
-    const nv = prompt('새 라벨 (1~64자):', k.label || ''); if (nv == null) return;
+  async function relabel(k) {
+    const nv = await wsPrompt('새 라벨 (1~64자):', k.label || '', { title: '키 라벨 변경' }); if (nv == null) return;
     const v = nv.trim(); if (!v || v === k.label) return;
     wsSendOrch({ type: 'CUSTOM', name: 'KeyLabel', value: { key: k.key, newLabel: v } });
   }
-  function revoke(k, mode) {
+  async function revoke(k, mode) {
     const msg = mode === 'immediate' ? `'${k.label || k.key.slice(0, 12)}' 키를 즉시 삭제할까요? 연결된 에이전트가 바로 차단돼요.` : `'${k.label || k.key.slice(0, 12)}' 키를 세션 유지 삭제할까요? 현재 세션은 끝까지 유지되고 신규 접속만 막아요.`;
-    if (!confirm(msg)) return;
+    if (!(await wsConfirm(msg, { title: '키 삭제 확인', danger: true, okLabel: '삭제' }))) return;
     wsSendOrch({ type: 'CUSTOM', name: 'KeyRevoke', value: { key: k.key, mode } });
   }
   function requestList() { wsSendOrch({ type: 'CUSTOM', name: 'KeyList', value: { includeRevoked: true } }); }
@@ -2235,6 +2518,54 @@ function setupWsResize(pop) {
     const r = pop.getBoundingClientRect();
     wsApplyAnchorPos(pop, wsRectToAnchorPos(r, rz.anchor));
     rz = null; wsSaveUI();
+  });
+}
+
+// ---- 자체 confirm/prompt 다이얼로그 (브라우저 native 대체, Promise 기반) ----
+// wsConfirm(message, opts?) → Promise<boolean>           — 사용자 OK=true / Cancel/ESC/backdrop=false
+// wsPrompt(message, initial?, opts?) → Promise<string|null> — OK=입력값 / Cancel=null
+// opts: { title?, okLabel?, cancelLabel?, danger?, placeholder? }
+function wsConfirm(message, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    const modal = document.createElement('div'); modal.className = 'ws-confirm-modal';
+    const box = document.createElement('div'); box.className = 'ws-confirm-box';
+    if (opts.title) { const h = document.createElement('div'); h.className = 'ws-confirm-head'; h.textContent = opts.title; box.appendChild(h); }
+    const body = document.createElement('div'); body.className = 'ws-confirm-body'; body.textContent = message; box.appendChild(body);
+    const foot = document.createElement('div'); foot.className = 'ws-confirm-foot';
+    const cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'ws-confirm-btn'; cancelBtn.textContent = opts.cancelLabel || '취소';
+    const okBtn = document.createElement('button'); okBtn.type = 'button'; okBtn.className = 'ws-confirm-btn ' + (opts.danger ? 'danger' : 'primary'); okBtn.textContent = opts.okLabel || '확인';
+    foot.append(cancelBtn, okBtn); box.appendChild(foot); modal.appendChild(box); document.body.appendChild(modal);
+    const close = (result) => { modal.remove(); document.removeEventListener('keydown', onKey); resolve(result); };
+    cancelBtn.onclick = () => close(false);
+    okBtn.onclick = () => close(true);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(false); });
+    const onKey = (e) => { if (e.key === 'Escape') close(false); else if (e.key === 'Enter') close(true); };
+    document.addEventListener('keydown', onKey);
+    setTimeout(() => okBtn.focus(), 50);
+  });
+}
+function wsPrompt(message, initialValue, opts) {
+  opts = opts || {};
+  return new Promise((resolve) => {
+    const modal = document.createElement('div'); modal.className = 'ws-confirm-modal';
+    const box = document.createElement('div'); box.className = 'ws-confirm-box';
+    if (opts.title) { const h = document.createElement('div'); h.className = 'ws-confirm-head'; h.textContent = opts.title; box.appendChild(h); }
+    const body = document.createElement('div'); body.className = 'ws-confirm-body'; body.textContent = message; box.appendChild(body);
+    const input = document.createElement('input'); input.className = 'ws-confirm-input'; input.type = 'text'; input.value = initialValue == null ? '' : String(initialValue);
+    if (opts.placeholder) input.placeholder = opts.placeholder;
+    box.appendChild(input);
+    const foot = document.createElement('div'); foot.className = 'ws-confirm-foot';
+    const cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'ws-confirm-btn'; cancelBtn.textContent = opts.cancelLabel || '취소';
+    const okBtn = document.createElement('button'); okBtn.type = 'button'; okBtn.className = 'ws-confirm-btn primary'; okBtn.textContent = opts.okLabel || '확인';
+    foot.append(cancelBtn, okBtn); box.appendChild(foot); modal.appendChild(box); document.body.appendChild(modal);
+    const close = (result) => { modal.remove(); document.removeEventListener('keydown', onKey); resolve(result); };
+    cancelBtn.onclick = () => close(null);
+    okBtn.onclick = () => close(input.value);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(null); });
+    const onKey = (e) => { if (e.key === 'Escape') close(null); else if (e.key === 'Enter' && document.activeElement === input) close(input.value); };
+    document.addEventListener('keydown', onKey);
+    setTimeout(() => { input.focus(); input.select(); }, 50);
   });
 }
 
