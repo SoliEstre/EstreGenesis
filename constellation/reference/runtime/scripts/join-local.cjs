@@ -30,6 +30,8 @@ if (!/^lk-[a-f0-9]+$/.test(key)) { console.error('[join-local] key file does not
 
 const WS_URL = `ws://${HOST}/ws?key=${encodeURIComponent(key)}`;
 const LOG = path.join(DIR, 'local-' + AGENT_ID + '.log');
+const OUTBOX = process.env.LOCAL_OUTBOX || path.join(DIR, 'local-' + AGENT_ID + '-outbox.jsonl');   // v2.4.7: 워커 세션이 append → drain 송신 (gateway-client 패턴). 워커 emit 경로.
+const OUT_CURSOR = path.join(DIR, '.local-' + AGENT_ID + '-outbox-cursor');
 
 let ws = null, connected = false, seq = 0, backoff = 500;
 function log(obj) { try { fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(), ...obj }) + '\n'); } catch {} }
@@ -37,6 +39,21 @@ function send(type, extra) {
   if (!ws || ws.readyState !== 1) return false;
   const msg = Object.assign({ type, id: 'a-' + Date.now().toString(36) + '-' + (++seq), seq, threadId: THREAD_ID, timestamp: Date.now(), source: 'agent', agentId: AGENT_ID }, extra);
   try { ws.send(JSON.stringify(msg)); log({ ev: 'sent', name: msg.name || msg.type }); return true; } catch (e) { log({ ev: 'send-fail', e: String(e) }); return false; }
+}
+function loadOutCursor() { try { return parseInt(fs.readFileSync(OUT_CURSOR, 'utf8'), 10) || 0; } catch { return 0; } }
+function saveOutCursor() { try { fs.writeFileSync(OUT_CURSOR, String(outCursor)); } catch {} }
+let outCursor = loadOutCursor();
+// 워커 세션(IDE/CLI 에이전트)이 OUTBOX 에 append 한 줄을 connected 이후 drain 송신.
+// 줄 형식: 완성된 envelope (type/name/targetAgentId/value …) — agentId/seq/timestamp 는 send() 가 보강.
+function drainOutbox() {
+  if (!connected) return;
+  let data = ''; try { data = fs.readFileSync(OUTBOX, 'utf8'); } catch { return; }
+  const lines = data.split('\n').filter(Boolean);
+  for (let i = outCursor; i < lines.length; i++) {
+    let m; try { m = JSON.parse(lines[i]); } catch { log({ ev: 'outbox-parse-fail', line: i }); continue; }
+    send(m.type || 'CUSTOM', m);   // send() 가 id/seq/threadId/timestamp/source/agentId 보강
+  }
+  if (outCursor !== lines.length) { outCursor = lines.length; saveOutCursor(); }
 }
 
 function connect() {
@@ -49,11 +66,16 @@ function connect() {
     log({ ev: 'connected' });
     setTimeout(() => { send('CUSTOM', { name: 'AgentHello', targetAgentId: MAIN, value: { agentId: AGENT_ID, env: 'local worker @ ' + DIR, role: 'local', idle: true, note: 'Local worker 합류 — Delegate 대기 standby.' } }); log({ ev: 'agenthello-sent', to: MAIN }); }, 600);
   };
-  ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } log({ ev: 'inbound', type: m.type, name: m.name }); };
+  ws.onmessage = (e) => {   // v2.4.7: CUSTOM/A2A 는 full msg 로깅 (워커가 Delegate value 등 본문 read 가능), History/AgentList 노이즈는 요약
+    let m; try { m = JSON.parse(e.data); } catch { return; }
+    if (m.type === 'History' || m.type === 'AgentList' || m.type === 'SERVER_HELLO') log({ ev: 'inbound-meta', type: m.type });
+    else log({ ev: 'inbound', msg: m });
+  };
   ws.onerror = (err) => { log({ ev: 'ws-error', e: String((err && err.message) || err) }); };
   ws.onclose = (ev) => { connected = false; ws = null; log({ ev: 'closed', code: ev && ev.code }); setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 8000); };
 }
 
 connect();
+setInterval(drainOutbox, 1500);   // v2.4.7 워커 outbox drain
 process.on('SIGINT', () => { try { ws && ws.close(); } catch {} process.exit(0); });
 process.on('SIGTERM', () => { try { ws && ws.close(); } catch {} process.exit(0); });

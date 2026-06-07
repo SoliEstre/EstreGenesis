@@ -193,6 +193,67 @@ function spawnWatcher(base) {
   }
 }
 
+// ---- v2.4.7 session-aware routing (단일 워크스페이스 멀티에이전트) — register-all + fail-safe ----
+// 두 Claude 세션이 같은 워크스페이스를 공유하면 동일 Stop hook 을 실행 → 동일 cursor 경쟁
+// (worker 세션이 main 의 cursor 를 먼저 advance → main surfacing 이 clean 으로 보여 죽음).
+// 별도 워크스페이스 분리(확장 중복 로딩 + 맥락 단절 비용)를 피하면서 per-session env(CLAUDE_CODE_SESSION_ID,
+// Claude Code 가 hook 프로세스에 주입 — src=env 확인)로 분기.
+//
+// register-all 모델 (v2.4.7): 모든 세션이 자기 소유 inbox 를 레지스트리에 선언. 각 hook 실행은
+// SELF 가 소유한 inbox 만 처리하고 나머지는 즉시 skip(exit 0, cursor 미advance).
+//   - 레지스트리 비활성(없음/빈 workers) → legacy default (단일 세션 워크스페이스, 기존과 동일 처리) [back-compat]
+//   - 레지스트리 활성 시:
+//       · 미등록/식별불가 세션 → 전부 skip (FAIL-SAFE: 절대 타 세션 surface 가로채지 않음. main 보호를 규율이 아닌 메커니즘으로 보장)
+//       · 타 세션 소유 inbox    → skip
+//       · 소유자 없는 inbox     → skip (register-all: 명시적 소유 필요 — 누락은 loud 경고)
+//       · 자기 소유 inbox       → 정상 처리
+// session_id source: CLAUDE_CODE_SESSION_ID env → 없으면 stdin payload(.session_id).
+// 레지스트리: AGENT_SESSIONS_PATH env || <cwd>/.agent-sessions.json.
+//   형식: { workers: { "<session_id>": { role, ownInboxes:[path,...] } } } (main 도 role='main' 로 등록 — boot 의례 first-action).
+function resolveSelfSession() {
+  if (process.env.CLAUDE_CODE_SESSION_ID) return { id: process.env.CLAUDE_CODE_SESSION_ID, src: 'env' };
+  try {
+    if (!process.stdin.isTTY) {
+      const data = fs.readFileSync(0, 'utf8');
+      if (data && data.trim()) { const j = JSON.parse(data); if (j && j.session_id) return { id: j.session_id, src: 'stdin' }; }
+    }
+  } catch (_) { /* no stdin payload */ }
+  return { id: null, src: 'none' };
+}
+const SELF = resolveSelfSession();
+const REGISTRY_PATH = process.env.AGENT_SESSIONS_PATH
+  ? path.resolve(process.env.AGENT_SESSIONS_PATH)
+  : path.join(process.cwd(), '.agent-sessions.json');
+function loadAgentRegistry() {
+  try { const j = JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8')); return (j && typeof j === 'object') ? j : null; }
+  catch { return null; }
+}
+{
+  const norm = (p) => { const r = path.resolve(p); return process.platform === 'win32' ? r.toLowerCase() : r; };   // win32 대소문자 무시 + 구분자 정규화
+  const reg = loadAgentRegistry();
+  const workers = (reg && reg.workers && typeof reg.workers === 'object') ? reg.workers : null;
+  const active = !!(workers && Object.keys(workers).length > 0);
+  console.error(`[probe] session=${SELF.id ? SELF.id.slice(0, 8) : 'none'} src=${SELF.src} cwd=${process.cwd()} registry=${active ? 'active' : (reg ? 'empty' : 'none')} inbox=${path.basename(INBOX)}`);
+  if (active) {
+    const self = SELF.id ? workers[SELF.id] : null;
+    const ownerOf = new Map();
+    for (const [sid, w] of Object.entries(workers)) {
+      for (const ib of (Array.isArray(w.ownInboxes) ? w.ownInboxes : [])) ownerOf.set(norm(ib), sid);
+    }
+    const owner = ownerOf.get(norm(INBOX)) || null;
+    if (!self) {
+      console.error(`[probe] session-route SKIP-ALL — session ${SELF.id ? SELF.id.slice(0, 8) : 'unknown'} not registered (registry active). FAIL-SAFE: no cursor advance, no surface steal. Register via register-session.cjs to enable this session's probes.`);
+      process.exit(0);
+    }
+    if (owner !== SELF.id) {
+      const why = owner ? `owned by ${owner.slice(0, 8)}(role=${workers[owner].role || '?'})` : 'no registered owner (register-all requires explicit ownership — add to a session ownInboxes)';
+      console.error(`[probe] session-route SKIP — inbox ${path.basename(INBOX)} ${why}; this session=${SELF.id.slice(0, 8)}(role=${self.role || '?'}). No cursor advance.`);
+      process.exit(0);
+    }
+    console.error(`[probe] session-route OWN — session ${SELF.id.slice(0, 8)}(role=${self.role || '?'}) owns ${path.basename(INBOX)}; processing.`);
+  }
+}
+
 // ----- main -----
 
 const CURSOR = readCursor();
