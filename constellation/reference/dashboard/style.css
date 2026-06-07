@@ -449,8 +449,17 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-arch-menu { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 170px; max-height: 240px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 30; padding: 4px; }
 .ws-arch-menu[hidden] { display: none; }
 .ws-arch-empty { padding: 10px 14px; color: var(--muted); font-size: .72rem; text-align: center; white-space: nowrap; }
-.ws-arch-item { padding: 6px 9px; border-radius: 6px; font-size: .8rem; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.ws-arch-item { padding: 6px 9px; border-radius: 6px; font-size: .8rem; color: var(--ink); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .ws-arch-item:hover { background: var(--panel2); color: var(--accent); }
+.ws-arch-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--muted); }   /* 닫힌 세션 연결상태 인디케이터(green=연결·gray=끊김) */
+.ws-arch-dot.on { background: var(--ws-online, #5ad17a); box-shadow: 0 0 5px var(--ws-online, #5ad17a); }
+.ws-arch-lbl { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.ws-arch-del { flex: 0 0 auto; opacity: .55; cursor: pointer; font-size: .82rem; padding: 0 2px; border-radius: 4px; }
+.ws-arch-del:hover { opacity: 1; background: rgba(224,69,94,.16); }
+.ws-arch-all { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+.ws-arch-allbtn { width: 100%; background: none; border: 1px solid var(--line); color: var(--ws-danger, #e0455e); padding: 4px 8px; border-radius: 6px; cursor: pointer; font: inherit; font-size: .72rem; }
+.ws-arch-allbtn:hover { background: rgba(224,69,94,.14); border-color: var(--ws-danger, #e0455e); }
+#decisions-badge[hidden] { display: none; }   /* 검토사안 뱃지 0이면 숨김 — 탭은 유지 */
 
 /* #168 외부 협업 초대 (ws-collab-invite) — 헤더 🔗 토글 + 드롭다운 패널 */
 .ws-collab-wrap { position: relative; display: inline-flex; margin-right: 10px; }
@@ -498,8 +507,71 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-dot2.on { background: #39d353; box-shadow: 0 0 6px #39d353; }
 .ws-meta { color: var(--muted); font-size: .78rem; }
 .ws-h { font-size: .78rem; color: var(--muted); margin: 0 1px 0; display: flex; align-items: center; gap: 6px; }   /* 상하 spacing 축소 — top 4→0 / bottom 7→0 */
-.ws-stream { flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: auto; padding: 5px; }
+.ws-stream { flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: auto; padding: 0 5px 5px; }   /* top padding 0 — 날짜 변경선 sticky 가 stream 상단 딱 붙도록 */
 .ws-empty { color: var(--muted); font-size: .82rem; padding: 14px 10px; }
+/* 날짜 변경선 (sticky top:0, 가운데 날짜 + 좌우 ~물결) — A2A 대화에 일자 구분선 */
+.ws-dateline { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 10px; padding: 4px 8px; margin: 0 0 2px; background: var(--panel); }
+.ws-dl-wave { flex: 1 1 auto; overflow: hidden; white-space: nowrap; color: var(--muted); opacity: .45; font-size: .7rem; line-height: 1; }
+.ws-dl-wave::before { content: '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'; }
+.ws-dl-date { flex: 0 0 auto; font-size: .72rem; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
+/* A2A-intent CUSTOM 카드 (§13.16.9 Report·BlockerManifest·PR* / Deadlock* family) — 아이콘+요약+펼침 details */
+.ws-a2arow { align-items: flex-start; }
+.ws-a2a { flex: 1 1 auto; min-width: 0; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); overflow: hidden; }
+.ws-a2a-h { display: flex; align-items: baseline; gap: 6px; padding: 5px 8px; }
+.ws-a2a-ic { flex: 0 0 auto; align-self: center; }
+.ws-a2a-name { flex: 0 0 auto; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.ws-a2a-sum { flex: 1 1 auto; min-width: 0; color: var(--ink); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-a2a-cv { flex: 0 0 auto; align-self: center; color: var(--muted); font-size: .9rem; }
+/* collapse 토글 = row 최우측 별도 버튼(◀ 접힘 / 회전 ▾ 펼침). hover 미리보기·click 단독 플로팅과 충돌 없게 버튼만 토글 */
+.ws-a2a-toggle { flex: 0 0 auto; align-self: center; margin-left: auto; background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: .82rem; line-height: 1; padding: 2px 6px; border-radius: 5px;
+  display: inline-block; transition: transform .15s ease; }
+.ws-a2a-toggle.expanded { transform: rotate(-90deg); }   /* 펼침: ◀ 글리프를 -90도 회전 → 아래 향 (접힘 ◀ 기준 동일 크기) */
+.ws-a2a-toggle:hover { color: var(--ink); background: var(--line); }
+.ws-a2a-body { border-top: 1px solid var(--line); padding: 5px 8px; display: flex; flex-direction: column; gap: 4px; }
+.ws-a2a-body[hidden] { display: none; }   /* display:flex 가 [hidden] UA 규칙을 이기므로 명시 (이 규칙 누락이 "collapse 안 됨" 원인) */
+.ws-a2a-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: start; }
+.ws-a2a-k { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .03em; padding-top: 2px; word-break: break-word; }
+.ws-a2a-v { color: var(--ink); font-size: .8rem; white-space: pre-wrap; word-break: break-word; min-width: 0; }
+/* A2A 첨부 칩 + 미리보기 모달 (row 내부 v.attachments[]) */
+.ws-att-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.ws-att-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel2); font-size: .74rem; max-width: 100%; }
+.ws-att-ic { flex: 0 0 auto; }
+.ws-att-info { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.ws-att-pv, .ws-att-dl { flex: 0 0 auto; background: none; border: none; color: var(--muted); cursor: pointer; text-decoration: none; font-size: .82rem; padding: 0 2px; }
+.ws-att-pv:hover, .ws-att-dl:hover { color: var(--accent); }
+.ws-att-no { flex: 0 0 auto; color: var(--muted); font-size: .68rem; opacity: .7; }
+.ws-att-modal { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
+.ws-att-modal[hidden] { display: none; }
+.ws-att-box { width: min(720px, 92vw); max-height: 84vh; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+.ws-att-mhead { display: flex; align-items: center; gap: 8px; padding: 10px 13px; border-bottom: 1px solid var(--line); }
+.ws-att-mhead b { flex: 1 1 auto; color: var(--ink); font-size: .86rem; overflow: hidden; text-overflow: ellipsis; }
+.ws-att-mx { flex: 0 0 auto; background: none; border: 1px solid var(--line); color: var(--muted); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; }
+.ws-att-mx:hover { color: var(--ink); border-color: var(--accent); }
+.ws-att-mbody { overflow: auto; padding: 12px; }
+.ws-att-mbody img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.ws-att-mbody pre { margin: 0; white-space: pre-wrap; word-break: break-all; font-size: .76rem; color: var(--ink); }
+/* #406 UI6 SelectionPrompt chip 카드 */
+.ws-selrow { align-items: flex-start; }
+.ws-sel { border: 1px solid var(--ws-role-main, #7a4dff); border-radius: 10px; padding: 9px 11px; background: var(--panel2); display: flex; flex-direction: column; gap: 8px; max-width: 100%; }
+.ws-sel.answered { border-color: var(--ws-online, #5ad17a); }
+.ws-sel.cancelled { border-color: var(--line); opacity: .6; }
+.ws-sel-h { display: flex; align-items: center; gap: 7px; }
+.ws-sel-ic { flex: 0 0 auto; }
+.ws-sel-text { font-weight: 600; color: var(--ink); font-size: .84rem; }
+.ws-sel-note { font-size: .72rem; color: var(--muted); }
+.ws-sel-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ws-sel-chip { background: var(--panel); border: 1px solid var(--line); color: var(--ink); padding: 4px 12px; border-radius: 16px; cursor: pointer; font: inherit; font-size: .78rem; transition: background .12s, border-color .12s; }
+.ws-sel-chip:hover:not([disabled]) { border-color: var(--ws-role-main, #7a4dff); color: var(--ws-role-main, #7a4dff); }
+.ws-sel-chip.sel { background: var(--ws-role-main, #7a4dff); color: #fff; border-color: var(--ws-role-main, #7a4dff); }
+.ws-sel-chip.chosen { background: var(--ws-online, #5ad17a); color: #08240f; border-color: var(--ws-online, #5ad17a); font-weight: 600; }
+.ws-sel-chip[disabled] { cursor: default; opacity: .8; }
+.ws-sel-foot { display: flex; align-items: center; gap: 7px; }
+.ws-sel-ft { flex: 1 1 auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; color: var(--ink); font: inherit; font-size: .76rem; }
+.ws-sel-submit { background: var(--ws-role-main, #7a4dff); color: #fff; border: none; padding: 4px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600; font-size: .74rem; }
+.ws-sel-submit:hover { filter: brightness(1.08); }
+.ws-sel-dismiss { background: none; border: 1px solid var(--line); color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: .72rem; }
+.ws-sel-dismiss:hover { color: var(--ink); border-color: var(--muted); }
 /* raw 이벤트 debug drawer (개발자용 — 기본 timeline 과 전환) */
 .ws-dbg-btn { margin-left: auto; padding: 2px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); cursor: pointer; font: inherit; font-size: .72rem; white-space: nowrap; }
 .ws-dbg-btn:hover { border-color: var(--accent); color: var(--ink); }
@@ -518,14 +590,22 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
   box-shadow: 0 8px 28px rgba(0,0,0,.5); padding: 10px 12px; font-size: .78rem; color: var(--ink, #cfcfe0);
   pointer-events: none;
 }
-.ws-hover-pop .ws-pop-h { font-weight: 600; color: var(--ink, #fff); margin-bottom: 6px; }
 .ws-hover-pop .ws-pop-v { white-space: pre-wrap; word-break: break-word; }
 .ws-hover-pop .ws-pop-row { display: grid; grid-template-columns: 92px 1fr; gap: 8px; padding: 3px 0; border-top: 1px solid var(--panel2, #2a2a34); }
 .ws-hover-pop .ws-pop-k { color: var(--accent, #8a8aa0); font-size: .62rem; text-transform: uppercase; letter-spacing: .03em; padding-top: 2px; }
 .ws-hover-pop .ws-pop-val { white-space: pre-wrap; word-break: break-word; }
 .ws-hover-pop.pinned { pointer-events: auto; border-color: var(--accent); box-shadow: 0 10px 36px rgba(0,0,0,.6); }
-.ws-hover-pop .ws-pop-h { position: relative; padding-right: 22px; }
-.ws-hover-pop .ws-pop-x { position: absolute; top: -3px; right: -4px; background: none; border: none; color: var(--muted, #888); cursor: pointer; font-size: .82rem; line-height: 1; padding: 2px 5px; border-radius: 5px; }
+/* 헤더 sticky — 본문 스크롤 시 상단 유지 (드래그 핸들 + 닫기 ✕ 가시성 보장). ws-hover-pop padding 10px 12px 를 negative margin 으로 덮고 자체 padding 으로 보충, background 로 본문 가림. */
+.ws-hover-pop .ws-pop-h {
+  position: sticky; top: -10px; z-index: 1;
+  font-weight: 600; color: var(--ink, #fff);
+  background: var(--panel, #1a1a22);
+  margin: -10px -12px 6px;
+  padding: 10px 34px 6px 12px;   /* right 34px = ws-pop-x ✕ 자리 확보 */
+}
+/* 첫 row 의 border-top 제거 — 헤더 background 와의 시각 분리 충돌 방지 */
+.ws-hover-pop .ws-pop-row:first-of-type { border-top: none; }
+.ws-hover-pop .ws-pop-x { position: absolute; top: 6px; right: 8px; background: none; border: none; color: var(--muted, #888); cursor: pointer; font-size: .82rem; line-height: 1; padding: 2px 5px; border-radius: 5px; }   /* sticky 헤더 padding (10px 34px 6px 12px) 내부 자연 위치로 조정 */
 .ws-hover-pop .ws-pop-x:hover { color: var(--ink, #fff); background: var(--panel2); }
 .ws-hover-pop.pinned .ws-pop-h { cursor: move; user-select: none; }
 .ws-t { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .74rem; flex: 0 0 56px; }
@@ -665,6 +745,22 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-pos-card .ws-pos-arrow { font-size: 1.3rem; line-height: 1; }
 .ws-pos-card .ws-pos-name { font-size: .78rem; }
 .ws-pos-card.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); font-weight: 700; }
+
+/* ---- 자체 confirm/prompt 다이얼로그 (브라우저 native 대체, Promise 기반) ---- */
+.ws-confirm-modal { position: fixed; inset: 0; z-index: 72; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
+.ws-confirm-modal[hidden] { display: none; }
+.ws-confirm-box { width: min(420px, 92vw); display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.ws-confirm-head { padding: 12px 14px; border-bottom: 1px solid var(--line); font-weight: 700; color: var(--ink); font-size: .92rem; }
+.ws-confirm-body { padding: 14px; color: var(--ink); font-size: .82rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.ws-confirm-input { width: calc(100% - 28px); margin: 0 14px 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel2, var(--panel)); color: var(--ink); font: inherit; font-size: .84rem; box-sizing: border-box; }
+.ws-confirm-input:focus { outline: none; border-color: var(--accent); }
+.ws-confirm-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px; border-top: 1px solid var(--line); }
+.ws-confirm-btn { padding: 6px 14px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel2, var(--panel)); color: var(--ink); cursor: pointer; font: inherit; font-size: .82rem; }
+.ws-confirm-btn:hover { border-color: var(--accent); }
+.ws-confirm-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ws-confirm-btn.primary:hover { filter: brightness(1.08); }
+.ws-confirm-btn.danger { background: var(--ws-danger, #e0455e); border-color: var(--ws-danger, #e0455e); color: #fff; }
+.ws-confirm-btn.danger:hover { filter: brightness(1.08); }
 
 /* ---- 토글 버튼 우클릭 컨텍스트 메뉴 (화면 가운데로 / 키 관리 / 설정) ---- */
 .ws-fab-ctx { position: fixed; z-index: 62; min-width: 170px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 28px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 2px; }
