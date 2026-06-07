@@ -1106,7 +1106,13 @@ function wsChannel(key, name, meta) {
 }
 function wsSyncAgents(agents) {
   wsState.present = new Set(agents.map(a => a.agentId));
-  for (const a of agents) { const c = wsChannel(a.agentId, a.agentName); c.role = a.role || 'local'; }   // §13.1 role 보관(탭 그룹·모니터 분류)
+  let anyUnhidden = false;
+  for (const a of agents) {
+    const c = wsChannel(a.agentId, a.agentName);
+    c.role = a.role || 'local';   // §13.1 role 보관(탭 그룹·모니터 분류)
+    if (c.hidden) { c.hidden = false; anyUnhidden = true; }   // FIX: agent 가 AgentList 에 present 면 닫힌 탭에서 자동 복원 (새로고침 후 업스트림 등이 archived stub 으로 처리됐다가 실제 연결돼 있을 때)
+  }
+  if (anyUnhidden) { wsSaveHidden(); wsRenderArchived(); }
   if (!wsState.active && agents.length) wsState.active = agents[0].agentId;
   wsRenderTabs(); updateWsConn();
 }
@@ -1153,15 +1159,17 @@ function wsReplayHistory(events, cold, archived) {
   for (const c of (archived || [])) { const ch = wsChannel(c.key); ch._cold = true; ch._loaded = false; ch._count = c.count; ch.hidden = true; if (!ch.role) ch.role = wsRoleOf(c.key); }
   wsState.replaying = false;
   if (archived && archived.length) wsSaveHidden();
-  if (!wsState.active && wsState.channels.size) {
-    let saved = null; try { saved = localStorage.getItem(WS_ACTIVE_KEY); } catch {}   // 새로고침 시 마지막 탭 복원 (탭별 draft 는 wsSaveDrafts 가 별도 영속)
+  if (wsState.channels.size) {
+    let saved = null; try { saved = localStorage.getItem(WS_ACTIVE_KEY); } catch {}   // 새로고침 시 마지막 탭 복원 (탭별 draft 는 wsSaveDrafts 가 별도 영속). FIX: saved 가 valid 면 wsChannel() 자동 active 무시하고 saved 우선 적용.
     const savedOk = saved && (
       (wsState.channels.has(saved) && !wsState.channels.get(saved).hidden) ||
       (wsIsGroup(saved) && wsGroupMembers(saved).length)
     );
     if (savedOk) wsState.active = saved;
-    else if (wsState.channels.has(WS_LOCAL) && !wsState.channels.get(WS_LOCAL).hidden) wsState.active = WS_LOCAL;   // 기본 활성 = 메인(로컬 IDE) 우선
-    else { for (const [id, c] of wsState.channels) { if (!c.hidden && !wsIsMon(id)) { wsState.active = id; break; } } if (!wsState.active) wsState.active = wsState.channels.keys().next().value; }
+    else if (!wsState.active) {
+      if (wsState.channels.has(WS_LOCAL) && !wsState.channels.get(WS_LOCAL).hidden) wsState.active = WS_LOCAL;   // 기본 활성 = 메인(로컬 IDE) 우선
+      else { for (const [id, c] of wsState.channels) { if (!c.hidden && !wsIsMon(id)) { wsState.active = id; break; } } if (!wsState.active) wsState.active = wsState.channels.keys().next().value; }
+    }
   }
   wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge();
   if (wsState.debugOpen) wsRenderDebug();
