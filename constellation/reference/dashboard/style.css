@@ -462,8 +462,8 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 #decisions-badge[hidden] { display: none; }   /* 검토사안 뱃지 0이면 숨김 — 탭은 유지 */
 
 /* #168 외부 협업 초대 (ws-collab-invite) — 헤더 🔗 토글 + 드롭다운 패널 */
-.ws-collab-wrap { position: relative; display: inline-flex; margin-right: 10px; }
-.ws-collab-panel { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 320px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 30; padding: 8px; display: flex; flex-direction: column; gap: 6px; }   /* v2.4.2 폭 240→320 (kind 옵션 한 줄 fit) */
+.ws-collab-wrap { position: relative; display: inline-flex; margin-right: 10px; cursor: default; }   /* v2.4.7 cursor leak fix — .ws-pop-head 의 cursor:move 상속 차단(드래그 영역은 head 의 빈 부분만) */
+.ws-collab-panel { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 320px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 30; padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: default; }   /* v2.4.2 폭 240→320; v2.4.7 cursor leak fix */
 .ws-collab-panel[hidden] { display: none; }
 .ws-invite-h { font-weight: 600; color: var(--ink); font-size: .8rem; }
 .ws-invite-label { background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 7px; color: var(--ink); font: inherit; font-size: .75rem; }
