@@ -1172,6 +1172,7 @@ function wsReplayHistory(events, cold, archived) {
     }
   }
   wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge();
+  if (wsState.active) wsShowTextarea(wsState.active);   // FIX: 새로고침 복원 시 활성 채널의 textarea 생성·표시·draft 적용 (wsTextareaFor 가 wsDrafts[key] 에서 값 가져옴). 기존엔 wsSetActive 만 wsShowTextarea 호출 → wsReplayHistory 복원 경로에서 textarea 누락.
   if (wsState.debugOpen) wsRenderDebug();
   if (wsState.active) wsMaybeRequestHistory(wsState.active);   // active 가 cold stub 이면 즉시 내용 로드
 }
