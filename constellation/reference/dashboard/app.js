@@ -1221,9 +1221,12 @@ function wsRenderArchived() {   // "닫은 세션" 버튼 + 드롭다운 — 닫
   const btn = $('#ws-arch-btn'), menu = $('#ws-arch-menu'); if (!btn || !menu) return;
   const hidden = [...wsState.channels.entries()].filter(([id, c]) => c.hidden && !wsIsMon(id));
   btn.hidden = false;   // v2.3.23: 항상 표시 (닫은 세션 0개일 때도 카운터 보임 — 사용자 발견성 향상)
-  btn.textContent = '🗂 ' + hidden.length;
+  btn.textContent = '📂 ' + hidden.length;
   menu.innerHTML = '';
-  if (!hidden.length) { menu.hidden = true; return; }
+  if (!hidden.length) {
+    const empty = el('div', 'ws-arch-empty'); empty.textContent = '닫은 세션이 없어요';
+    menu.appendChild(empty); return;
+  }
   for (const [id, c] of hidden) {
     const item = el('div', 'ws-arch-item');
     item.textContent = (c.name || id) + (c.role && c.role !== 'local' ? ' · ' + c.role : '');

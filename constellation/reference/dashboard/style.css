@@ -448,6 +448,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-arch-btn[hidden] { display: none; }
 .ws-arch-menu { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 170px; max-height: 240px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 30; padding: 4px; }
 .ws-arch-menu[hidden] { display: none; }
+.ws-arch-empty { padding: 10px 14px; color: var(--muted); font-size: .72rem; text-align: center; white-space: nowrap; }
 .ws-arch-item { padding: 6px 9px; border-radius: 6px; font-size: .8rem; color: var(--ink); cursor: pointer; white-space: nowrap; }
 .ws-arch-item:hover { background: var(--panel2); color: var(--accent); }
 
@@ -643,7 +644,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-invite-roledesc-show { font-size: .72rem; color: var(--ink); background: var(--panel2, var(--panel)); border-left: 2px solid var(--accent); padding: 4px 8px; margin: 4px 0; white-space: pre-wrap; word-break: break-word; }
 .ws-key-roledesc { font-size: .68rem; color: var(--ink); background: var(--panel); border-left: 2px solid var(--accent); padding: 3px 6px; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
 
-/* 설정 ⚙ 버튼 — popup head 의 🗂 우측, ✕ 좌측. 양옆 spacing 으로 닫기 버튼과 간격 확보 */
+/* 설정 ⚙ 버튼 — popup head 의 📂 우측, ✕ 좌측. 양옆 spacing 으로 닫기 버튼과 간격 확보 */
 #ws-settings-btn { margin: 0 10px 0 4px; }
 
 /* ---- 실시간 창 설정 모달 (창 배치 preset 등) ---- */
