@@ -97,6 +97,64 @@
       <p data-aud="expert" data-en="The v0.1.0 release comprises the Ultrasafe.md specification document (§1 Concept · §2 Module Shape · §3 Fan-out Matrix · §4 Finding Output Contract · §5 Synthesis Report 3-Layer · §6 ≥3 Iteration Loop · §7 Hyperbrief 4-score Routing · §8 Constellation A2A 5-intent · §9 Greatpractice Tree · §10 Pre-release Trigger + Tier · §11 Self-Spec-Gaming Hazard · §12 Untested Surfaces + Known Gaps · §13 Adoption Thresholds + appendix A Cross-Axis Convergence Cluster Catalog + appendix B 4 Strong Isomorphism + Normative Justification + appendix C Self-Application) and the plugins/ultrasafe/ Claude Code plugin manifest scaffold. Runtime artefacts (runner / schemas / skills / hooks / mcp) are explicitly deferred to the v0.2+ trajectory because v0.1.x ships in advisory-only mode by design — Tier A critic patch #5 (strict-mode reconciliation) demands that blocking enforcement wait until false-positive baseline is statistically measurable from spec-only adoption cycles. The §13 adoption threshold defines the conditions under which adopters MAY proceed with v0.1.0 spec-only adoption (typically: existing pen-test discipline + Constellation activation + Tier A risk acknowledgement)." data-ko="v0.1.0 release 는 Ultrasafe.md 사양 문서 (§1-§13 + 부록 A-C) + plugins/ultrasafe/ Claude Code plugin manifest scaffold 를 포함한다. Runtime artefact (runner / schemas / skills / hooks / mcp) 는 명시적으로 v0.2+ 궤적으로 deferred — v0.1.x 가 design 적으로 advisory-only mode 로 ship 되기 때문 — Tier A critic patch #5 (strict-mode 화해) 가 blocking enforcement 를 spec-only adoption cycle 에서 false-positive baseline 이 통계적으로 측정 가능할 때까지 대기 요구. §13 adoption threshold 가 adopter 가 v0.1.0 spec-only adoption 진행 가능한 조건 (보통: 기존 pen-test 규율 + Constellation 활성 + Tier A risk acknowledgement)을 정의.">v0.1.0 = full spec + plugin manifest. Runtime deferred to v0.2+ per Tier A patch #5 (strict-mode reconciliation requires FP baseline). §13 adoption threshold defines spec-only adoption gate.</p>
     </section>
 
+    <section id="install-ultrasafe">
+      <h2 data-en="Install the Ultrasafe plugin" data-ko="Ultrasafe 플러그인 설치">Install the Ultrasafe plugin</h2>
+      <p data-en="Two short steps: register the EstreGenesis marketplace once, then install Ultrasafe from it." data-ko="짧은 두 단계: EstreGenesis 마켓플레이스를 한 번 등록한 다음, 거기서 Ultrasafe를 설치하세요.">Two short steps: register the EstreGenesis marketplace once, then install Ultrasafe from it.</p>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">A</span>
+          <span class="step-title" data-en="Register the marketplace (one time)" data-ko="마켓플레이스 등록 (한 번만)">Register the marketplace (one time)</span>
+        </div>
+        <p class="step-desc" data-en="Run this once in Claude Code to register the EstreGenesis plugin marketplace. After this, all EstreGenesis modules become installable." data-ko="Claude Code 에서 한 번 실행해서 EstreGenesis 플러그인 마켓플레이스를 등록하세요. 이후 모든 EstreGenesis 모듈을 설치할 수 있어요.">Run this once in Claude Code to register the EstreGenesis plugin marketplace. After this, all EstreGenesis modules become installable.</p>
+        <div class="cmd-row">
+          <pre><code data-en="/plugin marketplace add SoliEstre/EstreGenesis" data-ko="/plugin marketplace add SoliEstre/EstreGenesis">/plugin marketplace add SoliEstre/EstreGenesis</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">B</span>
+          <span class="step-title" data-en="Install Ultrasafe" data-ko="Ultrasafe 설치">Install Ultrasafe</span>
+        </div>
+        <p class="step-desc" data-en="Install the Ultrasafe plugin from the marketplace. This activates the pre-release simulated penetration testing discipline (advisory-only in v0.2.x)." data-ko="마켓플레이스에서 Ultrasafe 플러그인을 설치하세요. 출시 직전 모의 침투 시험 규율이 활성화돼요 (v0.2.x 는 advisory 전용).">Install the Ultrasafe plugin from the marketplace. This activates the pre-release simulated penetration testing discipline (advisory-only in v0.2.x).</p>
+        <div class="cmd-row">
+          <pre><code data-en="/plugin install ultrasafe@estregenesis-plugins" data-ko="/plugin install ultrasafe@estregenesis-plugins">/plugin install ultrasafe@estregenesis-plugins</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="example-prompts">
+      <h2 data-en="Example prompts" data-ko="사용 예시">Example prompts</h2>
+      <p data-en="Copy any prompt below and paste it into Claude Code to try Ultrasafe right away." data-ko="아래 예시 중 하나를 복사해서 Claude Code 에 붙여 넣으면 바로 Ultrasafe 를 사용해 볼 수 있어요.">Copy any prompt below and paste it into Claude Code to try Ultrasafe right away.</p>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">1</span>
+          <span class="step-title" data-en="Ultrasafe — pre-release security pass (advisory mode)" data-ko="Ultrasafe — 출시 직전 보안 점검 (advisory 모드)">Ultrasafe — pre-release security pass (advisory mode)</span>
+        </div>
+        <p class="step-desc" data-en="Right before you ship, kick off an Ultrasafe pre-release pass — eight attacker-perspective agents fan out, the findings come back ranked. v0.2.x is advisory only (it reports, it does not block); blocking mode is staged for v0.3." data-ko="ship 직전에 Ultrasafe 사전 보안 패스를 띄우세요 — 8 명의 공격자 관점 에이전트가 fan-out, 발견 사항을 등급화해서 돌려줘요. v0.2.x 는 advisory 전용 (보고만, 차단 X), 차단 모드는 v0.3 예정.">Right before you ship, kick off an Ultrasafe pre-release pass — eight attacker-perspective agents fan out, the findings come back ranked. v0.2.x is advisory only (it reports, it does not block); blocking mode is staged for v0.3.</p>
+        <div class="cmd-row">
+          <pre><code data-en="We're about to ship — run an Ultrasafe pre-release security pass. Report findings in advisory mode for now." data-ko="출시 직전이니까 Ultrasafe 로 사전 보안 점검 한 바퀴 돌려줘. finding 나오면 advisory 로만 보고.">We're about to ship — run an Ultrasafe pre-release security pass. Report findings in advisory mode for now.</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">2</span>
+          <span class="step-title" data-en="Ultrasafe — supply-chain check on a new dependency" data-ko="Ultrasafe — 새 의존성의 공급망 점검">Ultrasafe — supply-chain check on a new dependency</span>
+        </div>
+        <p class="step-desc" data-en="When you have just added a new dependency, route it through Ultrasafe's supply-chain attacker perspective — typosquatting, transitive vulnerabilities, signing chain, SBOM mismatch — before it lands on main." data-ko="새 의존성을 막 추가했을 때, main 에 머지되기 전에 Ultrasafe 의 공급망 공격자 관점을 통과시키세요 — 타이포 스쿼팅, transitive 취약점, signing chain, SBOM mismatch 까지 점검돼요.">When you have just added a new dependency, route it through Ultrasafe's supply-chain attacker perspective — typosquatting, transitive vulnerabilities, signing chain, SBOM mismatch — before it lands on main.</p>
+        <div class="cmd-row">
+          <pre><code data-en="I just added a new dependency. Run an Ultrasafe supply-chain check on it before I merge — typosquat, transitive vulns, signing chain." data-ko="방금 새 의존성 추가했어. 머지 전에 Ultrasafe 로 supply chain 측면 점검해줘 — 타이포 스쿼팅, transitive 취약점, signing chain 포함.">I just added a new dependency. Run an Ultrasafe supply-chain check on it before I merge — typosquat, transitive vulns, signing chain.</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+    </section>
+
     <section id="use-cases" class="section">
       <h2 data-aud="general" data-en="When Ultrasafe helps you" data-ko="Ultrasafe 가 도움이 되는 순간">When Ultrasafe helps you</h2>
       <h2 data-aud="dev" data-en="How to invoke Ultrasafe" data-ko="Ultrasafe 호출 방법">How to invoke Ultrasafe</h2>
