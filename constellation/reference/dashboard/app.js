@@ -2055,6 +2055,7 @@ function setupWsKeyMgmt() {
 
   wsKeyMgmt = {
     openManager,
+    openIssuePanel() { panel.hidden = false; render(); },   // 키 발행 패널 직접 열기 (우클릭 컨텍스트 메뉴용)
     setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; joinHint = p.joinHint || ''; joinFile = p.joinFile || ''; if (p.label != null) label = p.label; if (p.kind != null) kind = p.kind; if (p.roleDescription != null) roleDescription = p.roleDescription; status = 'issued'; panel.hidden = false; render(); },
     setError(p) { status = 'error'; key = (p && (p.message || p.code)) || '발급 실패'; render(); },
     setList(keys) { modalKeys = Array.isArray(keys) ? keys : []; if (modal && !modal.hidden) renderTable(); },
@@ -2094,22 +2095,100 @@ function updateWsConn() {
   // 그룹/모니터 읽기 전용 입력란 전환은 wsShowTextarea(wsSetActive) 가 처리
 }
 // ---- 팝업 UI 상태(위치·크기·열림) 영속 — 클라별 UI 선호라 localStorage ----
+// 위치 표현: 활성 anchor (preset) 기준 모서리 거리로 inline 4 좌표 표현. 화면/창 resize 시 그 모서리 거리 유지.
 const WS_UI = 'constellation-ws-ui';
+const WS_POS = 'constellation-ws-position';   // 'tl' | 'tr' | 'bl' | 'br' — 위치 anchor (기본 'br')
+const WS_POS_VALID = ['tl', 'tr', 'bl', 'br'];
+function wsCurrentAnchor() {
+  const pop = $('#ws-pop'); if (!pop) return wsLoadPositionPref();
+  for (const c of WS_POS_VALID) if (pop.classList.contains('pos-' + c)) return c;
+  return wsLoadPositionPref();
+}
+function wsRectToAnchorPos(rect, anchor) {   // viewport rect → anchor 모서리 거리 (inline 4 좌표)
+  const o = { left: 'auto', right: 'auto', top: 'auto', bottom: 'auto' };
+  if (anchor === 'tl')      { o.left  = Math.round(rect.left) + 'px';                  o.top    = Math.round(rect.top) + 'px'; }
+  else if (anchor === 'tr') { o.right = Math.round(innerWidth - rect.right) + 'px';    o.top    = Math.round(rect.top) + 'px'; }
+  else if (anchor === 'bl') { o.left  = Math.round(rect.left) + 'px';                  o.bottom = Math.round(innerHeight - rect.bottom) + 'px'; }
+  else                      { o.right = Math.round(innerWidth - rect.right) + 'px';    o.bottom = Math.round(innerHeight - rect.bottom) + 'px'; }
+  return o;
+}
+function wsApplyAnchorPos(pop, pos) {   // 4 좌표 inline 적용 (auto 포함 — class 의 fallback 무력화)
+  pop.style.left   = pos.left;
+  pop.style.right  = pos.right;
+  pop.style.top    = pos.top;
+  pop.style.bottom = pos.bottom;
+}
 function wsSaveUI() {
   try {
     const pop = $('#ws-pop'); if (!pop) return;
+    const s = pop.style;
     const o = { open: !!wsState.popOpen };
-    if (pop.style.left && pop.style.left !== 'auto') o.pos = { left: pop.style.left, top: pop.style.top, width: pop.style.width, height: pop.style.height };
+    // 사용자가 옮기거나 리사이즈했을 때만 inline 좌표/크기 영속 (4 좌표 중 하나라도 있거나 width/height inline)
+    if (s.left || s.right || s.top || s.bottom || s.width || s.height) {
+      o.pos = { left: s.left || '', right: s.right || '', top: s.top || '', bottom: s.bottom || '', width: s.width || '', height: s.height || '' };
+    }
     localStorage.setItem(WS_UI, JSON.stringify(o));
   } catch {}
 }
 function wsLoadUI() {
   try {
-    const o = JSON.parse(localStorage.getItem(WS_UI) || 'null'); if (!o) return;
+    const o = JSON.parse(localStorage.getItem(WS_UI) || 'null') || {};
     const pop = $('#ws-pop'); if (!pop) return;
-    if (o.pos && o.pos.left) { pop.style.left = o.pos.left; pop.style.top = o.pos.top; pop.style.width = o.pos.width; pop.style.height = o.pos.height; pop.style.right = 'auto'; pop.style.bottom = 'auto'; }
+    // anchor class 먼저 적용 (preset 거리 fallback)
+    const pref = wsLoadPositionPref();
+    pop.classList.remove('pos-tl', 'pos-tr', 'pos-bl', 'pos-br');
+    pop.classList.add('pos-' + pref);
+    if (o.pos) {
+      // 마이그레이션 — 구 형식 (left/top 절대좌표만, right/bottom 키 없음) 감지 시 현재 anchor 기준 거리로 재계산 + 영속 갱신
+      const isLegacy = !('right' in o.pos) && !('bottom' in o.pos);
+      if (isLegacy && o.pos.left) {
+        const left  = parseInt(o.pos.left,   10) || 0;
+        const top   = parseInt(o.pos.top,    10) || 0;
+        const width = parseInt(o.pos.width,  10) || 645;
+        const height= parseInt(o.pos.height, 10) || 540;
+        const rect = { left, top, right: left + width, bottom: top + height };
+        const ap = wsRectToAnchorPos(rect, pref);
+        o.pos = { left: ap.left, right: ap.right, top: ap.top, bottom: ap.bottom, width: o.pos.width || '', height: o.pos.height || '' };
+        try { localStorage.setItem(WS_UI, JSON.stringify(o)); } catch {}
+      }
+      // 사용자가 옮긴 4 좌표 + 크기 복원 (anchor 모서리 거리 그대로 — 화면 resize 시 거리 유지)
+      pop.style.left   = o.pos.left   || '';
+      pop.style.right  = o.pos.right  || '';
+      pop.style.top    = o.pos.top    || '';
+      pop.style.bottom = o.pos.bottom || '';
+      if (o.pos.width)  pop.style.width  = o.pos.width;
+      if (o.pos.height) pop.style.height = o.pos.height;
+    }
     if (o.open) toggleWsPop(true);
   } catch {}
+}
+function wsLoadPositionPref() {
+  try { const p = localStorage.getItem(WS_POS); if (WS_POS_VALID.includes(p)) return p; } catch {}
+  return 'br';
+}
+function wsApplyPosition(p, opts) {
+  const pop = $('#ws-pop'); if (!pop) return;
+  opts = opts || {};
+  // 'center' — 현재 활성 anchor 기준으로 가운데 정렬 (anchor 모서리 거리로 표현하여 화면 resize 시 거리 유지)
+  if (p === 'center') {
+    const anchor = wsCurrentAnchor();
+    const r = pop.getBoundingClientRect();
+    const tLeft = Math.max(0, (innerWidth - r.width) / 2);
+    const tTop  = Math.max(0, (innerHeight - r.height) / 2);
+    const tRect = { left: tLeft, top: tTop, right: tLeft + r.width, bottom: tTop + r.height };
+    wsApplyAnchorPos(pop, wsRectToAnchorPos(tRect, anchor));
+    wsSaveUI();
+    return;
+  }
+  if (!WS_POS_VALID.includes(p)) p = 'br';
+  pop.classList.remove('pos-tl', 'pos-tr', 'pos-bl', 'pos-br');
+  pop.classList.add('pos-' + p);
+  // preset 클릭 = 기본 거리 (22px / 88px) 로 정렬. inline 4 좌표 클리어 → class 가 anchor 모서리 거리 제공.
+  pop.style.left = ''; pop.style.top = ''; pop.style.right = ''; pop.style.bottom = '';
+  if (opts.persist !== false) {
+    try { localStorage.setItem(WS_POS, p); } catch {}
+    try { const o = JSON.parse(localStorage.getItem(WS_UI) || 'null') || {}; delete o.pos; localStorage.setItem(WS_UI, JSON.stringify(o)); } catch {}
+  }
 }
 function toggleWsPop(show) {
   const pop = $('#ws-pop'); if (!pop) return;
@@ -2131,7 +2210,8 @@ function setupWsResize(pop) {
   pop.querySelectorAll('.ws-rsz').forEach(h => {
     h.addEventListener('mousedown', (e) => {
       const r = pop.getBoundingClientRect();
-      rz = { dir: h.dataset.dir, x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height };
+      rz = { dir: h.dataset.dir, x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height, anchor: wsCurrentAnchor() };
+      // 리사이즈 진행 중에는 left/top + width/height 로 작업, 종료 시 anchor 기준 정규화
       pop.style.left = r.left + 'px'; pop.style.top = r.top + 'px'; pop.style.right = 'auto'; pop.style.bottom = 'auto';
       e.preventDefault(); e.stopPropagation();
     });
@@ -2146,7 +2226,107 @@ function setupWsResize(pop) {
     if (rz.dir.includes('n')) { const nh = Math.max(MIN, rz.h - dy); top = rz.top + (rz.h - nh); h = nh; }
     pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.style.width = w + 'px'; pop.style.height = h + 'px';
   });
-  window.addEventListener('mouseup', () => { if (rz) { rz = null; wsSaveUI(); } });
+  window.addEventListener('mouseup', () => {
+    if (!rz) return;
+    // 리사이즈 종료 — 현재 rect → active anchor 기준 모서리 거리로 정규화 (화면 resize 시 거리 유지)
+    const r = pop.getBoundingClientRect();
+    wsApplyAnchorPos(pop, wsRectToAnchorPos(r, rz.anchor));
+    rz = null; wsSaveUI();
+  });
+}
+
+// ---- 실시간 창 설정 모달 (창 배치 등) ----
+let wsSettings = null;
+function setupWsSettings() {
+  const btn = $('#ws-settings-btn'); if (!btn) return;
+  let modal = null;
+  function build() {
+    if (modal) return modal;
+    modal = document.createElement('div'); modal.id = 'ws-settings-modal'; modal.className = 'ws-settings-modal'; modal.hidden = true;
+    const box = document.createElement('div'); box.className = 'ws-settings-box';
+    const head = document.createElement('div'); head.className = 'ws-settings-head';
+    const title = document.createElement('b'); title.textContent = '⚙ 실시간 창 설정';
+    const x = document.createElement('button'); x.className = 'ws-settings-mx'; x.type = 'button'; x.textContent = '✕'; x.onclick = close;
+    head.append(title, x);
+    const body = document.createElement('div'); body.className = 'ws-settings-body';
+    // 창 배치 preset 4종
+    const sec = document.createElement('div'); sec.className = 'ws-set-section';
+    const h = document.createElement('h4'); h.textContent = '창 배치 기준'; sec.appendChild(h);
+    const grid = document.createElement('div'); grid.className = 'ws-pos-grid';
+    const POS_DEFS = [
+      { v: 'tl', arrow: '↖', name: '좌상' },
+      { v: 'tr', arrow: '↗', name: '우상' },
+      { v: 'bl', arrow: '↙', name: '좌하' },
+      { v: 'br', arrow: '↘', name: '우하 (기본)' },
+    ];
+    const cur = wsLoadPositionPref();
+    POS_DEFS.forEach((pd) => {
+      const c = document.createElement('button'); c.type = 'button'; c.className = 'ws-pos-card' + (cur === pd.v ? ' active' : ''); c.dataset.pos = pd.v;
+      const a = document.createElement('span'); a.className = 'ws-pos-arrow'; a.textContent = pd.arrow;
+      const n = document.createElement('span'); n.className = 'ws-pos-name'; n.textContent = pd.name;
+      c.append(a, n);
+      c.onclick = () => {
+        wsApplyPosition(pd.v);
+        grid.querySelectorAll('.ws-pos-card').forEach((el) => el.classList.toggle('active', el.dataset.pos === pd.v));
+      };
+      grid.appendChild(c);
+    });
+    sec.appendChild(grid);
+    const desc = document.createElement('div'); desc.className = 'ws-set-desc';
+    desc.textContent = '선택한 모서리 기준 거리가 유지돼요 — 화면 / 창 크기가 변해도 그 모서리에서 같은 거리. 예: "우하" 선택 + 창을 우측 하단에 가깝게 놓으면 화면이 늘어나도 우하 모서리 거리 동일.';
+    sec.appendChild(desc);
+    const hint = document.createElement('div'); hint.className = 'ws-set-hint'; hint.textContent = '창을 드래그하면 그 위치가 새 거리로 자동 저장. 기본 거리로 되돌리려면 위 옵션 중 하나를 다시 클릭.';
+    sec.appendChild(hint);
+    body.appendChild(sec);
+    box.append(head, body); modal.appendChild(box);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+    document.body.appendChild(modal);
+    return modal;
+  }
+  function open() {
+    build(); modal.hidden = false;
+    // re-sync active 상태 (외부에서 변경됐을 수도)
+    const cur = wsLoadPositionPref();
+    modal.querySelectorAll('.ws-pos-card').forEach((el) => el.classList.toggle('active', el.dataset.pos === cur));
+  }
+  function close() { if (modal) modal.hidden = true; }
+  btn.onclick = (e) => { e.stopPropagation(); open(); };
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal && !modal.hidden) close(); });
+  wsSettings = { open, close };
+}
+
+// ---- 토글 버튼 우클릭 컨텍스트 메뉴 (화면 가운데로 / 키 관리 / 설정) ----
+function setupWsContextMenu() {
+  const fab = $('#ws-fab'); if (!fab) return;
+  let menu = null;
+  function close() { if (menu) { menu.remove(); menu = null; } }
+  fab.addEventListener('contextmenu', (e) => {
+    e.preventDefault(); close();
+    menu = document.createElement('div'); menu.className = 'ws-fab-ctx';
+    const items = [
+      { icon: '⊕', label: '화면 가운데로', act: () => { if (!wsState.popOpen) toggleWsPop(true); wsApplyPosition('center'); } },
+      { icon: '🔑', label: '키 발행',      act: () => { if (!wsState.popOpen) toggleWsPop(true); if (wsKeyMgmt && wsKeyMgmt.openIssuePanel) wsKeyMgmt.openIssuePanel(); } },
+      { icon: '🔐', label: '키 관리',      act: () => { if (!wsState.popOpen) toggleWsPop(true); if (wsKeyMgmt && wsKeyMgmt.openManager) wsKeyMgmt.openManager(); } },
+      { icon: '⚙',  label: '설정',         act: () => { if (!wsState.popOpen) toggleWsPop(true); if (wsSettings) wsSettings.open(); } },
+    ];
+    items.forEach((it) => {
+      const b = document.createElement('button'); b.className = 'ws-fab-ctx-item'; b.type = 'button';
+      b.textContent = it.icon + '  ' + it.label;
+      b.onclick = (ev) => { ev.stopPropagation(); close(); it.act(); };
+      menu.appendChild(b);
+    });
+    document.body.appendChild(menu);
+    const r = fab.getBoundingClientRect(), mr = menu.getBoundingClientRect();
+    // fab 좌상단 기준으로 메뉴를 띄움 — 화면 안 들어가도록 clamp
+    let left = r.left, top = r.top - mr.height - 6;
+    if (top < 8) top = r.bottom + 6;
+    if (left + mr.width > innerWidth - 8) left = innerWidth - mr.width - 8;
+    menu.style.left = Math.max(8, left) + 'px';
+    menu.style.top = Math.max(8, top) + 'px';
+  });
+  document.addEventListener('click', (e) => { if (menu && !e.target.closest('.ws-fab-ctx')) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  window.addEventListener('blur', close);
 }
 
 function setupWS() {
@@ -2154,13 +2334,13 @@ function setupWS() {
   if (!fab || !pop) return;
   fab.onclick = () => toggleWsPop();
   if (close) close.onclick = (e) => { e.stopPropagation(); toggleWsPop(false); };
-  // 헤더 드래그 — left/top 기준 (리사이즈와 좌표계 통일)
+  // 헤더 드래그 — 진행 중에는 left/top, 종료 시 active anchor 기준 모서리 거리로 정규화 (화면 resize 시 거리 유지)
   let drag = null;
   if (head) {
     head.addEventListener('mousedown', (e) => {
       if (e.target.closest('button, input, select, textarea, a, .ws-collab-panel')) return;   // 인터랙티브 요소(close·collab 라벨 input·패널 등)는 드래그 제외 — 클릭/포커스 보존
       const r = pop.getBoundingClientRect();
-      drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top };
+      drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, anchor: wsCurrentAnchor() };
       pop.style.left = r.left + 'px'; pop.style.top = r.top + 'px'; pop.style.right = 'auto'; pop.style.bottom = 'auto';
       e.preventDefault();
     });
@@ -2169,7 +2349,13 @@ function setupWS() {
       pop.style.left = Math.max(0, Math.min(innerWidth - 80, drag.left + (e.clientX - drag.x))) + 'px';
       pop.style.top = Math.max(0, Math.min(innerHeight - 40, drag.top + (e.clientY - drag.y))) + 'px';
     });
-    window.addEventListener('mouseup', () => { if (drag) { drag = null; wsSaveUI(); } });
+    window.addEventListener('mouseup', () => {
+      if (!drag) return;
+      // 드래그 종료 — anchor 기준 정규화
+      const r = pop.getBoundingClientRect();
+      wsApplyAnchorPos(pop, wsRectToAnchorPos(r, drag.anchor));
+      drag = null; wsSaveUI();
+    });
   }
   setupWsResize(pop);
   wsLoadDrafts();   // 채널별 입력 draft·통일 높이 복원(새로고침 영속)
@@ -2185,6 +2371,8 @@ function setupWS() {
   document.addEventListener('click', (e) => { if (archMenu && !archMenu.hidden && !e.target.closest('.ws-arch-wrap')) archMenu.hidden = true; });
   // v2.4.2 UI 통합: setupWsCollab (🔗 별도 버튼) 제거 — setupWsKeyMgmt 가 kind dropdown 으로 모든 종류 발행 통합
   setupWsKeyMgmt();                                   // v2.4.0 #406 UI4/UI5 업스트림 키 발행 🔑 + 키 관리 모달 🗂
+  setupWsSettings();                                  // 실시간 창 설정 모달 (창 배치 preset 등) — 헤드 ⚙ 버튼
+  setupWsContextMenu();                               // 🌐 fab 우클릭 → 화면 가운데로 / 키 관리 / 설정
   updateWsConn(); updateWsBadge(); wsRenderTabs();
   wsLoadUI();                                         // 팝업 위치·크기·열림 상태 복원
   connectWS();

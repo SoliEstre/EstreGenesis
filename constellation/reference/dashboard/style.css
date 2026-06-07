@@ -363,7 +363,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 /* 플로팅 토글 버튼 (우하단 고정) */
 .ws-fab { position: fixed; right: 22px; bottom: 22px; width: 56px; height: 56px; border-radius: 50%; border: none;
   background: var(--accent); color: #fff; font-size: 1.4rem; cursor: pointer; box-shadow: 0 4px 18px #0007;
-  display: flex; align-items: center; justify-content: center; z-index: 60; }
+  display: flex; align-items: center; justify-content: center; z-index: 58; }   /* popup z-index 59 보다 낮춰 — 사용자가 popup 을 fab 위로 끌어/리사이즈해도 popup 이 fab 을 덮음 */
 .ws-fab[hidden] { display: none; }
 .ws-fab:hover { filter: brightness(1.08); transform: scale(1.04); }
 .ws-fab-badge { position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; border-radius: 10px;
@@ -375,6 +375,11 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
   border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 44px #0009; display: flex; flex-direction: column;
   overflow: hidden; z-index: 59; min-width: 320px; min-height: 320px; max-width: 96vw; max-height: 92vh; }
 .ws-pop[hidden] { display: none; }
+/* 창 배치 preset 4종 — 설정 모달의 라디오로 변경. 사용자 드래그 시 inline style 이 우선 (기존 동작 유지) */
+.ws-pop.pos-tl { left: 22px;  top: 88px;  right: auto;  bottom: auto; }
+.ws-pop.pos-tr { left: auto;  top: 88px;  right: 22px;  bottom: auto; }
+.ws-pop.pos-bl { left: 22px;  top: auto;  right: auto;  bottom: 88px; }
+.ws-pop.pos-br { left: auto;  top: auto;  right: 22px;  bottom: 88px; }
 .ws-pop-head { display: flex; align-items: center; gap: 8px; padding: 10px 13px; background: var(--panel2);
   border-bottom: 1px solid var(--line); cursor: move; user-select: none; font-size: .9rem; }
 .ws-pop-head .ws-pop-dot { width: 8px; height: 8px; border-radius: 50%; background: #39d353; box-shadow: 0 0 6px #39d353; flex: 0 0 auto; }
@@ -637,3 +642,30 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-invite-roledesc:focus { outline: none; border-color: var(--accent); }
 .ws-invite-roledesc-show { font-size: .72rem; color: var(--ink); background: var(--panel2, var(--panel)); border-left: 2px solid var(--accent); padding: 4px 8px; margin: 4px 0; white-space: pre-wrap; word-break: break-word; }
 .ws-key-roledesc { font-size: .68rem; color: var(--ink); background: var(--panel); border-left: 2px solid var(--accent); padding: 3px 6px; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
+
+/* 설정 ⚙ 버튼 — popup head 의 🗂 우측, ✕ 좌측. 양옆 spacing 으로 닫기 버튼과 간격 확보 */
+#ws-settings-btn { margin: 0 10px 0 4px; }
+
+/* ---- 실시간 창 설정 모달 (창 배치 preset 등) ---- */
+.ws-settings-modal { position: fixed; inset: 0; z-index: 61; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.42); }
+.ws-settings-modal[hidden] { display: none; }
+.ws-settings-box { width: min(460px, 92vw); max-height: 80vh; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.ws-settings-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.ws-settings-head b { flex: 1 1 auto; color: var(--ink); font-size: .92rem; }
+.ws-settings-mx { background: none; border: 1px solid var(--line); color: var(--muted); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font: inherit; }
+.ws-settings-mx:hover { color: var(--ink); border-color: var(--accent); }
+.ws-settings-body { padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.ws-set-section h4 { margin: 0 0 8px; font-size: .82rem; color: var(--ink); font-weight: 700; letter-spacing: .02em; }
+.ws-set-desc { font-size: .74rem; color: var(--ink); margin-top: 10px; line-height: 1.5; opacity: .9; }
+.ws-set-hint { font-size: .68rem; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+.ws-pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ws-pos-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel2, var(--panel)); color: var(--ink); cursor: pointer; font: inherit; font-size: .8rem; }
+.ws-pos-card:hover { border-color: var(--accent); }
+.ws-pos-card .ws-pos-arrow { font-size: 1.3rem; line-height: 1; }
+.ws-pos-card .ws-pos-name { font-size: .78rem; }
+.ws-pos-card.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--accent); font-weight: 700; }
+
+/* ---- 토글 버튼 우클릭 컨텍스트 메뉴 (화면 가운데로 / 키 관리 / 설정) ---- */
+.ws-fab-ctx { position: fixed; z-index: 62; min-width: 170px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 28px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 2px; }
+.ws-fab-ctx-item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border: none; background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-size: .82rem; text-align: left; border-radius: 7px; }
+.ws-fab-ctx-item:hover { background: var(--panel2, var(--bg)); color: var(--accent); }
