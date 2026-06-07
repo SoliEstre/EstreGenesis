@@ -1725,7 +1725,7 @@ function onWsEvent(m) {
         }
       }
       else if (m.name === 'Attachment') { wsPushRow(chId, { kind: 'attach', src: _src, att: m.value || {}, t: nowHM(), chan: _chan, chanFull: _chanFull }); }   // §6 첨부 카드(image/audio/video/file)
-      else { const v = m.value; const disp = (v == null) ? '' : (typeof v === 'string' ? v : (v.text || v.message || v.notice || v.summary || v.label || '')); push('text', `✦ ${m.name || 'CUSTOM'}`, disp, true, v); }   // raw JSON 미노출(§1) — 원본은 hover 팝업 + debug drawer; fallback에 notice 추가(공지류 v2.2.x batch)
+      else { const v = m.value; const disp = (v == null) ? '' : (typeof v === 'string' ? v : (v.re || v.text || v.message || v.notice || v.summary || v.label || v.ask || v.body || v.detail || '')); push('text', `✦ ${m.name || 'CUSTOM'}`, disp, true, v); }   // raw JSON 미노출(§1) — 원본은 hover 팝업 + debug drawer; fallback chain 에 v.re/ask/body/detail 추가 (Report 등 generic 분기 메시지의 inline 표시 정합)
       break;
     case 'STATE_SNAPSHOT': case 'STATE_DELTA': push('step', `≡ ${t}`, m.scope || '', true); break;
     default: push('text', t || '?', '', true);
