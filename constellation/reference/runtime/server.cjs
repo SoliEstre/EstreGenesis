@@ -654,6 +654,32 @@ function wsAgentList() {
 function wsToBoards(msg) { for (const c of wsConns) if (c.meta.role !== 'agent' && c.alive) c.send(msg); }
 function wsToAll(msg) { for (const c of wsConns) if (c.alive) c.send(msg); }   // 시스템 공지(ServerNotice 등) — 에이전트+board 전체
 function wsPushAgentList() { wsToBoards(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } })); }
+
+// §13.19.10 Q3 board-adapter deadlock detector — OPT-IN (도입측이 필요할 때만). 기본 OFF (서버↔application 결합 회피 — Constellation.md §13.19.3 의 canonical 검출은 에이전트측 turn-start wait-edge DFS).
+//   _a2aPending 는 reply-pairing(응답 에이전트 → {from=요청자}) 이라 wait-edge 의 lightweight 근사: pending.get(B).from===A ⟺ A 가 B 응답 대기(A→B). 2-cycle(A↔B) 이 threshold 초과 지속 시 DeadlockProbe 를 board 로 emit.
+//   활성화: WS_DEADLOCK_DETECT=1 (+ 선택 WS_DEADLOCK_PROBE_MS, 기본 120000). 검출은 근사(strict 2-cycle만) — quasi-deadlock(behavioral, cycle 없음)은 에이전트측 §13.19.4 SLA 규율 담당.
+const WS_DEADLOCK_DETECT = /^(1|true|on)$/i.test(process.env.WS_DEADLOCK_DETECT || '');
+const WS_DEADLOCK_PROBE_MS = Number(process.env.WS_DEADLOCK_PROBE_MS) || 120000;
+const _deadlockSeen = new Set();   // 이미 probe emit 한 cycle key (해소 시 정리 → 재발 재emit)
+function wsDeadlockScan() {
+  const now = Date.now();
+  for (const [node, rec] of _a2aPending) {
+    const other = rec.from; if (!other) continue;
+    const ro = _a2aPending.get(other);
+    if (ro && ro.from === node) {   // node→other(ro) AND other→node(rec) = strict 2-cycle
+      if ((now - rec.at) < WS_DEADLOCK_PROBE_MS || (now - ro.at) < WS_DEADLOCK_PROBE_MS) continue;   // 둘 다 threshold 초과해야 (healthy 대기 오탐 방지)
+      const key = [node, other].sort().join('::');
+      if (_deadlockSeen.has(key)) continue;
+      _deadlockSeen.add(key);
+      const ev = wscore.event('CUSTOM', { name: 'DeadlockProbe', value: { cycleMembers: [node, other].sort(), waitEdges: [{ from: node, to: other }, { from: other, to: node }], class: 'strict', summary: `2-cycle ${node} ↔ ${other} (board-adapter detect, 양측 ≥${WS_DEADLOCK_PROBE_MS}ms)`, proposedResolution: 'priority-leader override (§13.19.5) 또는 §13.17 decisions 에스컬레이션' } });
+      ev.source = 'server';
+      wsToBoards(ev);
+      console.error(`[ws DEADLOCK] strict 2-cycle ${node} ↔ ${other} → DeadlockProbe emitted to boards (opt-in detector)`);
+    }
+  }
+  for (const key of [..._deadlockSeen]) { const [x, y] = key.split('::'); const rx = _a2aPending.get(x), ry = _a2aPending.get(y); if (!(rx && ry && rx.from === y && ry.from === x)) _deadlockSeen.delete(key); }   // cycle 해소 → key 정리 (재발 시 재emit 허용)
+}
+if (WS_DEADLOCK_DETECT) { setInterval(wsDeadlockScan, Math.min(WS_DEADLOCK_PROBE_MS, 30000)).unref(); console.log(`[server] WS_DEADLOCK_DETECT on — board-adapter strict 2-cycle detector (probe ≥${WS_DEADLOCK_PROBE_MS}ms, §13.19.10 Q3 opt-in; quasi-deadlock 은 에이전트측 SLA 규율 담당)`); }
 server.on('upgrade', (req, socket) => {
   if (req.url.split('?')[0] !== '/ws') { socket.destroy(); return; }
   const conn = wscore.handleUpgrade(req, socket);
