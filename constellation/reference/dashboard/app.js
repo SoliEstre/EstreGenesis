@@ -1300,6 +1300,12 @@ const WS_A2A_INTENT = {   // name → { icon, label, summaryKeys[] } (summaryKey
   MediationAck:      { icon: '⚖️', label: 'Mediation ack', sum: ['re', 'subject', 'status', 'summary'] },
   EscalationRequest: { icon: '⚠️', label: 'Escalation 요청', sum: ['re', 'subject', 'reason', 'tier', 'status'] },
   EscalationSurfaced:{ icon: '⚠️', label: 'Escalation', sum: ['re', 'subject', 'reason', 'tier', 'decisionId', 'status'] },
+  // 코디네이션 메시지 — 이전엔 text/user/ok row 였으나 카드로 통일 (카드 미표시 항목도 카드화). re > summary 우선.
+  Delegate:          { icon: '📋', label: '위임',     sum: ['re', 'subject', 'summary', 'reason', 'task', 'notice'] },
+  WorkerReport:      { icon: '📤', label: '보고',     sum: ['re', 'subject', 'summary', 'done', 'status', 'note', 'notice'] },
+  WorkerAck:         { icon: '📥', label: 'ack',      sum: ['re', 'subject', 'ack', 'summary', 'note', 'notice'] },
+  OnboardAck:        { icon: '🤝', label: '온보딩',   sum: ['re', 'welcome', 'guide', 'summary', 'policy'] },
+  AgentHello:        { icon: '👋', label: '합류',     sum: ['agentName', 'note', 'agentId', 'env'] },
 };
 function wsA2aSummary(spec, v) {   // summary 1줄 — spec.sum 키 순서대로 첫 비어있지 않은 문자열
   if (v == null) return '';
@@ -2006,11 +2012,7 @@ function onWsEvent(m) {
       else if (m.name === 'UserPrompt') push('user', '🙋 발화', (m.value && m.value.text) || '', false);   // A2A 발화(에이전트 간) — raw 이름(✦ UserPrompt) 대신 대화로 렌더
       else if (m.name === 'Command') push('user', '⌘ Command', (m.value && m.value.name) || '', false);
       else if (m.name === 'Cancel') push('user', '⏹ Stop', '작업 중단 요청', false);
-      else if (m.name === 'AgentHello') { const v = m.value || {}; push('user', '👋 합류', (v.agentName || v.agentId || '') + (v.env ? ' · ' + v.env : '') + (v.idle ? ' · 대기' : ''), false, v); }   // 신규 워커 self-intro(§13.9)
-      else if (m.name === 'OnboardAck') { const v = m.value || {}; push('ok', '🤝 온보딩', [v.welcome, v.guide, v.policy].filter(Boolean).join(' · '), false, v); }   // 메인 온보딩 응답
-      else if (m.name === 'Delegate') { const v = m.value || {}; push('user', '📋 위임', (v.task ? '[' + v.task + '] ' : '') + (v.summary || v.reason || v.notice || ''), false, v); }   // 메인 → 워커 작업 위임 — fallback에 notice 추가(공지류 v2.2.x batch)
-      else if (m.name === 'WorkerReport') { const v = m.value || {}; push('text', '📤 보고', (v.from ? v.from + ' · ' : '') + (v.re || v.done || v.summary || v.note || v.notice || ''), false, v); }   // 워커 → 메인 진행 보고 — fallback에 notice 추가
-      else if (m.name === 'WorkerAck') { const v = m.value || {}; push('ok', '📥 ack', (v.re || v.ack || v.summary || v.note || v.notice || ''), false, v); }   // 워커/메인 수용 응답 — fallback에 notice 추가
+      // AgentHello·OnboardAck·Delegate·WorkerReport·WorkerAck 는 WS_A2A_INTENT 카드 분기로 통일 (전용 text/user/ok row 제거 — 카드 미표시 항목 카드화)
       else if (m.name === 'Ack') { const v = m.value || {}; push('ok', '✅ delivered', [v.kind, v.ackFor].filter(Boolean).join(' · ') || (v.re || v.summary || v.notice || ''), true, v); }   // §13.13 server delivered ack — board 미표시(alarm fatigue 게이팅), hidden=true로 hover/drawer만 접근
       else if (m.name === 'AckProcessed') { const v = m.value || {}; push('ok', '✅ processed', [v.kind || 'processed', v.ackFor].filter(Boolean).join(' · ') || (v.re || v.summary || v.notice || ''), true, v); }   // §13.13 agent processed ack(WILCO) — board 미표시
       else if (m.name === 'AckCumulative') { const v = m.value || {}; push('ok', '✅ cumulative', 'upToSeq=' + (v.upToSeq != null ? v.upToSeq : '?'), true, v); }   // §13.13 telemetry 누적 ack — board 미표시
@@ -2036,7 +2038,15 @@ function onWsEvent(m) {
         const spec = WS_A2A_INTENT[m.name]; const v = m.value || {};
         wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (spec.label || m.name || 'CUSTOM'), full: (v && typeof v === 'object') ? v : (v != null ? { value: v } : null), src: _src, chan: _chan, chanFull: _chanFull, t: _t, ts: _ts });
       }
-      else { const v = m.value; const disp = (v == null) ? '' : (typeof v === 'string' ? v : (v.re || v.text || v.message || v.notice || v.summary || v.label || v.ask || v.body || v.detail || '')); push('text', `✦ ${m.name || 'CUSTOM'}`, disp, true, v); }   // raw JSON 미노출(§1) — 원본은 hover 팝업 + debug drawer; fallback chain 에 v.re/ask/body/detail 추가 (Report 등 generic 분기 메시지의 inline 표시 정합)
+      else {   // 미분류 CUSTOM 도 카드로 통일 (카드 미표시 항목 카드화). 객체값 → a2acard(generic spec, re > summary 우선 fallback), 비-객체 → text row.
+        const v = m.value;
+        if (v != null && typeof v === 'object') {
+          const spec = { icon: '✦', label: m.name || 'CUSTOM', sum: ['re', 'text', 'message', 'notice', 'summary', 'label', 'ask', 'body', 'detail'] };
+          wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (m.name || 'CUSTOM'), full: v, src: _src, chan: _chan, chanFull: _chanFull, t: _t, ts: _ts });
+        } else {
+          push('text', `✦ ${m.name || 'CUSTOM'}`, (v == null ? '' : String(v)), true, v);
+        }
+      }
       break;
     case 'STATE_SNAPSHOT': case 'STATE_DELTA': push('step', `≡ ${t}`, m.scope || '', true); break;
     default: push('text', t || '?', '', true);
