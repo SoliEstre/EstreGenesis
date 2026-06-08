@@ -420,7 +420,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-tab.up.active::after { background: #e0922e; } .ws-tab.main.active::after { background: #7a4dff; } .ws-tab.local.active::after { background: #39d353; }
 .ws-tab .tdot { width: 6px; height: 6px; border-radius: 50%; background: #39d353; flex: 0 0 auto; }
 .ws-tab .tdot.off { background: #4b5563; }
-.ws-tab.up .nm { color: #e0922e; } .ws-tab.main .nm { color: #9a78ff; }
+.ws-tab .nm.up { color: #e0922e; } .ws-tab .nm.main { color: #9a78ff; } .ws-tab .nm.local { color: var(--ws-role-local, #34b39e); } .ws-tab .nm.collab { color: var(--ws-role-collab, #2a9d8f); }   /* 그룹 탭 선택 시 멤버 이름 그룹색상, 4 role (EstreUF UI2 parity) */
 .ws-tab .ubadge { min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: #8b6dff; color: #fff; font-size: .6rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .ws-tab .ubadge[hidden] { display: none; }
 .grp.sel .ws-tab .ubadge { background: #472a9e; }   /* 선택 그룹: 차분 / 비선택: 밝게(주목) */

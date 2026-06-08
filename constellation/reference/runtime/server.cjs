@@ -744,6 +744,7 @@ server.on('upgrade', (req, socket) => {
     if (wsHandleOrch(conn, msg)) return;
     // ✕ 닫기 → 해당 채널 기록 삭제 + 모든 board 갱신
     if (msg && msg.type === 'CUSTOM' && msg.name === 'CloseChannel') { wsCloseChannelHist(msg.value && msg.value.agentId); wsToBoards(msg); return; }
+    if (msg && msg.type === 'CUSTOM' && msg.name === 'DeleteChannelHistory') { wsCloseChannelHist(msg.value && msg.value.agentId); wsToBoards(msg); return; }   // 🗑 영구삭제 — history 파일 제거(persist) + 다른 board 동기 (EstreUF parity)
     // C(lazy): 탭 클릭·세션 복원 시 채널 내용 on-demand 요청 → 해당 채널 events 응답
     if (msg && msg.type === 'CUSTOM' && msg.name === 'RequestChannelHistory') { const ck = String((msg.value && msg.value.channelKey) || ''); conn.send(wscore.event('CUSTOM', { name: 'ChannelHistory', value: { channelKey: ck, events: wsLoadChannel(ck) } })); return; }
     // D: ✕ 닫기 = 아카이브 → 해당 채널을 archived/(cold)로 이동(active 스캔·cap 제외, 복원 시 cold 로드)
