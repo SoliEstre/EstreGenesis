@@ -481,7 +481,7 @@ function renderDecisions() {
   box.innerHTML = '';
   ui.adhoc.forEach(item => box.append(buildAdhocCard(item)));   // 예정작업 즉석 피드백 카드 (최상단)
   const list = (ui.state.decisions || []).slice().sort((a, b) => (a.priority || 99) - (b.priority || 99));
-  $('#decisions-badge').textContent = list.filter(d => d.status !== 'resolved').length + ui.adhoc.length;
+  { const _decCount = list.filter(d => d.status !== 'resolved').length + ui.adhoc.length; const _decBadge = $('#decisions-badge'); if (_decBadge) { _decBadge.textContent = _decCount; _decBadge.hidden = (_decCount === 0); } }   // 검토사안 0이면 뱃지만 숨김(탭 유지) — EstreUF parity
 
   const buildCard = (d) => {
     const draft = clearedIfReviewed(d, decisionDraft(d), focusedDid === d.id);
@@ -1060,6 +1060,13 @@ function scheduleWSReconnect() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (!wsState.ws || wsState.ws.readyState > 1)) connectWS(); });
 
 function nowHM() { return new Date().toTimeString().slice(0, 8); }
+// 발신 시각 보존 (EstreUF parity) — 새로고침·History replay 후에도 원본 발신 시각 고정. 우선순위: m.timestamp(epoch ms) → m.at(ISO) → null.
+function wsMsgEpoch(m) {
+  if (m && typeof m.timestamp === 'number' && isFinite(m.timestamp)) return m.timestamp;
+  if (m && m.at) { const e = Date.parse(m.at); if (!isNaN(e)) return e; }
+  return null;
+}
+function wsRowTime(m) { const e = wsMsgEpoch(m); return e != null ? new Date(e).toTimeString().slice(0, 8) : nowHM(); }
 function wsFmtVal(v) { if (v == null) return ''; if (typeof v === 'string') return v; try { return JSON.stringify(v); } catch { return String(v); } }
 function wsTrunc(s, n = 220) { s = wsFmtVal(s); return s.length > n ? s.slice(0, n) + '…' : s; }
 function wsOutcome(o) { return !o ? '' : (o.type === 'cancelled' ? `취소됨${o.reason ? ' · ' + o.reason : ''}` : (o.type || 'success')); }
@@ -1786,6 +1793,8 @@ function wsGroupRep(gkey) {
 }
 function onWsEvent(m) {
   const t = m.type;
+  const _ts = wsMsgEpoch(m);   // 발신 시각 epoch ms (정렬·날짜변경선용·고정) — 없으면 null
+  const _t = wsRowTime(m);     // 발신 시각 HH:MM:SS (client 로컬 TZ·고정) — 없으면 nowHM() fallback
   if (t === 'SERVER_HELLO') {
     wsState.open = true; updateWsConn();
     // post-handshake assertion (envelope-drift catch): 5s after SERVER_HELLO,
@@ -1837,12 +1846,22 @@ function onWsEvent(m) {
   if (t === 'CUSTOM' && m.name === 'ServerNotice') {   // 브릿지/서버 재시작 등 시스템 공지 → 활성 채널 status 카드
     const v = m.value || {}; const icon = ({ restarting: '🔄', offline: '🔌', online: '🟢' })[v.kind] || 'ℹ️';
     const a = wsState.active;
-    if (a && !wsIsGroup(a)) wsPushRow(a, { kind: 'status', label: icon + ' 서버 공지', body: v.text || ((v.target || 'server') + ' ' + (v.kind || '')), dim: false, t: nowHM() });
+    if (a && !wsIsGroup(a)) wsPushRow(a, { kind: 'status', label: icon + ' 서버 공지', body: v.text || ((v.target || 'server') + ' ' + (v.kind || '')), dim: false, t: _t, ts: _ts });
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CloseChannel') {   // 다른 클라/✕ 로 채널 닫힘 → 동기
     const id = m.value && m.value.agentId;
     if (id && wsState.channels.has(id)) { wsState.channels.delete(id); if (wsState.active === id) wsState.active = wsState.channels.keys().next().value || null; if (!wsState.replaying) { wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge(); } }
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'DeleteChannelHistory') {   // 다른 board 가 채널 영구삭제(🗑) → 동기 제거 (EstreUF parity)
+    const id = m.value && m.value.agentId;
+    if (id && wsState.channels.has(id)) { if (wsState.active === id) wsState.active = wsState.channels.keys().next().value || null; wsState.channels.delete(id); wsSaveHidden(); if (!wsState.replaying) { wsRenderTabs(); wsRenderArchived(); wsRenderActiveStream(); updateWsConn(); updateWsBadge(); } }
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'HistoryCleared') {   // 다른 board 가 전체삭제 → 닫은 세션 동기 제거 (EstreUF #406 UI3 parity)
+    for (const [id, c] of [...wsState.channels.entries()]) if (c.hidden && !wsIsMon(id)) { if (wsState.active === id) wsState.active = null; wsState.channels.delete(id); }
+    wsSaveHidden(); if (!wsState.replaying) { wsRenderTabs(); wsRenderArchived(); updateWsConn(); updateWsBadge(); }
     return;
   }
   if (t === 'CUSTOM' && m.name === 'UpstreamKeyIssued') {   // transitional alias (RegisterUpstreamKey 응답) — UI 는 setupWsKeyMgmt 의 setIssued 로 통합
@@ -1872,6 +1891,8 @@ function onWsEvent(m) {
     if (wsKeyMgmt) { const v = m.value || {}; if (!v.kind) v.kind = 'collab'; wsKeyMgmt.setIssued(v); }
     return;
   }
+  // #406 UI6 SelectionResolved — 다른 board 가 답/취소 → 이 board 의 해당 chip dim. agentId 없는 라우팅-무관 서버 직접 reply 로 와도 처리(EstreUF parity — agent-outbound 가드 앞에서 조기 처리)
+  if (t === 'CUSTOM' && m.name === 'SelectionResolved') { const v = m.value || {}; wsResolveSelection(v.promptId, v.resolution, v.reason); return; }
   // board/사용자 입력(에코 또는 History 재생) → 해당 채널에 user row (대화기록 복원)
   if ((m.source === 'user' || m.source === 'board') && t === 'CUSTOM' && m.targetAgentId) {
     const ukey = wsChanKey(m);   // §4: 사용자 입력도 channelId 우선 scoped 키
@@ -1881,7 +1902,7 @@ function onWsEvent(m) {
     const label = nm === 'UserPrompt' ? '🙋 UserPrompt' : nm === 'Command' ? '⌘ Command' : nm === 'Cancel' ? '⏹ Stop' : '✦ ' + (nm || 'CUSTOM');
     // raw JSON 은 timeline 에 노출하지 않음(§1) — 의미 필드만, 전체 원본은 debug drawer 에서
     const body = nm === 'UserPrompt' ? (v.text || '') : nm === 'Command' ? (v.name || '') : nm === 'Cancel' ? '작업 중단 요청' : (typeof v === 'string' ? v : (v.text || v.message || v.summary || v.label || ''));
-    wsPushRow(ukey, { kind: 'user', label, body, dim: false, t: nowHM(), chan: wsChanLabel(m), chanFull: wsChanFull(m) });
+    wsPushRow(ukey, { kind: 'user', label, body, dim: false, t: _t, ts: _ts, chan: wsChanLabel(m), chanFull: wsChanFull(m) });
     return;
   }
   const agentId = m.agentId; if (!agentId) return;       // agent outbound 는 agentId 필수
@@ -1908,17 +1929,15 @@ function onWsEvent(m) {
   if (typeof m.seq === 'number') ch.seq = m.seq;
   if (m.runId) ch.runId = m.runId;
   const _chan = a2a ? '' : wsChanLabel(m), _chanFull = a2a ? '' : wsChanFull(m);   // 출처 뱃지(에이전트 통합 채널 내 대화 구분). 모니터(a2a)는 _src 뱃지
-  // Preserve source-stamped timestamp through replay (server.eux record: timestamp clobber forbidden).
-  // m.at (epoch ms, source-stamped at emit) is the original wall-clock; fall back to nowHM() only when absent.
-  const _msgT = (typeof m.at === 'number') ? new Date(m.at).toTimeString().slice(0, 8) : nowHM();
-  const push = (kind, label, body, dim, full) => wsPushRow(chId, { kind, label, body: body || '', dim, t: _msgT, chan: _chan, chanFull: _chanFull, src: _src, full: (full && typeof full === 'object') ? full : null });
+  // 발신 시각(_t/_ts)은 onWsEvent 최상단에서 wsMsgEpoch/wsRowTime 로 도출 (m.timestamp → m.at ISO → fallback). replay 후에도 원본 고정.
+  const push = (kind, label, body, dim, full) => wsPushRow(chId, { kind, label, body: body || '', dim, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull, src: _src, full: (full && typeof full === 'object') ? full : null });
   switch (t) {
     case 'RUN_STARTED': push('run', '▶ RUN_STARTED', m.runId || '', true); break;
     case 'RUN_FINISHED': push('ok', '✓ RUN_FINISHED', wsOutcome(m.outcome), true); break;
     case 'RUN_ERROR': push('err', '⚠ RUN_ERROR', (m.code ? `[${m.code}] ` : '') + (m.message || ''), false); break;
     case 'STEP_STARTED': push('step', '◆ STEP', m.stepName || '', true); break;
     case 'STEP_FINISHED': push('step', '◇ STEP done', m.stepName || '', true); break;
-    case 'TEXT_MESSAGE_START': { const row = { kind: 'text', label: '💬 TEXT', body: '', dim: false, t: nowHM(), chan: _chan, chanFull: _chanFull, src: _src }; ch.msgBuf[m.messageId || '_'] = row; wsPushRow(chId, row); break; }
+    case 'TEXT_MESSAGE_START': { const row = { kind: 'text', label: '💬 TEXT', body: '', dim: false, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull, src: _src }; ch.msgBuf[m.messageId || '_'] = row; wsPushRow(chId, row); break; }
     case 'TEXT_MESSAGE_CONTENT': {
       const row = ch.msgBuf[m.messageId || '_'];
       if (row) { row.body = (row.body || '') + (m.delta || ''); if (row._b) { if (row._md) row._b.innerHTML = wsMd(row.body); else row._b.textContent = row.body; const s = $('#ws-stream'); if (s) s.scrollTop = s.scrollHeight; } }
@@ -1931,13 +1950,13 @@ function onWsEvent(m) {
       if (rep) {
         const spec = WS_A2A_INTENT[rep.name]; const v = rep.value;
         const sum = (rep.prefix && rep.prefix.length <= 200 ? rep.prefix : '') || wsA2aSummary(spec, v);
-        wsPushRow(chId, { kind: 'a2acard', a2a: { name: rep.name, spec, value: v, summary: sum }, _expanded: false, label: (spec.label || rep.name), full: v, src: _src, chan: _chan, chanFull: _chanFull, t: _msgT });
+        wsPushRow(chId, { kind: 'a2acard', a2a: { name: rep.name, spec, value: v, summary: sum }, _expanded: false, label: (spec.label || rep.name), full: v, src: _src, chan: _chan, chanFull: _chanFull, t: _t, ts: _ts });
       } else push('text', '💬 TEXT', m.text || '', false);
       break;
     }
     case 'TOOL_CALL_START': {
       const id = m.toolCallId || ('_t' + (ch.seq || 0));
-      const row = { kind: 'toolcard', toolCallId: id, src: _src, chan: _chan, chanFull: _chanFull, t: nowHM(), _expanded: false,
+      const row = { kind: 'toolcard', toolCallId: id, src: _src, chan: _chan, chanFull: _chanFull, t: _t, ts: _ts, _expanded: false,
         tool: { toolCallId: id, name: m.toolCallName || '', title: '', subtitle: '', summary: '', compact: false, dkind: '', status: 'running', args: undefined, argsPreview: m.argsPreview || '', result: undefined, resultPreview: '' } };
       wsToolMergeDisplay(row.tool, m.display);
       if (!row.tool.title) row.tool.title = m.toolCallName || id;
@@ -1975,7 +1994,7 @@ function onWsEvent(m) {
     }
     case 'TOOL_CALL': {   // History 재생: 압축 완성형 tool 1건 → aggregate 카드
       const id = m.toolCallId || ('_t' + (ch.seq || 0));
-      const row = { kind: 'toolcard', toolCallId: id, src: _src, chan: _chan, chanFull: _chanFull, t: nowHM(), _expanded: false,
+      const row = { kind: 'toolcard', toolCallId: id, src: _src, chan: _chan, chanFull: _chanFull, t: _t, ts: _ts, _expanded: false,
         tool: { toolCallId: id, name: m.toolCallName || '', title: '', subtitle: '', summary: '', compact: false, dkind: '', status: 'done', args: m.args, argsPreview: '', result: m.result, resultPreview: '' } };
       wsToolMergeDisplay(row.tool, m.display);
       if (!row.tool.title) row.tool.title = m.toolCallName || id;
@@ -2007,18 +2026,15 @@ function onWsEvent(m) {
           push('status', '🔄 연결 복원됨', info, false);
         }
       }
-      else if (m.name === 'Attachment') { wsPushRow(chId, { kind: 'attach', src: _src, att: m.value || {}, t: nowHM(), chan: _chan, chanFull: _chanFull }); }   // §6 첨부 카드(image/audio/video/file)
+      else if (m.name === 'Attachment') { wsPushRow(chId, { kind: 'attach', src: _src, att: m.value || {}, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull }); }   // §6 첨부 카드(image/audio/video/file)
       else if (m.name === 'SelectionPrompt') {   // #406 UI6 — 에이전트 발 선택지 → 인라인 chip 카드(답/취소 시 board→server)
         const v = m.value || {};
-        wsPushRow(chId, { kind: 'selection', sel: { promptId: v.promptId, text: v.text || '', options: Array.isArray(v.options) ? v.options : [], allowFreeText: !!v.allowFreeText, multiSelect: !!v.multiSelect, state: 'ISSUED', routeId: agentId }, t: _msgT, chan: _chan, chanFull: _chanFull });
+        wsPushRow(chId, { kind: 'selection', sel: { promptId: v.promptId, text: v.text || '', options: Array.isArray(v.options) ? v.options : [], allowFreeText: !!v.allowFreeText, multiSelect: !!v.multiSelect, state: 'ISSUED', routeId: agentId }, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull });
       }
-      else if (m.name === 'SelectionResolved') {   // #406 UI6 — 다른 board 가 답함 → 해당 promptId 모든 chip 카드 dim
-        const v = m.value || {};
-        wsResolveSelection(v.promptId, v.resolution, v.reason);
-      }
+      // SelectionResolved 는 onWsEvent 상단에서 라우팅-무관 조기 처리 (agent-outbound 가드 앞) — 여기 중복 분기 제거
       else if (WS_A2A_INTENT[m.name]) {   // §13.16.9 A2A-intent allowlist(Report·BlockerManifest·ReviewSLAAck·PR* / Deadlock* family) → 카드 form(아이콘+요약+펼침 details), NOT raw/TEXT fallback
         const spec = WS_A2A_INTENT[m.name]; const v = m.value || {};
-        wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (spec.label || m.name || 'CUSTOM'), full: (v && typeof v === 'object') ? v : (v != null ? { value: v } : null), src: _src, chan: _chan, chanFull: _chanFull, t: _msgT });
+        wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (spec.label || m.name || 'CUSTOM'), full: (v && typeof v === 'object') ? v : (v != null ? { value: v } : null), src: _src, chan: _chan, chanFull: _chanFull, t: _t, ts: _ts });
       }
       else { const v = m.value; const disp = (v == null) ? '' : (typeof v === 'string' ? v : (v.re || v.text || v.message || v.notice || v.summary || v.label || v.ask || v.body || v.detail || '')); push('text', `✦ ${m.name || 'CUSTOM'}`, disp, true, v); }   // raw JSON 미노출(§1) — 원본은 hover 팝업 + debug drawer; fallback chain 에 v.re/ask/body/detail 추가 (Report 등 generic 분기 메시지의 inline 표시 정합)
       break;
@@ -2050,6 +2066,7 @@ function wsRenderTabs() {
     gh.onclick = () => wsSetActive(g.key);
     grp.append(gh);
     const tabs = el('div', 'tabs');
+    const grpSel = wsState.active === g.key;   // 그룹 탭 선택 시 멤버 이름에 그룹 색상 (EstreUF UI2 parity)
     for (const id of g.tabs) {
       const ch = wsState.channels.get(id);
       const mon = wsIsMon(id);
@@ -2057,7 +2074,7 @@ function wsRenderTabs() {
       const tab = el('div', 'ws-tab ' + g.cls + (id === wsState.active ? ' active' : '') + (present ? ' on' : ''));
       tab.title = (ch.routeId || id) + (present ? '' : ' · 연결 끊김');
       const dot = el('span', 'tdot' + (present ? '' : ' off'));
-      const nm = el('span', 'nm'); nm.textContent = ch.name || id;
+      const nm = el('span', 'nm' + (grpSel ? ' ' + g.cls : '')); nm.textContent = ch.name || id;   // 그룹 선택 시 이름에 그룹 색상
       const bg = el('span', 'ubadge'); bg.textContent = ch.unseen > 99 ? '99+' : String(ch.unseen); bg.hidden = !ch.unseen || id === wsState.active;
       tab.append(dot, nm, bg);
       if (!mon) { const x = el('span', 'ws-tab-x', '✕'); x.title = '탭 닫기'; x.onclick = (e) => { e.stopPropagation(); wsCloseChannel(id); }; tab.append(x); }
