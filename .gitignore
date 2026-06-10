@@ -9,6 +9,15 @@ constellation/reference/runtime/.*-bridge.lock
 constellation/reference/runtime/.*.pid
 constellation/reference/runtime/scripts/.*.pid
 
+# Constellation runtime credential files — server-keys hazard: NEVER commit.
+# server.cjs writes key.json (KEY-MGMT 5-state store) + local-keys/<label>.key
+# (per-worker wire-private keys) into its own directory when run in-place.
+# server-keys.eux declares these "gitignored MUST"; this block is that mitigation.
+key.json
+ws-keys.json
+local-keys/
+*.key
+
 # Constellation reference runtime — operational JSONL streams (inbox / outbox / etc.)
 # Written by the running runtime when it acts as the local bridge for an interactive
 # session. Reference impl source (*.cjs, *.sh, *.md) stays tracked; these jsonl

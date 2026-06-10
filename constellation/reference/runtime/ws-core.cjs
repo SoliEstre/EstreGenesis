@@ -30,6 +30,9 @@ function validateAuth(req, url) {
 }
 
 // ---- frame codec (RFC 6455 §5) ----
+// v2.4.11 보안: 단일 프레임 + fragmented 재조립 총량 상한 (메모리 고갈 DoS 가드).
+// 거대 length 선언 후 천천히 스트리밍하거나 continuation 무한 누적을 차단. env 로 상향 가능.
+const WS_MAX_FRAME = Number(process.env.WS_MAX_FRAME) || (16 * 1024 * 1024);   // 16 MiB 기본
 function decodeFrame(buf) {
   if (buf.length < 2) return null;
   const fin = (buf[0] & 0x80) !== 0;                            // FIN 비트 — fragmented(continuation) 판정용
@@ -38,6 +41,7 @@ function decodeFrame(buf) {
   let len = buf[1] & 0x7f, off = 2;
   if (len === 126) { if (buf.length < 4) return null; len = buf.readUInt16BE(2); off = 4; }
   else if (len === 127) { if (buf.length < 10) return null; len = Number(buf.readBigUInt64BE(2)); off = 10; }
+  if (len > WS_MAX_FRAME) return { tooLarge: true };            // v2.4.11 — 선언된 length 가 상한 초과 → 연결 종료 신호 (header 만으로 즉시 판정, payload 대기 안 함)
   const maskOff = off;
   if (masked) { if (buf.length < off + 4) return null; off += 4; }
   if (buf.length < off + len) return null;                      // payload 미완 → 더 기다림
@@ -80,16 +84,19 @@ class WSConn {
     this.buf = Buffer.concat([this.buf, chunk]);
     let f;
     while ((f = decodeFrame(this.buf))) {
+      if (f.tooLarge) { this.close(); return; }                 // v2.4.11 — 상한 초과 프레임 → 연결 종료(DoS 가드)
       this.buf = this.buf.slice(f.totalLen);
       if (f.opcode === 0x8) { this.close(); return; }           // close
       if (f.opcode === 0x9) { this._frame(f.payload, 0xA); continue; }  // ping → pong
       if (f.opcode === 0xA) continue;                           // pong
       if (f.opcode === 0x1 || f.opcode === 0x2) {               // text/binary 시작 프레임
         if (f.fin) this._deliver(f.payload);                    // 단일 프레임
-        else this._frag = { chunks: [f.payload] };              // fragmented 시작(FIN=0) — 큰 첨부 등
+        else { this._frag = { chunks: [f.payload] }; this._fragLen = f.payload.length; }  // fragmented 시작(FIN=0) — 큰 첨부 등
       } else if (f.opcode === 0x0 && this._frag) {              // continuation 프레임
         this._frag.chunks.push(f.payload);
-        if (f.fin) { const full = Buffer.concat(this._frag.chunks); this._frag = null; this._deliver(full); }  // 마지막 → 조립
+        this._fragLen += f.payload.length;
+        if (this._fragLen > WS_MAX_FRAME) { this._frag = null; this._fragLen = 0; this.close(); return; }   // v2.4.11 — 재조립 총량 상한 초과 → 연결 종료
+        if (f.fin) { const full = Buffer.concat(this._frag.chunks); this._frag = null; this._fragLen = 0; this._deliver(full); }  // 마지막 → 조립
       }
     }
   }
