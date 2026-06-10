@@ -108,6 +108,22 @@ const REPO_ROOT = findRepoRoot(process.cwd());
 const STATE_DIR = process.env.ULTRASAFE_STATE_DIR || path.join(REPO_ROOT, ".ultrasafe");
 const STATE_PATH = path.join(STATE_DIR, "state.json");
 
+// ─── Secret masking ──────────────────────────────────────────────────────────
+// The publish command is recorded into state.json for advisory context, but a
+// publish line often carries a secret inline (`npm publish --otp=123456`,
+// `NPM_TOKEN=… npm publish`, `twine upload -p <pass>`). Mask those before they
+// land on disk — state.json may be committed (and .ultrasafe/ is gitignored as a
+// second layer). Conservative: redact the VALUE, keep the flag/var name visible.
+function maskSecrets(s) {
+  // Best-effort, not exhaustive: covers the common inline-secret shapes on a
+  // publish line — `--otp=…` / `--token …` / `--password=…` and
+  // `NPM_TOKEN=…` / `TWINE_PASSWORD=…` env-prefixes. Single-letter flags like
+  // `-p` are intentionally NOT matched (too ambiguous — docker/ssh/grep port).
+  return String(s)
+    .replace(/(--?(?:otp|token|password|passwd|pass|secret|auth|api[-_]?key)[=\s]+)\S+/gi, "$1[redacted]")
+    .replace(/\b([A-Za-z_][A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[-_]?KEY|_KEY|_PASS)[A-Za-z0-9_]*)=\S+/g, "$1=[redacted]");
+}
+
 // ─── State read/write ────────────────────────────────────────────────────────
 
 function readState() {
@@ -299,7 +315,7 @@ function main() {
     mode: "advisory",
     stage: "pre-publish-detected",
     clean_signal_at_detection: !!(state.clean_signal && state.clean_signal.achieved),
-    command_preview: cmd.length > 200 ? cmd.slice(0, 200) + "…" : cmd
+    command_preview: maskSecrets(cmd.length > 200 ? cmd.slice(0, 200) + "…" : cmd)
   });
   // Trim to last 50 events to bound state file growth.
   if (state.release_gate_events.length > 50) {

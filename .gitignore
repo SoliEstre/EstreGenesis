@@ -24,6 +24,11 @@ local-keys/
 # operational artifacts do not. Memory feedback_workspace_cleanliness applies.
 constellation/reference/runtime/*.jsonl
 
+# Ultrasafe runtime working dir — adopter-repo state (state.json + finding/audit
+# JSONL). The PreToolUse hook records publish-command previews here; even with
+# secret-masking, this is runtime data, not a tracked plugin surface. NEVER commit.
+.ultrasafe/
+
 # Local agent-workspace artifacts at repo root (bootstrap policy).
 # Public reference docs and the constellation/ tree stay tracked; agent-local rule sheets / config / scratch dirs do not.
 /AGENTS.md
