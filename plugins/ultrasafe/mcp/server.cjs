@@ -18,7 +18,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 const ADVISORY_MODE = true; // v0.2.x — flips to false in v0.3+ blocking cut.
 const BLOCKING_IN_V03 = true; // surfaced in all returns so consumers know what would happen under blocking mode.
 
@@ -94,9 +94,10 @@ async function handleRunFanout(args = {}) {
     throw new Error("agent_roster_snapshot_hash is required (string)");
   }
 
-  // v0.2.0 advisory cut: this tool acts as a *dispatch contract* — the actual 7 attacker invocation is performed by
-  // the orchestrator (runtime/orchestrator.cjs) via Task tool fan-out. This tool returns the *contract envelope*
-  // that the orchestrator MUST fill before the retire-barrier. The orchestrator writes findings + iteration_boundary
+  // v0.2.x advisory cut: this tool acts as a *dispatch contract* — the actual 7 attacker invocation is performed by
+  // the orchestrator role (the main agent, via Workflow/Task tool fan-out — Ultrasafe.md §14.1 role mapping; no
+  // separate runtime/orchestrator.cjs ships in v0.2.x). This tool returns the *contract envelope* that the
+  // orchestrator role MUST fill before the retire-barrier, writing findings + iteration_boundary
   // back via `ultrasafe_finding_aggregate`.
   //
   // Determinism is enforced by the input-hash → output-binding contract: the orchestrator MUST treat

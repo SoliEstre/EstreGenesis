@@ -16,7 +16,7 @@ description: Pre-release simulated penetration testing from the threat modeling 
 
 Run this skill when **any** of the following triggers fire:
 
-1. **Fan-out dispatch**: Orchestrator (`plugins/ultrasafe/runtime/orchestrator.cjs`) emits `ULTRASAFE_RUN_FANOUT` with `role ∈ {threat-model-lifecycle, all}`. This is the primary entry path during a release-gate cycle.
+1. **Fan-out dispatch**: The orchestrator role (the main agent's Workflow fan-out + the `ultrasafe_run_fanout` MCP tool — Ultrasafe.md §14.1 role mapping) emits `ULTRASAFE_RUN_FANOUT` with `role ∈ {threat-model-lifecycle, all}`. This is the primary entry path during a release-gate cycle.
 2. **PreToolUse hook trigger**: `ultrasafe-trigger.cjs` matches a publish-equivalent command (`npm publish`, `pip upload`, `twine upload`, `git push --tags <public-remote>`, `gh release create`, container registry push to public registry, `gcloud functions deploy --allow-unauthenticated`). The 8-agent fan-out runs; this skill is one branch.
 3. **Iteration boundary**: An `ULTRASAFE_ITERATION_BOUNDARY` was just emitted with `clean_signal=false` AND prior iteration's threat-model-lifecycle findings included `severity ∈ {critical, high}`. Re-run for regression check on this axis.
 4. **Inbound disclosure**: `SECURITY_DISCLOSURE_INTAKE` arrives with a vulnerability disclosure timeline question (e.g. "is our 90-day public-disclosure clock correctly anchored?"), OR `MPCVD_COORDINATION` arrives needing multi-party timing review.
@@ -39,7 +39,7 @@ The orchestrator passes (and this skill consumes):
 | `artifact_path` | string (abs path) | Yes | The file, directory, or repo root under review. For a release candidate this is typically the package root. |
 | `artifact_kind` | enum | Yes | `repo` / `package` / `service` / `infra-descriptor` / `disclosure-doc`. Drives which STRIDE+PASTA lenses apply. |
 | `threat_model` | object \| null | No | Existing threat model (if any) — STRIDE element list, PASTA stage outputs, data-flow diagram refs. If null, this skill will reconstruct a working threat model in §3.1. |
-| `iteration_count` | integer | Yes | Current iteration number in the ≥3 multi-iteration AND-gate cycle. Findings from prior iterations on this axis are accessible at `runtime/findings/iter-<n-1>/threat-model-lifecycle.jsonl`. |
+| `iteration_count` | integer | Yes | Current iteration number in the ≥3 multi-iteration AND-gate cycle. Findings from prior iterations on this axis are accessible at `.ultrasafe/findings/iter-<n-1>/threat-model-lifecycle.jsonl` (adopter-repo working dir — Ultrasafe.md §14.3). |
 | `prior_findings_ref` | string \| null | No | Path to prior iterations' findings on this axis for regression-check comparison. |
 | `disclosure_context` | object \| null | No | If invoked from `SECURITY_DISCLOSURE_INTAKE` / `MPCVD_COORDINATION`: contains `{report_id, reporter, severity_claim, embargo_until, coordinator_list}`. |
 | `release_window` | object \| null | No | `{planned_publish_at, freeze_at, advisory_publish_at}` — needed for disclosure-timing checks. |
@@ -115,7 +115,7 @@ Synthesizer (cross-axis) attacker downweights `[assumed]`-only findings unless �
 
 ## §4 Finding output schema
 
-Each finding is emitted as one JSON line to `runtime/findings/iter-<n>/threat-model-lifecycle.jsonl`. The orchestrator wraps the batch into a single `ULTRASAFE_FINDING` A2A message per iteration.
+Each finding is emitted as one JSON line to `.ultrasafe/findings/iter-<n>/threat-model-lifecycle.jsonl` (adopter-repo working dir). The orchestrator role wraps the batch into a single `ULTRASAFE_FINDING` A2A message per iteration.
 
 ```json
 {

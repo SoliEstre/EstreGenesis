@@ -18,7 +18,7 @@ description: Pre-release simulated penetration testing from the AI/LLM red-team 
 
 Run this skill when ANY of these apply:
 
-1. **Orchestrator dispatch**: `plugins/ultrasafe/runtime/orchestrator.cjs` 가 Phase B (7-attacker 병렬 fan-out) 진입 + axis-set 에 `usf-ai-llm` / `usf-ai-agentic` / `usf-ai-aml` 중 1개 이상 포함 (Tier 1-3 모든 tier 에서 자동 활성 — minimum mandatory axis).
+1. **Orchestrator dispatch**: orchestrator 역할 (메인 에이전트의 Workflow fan-out + MCP `ultrasafe_run_fanout` — Ultrasafe.md §14.1 역할 매핑) 이 Phase B (7-attacker 병렬 fan-out) 진입 + axis-set 에 `usf-ai-llm` / `usf-ai-agentic` / `usf-ai-aml` 중 1개 이상 포함 (Tier 1-3 모든 tier 에서 자동 활성 — minimum mandatory axis).
 2. **PreToolUse hook trigger**: `hooks/ultrasafe-trigger.cjs` 가 publish-equivalent command (npm publish / pip upload / git push --tags 공개 remote / docker push 공개 registry / cargo publish) 감지 → advisory-mode iteration cycle 시작 → 본 skill 가 자동 invoked.
 3. **Iteration N+1 dispatch (secondary surface)**: 직전 iteration 의 `ITERATION_BOUNDARY` 가 `secondary_surface_diff.new_secondary` 에 prompt-injection 후보 또는 LLM-integrated 신규 surface 를 표시 → 본 skill 가 그 diff 만 대상으로 focused re-run.
 4. **Inbound SECURITY_DISCLOSURE_INTAKE**: 외부 researcher 가 LLM 관련 vulnerability 보고 (Constellation §13.16, Ultrasafe.md §18.4) → triage 단계에서 본 skill 가 reproduction 시도.

@@ -14,7 +14,7 @@ description: Pre-release security testing — simulated penetration from the soc
 
 Trigger conditions (ANY fires → activate):
 
-1. **Orchestrator fan-out dispatch**: `runtime/orchestrator.cjs` 가 Phase A 의 7-attacker 병렬 dispatch 단계에서 본 skill 을 invoke (Ultrasafe.md §15.9). axis-set 에 `usf-social-eng` 포함 시 자동.
+1. **Orchestrator fan-out dispatch**: orchestrator 역할 (메인 에이전트의 Workflow fan-out + MCP `ultrasafe_run_fanout` — Ultrasafe.md §14.1 역할 매핑) 이 Phase A 의 7-attacker 병렬 dispatch 단계에서 본 skill 을 invoke (Ultrasafe.md §15.9). axis-set 에 `usf-social-eng` 포함 시 자동.
 2. **PreToolUse hook trigger**: publish-equivalent command (`npm publish` / `pip upload` / `git push --tags` to public remote) 직전 hook (`hooks/ultrasafe-trigger.cjs`) 이 발화 + 활성 axis 에 `usf-social-eng` 포함 시.
 3. **Iteration ≥ 1 with prior_findings_set non-empty**: secondary-surface 갱신 시 docs/A2A inbound 변화가 새 phishing surface 를 만들 수 있어 재dispatch (F_{N+1} = (F_N − sealed) + secondary_new 의 diff 추출).
 4. **Manual operator invoke**: 외부 disclosure intake (Constellation §13.16 `SECURITY_DISCLOSURE_INTAKE`) 가 docs/CHANGELOG/commit-message 영역 finding 을 reference 할 때 본 skill 로 재검증.

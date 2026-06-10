@@ -1,7 +1,7 @@
 ---
 name: ultrasafe-crypto-reviewer
 version: 0.2.0
-description: Pre-release simulated penetration testing from the cryptography attacker perspective — key management / random source / TLS misuse / signature scheme / constant-time violation / PQC readiness / cryptographic agility envelope. Triggered by Ultrasafe orchestrator (`ultrasafe_run_fanout` MCP tool) when the axis-set includes `usf-crypto`, or by the PreToolUse `ultrasafe-trigger.cjs` hook on publish-equivalent commands (npm publish / pip upload / git push --tags to public). Emits findings via the `ULTRASAFE_FINDING` A2A intent (Constellation §13.16.9), conforming to `schemas/finding.schema.json` with the `perspective.primary = "crypto-reviewer"` variant. Advisory mode in v0.2.x (report-only, no publish block); blocking mode deferred to v0.3+.
+description: Pre-release simulated penetration testing from the cryptography attacker perspective — key management / random source / TLS misuse / signature scheme / constant-time violation / PQC readiness / cryptographic agility envelope. Triggered by Ultrasafe orchestrator (`ultrasafe_run_fanout` MCP tool) when the axis-set includes `usf-crypto`, or by the PreToolUse `ultrasafe-trigger.cjs` hook on publish-equivalent commands (npm publish / pip upload / git push --tags to public). Emits findings via the `ULTRASAFE_FINDING` A2A intent (Constellation §13.16.9), conforming to the Ultrasafe.md §4 finding output contract with the `perspective.primary = "crypto-reviewer"` variant. Advisory mode in v0.2.x (report-only, no publish block); blocking mode deferred to v0.3+.
 ---
 
 # Crypto Reviewer — Ultrasafe Attacker Skill (v0.2.0)
@@ -9,13 +9,13 @@ description: Pre-release simulated penetration testing from the cryptography att
 > **Role**: Agent 4 of the 8-agent Ultrasafe fan-out (Ultrasafe.md §15.4). Simulated penetration testing of the cryptographic surface, executed as an *attacker* — adversarial probe, not a friendly audit.
 > **Tone**: crypto-formal. Findings cite RFC / NIST SP / FIPS / IETF draft anchors, not informal claims.
 > **Mode**: v0.2.x advisory. Every emit carries `value.advisory: true` and `value.permanent_manual: <bool>`. No publish blocking in this cut — orchestrator surfaces findings to the live board + outbox.jsonl; release-gate verdict is informational only.
-> **Output channel**: `ULTRASAFE_FINDING` Constellation A2A intent (commitment-tier ack, §13.13). Persistent evidence written to `ultrasafe/findings/<iter>/F-<id>.json` (§14 runtime tree).
+> **Output channel**: `ULTRASAFE_FINDING` Constellation A2A intent (commitment-tier ack, §13.13). Persistent evidence written to `.ultrasafe/findings/<iter>/F-<id>.json` (adopter-repo working dir — Ultrasafe.md §14.3).
 
 ---
 
 ## §1 When to invoke
 
-This skill is **model-invoked** by the Ultrasafe orchestrator (`plugins/ultrasafe/runtime/orchestrator.cjs`), not by direct user request. Trigger paths:
+This skill is **model-invoked** by the Ultrasafe orchestrator role (the main agent's Workflow fan-out + the `ultrasafe_run_fanout` MCP tool — Ultrasafe.md §14.1 role mapping), not by direct user request. Trigger paths:
 
 1. **Orchestrator fan-out**: `ultrasafe_run_fanout` MCP tool (§16.1) dispatches this skill when the active axis-set includes `usf-crypto`. Default for all release candidates touching crypto-related files.
 2. **PreToolUse hook**: `ultrasafe-trigger.cjs` (§17.1) intercepts publish-equivalent commands (`npm publish`, `pip upload`, `cargo publish`, `git push --tags <public-remote>`, `gh release create`, `docker push`, `helm push`). If the staged tree touches any path in `crypto_surface_globs` (see §3.1), this skill is in the dispatched set.
@@ -147,7 +147,7 @@ Every finding MUST carry `evidence.minimal_repro` — a *runnable, deterministic
 
 ## §4 Finding output schema
 
-Conforms to `plugins/ultrasafe/schemas/finding.schema.json` (Ultrasafe.md §3.2 11-field mandatory + `perspective.primary = "crypto-reviewer"` variant fields).
+Conforms to the Ultrasafe.md §4 finding output contract (§3.2 11-field mandatory + `perspective.primary = "crypto-reviewer"` variant fields). Schema 파일 (`schemas/finding.schema.json`) 은 v0.2.x 미출하 — 계약 정본은 spec 본문 (Ultrasafe.md §14.3 노트).
 
 **Canonical wire format** — emitted via `ULTRASAFE_FINDING` Constellation A2A intent (§18.1):
 

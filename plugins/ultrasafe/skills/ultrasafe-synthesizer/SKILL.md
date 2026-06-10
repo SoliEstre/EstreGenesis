@@ -17,10 +17,10 @@ description: Pre-release security testing — retire-barrier fan-out sink. Aggre
 
 ### §1.1 Primary triggers
 
-본 skill 은 orchestrator (`runtime/orchestrator.cjs`) 가 자동 dispatch — 사용자/다른 agent 가 직접 호출하지 않는 게 원칙이에요. 단 다음 시점에 발화:
+본 skill 은 orchestrator 역할 (메인 에이전트의 Workflow fan-out + MCP `ultrasafe_run_fanout` — Ultrasafe.md §14.1 역할 매핑) 이 자동 dispatch — 사용자/다른 agent 가 직접 호출하지 않는 게 원칙이에요. 단 다음 시점에 발화:
 
 1. **Retire-barrier auto-fire**: 7 attacker (agent 1-7) 모두 `ULTRASAFE_FINDING` emit 완료 + orchestrator 가 finding bag 을 finalize 한 직후. Tier 1-3 모든 release tier 에서 활성.
-2. **Iteration boundary close**: 현재 iteration N 의 모든 finding 이 수렴 (각 attacker 의 dispatch timeout 도달 또는 explicit `done` signal) — `clean-signal-gate.cjs` 가 호출하기 직전 단계.
+2. **Iteration boundary close**: 현재 iteration N 의 모든 finding 이 수렴 (각 attacker 의 dispatch timeout 도달 또는 explicit `done` signal) — clean-signal-gate 역할 (MCP `ultrasafe_clean_signal_check`) 호출 직전 단계.
 3. **Re-synthesis on patch**: iteration N 에서 fix 적용 후 iteration N+1 진입 시점 — *직전 boundary snapshot 과 비교한 resolved / regression / persistent / new 4-set diff* 계산 강제.
 4. **Forced re-synthesis** (Hyperbrief MUST-trigger): meta-safety-broker (Ultrasafe §2.5.2) 가 4 mandatory check 중 하나 hit → broker 가 synthesizer 강제 재실행 요청 (단, broker 자체 hit 결과는 synthesizer 가 *외부 fact* 로 reference, 합성 결과에 inline 하지 않음 — self-spec-gaming 회피).
 5. **Catalog version change**: OWASP LLM Top 10 / MITRE ATT&CK Enterprise / ISO 27001 Annex A 등 reference catalog 의 version bump 감지 시 (`catalog_versions` diff). 기존 boundary 의 `coverage_percentage_under_catalog` 재계산 필요.
@@ -163,7 +163,7 @@ coverage_percentage_under_catalog[catalog_name] = (probe_attempted_cell_count / 
 
 ### §3.4 Audit trail emit
 
-본 skill 의 합성 결과는 *append-only signed chain* 으로 audit log 에 emit (`plugins/ultrasafe/runtime/audit-log/iteration-N.jsonl`):
+본 skill 의 합성 결과는 *append-only signed chain* 으로 audit log 에 emit (`.ultrasafe/audit-log/iteration-N.jsonl` — adopter-repo working dir, Ultrasafe.md §14.3):
 
 - 각 entry = `{ts, iteration, attacker_findings_hash, synthesis_output_hash, agent_roster_snapshot_hash, broker_independence_signature}`.
 - chain hash = `blake3(prev_entry || current_entry_canonical)`.
