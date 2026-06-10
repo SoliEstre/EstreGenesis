@@ -710,13 +710,13 @@ async function openAttachment(a) {
   if (dlg.showModal) { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
   if (a.t === 'code') body.innerHTML = `<pre class="att-code"><code>${esc(a.body)}</code></pre>`;
   else if (a.t === 'mermaid') {
-    body.innerHTML = `<div class="mermaid">${a.body}</div>`;   // mermaid 문법은 esc 금지
+    body.innerHTML = '<div class="mermaid"></div>'; body.querySelector('.mermaid').textContent = a.body;   // v2.4.12 보안: raw body 를 textContent 로 주입 (innerHTML 시 <img onerror>/<script> 가 mermaid 파싱 전 same-origin 실행). mermaid.run 은 element textContent 를 다이어그램 소스로 읽으므로 동작 동일
     try { const m = await ensureMermaid(); await m.run({ nodes: body.querySelectorAll('.mermaid') }); }
     catch (e) { body.innerHTML = `<pre class="att-code">${esc(a.body)}</pre><div class="empty">mermaid 렌더 실패: ${esc(String(e && e.message || e))}</div>`; }
   }
-  else if (a.t === 'html') body.innerHTML = `<iframe class="att-frame" srcdoc="${esc(a.body)}"></iframe>`;
+  else if (a.t === 'html') body.innerHTML = `<iframe class="att-frame" sandbox srcdoc="${esc(a.body)}"></iframe>`;   // v2.4.12 보안: sandbox(빈 값=스크립트·동일출처 차단) — 첨부 HTML 의 same-origin JS 실행 방지 (peer 가 A2A 로 보낸 첨부 stored-XSS 차단)
   else if (a.t === 'img') body.innerHTML = `<img class="att-img" src="${esc(a.src)}" alt="${esc(a.title || a.name || '')}">`;
-  else if (a.t === 'link') body.innerHTML = `<iframe class="att-frame" src="${esc(a.src)}"></iframe>`;
+  else if (a.t === 'link') body.innerHTML = `<iframe class="att-frame" sandbox src="${esc(a.src)}"></iframe>`;   // v2.4.12 보안: sandbox 정적 프리뷰 (외부 URL 스크립트 차단)
   else if (a.t === 'file') body.innerHTML = `<div class="att-fileinfo">📄 ${esc(a.name || a.title || '파일')}<div class="empty">미리보기 미지원 형식 — '새 탭'으로 열어 확인하세요${a.mime ? ` (${esc(a.mime)})` : ''}.</div></div>`;
 }
 function attNewTab(a) {
