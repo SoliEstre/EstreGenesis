@@ -5,7 +5,7 @@
 @profile backend-service
 @source constellation/reference/runtime/server.cjs(L188-360 KEY-MGMT block — KEY_JSON / keyStore / key* helpers + wsKeyIssue / wsKeyList / wsKeyRevoke / wsKeyLabel) · WS-PROTOCOL §13.16.11 KEY-MGMT semantics + §13.14 redaction discipline
 @state
-  KEY_JSON   : string = 'ws-keys.json'              # persistence path (gitignored — credential file)
+  KEY_JSON   : string = 'key.json'                  # v2.4.0 keyStore (5-state) persistence. 별도 legacy WS_KEYS='ws-keys.json' (role lookup) + local 키 파일 'local-keys/<label>.key'. 셋 다 gitignored MUST — credential files (v2.4.11 .gitignore 블록 key.json/ws-keys.json/local-keys/*.key 커버)
   wsKeys     : {key, label, role, createdAt, lastSeen?, revokedAt?}[]   # persisted registry
 @deps
   fs       : ws-keys.json read/write (load on boot, sync write on issue/revoke/label)
@@ -28,7 +28,7 @@
   credential_surfaces:
     - wsKeys[*].key                                     # full uk-/ck- strings — MUST NOT log/expose unredacted to public traces, board fan-out, or committed transcripts
     - issuance_response_bodies                          # KeyIssued payload carries full key (one-time delivery)
-    - filesystem_path: ws-keys.json                     # credential file — gitignored MUST, never commit
+    - filesystem_path: key.json + ws-keys.json + local-keys/*.key   # credential files — 전부 gitignored MUST, never commit
   redaction_discipline:
     log_surface: show only first 8 chars of key + last 4 (e.g. "uk-1234abcd…wxyz"); full key value NEVER logged
     relay_surface: KeyListReply to non-operator audience returns label + role + connectionStatus only (key fragments stripped or masked)

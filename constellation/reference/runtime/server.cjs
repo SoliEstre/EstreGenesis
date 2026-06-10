@@ -793,9 +793,17 @@ server.on('upgrade', (req, socket) => {
   };
 });
 
-server.listen(PORT, () => {
-  console.log(`Constellation live dashboard → http://localhost:${PORT}/  (state: ${STATE})  [WS: /ws]`);
+// v2.4.11 보안: 기본 바인드 = loopback(127.0.0.1). board(대시보드) 연결은 인증 없이 키 발급·SetMain 을
+// 할 수 있는 trusted-operator 전제라, 네트워크 노출은 명시 opt-in 이어야 함 (secure-by-default).
+// LAN/원격 노출이 필요하면 WS_BIND=0.0.0.0 (또는 특정 인터페이스 IP) 를 명시 주입 + 그땐 token 게이트 권장.
+const WS_BIND = process.env.WS_BIND || '127.0.0.1';
+const _isLoopback = WS_BIND === '127.0.0.1' || WS_BIND === '::1' || WS_BIND === 'localhost';
+server.listen(PORT, WS_BIND, () => {
+  console.log(`Constellation live dashboard → http://localhost:${PORT}/  (state: ${STATE})  [WS: /ws]  [bind: ${WS_BIND}]`);
   console.log(`[server] WS_PRIMARY_ID=${WS_PRIMARY_ID}  (메인 role 로 분류될 agentId — WS_PRIMARY_AGENT env 로 주입)`);
+  if (!_isLoopback) {   // v2.4.11 — 비-loopback 바인드는 무인증 board 표면(키관리·SetMain)을 네트워크에 노출. 운영자 인지 필수.
+    console.warn(`[server] ⚠⚠ WS_BIND=${WS_BIND} (비-loopback) — board 연결은 무인증이라 같은 네트워크의 누구나 키 발급/조회/SetMain 이 가능합니다. 신뢰 네트워크에서만 사용하거나 reverse-proxy + 인증을 앞단에 두세요. (기본값은 127.0.0.1 — 노출은 의도적 opt-in.)`);
+  }
   if (WS_PRIMARY_ID === 'main-agent') {   // generic default — 다운스트림은 자기 환경 메인 agentId 를 WS_PRIMARY_AGENT 로 주입해야 그 세션이 main 으로 분류됨 (미설정 시 모든 비-키 에이전트가 local). 재기동 시 env 누락 주의.
     console.warn(`[server] ⚠ WS_PRIMARY_AGENT 미설정 — WS_PRIMARY_ID 가 generic default 'main-agent' 입니다. 메인 세션의 agentId 와 다르면 그 세션이 local 로 분류돼요. 기동/재기동 시 WS_PRIMARY_AGENT=<main agentId> 주입 권장 (SetMain 핸드오프로도 전환 가능).`);
   }
