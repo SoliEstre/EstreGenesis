@@ -18,7 +18,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 const ADVISORY_MODE = true; // v0.2.x — flips to false in v0.3+ blocking cut.
 const BLOCKING_IN_V03 = true; // surfaced in all returns so consumers know what would happen under blocking mode.
 

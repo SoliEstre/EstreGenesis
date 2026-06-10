@@ -35,7 +35,21 @@ function getValidator() {
 }
 
 function resolveLedgerPath(ledger_path) {
-  if (ledger_path && typeof ledger_path === "string") return ledger_path;
+  // Caller-supplied ledger_path is confined to the project root (cwd): resolve,
+  // then reject traversal / absolute paths that escape it. A poisoned IR or call
+  // arg must not be able to write/read outside the repo. The operator-set env var
+  // and the default are trusted (set in the shell, not from tool input).
+  if (ledger_path && typeof ledger_path === "string") {
+    const base = process.cwd();
+    const candidate = path.resolve(base, ledger_path);
+    const rel = path.relative(base, candidate);
+    if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) {
+      throw new Error(
+        `ledger_path must resolve inside the project root (no traversal/absolute): ${ledger_path}`
+      );
+    }
+    return candidate;
+  }
   const env = process.env.HYPERBRIEF_LEDGER_PATH;
   if (env) return env;
   return path.resolve(process.cwd(), ".agent", "_decisions", "hyperbrief-ledger.jsonl");

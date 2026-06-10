@@ -489,9 +489,11 @@ function renderDecisions() {
     const card = el('div', 'dcard' + dimClass(d.project));
     card.dataset.did = d.id;
     const reviewed = d.reviewedAt ? `<span class="dreviewed-at" data-at="${esc(d.reviewedAt)}">${esc(fmtDateTime(d.reviewedAt))} <span class="rel">(${esc(relTime(d.reviewedAt))})</span></span><span class="dreviewed" title="검토 시점 ${esc(new Date(d.reviewedAt).toLocaleString('ko-KR'))}">✓ 최근 피드백 반영됨</span>` : '';
-    // detail/previewHtml 은 에이전트 작성(신뢰) → HTML 그대로 렌더 (시각화 적극 사용)
+    // detail = 텍스트 필드 → esc (done/planned 의 detail 과 동일 정책; 검토사안만 raw 였던
+    // 비대칭 해소). 의도적 시각화는 previewHtml/previewUrl 슬롯으로 분리 — operator-작성
+    // viz 채널이라 raw 유지하되, 검토사안 등재 권한 자체가 신뢰 경계.
     card.innerHTML = `<div class="row"><span class="q">${esc(d.question)}</span> ${projChip(d.project)}${reviewed}</div>
-      <div class="ddetail">${d.detail || ''}</div>
+      <div class="ddetail">${esc(d.detail || '')}</div>
       ${d.previewUrl ? `<iframe src="${esc(d.previewUrl)}" loading="lazy"></iframe>` : ''}
       ${d.previewHtml ? `<div class="dviz">${d.previewHtml}</div>` : ''}${attChips('decision-' + d.id, d.att)}`;
     if (d.kind === 'choice') {
