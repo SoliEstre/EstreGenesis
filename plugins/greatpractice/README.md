@@ -1,8 +1,8 @@
-# Greatpractice — Claude Code Plugin (v0.1.0)
+# Greatpractice — Claude Code Plugin (v0.2.x)
 
-Reference implementation of the Greatpractice module spec (`Greatpractice.md` v0.1.0) for Claude Code. Greatpractice is a memory-triggered practice-codification discipline: it targets the "quiet omission" failure surface — small obligations that should accompany the work but gradually slip through as memory notes accumulate and get read less. agent-workspace memory feedback (`memory/feedback_*.md` or equivalent) is the input trigger; raw signals route through a multi-criteria maturation gate into a 3-tier macro/mezzo/micro hierarchy; ratified entries are enforced via lifecycle hooks rather than relying on the model to keep the obligation in working memory.
+Reference implementation of the Greatpractice module spec (`Greatpractice.md` v0.2.x) for Claude Code. Plugin ship surface 는 v0.1.0 cut 이후 변동 없음 (3 schemas + 1 contact hook — 아래 목록); spec 본문과 canonical entry corpus 는 v0.2.x 로 진행. Greatpractice is a memory-triggered practice-codification discipline: it targets the "quiet omission" failure surface — small obligations that should accompany the work but gradually slip through as memory notes accumulate and get read less. agent-workspace memory feedback (`memory/feedback_*.md` or equivalent) is the input trigger; raw signals route through a multi-criteria maturation gate into a 3-tier macro/mezzo/micro hierarchy; ratified entries are enforced via lifecycle hooks rather than relying on the model to keep the obligation in working memory.
 
-## What this v0.1.0 cut ships
+## What this plugin ships (v0.1.0 cut 이후 동일)
 
 - **3 JSON schemas** (`schemas/`)
   - `entry-frontmatter.schema.json` — Greatpractice.md §3.2 의 7 lint-required + extended warn fields
@@ -20,7 +20,7 @@ Reference implementation of the Greatpractice module spec (`Greatpractice.md` v0
 - `manifest.json` content-addressed hash index
 - `renderers/` package (entry → derived surface generation)
 
-## How to invoke (v0.1.0)
+## How to invoke
 
 The hook fires automatically on `Write`/`Bash` tool calls that target `outbox.jsonl`. To install:
 
@@ -42,7 +42,7 @@ Or use Claude Code's plugin install: `/plugin install greatpractice@estregenesis
 
 ## Reference
 
-- Spec: `Greatpractice.md` (v0.1.0)
+- Spec: `Greatpractice.md` (v0.2.x)
 - Canonical tree: `greatpractice/{macro,mezzo,micro}/`
 - Research backing: `reports/2026-06-04-greatpractice-research/` (9 axes × research + patterns + 3 synthesis files)
 

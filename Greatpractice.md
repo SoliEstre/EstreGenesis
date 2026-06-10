@@ -1,8 +1,8 @@
-<!-- module: Greatpractice; layer: practice-codification; part-of: EstreGenesis 2.6.x (planned); version: v0.2.0; date: 2026-06-06; status: design draft v0.2.0 (mezzo batch ratification cut — release-cadence.md (macro) §2.3 의 8 mezzo decomposition candidates 가 Workflow wk5a6jh5k 병렬 fan-out 으로 한꺼번에 ratified: n-way-sync-registry / package-files-validate / bin-entry-validate / link-integrity-check / dry-run-smoke-test / pre-publish-user-gate / naming-hygiene-grep / auth-2fa-discipline. 5-axis maturation sum 분포: 24/24/22/21/19/19/19/17. 8 entries × ~230 lines = ~1850 lines added. v0.1.0 (2026-06-04) 의 1 macro + 1 mezzo (outbox-json-validation) 구조에서 1 macro + 9 mezzo 로 확장 — children decomposition pattern 의 first batch demonstration. micro decomposition + lifecycle hook 구현은 v0.3+ 후속); depends-on: none (optional synergy: Hyperbrief §1 escalation-aware codification handoff; Constellation §13 A2A hook channel for blameless second-story propagation; Superscalar §3 promotion fan-out for parallel retro-backfill); license: Apache-2.0 -->
+<!-- module: Greatpractice; layer: practice-codification; part-of: EstreGenesis 2.6.x (planned); version: v0.2.1; date: 2026-06-10; status: design draft v0.2.1 (ship-surface 정합 패치 — §11.1 의 design-시점 목표 트리 'ship' 기술을 실재 ship 목록으로 정정 + 잉여분 §11.2 deferred 이동; 직전 v0.2.0 = mezzo batch ratification cut — release-cadence.md (macro) §2.3 의 8 mezzo decomposition candidates 가 Workflow wk5a6jh5k 병렬 fan-out 으로 한꺼번에 ratified: n-way-sync-registry / package-files-validate / bin-entry-validate / link-integrity-check / dry-run-smoke-test / pre-publish-user-gate / naming-hygiene-grep / auth-2fa-discipline. 5-axis maturation sum 분포: 24/24/22/21/19/19/19/17. 8 entries × ~230 lines = ~1850 lines added. v0.1.0 (2026-06-04) 의 1 macro + 1 mezzo (outbox-json-validation) 구조에서 1 macro + 9 mezzo 로 확장 — children decomposition pattern 의 first batch demonstration. micro decomposition + lifecycle hook 구현은 v0.3+ 후속); depends-on: none (optional synergy: Hyperbrief §1 escalation-aware codification handoff; Constellation §13 A2A hook channel for blameless second-story propagation; Superscalar §3 promotion fan-out for parallel retro-backfill); license: Apache-2.0 -->
 
-# Greatpractice — Memory-Triggered Practice Codification with Lazy Hierarchy + Deterministic Hooks (design draft v0.2.0)
+# Greatpractice — Memory-Triggered Practice Codification with Lazy Hierarchy + Deterministic Hooks (design draft v0.2.1)
 
-> **EstreGenesis optional module — design draft v0.2.0.** Constellation 이 *agent 간 통신* 을, Superscalar 가 *agent 안의 dispatch* 를, Hyperbrief 가 *사용자에게 결정 위임* 을 다룬다면, Greatpractice 는 네 번째 축 — **작업 중 자연스럽게 누락되기 쉬운 약속·절차·습관을 메모리 기반 트리거로 자동 감지하고 관행으로 격상하는 체계** 를 다뤄요. 메모리 (`memory/feedback_*.md` 또는 동등 surface) 가 입력 신호 (트리거) 이고, multi-criteria maturation gate 가 검증을 담당하고, 격상된 관행은 lifecycle hook 으로 자동 강제돼요. Greatpractice 는 *문서 형식* 도 *룰 카탈로그* 도 아니에요. **lazy 3-tier hierarchy** (macro/mezzo/micro — 필요 시점에만 로드) + **deterministic lifecycle hook** (모델 판단에 의존하지 않는 7-event 강제) + **multi-criteria maturation gate** (5-axis weighted score + 3-criterion notability + phronesis boundary) 의 세 backbone 이 합쳐진 운영 체계예요. 9-axis cross-domain 딥리서치 (harness · humanities · psychology · management · processor · os · sre · memoization · canonical) 가 세 backbone 각각에 대해 8/9 · 7/9 · 5/9 축의 *isomorphic 합의* 를 도출해서 단일 도메인 권위 의존을 회피했어요 (부록 A · B 참조).
+> **EstreGenesis optional module — design draft v0.2.1.** Constellation 이 *agent 간 통신* 을, Superscalar 가 *agent 안의 dispatch* 를, Hyperbrief 가 *사용자에게 결정 위임* 을 다룬다면, Greatpractice 는 네 번째 축 — **작업 중 자연스럽게 누락되기 쉬운 약속·절차·습관을 메모리 기반 트리거로 자동 감지하고 관행으로 격상하는 체계** 를 다뤄요. 메모리 (`memory/feedback_*.md` 또는 동등 surface) 가 입력 신호 (트리거) 이고, multi-criteria maturation gate 가 검증을 담당하고, 격상된 관행은 lifecycle hook 으로 자동 강제돼요. Greatpractice 는 *문서 형식* 도 *룰 카탈로그* 도 아니에요. **lazy 3-tier hierarchy** (macro/mezzo/micro — 필요 시점에만 로드) + **deterministic lifecycle hook** (모델 판단에 의존하지 않는 7-event 강제) + **multi-criteria maturation gate** (5-axis weighted score + 3-criterion notability + phronesis boundary) 의 세 backbone 이 합쳐진 운영 체계예요. 9-axis cross-domain 딥리서치 (harness · humanities · psychology · management · processor · os · sre · memoization · canonical) 가 세 backbone 각각에 대해 8/9 · 7/9 · 5/9 축의 *isomorphic 합의* 를 도출해서 단일 도메인 권위 의존을 회피했어요 (부록 A · B 참조).
 >
 > **Cost-honest framing.** Greatpractice 는 공짜가 아니에요. deterministic hook 은 매 lifecycle event 마다 latency budget (humanities §1.7 Gawande 60-90s ceiling) 을 소비하고, frontmatter schema 의 9/9 universal convergence 는 entry 당 token overhead 를 추가하고, multi-criteria maturation gate 는 메모리 신호에서 관행 격상까지의 ship rate 를 의도적으로 늦춰요. 이 비용을 trade 해서 얻는 것은 — *누락의 zero-recurrence enforcement* (필요한 작업이 빠지지 않도록 매번 모델이 *기억할* 필요 없음), *working set 의 durable retention* (재유도 cost 없이 phase 전환 가능), *codify 가능 영역과 phronesis-only 영역의 명시 경계* (Aristotle Nicomachean Ethics VI + Polanyi tacit knowing 의 *codify 하지 *말* 영역* 의 in-spec 흡수).
 >
@@ -1713,6 +1713,8 @@ Greatpractice 의 *과잉 채택* 은 Powell-DiMaggio 1983 의 **coercive isomor
 
 ### §11.1 In scope — v0.1.0 ship surface
 
+> *(v0.2.1 정정 codicil: 본 절의 초안은 design-시점 목표 트리를 'ship surface' 로 기술했어요 — 실제 v0.1.0 cut 이 ship 한 것은 아래 실재 목록이고, 초안의 잉여분 (runtime 5종 cjs / hooks 3종 / skills 5종 / templates 3종 / settings 확장 / canonical tree 의 가상 entry 목록) 은 §11.2 deferred 로 이동했어요. 정확한 plugin ship 목록의 동기 SSoT 는 `plugins/greatpractice/README.md`.)*
+
 **Spec 본문** (`EstreGenesis/Greatpractice.md`):
 
 - §1 — §12 analytical content (개념 정의 → tier hierarchy → entry schema → hook → maturation gate → voice → freshness → SSoT propagation → 인접 모듈 boundary → adoption threshold → cut scope → implementation notes).
@@ -1723,32 +1725,26 @@ Greatpractice 의 *과잉 채택* 은 Powell-DiMaggio 1983 의 **coercive isomor
 **Canonical tree** (`EstreGenesis/greatpractice/`):
 
 - `_schema.md` — entry frontmatter spec (§3.2 의 v0.1 mandatory 7-field + tier-conditional 의 산문 normative 정의).
-- `INDEX.md` — macro chunk summary, ≤ 300 token cap, auto-generated by `eg_build_index.cjs`.
-- `macro/` 4 entry: `_telos.md` · `communication-discipline.md` · `release-cadence.md` · `workspace-cleanliness.md` (codification-boundary 는 §11.4 deferred).
-- `mezzo/` 7 entry: `outbox-json-validation` · `pre-send-inbound-check` · `session-resume-bridge-spawn` · `a2a-communication-priority` · `n-way-sync-registry` · `watcher-liveness-probe` · `a2a-relay-reliability-forward` (phase_3 cycle 의 EG dogfood evidence 기반).
-- `micro/` 8-12 atom: 위 mezzo 의 핵심 command/check/decision 분해 (canonical §1.2 hierarchical summary 의 leaf node).
-- `_propose/` + `_archive/` — 빈 디렉토리 스켈레톤 (P0 maturation pipeline 진입 사전조건).
+- `INDEX.md` — macro chunk summary, ≤ 300 token cap (**entry corpus 의 현행 SSoT** — 아래 구조의 실 entry 목록은 본 파일이 정본).
+- `macro/` · `mezzo/` · `micro/` — 3-tier 디렉토리 구조. entry 는 고정 목록이 아니라 **dogfood 로 누적** — v0.1.0 은 1 macro (`release-cadence`) + 1 mezzo (`outbox-json-validation`) 로 시작, v0.2.0 mezzo batch ratification 으로 1 macro + 9 mezzo + 1 micro 로 확장 (frontmatter status 참조).
+- `_propose/` — maturation pipeline 의 후보 적재 디렉토리 (P0 진입 사전조건). (`_archive/` 는 첫 retire 발생 시점에 생성 — v0.1-0.2 미존재.)
 
-**Plugin** (`EstreGenesis/plugins/greatpractice/`):
+**Plugin** (`EstreGenesis/plugins/greatpractice/` — 실재 ship, `plugins/greatpractice/README.md` 와 동기):
 
 - `.claude-plugin/plugin.json` — name=greatpractice, version=0.1.0, depends-on 명시 (none required, optional synergy).
 - `schemas/` 3 종: `entry-frontmatter.schema.json` · `hook-spec.schema.json` · `voice-rules.schema.json`.
-- `runtime/` 5 종 cjs: `eg_greatpractice_lint` · `eg_greatpractice_promote` · `eg_voice_check` · `eg_freshness_probe` · `eg_build_index`.
-- `hooks/` 3 종 (management §1.8 *poka-yoke* 3 유형 각 1): `contact/outbox-json-validate.cjs` · `fixed-value/n-way-sync-check.cjs` · `motion-step/pre-send-inbound-sequence.cjs`.
-- `skills/` 5 종 SKILL.md: `greatpractice-author` · `greatpractice-promote` · `greatpractice-fault` · `practice-toil-score` · `voice-check`.
-- `templates/` 3 종: macro / mezzo / micro 각 entry template.
-
-**Settings 확장** (`.claude/settings.local.json`):
-
-- 기존 Stop hook (`pre-send-probe.cjs --rearm`) 유지 + `eg_stop_hook_extensions.cjs` 호출 wrap (얇은 wrapper 원칙 — Constellation §13.x Stop hook 손상 회피).
-- 신규 SessionStart hook 1 종 — bridge verify-spawn, enforcement_level=mandatory(blocking).
-- 신규 PreToolUse hook 3 종 — contact/fixed-value/motion-step 각 1.
-- 신규 UserPromptSubmit hook 1 종 — path-scoped keyword inject.
+- `hooks/contact/` 1 종 (management §1.8 *poka-yoke* contact 유형): `outbox-json-validate.cjs` — `outbox.jsonl` direct append 차단 + JSON roundtrip 검증 (mandatory enforcement_level, exit 2 on fail).
+- README 의 PreToolUse 등록 예시 — adopter settings 통합 가이드.
 
 ### §11.2 Deferred to v0.2+
 
 | 기능 | 출처 축 § | 보류 사유 |
 |---|---|---|
+| `runtime/` 5 종 cjs (`eg_greatpractice_lint` · `eg_greatpractice_promote` · `eg_voice_check` · `eg_freshness_probe` · `eg_build_index`) | §4-§7 각 enforce 표면 | v0.1 은 수동 lint/promote 로 충분 — deterministic runtime 은 entry corpus + 운영 evidence 누적 후 (v0.2.1 정정: §11.1 초안의 ship 기술에서 이동) |
+| 추가 hooks 3 종 (`fixed-value/n-way-sync-check` · `motion-step/pre-send-inbound-sequence` · SessionStart bridge-verify) + UserPromptSubmit 1 종 | management §1.8 poka-yoke 3 유형 | contact 1 종 (outbox-json-validate) 의 운영 baseline 확인 후 — 유형별 1개씩 점진 (v0.2.1 정정: 동일 이동) |
+| `skills/` 5 종 (`greatpractice-author` · `-promote` · `-fault` · `practice-toil-score` · `voice-check`) | §3-§6 작성/격상/voice 표면 | 수동 작성 + 모델 보조로 v0.1-0.2 충분 (v0.2.1 정정: 동일 이동) |
+| `templates/` 3 종 (macro / mezzo / micro entry template) | canonical §1.2 | `_schema.md` + 기존 entry 모방으로 충분 — template 은 corpus ≥ 20 부터 (v0.2.1 정정: 동일 이동) |
+| Settings 확장 (Stop hook wrap `eg_stop_hook_extensions.cjs` 등) | §4.4 | adopter-측 통합 설계 — plugin ship 표면이 아니라 adopter 가이드 (v0.2.1 정정: 동일 이동) |
 | `manifest.json` content-addressed hash index | memoization §1.8 (Bazel/Nix) | BLAKE3 의존 + 첫 cut 에서 hash 안정성 검증 필요 |
 | `renderers/` package (entry → derived surface auto-gen) | canonical §1.11 | v0.1 에서는 수동 surfaces[] 유지로 충분 — 자동화는 entry corpus ≥ 20 부터 ROI |
 | `eg_load_working_set.cjs` 자동화 | os §1.1 (Denning), §1.6 | 수동 lazy materialization 의 안정 baseline 필요 (P1-P2 maturation) |

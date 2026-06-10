@@ -7,12 +7,12 @@ description: Use BEFORE a publish-equivalent release (npm publish / pip upload /
 
 > **Role**: Pre-release simulated penetration testing — *test methodology gap · coverage cliff · compliance catalog adherence* 시각의 attacker perspective.
 > **Tone**: process-formal. 결정론적·문서적·catalog-anchored.
-> **Output**: `ULTRASAFE_FINDING` A2A intent (Constellation §13.16, payload = `schemas/finding.schema.json` 의 `perspective.primary = "methodology-compliance"` variant). v0.2.x 동안 `value.advisory: true` mandatory.
+> **Output**: `ULTRASAFE_FINDING` A2A intent (Constellation §13.16, payload = Ultrasafe.md §4 finding output contract 의 `perspective.primary = "methodology-compliance"` variant). v0.2.x 동안 `value.advisory: true` mandatory.
 > **본 skill 의 본질**: "secure" 라고 단언하는 게 아니라, *어느 catalog 의 어느 cell 까지 측정했고 어디가 untested 인지* 를 결정론적으로 명시하는 것. 무측정 영역은 무결성 주장의 대상이 아니에요.
 
 ## §1 When to invoke
 
-본 skill 은 *model-invoked* — orchestrator (`runtime/orchestrator.cjs`) 의 fan-out dispatch 또는 MCP tool `ultrasafe_run_fanout` 호출 시 다음 trigger 중 ANY 충족 시 자동 invoke:
+본 skill 은 *model-invoked* — orchestrator 역할 (메인 에이전트의 Workflow fan-out — Ultrasafe.md §14.1 역할 매핑) 의 dispatch 또는 MCP tool `ultrasafe_run_fanout` 호출 시 다음 trigger 중 ANY 충족 시 자동 invoke:
 
 1. **Publish-equivalent gate**: PreToolUse hook (`ultrasafe-trigger.cjs`, §17.1) 이 npm publish / pip upload / git push --tags 또는 동급 release 명령을 감지하고 advisory fan-out 을 개시할 때.
 2. **Axis-set match**: dispatch 의 `axis_set` 에 `usf-iam-config` / `usf-methodology-coverage` / `usf-compliance-anchor` / `usf-test-coverage-cliff` 중 1개 이상 포함 + tier ≥ 2.
@@ -105,7 +105,7 @@ evidence tier 3-level:
 
 ## §4 Finding output schema
 
-본 attacker 의 finding 은 `ULTRASAFE_FINDING` A2A intent envelope (Constellation §13.16, §18.1) 의 `value` body 로 emit. `schemas/finding.schema.json` 의 `perspective.primary = "methodology-compliance"` variant.
+본 attacker 의 finding 은 `ULTRASAFE_FINDING` A2A intent envelope (Constellation §13.16, §18.1) 의 `value` body 로 emit. Ultrasafe.md §4 finding output contract 의 `perspective.primary = "methodology-compliance"` variant (schema 파일은 v0.2.x 미출하 — §14.3 노트).
 
 ```jsonc
 {
@@ -281,7 +281,7 @@ evidence tier 3-level:
 - **Hyperbrief.md §2** — 4-score escalation + 5 MUST-trigger rubric (severity → routing 결정).
 - **Greatpractice.md** — 본 attacker 의 *unqualified secure claim* + *catalog version 박제* anti-pattern 이 micro tree 의 자식 노드 후보.
 - **Superscalar.md §3** — Workflow fan-out 의 read-only lane 분류 (본 skill 은 read-only 이므로 speculative lane 가능).
-- **`schemas/finding.schema.json`** — 본 skill 의 output JSON schema 정본.
+- **Ultrasafe.md §4 finding output contract** — 본 skill 의 output 계약 정본 (schema 파일은 v0.2.x 미출하).
 - **`memory/feedback_outbox_json_validation.md`** — outbox emit 시 single-line JSON 검증 + roundtrip parse 강제 (본 skill 도 emit 측 invariant 적용).
 - **`memory/feedback_pre_send_inbound_check.md`** — outbox push 전 inbox cursor-tail probe (본 skill 의 emit 전 의무 routine).
 - **`memory/feedback_public_repo_redaction.md`** — finding body 의 redaction discipline (verbatim chat / governance attribution 0).
