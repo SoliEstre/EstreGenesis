@@ -282,7 +282,7 @@ async function handleA2aWaitAck({ msgId, tier, timeoutMs = 30000 }) {
 // ----- MCP stdio protocol -----
 
 const handlers = {
-  'initialize': async () => ({ protocolVersion: '2024-11-05', serverInfo: { name: 'constellation-mcp', version: '0.2.0' }, capabilities: { tools: {} } }),
+  'initialize': async () => ({ protocolVersion: '2024-11-05', serverInfo: { name: 'constellation-mcp', version: require('./package.json').version }, capabilities: { tools: {} } }),
   'tools/list': async () => ({ tools: TOOLS }),
   'tools/call': async (params) => {
     const { name, arguments: args } = params;
