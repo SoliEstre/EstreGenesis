@@ -214,7 +214,7 @@ const TOOLS = [
 const handlers = {
   initialize: async () => ({
     protocolVersion: "2024-11-05",
-    serverInfo: { name: "hyperbrief-mcp", version: "0.4.2" },
+    serverInfo: { name: "hyperbrief-mcp", version: require("./package.json").version },
     capabilities: { tools: {} },
   }),
   "tools/list": async () => ({ tools: TOOLS }),
