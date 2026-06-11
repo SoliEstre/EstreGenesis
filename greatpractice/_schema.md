@@ -1,4 +1,4 @@
-<!-- spec: greatpractice/entry-frontmatter; layer: practice-codification/governance; part-of: Greatpractice v0.1.0; status: v0.1 lint scope = 7 mandatory fields, 6-cycle migration grace; canonical: Greatpractice.md §3 -->
+<!-- spec: greatpractice/entry-frontmatter; layer: practice-codification/governance; part-of: Greatpractice v0.3.0; status: v0.1 lint scope = 7 mandatory fields, 6-cycle migration grace; canonical: Greatpractice.md §3 -->
 
 # `greatpractice/_schema.md` — Entry Frontmatter Spec (v0.1.0)
 
@@ -26,7 +26,7 @@
 
 `Greatpractice.md §3.2` 전체 YAML example 의 나머지 field. 누락 시 warning + grace period 카운터 누적. v0.1 grace = 6 cycle (= 6 commits since entry creation OR 6 weeks, whichever sooner). Grace 만료 후 grace lapsed state 진입 — lint promote to `BLOCK` per-entry.
 
-핵심 warn fields: `title`, `slug`, `created_at`, `source_evidence[]`, `evidence_quality`, `recommendation_strength`, `maturity_score{}`, `last_validated_at`, `validation_cadence_days`, `freshness_until`, `freshness_inherits_from`, `coherence`, `edit_policy`, `owner` (if owned), `audit_trail[]`, `supersedes[]`, `superseded_by`, `kaizen_baseline_since`, `revision_history[]`, `surfaces[]`, `phronesis_boundary`, `class`.
+핵심 warn fields: `title`, `slug`, `created_at`, `source_evidence[]`, `evidence_quality`, `recommendation_strength`, `maturity_score{}`, `last_validated_at`, `validation_cadence_days`, `freshness_until`, `freshness_inherits_from`, `coherence`, `edit_policy`, `owner` (if owned), `audit_trail[]`, `supersedes[]`, `superseded_by`, `kaizen_baseline_since`, `revision_history[]`, `surfaces[]`, `phronesis_boundary`, `class`, `status` (v0.3.0 retire 축 — `active`(default)|`probation`|`retired`, Greatpractice.md §7.7), `retire_reason` (status=retired 시 의무).
 
 ### 1.3 `SILENT` (micro-permissive mode) — 4 fields only
 

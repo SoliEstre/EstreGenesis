@@ -1,4 +1,4 @@
-<!-- module: Greatpractice; layer: practice-codification; part-of: EstreGenesis 2.6.x (planned); version: v0.2.1; date: 2026-06-10; status: design draft v0.2.1 (ship-surface 정합 패치 — §11.1 의 design-시점 목표 트리 'ship' 기술을 실재 ship 목록으로 정정 + 잉여분 §11.2 deferred 이동; 직전 v0.2.0 = mezzo batch ratification cut — release-cadence.md (macro) §2.3 의 8 mezzo decomposition candidates 가 Workflow wk5a6jh5k 병렬 fan-out 으로 한꺼번에 ratified: n-way-sync-registry / package-files-validate / bin-entry-validate / link-integrity-check / dry-run-smoke-test / pre-publish-user-gate / naming-hygiene-grep / auth-2fa-discipline. 5-axis maturation sum 분포: 24/24/22/21/19/19/19/17. 8 entries × ~230 lines = ~1850 lines added. v0.1.0 (2026-06-04) 의 1 macro + 1 mezzo (outbox-json-validation) 구조에서 1 macro + 9 mezzo 로 확장 — children decomposition pattern 의 first batch demonstration. micro decomposition + lifecycle hook 구현은 v0.3+ 후속); depends-on: none (optional synergy: Hyperbrief §1 escalation-aware codification handoff; Constellation §13 A2A hook channel for blameless second-story propagation; Superscalar §3 promotion fan-out for parallel retro-backfill); license: Apache-2.0 -->
+<!-- module: Greatpractice; layer: practice-codification; part-of: EstreGenesis 2.6.x (planned); version: v0.3.0; date: 2026-06-11; status: design draft v0.3.0 (§7.7 retire 축 신설 — active/probation/retired 3-상태 + _schema status/retire_reason + INDEX Retired 카운트; 북극성 deprecation-일급 GP 구현; 직전 v0.2.1 = ship-surface 정합 패치 — §11.1 의 design-시점 목표 트리 'ship' 기술을 실재 ship 목록으로 정정 + 잉여분 §11.2 deferred 이동; 직전 v0.2.0 = mezzo batch ratification cut — release-cadence.md (macro) §2.3 의 8 mezzo decomposition candidates 가 Workflow wk5a6jh5k 병렬 fan-out 으로 한꺼번에 ratified: n-way-sync-registry / package-files-validate / bin-entry-validate / link-integrity-check / dry-run-smoke-test / pre-publish-user-gate / naming-hygiene-grep / auth-2fa-discipline. 5-axis maturation sum 분포: 24/24/22/21/19/19/19/17. 8 entries × ~230 lines = ~1850 lines added. v0.1.0 (2026-06-04) 의 1 macro + 1 mezzo (outbox-json-validation) 구조에서 1 macro + 9 mezzo 로 확장 — children decomposition pattern 의 first batch demonstration. micro decomposition + lifecycle hook 구현은 v0.3+ 후속); depends-on: none (optional synergy: Hyperbrief §1 escalation-aware codification handoff; Constellation §13 A2A hook channel for blameless second-story propagation; Superscalar §3 promotion fan-out for parallel retro-backfill); license: Apache-2.0 -->
 
 # Greatpractice — Memory-Triggered Practice Codification with Lazy Hierarchy + Deterministic Hooks (design draft v0.2.1)
 
@@ -1364,6 +1364,35 @@ surfaces:
 - §4 (hook taxonomy) — `runtime/freshness-check.cjs` 가 Stop hook 의 (d) freshness probe 단계로 통합.
 - §8 (SSoT propagation) — §7.5 inheritance 가 §8 의 derived surface enumeration 과 직접 연결.
 - §3.4 + §5.6 (revision / supersession graph 표기 + 적용) — `supersedes:` chain + cost-tiered vocabulary 의 frontmatter / lifecycle 매핑.
+- §7.7 (retire 축) — status 3-상태가 §7.3 validation / §5.6 probation 카운터를 전이 트리거로 소비; §5.5 redirect stub 이 active→retired 직행의 동반 산출물.
+
+### §7.7 Retire 축 — active / probation / retired 3-상태 상태기계 (v0.3.0)
+
+> §7.6 cold eviction 이 "관심을 잃은" entry (idle) 를 다루는 반면, §7.7 은 "틀리게 된" entry (invalid · superseded) 를 다뤄요. 둘은 직교하는 축 — eviction 의 신호는 *사용 빈도*, retire 의 신호는 *유효성*. EG 북극성 가치판단 축 3 (deprecation 일급) 의 GP-측 구현이에요: cruft 를 빼지 못하는 표준이 정확히 "더 깔끔한 후속" 의 짐이 되므로, retire 는 promote 와 동급의 1급 작업이어야 해요.
+
+**3-상태** — entry frontmatter `status:` enum (신규, 생략 시 `active`):
+
+| status | 의미 | enforcement |
+| --- | --- | --- |
+| `active` | 유효 — 정상 enforce | hook 정상 동작 |
+| `probation` | 유효성 의심 — §7.3 validation 실패, §5.6 miss 카운터 임계 초과, 또는 환경 변화 의심 | hook 은 계속 enforce 하되 block/warn 메시지에 probation 표지 동반 ("이 practice 는 재검증 대기 중") |
+| `retired` | enforce 중지 — 본문은 보존 (삭제 X, §7.6 과 동일 원칙) | hook 스캔에서 제외 (frontmatter 필드 검사 1줄 — 결정적) |
+
+**전이 규칙** (최소 4 전이만 — 과설계 금지):
+
+- `active → probation` — §7.3 validation 실패 또는 §5.6 probation 카운터 임계. 자동 가능 (hook/cadence 가 flag).
+- `probation → active` — 재검증 통과. 자동 가능.
+- `probation → retired` — 사용자 ratify 필요 (§9.1 Hyperbrief escalation 경로 사용 가능). enforce 를 끄는 결정은 promote 와 대칭으로 인간 게이트.
+- `active → retired` — superseded 명시 시 직행 (`superseded_by` 지정 + §5.5 redirect stub 동반). 이때도 사용자 ratify.
+
+**retired entry 의 frontmatter 의무**: `retire_reason` (1줄 — superseded / invalidated / environment-changed 중 무엇이며 왜) + 가능하면 `superseded_by` (§3.4 evolution 필드 재사용). retire 는 정보 손실이 아니라 상태 전이 — git 히스토리 + 본문 + reason 이 "왜 이게 한때 옳았고 왜 더는 아닌가" 를 보존해요.
+
+**기존 축과의 구분** — `lifecycle` (§3.2: probation/consolidation/automatic) 은 habit-formation *성숙* 축이에요. 같은 단어 `probation` 이 두 축에 등장하지만 의미가 달라요: `lifecycle: probation` = "아직 어린" (성숙 중), `status: probation` = "의심받는" (퇴출 후보). 직교 — `lifecycle: automatic` + `status: probation` (오래 자동화됐지만 환경이 바뀌어 의심) 조합이 유효해요.
+
+**INDEX 반영** — retired entry 는 tier 섹션 목록에서 제외, INDEX 말미에 `Retired: N` 1줄 카운트만 유지 (목록 자체는 `grep -l "status: retired"` 로 발견 — ≤300 token cap 보호, §2.5).
+
+**v0.3.0 scope** — 본 절은 spec 정의 + `_schema.md` 필드 + INDEX 반영 규칙까지. hook runtime 의 status-스캔 제외 구현은 runtime 빌드 시점에 반영 (§11 cut scope 참조).
+
 
 ---
 
