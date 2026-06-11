@@ -17,6 +17,10 @@
 
 - `outbox-append-json-roundtrip` (v2.5.50) — atom: (JSON.stringify input) → appendFileSync → readback parse → assert deep_equal(input, readback). exit 2 on mismatch.
 
+## Retired (v0.3.0 retire 축, §7.7)
+
+- Retired: 0 — retired entry 는 tier 섹션에서 제외, 카운트만 유지. 목록 발견: `grep -l "status: retired" greatpractice/*/`.
+
 ---
 
 **v0.1 cadence note**: 본 INDEX 는 v2.5.50 ship 시점의 1-mezzo + 1-micro minimal scope. v2.5.51-v2.5.55 에 macro 3 추가 (release-cadence, workspace-cleanliness, codification-boundary) + mezzo 6 추가 (pre-send-inbound-check, session-resume-bridge-spawn, a2a-priority, n-way-sync-registry, watcher-liveness, a2a-relay-reliability) + micro 7+ 추가 예정 (`Greatpractice.md §8.2` cadence 표).
