@@ -1,4 +1,4 @@
-<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-06 with Entry 05 n=7→n=8 absorption sync to bundle 005) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1) + Hyperbrief decision-delegation interlock (v0.4.1 §3.1 — orthogonal gate, serial evaluation: write/deploy/send lanes pass through cost-benefit gate AND hyperbrief-trigger-check, read-only exempt); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-03; version: v0.4.2; depends-on: none (optional synergy: Constellation §13.16.9 A2A intents, Hyperbrief §2 trigger rubric — both orthogonal); license: Apache-2.0 -->
+<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-07, Entry 07 = resume-cache incident n=1) + resume-cache discipline (v0.4.3 §3.2 — journal-backed re-issue, determinism + idempotent-artifact preconditions) + (§11 Entry 01-06 with Entry 05 n=7→n=8 absorption sync to bundle 005) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1) + Hyperbrief decision-delegation interlock (v0.4.1 §3.1 — orthogonal gate, serial evaluation: write/deploy/send lanes pass through cost-benefit gate AND hyperbrief-trigger-check, read-only exempt); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-11; version: v0.4.3; depends-on: none (optional synergy: Constellation §13.16.9 A2A intents, Hyperbrief §2 trigger rubric — both orthogonal); license: Apache-2.0 -->
 
 # Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.3)
 
@@ -148,6 +148,19 @@ on fan_out_request(intent, lanes):
 ```
 
 **Cross-references**: `Hyperbrief.md §2` (trigger rubric), `Hyperbrief.md §9` (Decision Capture + Superscalar feed-back), `Constellation.md §13.16.9` (A2A-intent allowlist for the 5 Hyperbrief names + the `ack_tier='decided'` extension).
+
+### 3.2 Resume cache — journal-backed re-issue of interrupted fan-outs (v0.4.3)
+
+CPU mapping: **checkpoint / precise-exception recovery**. A wide fan-out can be interrupted mid-flight (token/session budget exhaustion, harness restart, transient API failure) *after some lanes have already retired*. Without a resume mechanism the only options are (a) full re-dispatch — paying every retired lane again — or (b) manual salvage. A **journal-backed resume cache** makes the interruption survivable: the orchestration harness journals each lane's `(prompt, opts) → result`; on re-issue of the same orchestration, the longest unchanged prefix of lane calls returns cached results instantly and only un-retired lanes execute live.
+
+Discipline (harness-neutral — these are the properties to demand, not an implementation):
+
+- **Determinism precondition.** The orchestration script must be referentially stable: no wall-clock reads, no randomness, no order-dependent lane identity. Otherwise the cache key drifts and the re-issue silently re-runs retired lanes (or, worse, wrongly hits). Inline static work-lists; pass timestamps in as arguments; stamp results after the run returns.
+- **Idempotent lane side-effects.** A lane that writes artifacts must tolerate re-execution (overwrite-with-same-content), because there is a real crash window between *artifact written* and *retirement journaled* — a lane can have produced its output yet still be re-run on resume. Treat artifact presence as advisory; the journal is the retire SSoT.
+- **Cost-benefit composition (§3 gate, §5 thresholds).** Expected interruption cost grows with fan-out width × lane duration. Above the ~30-60k token horizon where the dispatch gate opens, resume capability should be treated as a *prerequisite-grade* harness feature, not a nicety. If the harness lacks it, prefer smaller batches with an externally-checkpointed work-list (per-item completion files on disk + a pre-check that skips valid existing outputs) — the manual equivalent of the same property.
+
+Reference implementation: Claude Code `Workflow` resume (`resumeFromRunId` — same script + same args ⇒ cached prefix). The manual fallback above provides the property on any harness. Empirical anchor: §11 Entry 07.
+
 
 ---
 
@@ -450,3 +463,11 @@ Entry 04's measurement caveat was that the +127% wall-clock there was *sequentia
 - **§11 baseline catalogue** — Entry 06 is the first cleanly-measured *discipline-vs-no-discipline* A/B with parallelism held constant; Entry 04 (in-lane sub-split A/B at fixed width) and Entry 06 (cross-lane discipline A/B at full width) together form the **two-axis empirical anchor** for `§5` adoption-threshold tuning.
 
 *Privacy: redacted per `_proposals/` default — the audit's domain (payment-backend), language/framework (Java/Spring/MyBatis), and the specific algorithm contradiction class are generic identifiers; no service names, hosts, repos, or specific identifiers cited. The full unredacted measurement bundle remains in the dogfood directory under `assets/reports/` (gitignored).*
+
+### Entry 07 — 2026-06-11 · mid-flight session-budget interruption recovered by resume cache (n=1, incidental)
+
+- **Setting**: 53-lane read-only translation fan-out (CHANGELOG English-normalization; 1 lane = 1 entry) followed by a deterministic assembly stage with count/format verification gates.
+- **Interruption**: session token budget exhausted mid-run — 25 lanes retired cleanly; 28 lanes failed at the *harness* tier (budget rejection, not work-content failures).
+- **Recovery**: single re-issue with the journal-backed resume cache (§3.2). All 25 retired lanes returned from the journal with zero re-execution; 9 further lanes had already written their output artifacts before their retirement could be journaled (the §3.2 crash window) and were idempotently overwritten on re-run; the remaining lanes executed live. Final: 53/53 lanes + a verification lane PASS — zero content loss, zero duplicate cost on retired work.
+- **Reading**: validates both §3.2 preconditions in one incident — the *idempotent-artifact* rule (9/53 lanes landed in the artifact-written-but-not-journaled window) and the *determinism* precondition (the script carried an inlined static work-list; a timestamp-bearing list would have changed the cache key and missed everything).
+- **Caveats**: n=1 and incidental (not a controlled measurement); all lanes read-only — write-lane resume composes with §3 worktree isolation in principle but is unmeasured.
