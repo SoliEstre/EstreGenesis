@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-06-11)** — this RRP has been distilled into the normative spec at `Constellation.md §13.22 (A2A PR System)`. The spec section is the SSoT; this document is preserved as the original research/proposal record only. Do not cite this file for current protocol behavior.
+
 # A2A PR System — Cross-repo Pull Request orchestration via the A2A messaging layer (RRP v0.4 DRAFT)
 
 > **DRAFT v0.4 — Phase 1 + Phase 1b shipped, AC-dogfood-6 achieved via PR #1, Manual fast-path codified (§10B) after PR #4 + PR #5 dogfood validation.**

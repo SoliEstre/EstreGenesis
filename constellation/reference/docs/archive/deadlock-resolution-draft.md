@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-06-11)** — this draft has been absorbed into the normative spec at `Constellation.md §13.19 (Deadlock resolution)`. The spec section is the SSoT; this document is preserved as the original v0.1 draft record only. Do not cite this file for current protocol behavior.
+
 # Deadlock Resolution — EG-side design draft (v0.1)
 
 > **DRAFT for joint formalization** with main upstream deep-research.
