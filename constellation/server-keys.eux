@@ -1,5 +1,5 @@
 @component server-keys
-@intent KEY-MGMT server-side sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04). Owns the upstream-key (`uk-*`) and external-collab-key (`ck-*`) registry + issuance/revoke/label lifecycle + role classification authority. Receives KEY-MGMT commands via `-relay` orchestration dispatch (`wsHandleOrch` RegisterUpstreamKey / RegisterCollabKey / RevokeUpstreamKey / RevokeCollabKey / KeyLabel paths). Persisted store at `ws-keys.json` (gitignored — credential file). The `wsKeyRole(key)` lookup is the authority for `-core` WS upgrade meta classification (collab vs upstream meta) AND `-core` `/join/collab?key=` gating. **Carries C7 `@hazards` per phase_2 — credential surfaces with redaction discipline + filesystem integrity invariants.** Authority enforcement (which roles may issue/revoke/label) is server-side; client gateway exposes commands via `gateway-client-key-mgmt.eux` but server has final say.
+@intent (verified already-absorbed vs reference @ v2.5.87, 2026-06-12 — v2.4.11 credential-store facts present; hex-length corrected to 24) KEY-MGMT server-side sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04). Owns the upstream-key (`uk-*`) and external-collab-key (`ck-*`) registry + issuance/revoke/label lifecycle + role classification authority. Receives KEY-MGMT commands via `-relay` orchestration dispatch (`wsHandleOrch` RegisterUpstreamKey / RegisterCollabKey / RevokeUpstreamKey / RevokeCollabKey / KeyLabel paths). Persisted store at `ws-keys.json` (gitignored — credential file). The `wsKeyRole(key)` lookup is the authority for `-core` WS upgrade meta classification (collab vs upstream meta) AND `-core` `/join/collab?key=` gating. **Carries C7 `@hazards` per phase_2 — credential surfaces with redaction discipline + filesystem integrity invariants.** Authority enforcement (which roles may issue/revoke/label) is server-side; client gateway exposes commands via `gateway-client-key-mgmt.eux` but server has final say.
 @expansion temperature=0.2 model=agent/claude template=estreux/v0.1
 @targets vanilla
 @profile backend-service
@@ -9,7 +9,7 @@
   wsKeys     : {key, label, role, createdAt, lastSeen?, revokedAt?}[]   # persisted registry
 @deps
   fs       : ws-keys.json read/write (load on boot, sync write on issue/revoke/label)
-  crypto   : crypto.randomBytes → key issue (uk-<16hex> / ck-<16hex>)
+  crypto   : crypto.randomBytes → key issue (uk-<24hex (randomBytes(12))> / ck-<24hex (randomBytes(12))>)
   -relay   : orchestration dispatch entry point (wsHandleOrch); also broadcasts AgentNameChanged after KeyLabel
   -core    : wsKeyRole(key) consumer (WS upgrade meta + /join/collab? gate)
 @ports
