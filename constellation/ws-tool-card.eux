@@ -1,19 +1,32 @@
 @component ws-tool-card
-@intent Tool-call aggregate card for a WS stream. The host feeds START/ARGS/END/RESULT events (by toolCallId) into one card that accumulates: tool name, title, status (running→done/error), args, result, display meta. Status drives left-border/badge color. Isolated component — no own WS/global access; host maps WS events to feed.
+@intent Card rendering surface for a WS stream — tool-call aggregate cards plus the sibling card kinds the same render module owns: unified A2A-intent cards, attachment chips/cards, SelectionPrompt client-side chip cards, day-divider lines, and the shared hover/pin full-value popup. Host maps WS events to typed rows (`row.kind` ∈ toolcard·a2acard·attach·selection·text/…) and feeds them in; component renders + manages per-row expand/answer state. Isolated component — no own WS/global access; the one outbound need (selection answer/cancel) goes through a host-provided send port. (Re-distilled from reference dashboard @ v2.5.88, rough tier, 2026-06-12.)
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
 @profile ui-component
+@source reference/dashboard/app.js — WS_A2A_INTENT · wsA2aSummary · wsExtractA2aReport · wsA2aCardEl · wsToolStat · wsToolMergeDisplay · wsToolCardEl · wsUpdateTool · wsAttachCardEl · wsAttachments · wsAttIcon · wsAttChipEl · wsAttPreview · wsRowHover · wsHoverPop · wsPopDragSetup · wsDayKey · wsDayLabel · wsDatelineEl · wsSelectionCardEl · wsAnswerSelection · wsCancelSelection · wsRefreshSelectionCard · wsResolveSelection · wsRowEl · wsRenderRow (+ style.css ws-tool/ws-a2a/ws-sel/ws-att/ws-dateline/ws-hover-pop blocks)
 @state
-tool     : map = {}        # accumulated tool state by toolCallId
-expanded : boolean = false # compact card body toggle
+tool      : map = {}        # accumulated tool state by toolCallId (toolBuf)
+expanded  : boolean = false # per-row body toggle (row._expanded — survives re-render)
+sel       : map = {}        # per-row selection state: promptId·options·picked·freeText·state(ISSUED/ANSWERED/CANCELLED)
+popPinned : boolean = false # hover popup pin state (wsPopPinned — module-singleton popup element)
 @ports
-cmd feed(evt) : inject START/ARGS/END/RESULT — aggregate by toolCallId. evt={phase, toolCallName, argsPreview, args, delta, resultPreview, content, display}
-# no events-out (self-managed expand) · no deps
+cmd feed(evt) : inject START/ARGS/END/RESULT — aggregate by toolCallId. evt={phase, toolCallName, argsPreview, args, delta, resultPreview, content, display}  # wsToolMergeDisplay merges display.{kind,status,title,subtitle,summary,compact}
+cmd pushRow(row) : host-classified typed row — kind dispatch in wsRowEl: toolcard→wsToolCardEl · a2acard→wsA2aCardEl · attach→wsAttachCardEl · selection→wsSelectionCardEl · else text/user/status line
+cmd resolveSelection(promptId, resolution, reason) : SelectionResolved from another board — find ISSUED rows with promptId, flip state, in-place refresh  # wsResolveSelection
+evt sendOrch(msg) : host send port — selection answer/cancel emits CUSTOM SelectionAnswer/SelectionCancel; state only flips on send success  # wsAnswerSelection / wsCancelSelection
 @machine tool
 states: running(initial) · done · error
-dispatch feed(evt) by evt.phase: start→init(status=running) · args→accumulate · end→running→done · result→set result, running→done
-guard: evt.display.status="error" → error
+dispatch feed(evt) by evt.phase: start→init(status=running) · args→accumulate (argsPreview > args > delta-concat) · end→running→done · result→set result, running→done, drop from buffer
+guard: display.status ∈ {error,failed,denied} → error (wsToolStat); RESULT without seen START → one-line fallback row
+@machine selection
+states: ISSUED(initial) · ANSWERED · CANCELLED
+chip click: multiSelect→toggle picked + re-render · single→answer immediately; submit/dismiss footer when multiSelect or allowFreeText; empty answer (no labels + no freeText) refused (wsAnswerSelection guard); resolveSelection from peer board closes open prompts. Client-side surface only — server is a plain relay.
 @behavior gist
-feed accumulates per phase + mergeDisplay → render; header (icon·title·status badge) + body (args/result KV); compact folds body, header click toggles expanded.
+toolcard — wsToolCardEl: header (icon by dkind/name · title · status badge) + optional subtitle/summary + args/result KV body; compact ⇒ body folded, header click toggles (non-compact body always open); wsUpdateTool re-renders in place only when card is in live DOM and not replaying.
+a2acard — WS_A2A_INTENT dictionary (intent name → icon·label·summary-key order); wsA2aSummary picks first non-empty sum key; wsA2aCardEl renders head (icon+label+1-line summary) + collapsible key/value body (all value fields except `type`); expand ONLY via dedicated rotate-toggle button (stopPropagation) — header hover/click is reserved for the full-value popup; unlisted CUSTOM with object value still gets a generic-spec a2acard (✦, re>text>message… fallback), non-object → plain text row.
+text fallback promotion — wsExtractA2aReport: TEXT_MESSAGE.text carrying a ```json codeblock whose name/type matches WS_A2A_INTENT is promoted to a2acard (short ≤200-char prose prefix becomes the summary) instead of rendering raw.
+attachment chips — wsAttachments extracts attachments[]/atts/files/attachment/zip/file from a row's full value; wsAttChipEl = icon (wsAttIcon by mime/ext) + name·size (sha256 in tooltip) + 👁 preview (image/text → wsAttPreview modal) + ⬇ download when dataUrl/url present, else "metadata-only/no-data" note (never exposes raw local path); chips render on a2acard bodies AND plain rows, always visible regardless of collapse. Separate single-attachment card (wsAttachCardEl, CUSTOM Attachment): inline image/audio/video/file media only when status=available with url; blocked/failed shown as safe notices.
+hover/pin popup — wsRowHover on rows carrying a full value: mouseenter = preview popup (suppressed while pinned), click = pin into a floating window with ✕ close + header drag (wsPopDragSetup, viewport-clamped); wsHoverPop places the popup in the quadrant opposite the cursor and clamps to viewport.
+dateline — wsRenderRow/active-stream insert a sticky day-divider (wsDatelineEl: wave fills + locale date, today/yesterday suffix via wsDayLabel) whenever wsDayKey(row.ts) changes.
 @styles gist
-status tokens via shared palette: running=var(--ws-st-running) · done=var(--ws-st-done) · error=var(--ws-st-error). border-left + badge color by status.
+status tokens via shared palette: running=var(--ws-st-running) · done=var(--ws-st-done) · error=var(--ws-st-error); tool card border-left + badge color by status. a2acard = accent border-left card, ellipsised 1-line summary, grid k/v body ([hidden]{display:none} explicit — flex beats the UA hidden rule). selection chips = pill buttons (.sel = picked, .chosen = answered highlight); dateline = sticky top, wave pseudo-content fills.

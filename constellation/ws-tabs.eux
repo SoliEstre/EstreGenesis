@@ -1,14 +1,23 @@
 @component ws-tabs
-@intent Channel (agent) tab bar for the WS live board. Host injects channel list + active key via setData; tabs render in 4 fixed groups (upstream / main / local / collab), empty groups hidden. Each tab: connection dot (.on if present), name, unseen badge (clamp "99+", hidden if active or 0), ✕ close (non-monitor). Group header click → onSelect("group:<key>"). Isolated — no own wsState; host performs the actual switch/close and returns an updated snapshot via setData.
+@intent Channel (agent) tab bar for the WS live board. Host injects channel list + active key via setData; tabs render in 4 fixed role groups (upstream / main / local / collab), empty groups hidden, hidden (closed) channels excluded; monitor channels fold into their parent group (Up↔Main → upstream group; Main↔Local + Main↔Collab → main group). Each tab: connection dot (.on if present), name, unseen badge (clamp "99+", hidden if active or 0), ✕ close (non-monitor). Group header = ▦ merge glyph + label + member-count pill; click → onSelect("group:<key>") and host shows the group merged view (member rows ts-sorted with per-row source chip). When a group is active, member tab names take the group's role tint and the group container/header get .sel. Closed tabs surface via an always-visible archived button "📂 N" (shown even at N=0) with a dropdown: presence dot + restore-on-click + per-item / delete-all permanent history delete. Isolated — no own wsState; host performs the actual switch/close/restore/delete and returns an updated snapshot via setData. (Re-distilled from reference dashboard @ v2.5.88, 2026-06-12, rough tier.)
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
 @profile ui-component
 @state
-channels : array = []    # host snapshot {id,name,group,present,unseen,active,monitor}
+channels : array = []    # host snapshot {id,name,group,present,unseen,active,monitor,hidden}
 active   : string = ""   # active channel/group key
 @ports
-cmd setData(snap)  : host injects {channels, active} snapshot (partial merge → re-render)
-out onSelect(key)  : tab id, or "group:<key>" on group-header click
-out onClose(id)    : ✕ click — host closes the channel
+cmd setData(snap)   : host injects {channels, active} snapshot (partial merge → re-render)
+out onSelect(key)   : tab id, or "group:<key>" on group-header click
+out onClose(id)     : ✕ click — host archives (hidden + persists list + server ArchiveChannel notice)
+out onRestore(id)   : archived-dropdown label click — host unhides + activates the channel
+out onDelete(id?)   : archived 🗑 — host confirms then permanently deletes history (no id = delete-all)
 @behavior gist
-group by fixed order, hide empty; tab = dot+name+unseen+✕; active tab .active, active group header .sel, present .on. Click events stopPropagation; host updates and feeds snapshot back.
+# symbol refs = reference dashboard app.js / style.css
+groups in fixed order up/main/local/collab, empty hidden, hidden channels filtered, monitors appended to up/main groups (wsRenderTabs groups[]); tab = dot+name+unseen+✕; active tab .active, present .on; group header ▦+label+count (.ghead/.gcnt), click selects group key.
+group selected (grpSel in wsRenderTabs): container .grp.sel + header .ghead.sel; member tab names tinted via role class on the name span — .ws-tab .nm.{up,main,local,collab} (style.css 4-role tints); selecting a group zeroes unseen across members (wsSetActive over wsGroupMembers); selected group dims member unseen badges (.grp.sel .ws-tab .ubadge).
+group merged view (host, wsRenderActiveStream): member rows merged + ts-sorted ascending, datelines, per-row source name chip (.ws-src); group input routes to a representative member (wsGroupRep — main group prefers the main agent channel, else first non-monitor member).
+unseen badge (.ubadge): "99+" clamp, hidden when 0 or tab is active (wsRenderTabs).
+close (wsCloseChannel): hidden=true + persist hidden list to localStorage (wsSaveHidden) + server ArchiveChannel CUSTOM + active falls back to next visible non-monitor channel.
+archived surface (wsRenderArchived): button always visible "📂 <count>" even at 0; dropdown items = presence dot (closed-but-still-connected shows .on) + name·role label (click → wsRestoreChannel re-activates) + per-item delete (wsDeleteChannel → confirm + server DeleteChannelHistory) + delete-all (wsDeleteAllChannels); an agent reappearing in AgentList auto-unhides its closed tab (wsSyncAgents anyUnhidden).
+click events stopPropagation; host updates and feeds the snapshot back.

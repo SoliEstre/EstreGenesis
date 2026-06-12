@@ -1,16 +1,19 @@
 @component ws-channel-input
-@intent Per-channel (per-agent) prompt input for the WS live popup. Each channel gets a lazily-created, cached textarea; tab switch shows only the active channel's (input preserved per tab). Text + unified height persist to localStorage. Auto-grow; the grown height is unified to the max across all channels so switching tabs doesn't shift input height or tab positions. Group/monitor (read-only) tabs show a shared disabled notice input. Ctrl+Enter sends; image/file attach (paste·drop·button) binds to the active input. On send: UserPrompt to the active channel's targetAgentId, then clear + refresh height/persist.
+@intent Mid-task prompt-injection input for the WS live popup. Each agent channel gets a lazily-created, cached textarea (wsTextareaFor); tab switch shows only the active channel's (wsShowTextarea), so per-tab input is preserved, with focus on show while the popup is open. Drafts + unified height persist to localStorage (wsLoadDrafts/wsSaveDrafts — save merges materialized textareas onto the loaded baseline, so never-created channels keep their drafts). Auto-grow re-measures the active textarea then unifies ALL textareas to the cross-channel max, clamped min..max, so switching tabs never shifts input height or tab positions (wsRecalcTaH). Monitor tabs show a shared disabled notice textarea (wsRoTextarea); group tabs route input to the representative worker's textarea (wsGroupRep — main group prefers the local main channel, else first non-monitor member; rep-less group falls back to the disabled notice). Ctrl/Cmd+Enter (onCtrlEnter) or the send button fires wsSendPrompt: requires text OR attachments; emits UserPrompt {promptId, text, atts} to the active channel's route (group → rep), echoes a local user row with 📎N suffix, then clears text + attachments and refreshes height/persist; send failure echoes a local unsent-error row instead. Attachments are ONE shared non-persistent compose array across all channels: paste binds per-textarea (file clipboard items only — plain-text paste keeps default behavior), drop + 📎 button bind once at popup level (attachable); files become typed atts — image→img dataURL, text-like→code{title,lang,body}, else file dataURL — with a per-file size cap surfaced as error chips (readFileAsAtt/addFilesToAtts); chips show name+size with click-to-preview and ✕ remove (renderComposeAtts).
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
 @profile ui-component
+@source constellation/reference/dashboard/app.js (wsTextareaFor · wsShowTextarea · wsActiveTextarea · wsRoTextarea · wsGroupRep · wsRecalcTaH · wsLoadDrafts/wsSaveDrafts · wsSendPrompt · onCtrlEnter · attachable · readFileAsAtt/addFilesToAtts · renderComposeAtts) + index.html ws-input block — re-distilled 2026-06-12 from reference dashboard @ v2.5.88, rough tier
 @state
-inputs   : map = {}     # per-channel textarea content cache
-height   : number = 0   # unified max height across channels
+inputs   : map = {}     # per-channel textarea cache (lazy-created; reset clears DOM, drafts survive)
+drafts   : map = {}     # persisted per-channel text (merge-save: materialized over loaded baseline)
+height   : number = 54  # unified height across channels — clamp 54..240, persisted with drafts
 active   : string = ""  # active channel key
+atts     : array = []   # shared compose attachments (non-persistent, cleared on send)
 @ports
-cmd setActive(key)        : host switches active channel — show its cached input
-cmd setChannels(list)     : host injects channel set (lazy-create inputs)
-out onSend(targetAgentId, text, atts) : Ctrl+Enter / send — host issues UserPrompt
-deps storage : localStorage-like  # persist text + unified height (injected, mockable)
+cmd setActive(key)        : host switches active channel — show its cached input (monitor→notice, group→rep)
+cmd setChannels(list)     : host injects channel set (textareas lazy-create on first show)
+out onSend(route, {promptId, text, atts}) : Ctrl+Enter / send button — host emits UserPrompt to route
+deps storage : localStorage-like  # persist drafts + unified height (injected, mockable)
 @behavior gist
-lazy textarea per channel, cache + persist; auto-grow → unify max height; group/monitor → disabled shared notice; attach via paste/drop/button to active input.
+lazy textarea per channel, draft persist + merge-save; auto-grow → unify max height (no tab-switch layout shift); monitor → disabled notice, group → representative worker's input; one shared atts array — paste per-textarea (files only), drop/button popup-level, typed img/code/file with size-cap error chips; send needs text or atts → UserPrompt + local echo + clear; failure → local unsent row.

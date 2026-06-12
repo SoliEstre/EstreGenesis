@@ -1,15 +1,26 @@
 @component ws-conn-bar
-@intent Connection status bar for the live board — shows WS connection state (connecting/connected/closed), an accent-colored status dot, optional meta (session/proto), and a repo link. Host injects status via setStatus; the component only reflects it. Isolated — no own WS.
+@intent Connection status surface for the live board — per-agent connection dots (green connected / gray history-only), active-channel status line (state text + seq + project/repo meta), reconnect indication, and closed-session retention with restore/permanent-delete. Reads the board's shared WS state; presence is roster-driven (AgentList), not per-socket.
+@provenance re-distilled 2026-06-12 from reference dashboard @ v2.5.88, rough tier
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
 @profile ui-component
 @state
-status : string = "connecting"  # connecting | connected | closed
-meta   : string = ""            # optional session/proto text
+open       : bool = false           # board WS up (ws.onopen/onclose)
+present    : set<agentId>           # connected agents — rebuilt whole from AgentList (wsSyncAgents), cleared on WS close
+connStatus : string per channel = ""  # "" | restored (ConnectionRestored handler)
+hidden     : bool per channel        # closed-session archive flag, persisted (wsLoadHidden/wsSaveHidden)
 @ports
-cmd setStatus(status, meta) : host injects connection state → re-render dot + meta
-# no events-out · no deps
+in  AgentList               : roster snapshot → present set + auto-unhide channels whose agent reattached (wsSyncAgents)
+in  ConnectionRestored      : gateway rejoin notice → dedup (_lastRestoreKey) → connStatus=restored + 🔄 status card (onWsEvent)
+in  DeleteChannelHistory / HistoryCleared / CloseChannel : cross-board sync → remove/hide channel locally (onWsEvent)
+out ArchiveChannel          : CUSTOM emit on tab close — server moves history to cold, nothing deleted (wsCloseChannel)
+out DeleteChannelHistory    : CUSTOM emit on 🗑 per-session or delete-all, after confirm dialog (wsDeleteChannel / wsDeleteAllChannels)
 @behavior gist
-render bar: status dot (.on when connected, accent color) + label + meta + repo link.
+presence: a channel is "connected" when present.has(routeId || id) (updateWsConn / wsRenderTabs / wsRenderArchived) — routeId wins over channel key.
+status line (updateWsConn): dot .on when open && channel present; text precedence = server-down > group merged view > monitor read-only > no agent > restored > connected > disconnected; plus seq and project meta (projectName + repo link, fallback channelKey·runId).
+tab dots (wsRenderTabs): .tdot per tab, .off when absent; monitors always on.
+reconnect: WS close clears present + retries every 3s (scheduleWSReconnect); per-agent ConnectionRestored renders "연결 복원됨" state.
+closed sessions (wsRenderArchived): 📂 N dropdown always visible; each row keeps a live .ws-arch-dot (.on if the agent is currently attached even though the tab is closed); label click restores (wsRestoreChannel), 🗑 permanently deletes after confirm, plus delete-all.
+retention: closing a tab archives (hidden + ArchiveChannel) — history survives server-side and replays on restore/reconnect; only DeleteChannelHistory destroys.
 @styles gist
-accent = var(--accent, #7a4dff); .ws-conn flex/gap; .ws-dot2 8px circle, .on → accent; .ws-meta muted; .ws-repo accent + hover underline.
+.ws-dot2 8px circle muted, .on → #39d353 + glow; .ws-arch-dot 8px muted, .on → var(--ws-online, #5ad17a) + glow; .tdot 6px green, .off gray; head .ws-pop-dot inverse (.off → muted).
