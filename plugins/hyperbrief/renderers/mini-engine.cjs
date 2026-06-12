@@ -852,4 +852,5 @@ module.exports = {
   renderHtml,
   canonicalIrHash,
   DEFAULT_PROFILE,
+  estimateSurfaceProfile,   // v0.7.0 — post-response tone-estimate hook 재사용 (additive export)
 };
