@@ -493,9 +493,17 @@ function renderDecisions() {
     // 비대칭 해소). 의도적 시각화는 previewHtml/previewUrl 슬롯으로 분리 — operator-작성
     // viz 채널이라 raw 유지하되, 검토사안 등재 권한 자체가 신뢰 경계.
     card.innerHTML = `<div class="row"><span class="q">${esc(d.question)}</span> ${projChip(d.project)}${reviewed}</div>
-      <div class="ddetail">${esc(d.detail || '')}</div>
+      <div class="ddetail">${esc(d.detail || '').replace(/\n/g, '<br>')}</div>
+      ${d.status !== 'resolved' ? `<button type="button" class="dfallback" title="이 브리핑을 한 단계 더 쉬운 말로 다시 써달라고 요청해요">${esc((d.fallback && d.fallback.label) || '🙋 더 쉽게 설명해줘')}</button>` : ''}
       ${d.previewUrl ? `<iframe src="${esc(d.previewUrl)}" loading="lazy"></iframe>` : ''}
       ${d.previewHtml ? `<div class="dviz">${d.previewHtml}</div>` : ''}${attChips('decision-' + d.id, d.att)}`;
+    const fbBtn = card.querySelector('.dfallback');
+    if (fbBtn) fbBtn.onclick = async () => {
+      fbBtn.disabled = true;
+      const ok = await postFeedback({ kind: 'fallback-rerender', id: d.id, question: d.question || d.title || '', label: fbBtn.textContent, at: new Date().toISOString() });
+      fbBtn.textContent = ok ? '요청 전송됨 — 더 쉬운 설명으로 갱신 예정' : '전송 실패 — 잠시 후 다시';
+      if (!ok) fbBtn.disabled = false;
+    };
     if (d.kind === 'choice') {
       const ch = el('div', 'choices');
       (d.options || []).forEach(opt => {

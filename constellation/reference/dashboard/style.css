@@ -766,3 +766,8 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-fab-ctx { position: fixed; z-index: 62; min-width: 170px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 28px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 2px; }
 .ws-fab-ctx-item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border: none; background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-size: .82rem; text-align: left; border-radius: 7px; }
 .ws-fab-ctx-item:hover { background: var(--panel2, var(--bg)); color: var(--accent); }
+
+/* Hyperbrief fallback re-render button (§5.6.7 board surface) */
+.dfallback { margin: 6px 0 2px; padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--line, #444); background: transparent; color: var(--fg-dim, #aaa); cursor: pointer; }
+.dfallback:hover:not(:disabled) { border-color: var(--accent, #7ec27a); color: var(--fg, #ddd); }
+.dfallback:disabled { opacity: .6; cursor: default; }
