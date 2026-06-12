@@ -1,9 +1,9 @@
 @component server-core
-@intent HTTP + WS upgrade core sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04, parent manifest `server.eux` carries cross-cluster operational directives). Owns: (a) HTTP request surface — `/api/state` (no-store snapshot), `/api/events` (SSE pushed on `fs.watchFile` 500ms with 20s `: ping` keep-alive), `/api/feedback` (POST ≤ 32MB body, data-URL attachments extracted to `feedback-atts/` per §13.11 rule 5 storage discipline), `/join/<group>?key=` (dynamic collab onboarding md gated by `wsKeyRole`), and `INTEGRATION_DOCS` whitelist (public protocol SSoT + reference client + 3 representative `.eux` + BREW.md only; private agreements absent by construction). (b) WS upgrade handshake — non-`/ws` rejection, key-query→meta translation (collab/upstream key role), the canonical inbound 3-frame sequence (`SERVER_HELLO` bare → `CUSTOM/AgentList` value-nested → `CUSTOM/History` if non-empty). (c) Per-connection role classification reducer (axis 1 of `@machine` — ANON / BOARD / AGENT / ANON_PROBE). The envelope convention (CUSTOM-wrapped application messages vs bare transport framing) is canonically anchored here.
+@intent HTTP + WS upgrade core sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04, parent manifest `server.eux` carries cross-cluster operational directives). Owns: (a) HTTP request surface — `/api/state` (no-store snapshot), `/api/events` (SSE pushed on `fs.watchFile` 500ms with 20s `: ping` keep-alive), `/api/feedback` (POST ≤ 32MB body, data-URL attachments extracted to `feedback-atts/` per §13.11 rule 5 storage discipline), `/join/<group>?key=` (dynamic collab onboarding md gated by `wsKeyRole`), and `INTEGRATION_DOCS` whitelist (public protocol SSoT + reference client + 3 representative `.eux` + BREW.md only; private agreements absent by construction). (b) WS upgrade handshake — non-`/ws` rejection, key-query→meta translation (collab/upstream key role), the canonical inbound 3-frame sequence (`SERVER_HELLO` bare → `CUSTOM/AgentList` value-nested → `CUSTOM/History` if non-empty). (c) Per-connection role classification reducer (axis 1 of `@machine` — ANON / BOARD / AGENT / ANON_PROBE). (d) Boot bind policy — **v2.4.11 secure-by-default**: listen binds loopback (`127.0.0.1`) unless `WS_BIND` env explicitly opts into network exposure; rationale = board (dashboard) connections are an unauthenticated trusted-operator surface (key issue/list + SetMain reachable without credentials), so non-loopback exposure must be a deliberate operator decision, surfaced via startup warning. The envelope convention (CUSTOM-wrapped application messages vs bare transport framing) is canonically anchored here. (Re-distilled from reference @ v2.5.87, 2026-06-12 — v2.4.7 WS_PRIMARY_AGENT-unset startup warning + v2.4.11 secure-by-default bind absorbed.)
 @expansion temperature=0.2 model=agent/claude template=estreux/v0.1
 @targets vanilla
 @profile backend-service
-@source constellation/reference/runtime/server.cjs(247-277 wsCollabOnboardMd · L267-300 wsHandleOrch dispatch) · constellation/reference/runtime/server.cjs(WS upgrade + SERVER_HELLO/AgentList/History sequence) · WS-PROTOCOL §13.11 attachment storage + §13.16.4 HELLO/flap discipline
+@source constellation/reference/runtime/server.cjs(247-277 wsCollabOnboardMd · L267-300 wsHandleOrch dispatch) · constellation/reference/runtime/server.cjs(WS upgrade + SERVER_HELLO/AgentList/History sequence · listen-block boot bind + startup warnings) · WS-PROTOCOL §13.11 attachment storage + §13.16.4 HELLO/flap discipline
 @state
   MAX_BODY      : number = 33554432   # 32MB cap for POST /api/feedback body (over → req.destroy)
   HIST_CAP      : number = 200        # per-channel stored-event cap (referenced; ring lives in server-history)
@@ -11,6 +11,7 @@
   wsConns       : Set<conn>           # all live WS connections (agents + boards)
 @ports
   in   PORT                     : number = 7878        # env.PORT
+  in   WS_BIND                  : string = '127.0.0.1' # env.WS_BIND — listen interface; loopback default (v2.4.11 secure-by-default); network exposure = explicit opt-in (e.g. 0.0.0.0 / specific interface IP), token gate recommended alongside
   in   LIVE_BOARD_WS_TOKEN      : string?              # optional token gate (enforced in ws-core upgrade)
   out  GET  /api/state          : current state.json (no-store)
   out  GET  /api/events         : SSE; emits `state` on connect + on every state.json change (fs.watchFile 500ms); 20s `: ping`
@@ -37,6 +38,8 @@
     2: CUSTOM/AgentList/value:{main, agents, serverTime}# role first, so monitors classify A2A correctly
     3: CUSTOM/History/value:{events, cold, archived}    # ONLY if non-empty (active + cold/archived stubs); fully delegated to -history
 @behavior
+  bootBind         : listen on (PORT, WS_BIND) — loopback unless WS_BIND opted in (loopback = 127.0.0.1 / ::1 / localhost); startup log includes effective bind; non-loopback → ⚠⚠ startup warning (board connections are unauthenticated — anyone on the network can issue/list keys + SetMain; use trusted network only or front with reverse-proxy + auth; exposure is deliberate opt-in)
+  bootWarnPrimary  : startup logs effective main agentId (env WS_PRIMARY_AGENT — state owned by -relay); if left at generic default → ⚠ startup warning that any main session with a different agentId classifies as local (main-role demotion); remedy = inject WS_PRIMARY_AGENT on (re)start, or SetMain handoff at runtime
   broadcastState   : on state.json change (fs.watchFile 500ms) → write `event: state` to every sseClient (newlines flattened)
   serveFeedback    : POST body (≤MAX_BODY 32MB, destroy if over); JSON parse (400 on bad); stamp receivedAt; map atts via storeAtt; append feedback.jsonl
   storeAtt         : if att.src is data-URL → decode (base64/uri) to feedback-atts/<ts-rand.ext>, replace src with {stored:path, bytes, mime}; code/text bodies stay inline (§13.11 rule 5 hybrid mode)
@@ -73,6 +76,7 @@
     - INTEGRATION_DOCS whitelist: bounded membership (whitelist-only docs — private agreements unreachable by construction)
     - PUBLIC static: path-jailed to PUBLIC ('../' escape 금지) — bounded path traversal
     - WS conn meta (collab/upstream): monotonic per conn lifetime (key meta set on upgrade, never changes thereafter)
+    - bind interface (WS_BIND): fixed per process lifetime (resolved once at boot; loopback default — non-loopback only via explicit env opt-in)
     - connection_role state member-of {ANON, BOARD, AGENT, ANON_PROBE} — exclusive membership
   temporal:
     - SSE keep-alive: 20s after each ping interval (`: ping` heartbeat)
@@ -85,13 +89,15 @@
     - serveFeedback: body parse → stamp receivedAt → storeAtt → append feedback.jsonl atomic (실패 시 partial commit 없음, rollback-safe)
     - storeAtt: data-URL decode → temp file → rename atomic (partial write 시 rollback-safe — feedback-atts/ dir state 보존)
     - register (delegated to -relay): wsAgents.set persist-before wsPushAgentList broadcast (commit-then 패턴)
-    - boot: HTTP server bind + WS upgrade handler 등록 dual-write atomic (한쪽 실패 시 전체 abort)
+    - boot: HTTP server bind (PORT, WS_BIND) + WS upgrade handler 등록 dual-write atomic (한쪽 실패 시 전체 abort)
   causality:
     - HELLO with agentId iff conn → AGENT post-register (register state transition)
     - HELLO without agentId iff conn → ANON_PROBE (anonymous_probe_gate — security against unauthenticated LAN probe)
     - no HELLO precedes BOARD classification (default board role for non-HELLO conn)
     - INTEGRATION_DOCS whitelist 외 path implies 404 (private agreements unreachable by construction)
     - envelope mismatch (bare framing for application msg) implies silent dashboard drop (mixing_failure_mode)
+    - non-loopback bind implies startup ⚠⚠ warning emitted (secure-by-default — unauthenticated board surface exposure requires operator awareness)
+    - main agentId left at generic default implies startup ⚠ warning emitted (main-role demotion guard — env omission on restart is the observed failure mode)
 @metamorphic
   # P4 property/metamorphic 후보 — phase_3 2nd cut per eux-format v1.2 §2.7 (EstreUX edd2fb7).
   round_trip:
@@ -111,3 +117,4 @@
     envelope_convention: application MUST emit as CUSTOM/<name>/value{...} (3-field shape); transport framing (SERVER_HELLO/HELLO/Heartbeat/PersistentAdapterSmoke) stays bare. Stored events preserve full envelope including source-stamped timestamp; replay never clobbers. Mismatch = silent dashboard drop.
     doc_safety: INTEGRATION_DOCS is an explicit whitelist; private agreements unreachable by construction
     anonymous_probe_gate: HELLO without agentId is held at transport layer but never registered (security against unauthenticated LAN probe → phantom channel accumulation incident, real ~100 synthetic channels observed)
+    secure_by_default_bind: board connections carry no credential gate (trusted-operator model) — so network reachability, not connection auth, is the effective security boundary. Default loopback bind closes the remote unauthenticated key-management / SetMain / agentId-spoof vectors in one move; WS_BIND exposure is deliberate opt-in, warned at boot, with reverse-proxy + auth (or at least the token gate) advised in front

@@ -1,18 +1,18 @@
 @component server-relay
-@intent A2A relay + routing sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04). Owns the multi-agent routing core: (a) agent registration via HELLO+agentId (anonymous HELLO held at transport but never registered — §13.16.4 unauthorized-probe gate), (b) §13.8 reply-window pairing (`_a2aPending` Map; responder backfills `targetAgentId`/`contextId`/`parentId` from pending request within 120s window for adapters that can't echo the A2A envelope), (c) telemetry exclusion (codex-watch threadId/runId → board fan-out only, never bound into reply-window — see ws-core §13.16.6 element 1 filter family), (d) server-stamped source truth (`sourceStampFallback` — server is authoritative for `source` role on board-fanout/record paths; client-set `source` preserved when present, server stamps when client omits), (e) `targetAgentId` value-nested fallback for client envelope shape mismatch (silent_disable principle — acceptance broadened, mismatch surfaced via single warning), (f) graceful main handoff (axis 2 `@machine` — STABLE ↔ HANDOFF_PENDING with 10s timeout fallback), (g) orchestration message dispatch (`wsHandleOrch` — SetMain/HandoffReady + key admin delegated to `-keys`), (h) §13.19 deadlock observation layer (`wsBuildWaitEdges` / `wsDetectCycles` / `wsSurfaceEscalation` / `wsEffectiveElapsed` / `wsWaitState` + outbound hooks + probe sweep), (i) UI6 SelectionPrompt/Answer/Cancel routing (`_selPrompts` + `wsSelResolved` + `UI6_SERVER_TTL_MS` hard-TTL sweep).
+@intent A2A relay + routing sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04). Owns the multi-agent routing core: (a) agent registration via HELLO+agentId (anonymous HELLO held at transport but never registered — §13.16.4 unauthorized-probe gate), (b) §13.8 reply-window pairing (`_a2aPending` Map; responder backfills `targetAgentId`/`contextId`/`parentId` from pending request within 120s window for adapters that can't echo the A2A envelope), (c) telemetry exclusion (codex-watch threadId/runId → board fan-out only, never bound into reply-window — see ws-core §13.16.6 element 1 filter family), (d) server-stamped source truth (`sourceStampFallback` — server is authoritative for `source` role on board-fanout/record paths; client-set `source` preserved when present, server stamps when client omits), (e) `targetAgentId` value-nested fallback for client envelope shape mismatch (silent_disable principle — acceptance broadened, mismatch surfaced via single warning), (f) graceful main handoff (axis 2 `@machine` — STABLE ↔ HANDOFF_PENDING with 10s timeout fallback), (g) orchestration message dispatch (`wsHandleOrch` — SetMain/HandoffReady + key admin delegated to `-keys`), (h) §13.19.10 opt-in board-adapter deadlock detector (`wsDeadlockScan` — `WS_DEADLOCK_DETECT` env-gated, default OFF; reply-pairing wait-edge approximation + strict 2-cycle `DeadlockProbe` board emit; canonical detection stays agent-side turn-start DFS per §13.19.3). (UI6 SelectionPrompt/Answer/Cancel is a dashboard-client surface — the server treats those CUSTOMs as plain relay; no server-side store/TTL exists in the reference.)
 @expansion temperature=0.2 model=agent/claude template=estreux/v0.1
 @targets vanilla
 @profile backend-service
-@source constellation/reference/runtime/server.cjs(L414-625 §13.19 deadlock observation layer · L670 · L674-678 · L795-796) · constellation/reference/runtime/server.cjs(L159-160 · L382-385 · L681-690 · L733-734 · L736-758 · L778-787 UI6 SelectionPrompt) · constellation/reference/runtime/server.cjs(L267-300 wsCommit · wsSetMain · wsHandoffReady · wsHandleOrch dispatch)
+@source constellation/reference/runtime/server.cjs(L657-682 §13.19.10 opt-in deadlock detector) · constellation/reference/runtime/server.cjs(L513-553 wsCommitMain · wsSetMain · wsHandoffReady · wsHandleOrch dispatch) · constellation/reference/runtime/server.cjs(L771-773 CloseChannel/DeleteChannelHistory board inbound) — re-distilled 2026-06-12 from reference @ v2.5.87
 @state
   A2A_WINDOW       : number = 120000    # §13.8 reply-window fallback (ms)
-  UI6_SERVER_TTL_MS: number              # SelectionPrompt hard-TTL sweep window (see ref impl)
   wsAgents         : Map<agentId, conn>  # registered agents (HELLO+agentId); same id re-connect replaces prior
   WS_PRIMARY_ID    : string = env.WS_PRIMARY_AGENT || 'main-agent'   # current main (orchestrator)
   _a2aPending      : Map<agentId, {from, contextId, parentId, at}>   # §13.8 reply-window pairing
   _pendingMain     : string = null       # handoff target awaiting HandoffReady (10s timer)
-  _selPrompts      : Map<promptId, {agentId, body, ttl}>             # UI6 SelectionPrompt server-side TTL store
-  _DEADLOCK_*      : (consts)            # §13.19 detection thresholds + classification gates
+  WS_DEADLOCK_DETECT  : bool = env truthy('1'|'true'|'on'), default OFF   # §13.19.10 opt-in detector gate
+  WS_DEADLOCK_PROBE_MS: number = env || 120000                           # both-edge wait threshold (ms)
+  _deadlockSeen    : Set<cycleKey>       # already-probed cycle keys (sorted member join) — cleared on cycle resolution → recurrence re-emits
 @deps
   ws-core    : conn registry + event() builder
   -core      : constellation/server-core.eux (provides classified conn from upgrade; wsConns + connection_role machine)
@@ -26,7 +26,7 @@
   out  AgentListBroadcast(agents[])                    # wsPushAgentList after register/close
   out  MainChanged(from, to)                           # after wsCommitMain (axis 2)
   out  ServerNoticeBroadcast(kind, payload)            # online/offline/restart-pending broadcasts
-  out  DeadlockEscalationSurfaced(decisionId, edges)   # §13.19 wsSurfaceEscalation board surface
+  out  DeadlockProbe(cycleMembers, waitEdges, class='strict', summary, proposedResolution)   # §13.19.10 opt-in sweep — board-only, source='server'
 @wire
   source_stamp_truth:
     rule: server stamps `msg.source` from `conn.meta.role` on board-fanout/record paths when client omits; client-set source preserved
@@ -48,20 +48,18 @@
   targetFallback   : if msg.targetAgentId unset but msg.value?.targetAgentId set → fallback + warn single line
   dropTransient    : Heartbeat / PersistentAdapterSmoke / Typing → swallow (no relay, no record)
   serverNotice     : ServerNotice → wsToAll(agents+boards) + wsRecord (online/offline/restart broadcast)
-  boardInbound     : non-agent conn — CloseChannel → -history wsCloseChannelHist + notify boards; RequestChannelHistory → -history wsLoadChannel → ChannelHistory; ArchiveChannel → -history wsArchiveChannel; UserPrompt atts → -core storeAtt. Route to targetAgentId else WS_PRIMARY_ID; mirror to other boards (sender excluded); wsRecord
+  boardInbound     : non-agent conn — CloseChannel → -history wsCloseChannelHist + notify boards; DeleteChannelHistory → -history wsCloseChannelHist (permanent — channel history file removed, persists across refresh) + rebroadcast same msg to all boards (cross-board delete sync); RequestChannelHistory → -history wsLoadChannel → ChannelHistory; ArchiveChannel → -history wsArchiveChannel; UserPrompt atts → -core storeAtt. Route to targetAgentId else WS_PRIMARY_ID; mirror to other boards (sender excluded); wsRecord
   setMain          : if to≠current & registered → send current main HandoffRequested{to, reason}; _pendingMain=to; arm 10s timer → wsCommitMain
   handoffReady     : HandoffReady → clear timer → wsCommitMain immediately
   commitMain       : WS_PRIMARY_ID=to; wsPushAgentList; broadcast MainChanged (server uninterrupted — only role/authority moves)
-  deadlock_observation_§13_19:
-    detect: wsBuildWaitEdges (waitingOn/ackFor/targetAgentId parse from inbound A2A) → wsDetectCycles (naive DFS strict/quasi classification)
-    surface: wsSurfaceEscalation → board EscalationSurfaced{decisionId=esc-msgId, edges}
-    cadence: probe sweep + wsEffectiveElapsed time correction; ReviewSLAAck no-auto-emit (agent-side)
-    state_machine: wsWaitState per §13.19.9 (WAITING → ESCALATED → RESOLVED transitions)
-  ui6_selection_prompt:
-    issue: agent emits SelectionPrompt{promptId, body, audience?, ttl?} → _selPrompts.set + relay to audience
-    answer: user emits SelectionAnswer{promptId, choice} → wsSelResolved → relay to original agent
-    cancel: agent emits SelectionCancel{promptId} → _selPrompts.delete + notify audience
-    hard_ttl_sweep: UI6_SERVER_TTL_MS expiry → wsSelResolved with timeout outcome
+  deadlock_detect_§13_19_10:
+    gate: WS_DEADLOCK_DETECT env opt-in, default OFF — server↔application coupling never forced; canonical detection stays agent-side turn-start wait-edge DFS (§13.19.3)
+    approximate: _a2aPending reply-pairing read as lightweight wait-edges (pending(B).from==A ⟺ A waits on B); strict 2-cycle (A↔B) only
+    threshold: BOTH edges must exceed WS_DEADLOCK_PROBE_MS (default 120s) — healthy-wait false-positive guard
+    surface: DeadlockProbe board-only emit {cycleMembers sorted, waitEdges both directions, class='strict', summary, proposedResolution → §13.19.5 priority-leader override or §13.17 decisions escalation}, source='server'
+    dedup_clear: cycle key suppresses re-emit while cycle persists; key auto-cleared once pairing no longer forms the cycle → recurrence re-emits
+    sweep: interval = min(WS_DEADLOCK_PROBE_MS, 30s), unref'd (never holds process open)
+    out_of_scope: quasi-deadlock (behavioral, no cycle) stays agent-side §13.19.4 SLA discipline
 @machine main_handoff
   # reducer: (mainState, event) → mainState — axis 2 of original two-axis @machine
   initial: STABLE
@@ -82,12 +80,12 @@
     - anonymous_gate: conn.meta.anonymous == true 인 conn 의 relay 는 skip — wsAgents 에 never registered (bounded membership)
     - WS_PRIMARY_ID 는 commitMain transition 으로만 변경 (axis 2 main_handoff machine — monotonic in time)
     - _a2aPending entries 는 RUN_FINISHED 도착 시 closed (state cleanup ordered)
+    - _deadlockSeen key 는 sweep-end cleanup 후 현재도 strict 2-cycle 을 이루는 pair 만 잔류 (bounded membership — 해소된 cycle 의 key 는 즉시 제거)
   temporal:
     - _a2aPending 의 모든 pair (req, resp) 는 (resp.t - req.t) within A2A_WINDOW (120s)
-    - _selPrompts 의 prompt p 는 p.created + UI6_SERVER_TTL_MS 이전 expires-after (hard-TTL sweep)
     - setMain HandoffRequested 는 10s within HandoffReady 응답 OR timeout fallback (HANDOFF_PENDING → STABLE)
     - relay() 는 at-most-once forward per (msgId, target) — server dedup tier
-    - deadlock probe sweep 는 cadence 별 wsEffectiveElapsed 시간 보정 후 wsBuildWaitEdges (after sweep interval) — sweep cadence idempotent (동일 wait edges → 동일 detect 결과)
+    - DeadlockProbe 는 per cycle-key at-most-once until 해소 (_deadlockSeen dedup) — emit precondition 은 양측 edge elapsed ≥ WS_DEADLOCK_PROBE_MS (sweep cadence idempotent: 동일 pairing snapshot → 추가 emit 0건)
   transaction:
     - relay() 는 wsToBoards(msg) + wsRecord(msg via -history) 를 always 호출 — ordering atomic (board fanout 과 history 기록이 함께 진행)
     - register(HELLO): 동일 agentId 재등록 시 close+replace prior conn — wsAgents.set persist-before wsPushAgentList broadcast (rollback-safe: 실패 시 prior conn 보존)
@@ -98,8 +96,8 @@
   causality:
     - register: HELLO.agentId 존재 iff conn.role = 'agent' ∧ wsAgents.has(agentId) post-register
     - handoff commit: WS_PRIMARY_ID == to implies main authority moved (server uninterrupted)
-    - deadlock observation: wsBuildWaitEdges (waitingOn/ackFor parse) precedes wsDetectCycles (DFS strict/quasi 분류)
-    - escalation: wsDetectCycles cycle 발견 implies wsSurfaceEscalation board emit
+    - deadlock detect: WS_DEADLOCK_DETECT unset implies sweep never armed (default 동작 무변경 — opt-in 불변)
+    - deadlock surface: strict 2-cycle 존재 ∧ 양측 elapsed ≥ threshold ∧ key ∉ _deadlockSeen implies DeadlockProbe board emit (agents 미수신 — board-only)
 @metamorphic
   # P4 property/metamorphic 후보 — phase_3 1st cut per eux-format v1.2 §2.7 (EstreUX 884552b). round-trip/idempotency/determinism.
   round_trip:
@@ -110,6 +108,7 @@
     - anti_pattern_ack_storm: 100x relay 동일 msg 시 AckProcessed 발생 0건 (server idempotent at relay layer)
     - sourceStampFallback: 동일 conn.meta.role 의 stamp 결과 deterministic + idempotent across reconnects
     - telemetry_exclude: codex-watch 분류 결과 deterministic (state.scope == 'codex-watch' OR threadId/runId match)
+    - wsDeadlockScan: 동일 _a2aPending snapshot 에 N회 sweep 시 DeadlockProbe 추가 emit 0건 (_deadlockSeen dedup idempotency); 해소→재발 round-trip 은 정확히 1회 재emit
   determinism:
     - 동일 msg + 동일 fromConn 의 relay() 결과 deterministic (telemetry 분류 + reply-window pairing + sourceStamp 결과 동일)
     - register(HELLO) → wsPushAgentList 의 broadcast 내용 deterministic (wsAgents snapshot ordering)

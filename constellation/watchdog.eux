@@ -1,5 +1,5 @@
 @component watchdog
-@intent Always-on liveness watchdog (deps-0) for the live board. Guards the WS **server** and the **main bridge**, auto-restarting either if it dies — the infrastructure guarantee behind "always connected": if this stays detached-resident, the board survives individual session ends. Watches by holding a `board`-role WS connection (connect succeeds = server alive); on WS drop/connect-fail it re-checks TCP, restarts server.cjs if down, and reconnects with backoff; when the pushed AgentList lacks the main agent it restarts the bridge. A 15s backup timer revives the server if WS stays disconnected. Non-interrupt principle: never touches a live server/bridge — only spawns a replacement when one is dead, with a per-target SPAWN_COOLDOWN to avoid duplicate spawns during startup. Restarts are detached (survive the watchdog's own death). Pure runtime, no DOM. (Distilled from dashboard/live/ws-watchdog.cjs — Constellation residency layer.)
+@intent Always-on liveness watchdog (deps-0) for the live board. Guards the WS **server** and the **main bridge**, auto-restarting either if it dies — the infrastructure guarantee behind "always connected": if this stays detached-resident, the board survives individual session ends. Watches by holding a `board`-role WS connection (connect succeeds = server alive); on WS drop/connect-fail it re-checks TCP, restarts server.cjs if down, and reconnects with backoff; when the pushed AgentList lacks the main agent it restarts the bridge. A 15s backup timer revives the server if WS stays disconnected. Non-interrupt principle: never touches a live server/bridge — only spawns a replacement when one is dead, with a per-target SPAWN_COOLDOWN to avoid duplicate spawns during startup. Single-instance principle: a port-scoped PID lock at boot rejects a second watchdog (two watchdogs racing the same targets bypass the cooldown and double-subscribe AgentList). Restarts are detached (survive the watchdog's own death). Pure runtime, no DOM. (Distilled from dashboard/live/ws-watchdog.cjs — Constellation residency layer; re-distilled 2026-06-12 from reference runtime/watchdog.cjs @ v2.5.87.)
 @expansion temperature=0.2 model=agent/claude template=estreux/v0.0.1
 @targets runtime
 @profile supervisor
@@ -9,18 +9,23 @@ backoff         : number = 1000     # reconnect backoff ms (cap 8000)
 lastServerSpawn : number = 0        # last server restart ts (SPAWN_COOLDOWN gate)
 lastBridgeSpawn : number = 0        # last bridge restart ts (SPAWN_COOLDOWN gate)
 @ports
-in   host       : string            # 127.0.0.1
-in   port       : number            # 7878
-in   serverPath : string            # server.cjs path
-in   bridgePath : string            # examples/ws-local-bridge.cjs path
-in   mainId     : string            # main agentId to expect in AgentList (WS_PRIMARY_AGENT; default main-agent)
+in   host       : string            # HOST; default 127.0.0.1
+in   port       : number            # PORT; default 7878
+in   serverPath : string            # SERVER_PATH; default server.cjs beside the watchdog
+in   bridgePath : string            # BRIDGE_PATH; default local-bridge.cjs beside the watchdog
+in   mainId     : string            # main agentId to expect in AgentList (MAIN_ID; default main-agent)
+in   logPath    : string            # LOG_PATH; default watchdog.log beside the watchdog
 out  restartServer() : detached-spawn server.cjs when server is down (cooldown-gated)
 out  restartBridge() : detached-spawn the main bridge when AgentList lacks mainId (cooldown-gated)
 deps ws         : websocket         # board-role connection used as a liveness probe
 deps tcp        : net connect       # TCP reachability re-check before restarting server
 deps spawn      : detached spawner  # spawn(node, file, {detached, stdio→log}).unref()
-deps fs         : log appender      # ws-watchdog.log
+deps fs         : log appender      # watchdog.log
+deps lock       : single-instance   # port-scoped PID lockfile (.watchdog.<port>.pid beside the runtime)
 @behavior
+singleInstance   : at startup (before any watching) acquire port-scoped PID lock .watchdog.<port>.pid — if the lock's PID is alive (signal-0 probe; permission-denied counts as alive), reject-new: log the conflict + exit(2). Dead-PID stale lock → auto-remove, proceed. Lock released on exit/SIGINT/SIGTERM (kill -9 leaves a stale lock for the next start to clean). Lock-setup I/O failure → WARN and proceed unguarded.
+checkConfig      : at startup WARN (never silent-disable) for every unset env knob (host/port/mainId/serverPath/bridgePath — announce the fallback) and for a missing server/bridge file (spawn would fail; tells how to fix).
+spawnDetached    : if target file missing → WARN + skip. spawn(node, file) detached, stdio appended to the log file, unref. Synchronous spawn throw → WARN, no crash.
 connectWs        : construct WS as board role inside try/catch — synchronous construct failure → scheduleReconnect, return. onopen → wsConnected=true, backoff=1000, log "server alive". onerror → no-op (onclose owns recovery). onclose → wsConnected=false, ws=null, scheduleReconnect.
 onAgentList(m)   : on pushed AgentList — if no agent with agentId==mainId → restartBridge(); else log ok. (server pushes AgentList on connect/disconnect change; no active polling needed.)
 checkServerAlive : TCP connect host:port (2s timeout) → boolean.
@@ -28,7 +33,7 @@ restartServer    : if now-lastServerSpawn < SPAWN_COOLDOWN(8000) skip; else last
 restartBridge    : if now-lastBridgeSpawn < SPAWN_COOLDOWN(8000) skip; else lastBridgeSpawn=now, detached-spawn bridgePath.
 scheduleReconnect: once-pending timer (backoff) → checkServerAlive; if dead restartServer; then ALWAYS connectWs (unconditional). backoff ×2 each schedule (cap 8000); reset to 1000 on onopen.
 backupTimer      : every 15s — if !wsConnected, checkServerAlive; if dead restartServer (covers missed event path).
-gracefulExit(sig): SIGINT/SIGTERM → log, ws.close, process.exit(0).
+gracefulExit(sig): SIGINT/SIGTERM → log, ws.close, exit (lock-helper handler, registered first, releases the PID lock and exits 130/143).
 @machine
 # reducer: (guardState, event) → guardState
 states: WATCHING(initial, WS connected) · RECONNECTING (WS down)
@@ -41,3 +46,4 @@ dispatch by event:
 derive:
   no_interrupt ← only spawn a replacement when target is confirmed dead; live server/bridge untouched
   detached     ← all restarts spawn detached + unref → survive watchdog death (self-healing root)
+  single_instance ← port-scoped PID lock at boot; duplicate watchdog rejected (exit 2), stale lock auto-cleaned, lock released on graceful exit
