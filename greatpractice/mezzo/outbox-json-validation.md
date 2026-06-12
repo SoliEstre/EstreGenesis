@@ -60,6 +60,7 @@ parent:
   - greatpractice/macro/communication-discipline.md
 children:
   - greatpractice/micro/outbox-append-json-roundtrip.md
+  - greatpractice/micro/outbox-write-route-gate.md
 
 phronesis_boundary: false
 class: persistent
@@ -144,7 +145,8 @@ module.exports = { pushOutbox };
 
 다음 micro atom 으로 분해 — 각 atom 은 본 mezzo entry 의 `children` 에 등록 + 독립 hook payload 로 호출 가능:
 
-- `greatpractice/micro/outbox-append-json-roundtrip.md` — (1)-(5) 단계의 atomic primitive
+- `greatpractice/micro/outbox-append-json-roundtrip.md` — §2.2 (1)-(5) 단계의 atomic primitive (작성 후 roundtrip 검증)
+- `greatpractice/micro/outbox-write-route-gate.md` — §2.1 검사 (3) 의 atomic primitive (작성 전 helper-경유 route gate, direct append / HEREDOC 차단)
 
 ## §4. Validation Cadence
 
@@ -163,7 +165,7 @@ module.exports = { pushOutbox };
 ## §6. Relation to Other Entries
 
 - `parent`: `greatpractice/macro/communication-discipline.md` (A2A · bridge · outbox · cursor 계열 macro)
-- `composes`: `greatpractice/micro/outbox-append-json-roundtrip.md`
+- `composes`: `greatpractice/micro/outbox-append-json-roundtrip.md` + `greatpractice/micro/outbox-write-route-gate.md`
 - `related`: `greatpractice/mezzo/pre-send-inbound-check.md` (v2.5.51+ ship) — outbound emit 순서 강제 sequence
 - `related`: `greatpractice/mezzo/a2a-relay-reliability-forward.md` (v2.5.51+ ship) — at-most-once relay 의 forward 복구 패턴
 

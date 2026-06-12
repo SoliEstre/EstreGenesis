@@ -1,6 +1,6 @@
 {
   "name": "greatpractice",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Memory-triggered practice-codification discipline. Wraps Greatpractice.md v0.2.1 — children decomposition pattern 의 first batch demonstration. v0.2.0 / v2.5.61 mezzo 8-batch ratification: release-cadence.md (macro) §2.3 의 8 mezzo decomposition candidates 를 Workflow wk5a6jh5k 병렬 fan-out 으로 한꺼번에 ratify (n-way-sync-registry / package-files-validate / bin-entry-validate / link-integrity-check / dry-run-smoke-test / pre-publish-user-gate / naming-hygiene-grep / auth-2fa-discipline). 5-axis maturation 분포 24/24/22/21/19/19/19/17. ~1850 lines added. v0.1.0 (2026-06-04 cut) 의 1 macro + 1 mezzo (outbox-json-validation) 구조에서 1 macro + 9 mezzo 로 확장. 3 JSON schemas (entry-frontmatter + hook-spec + voice-rules) + 1 PreToolUse contact hook (outbox-json-validate) 보존. Targets the &quot;quiet omission&quot; surface — small obligations that should accompany the work but slip through; agent-workspace memory feedback 가 input trigger, raw signals 5-axis multi-criteria maturation gate 통과 후 3-tier macro/mezzo/micro hierarchy 등재, ratified entries lifecycle hook 강제. 9-axis cross-domain deep research 백업 (reports/2026-06-04-greatpractice-research/). v0.3+ roadmap: 8 mezzo entries 의 micro decomposition + 4 runtime cjs (lint + promote + voice-check + freshness) + 4 additional hooks (motion-step pre-send-inbound + SessionStart bridge + fixed-value n-way-sync + workspace path) + 5 skills + 3 templates + manifest hash + renderers. 0 npm deps (v0.2.0).",
   "author": {
     "name": "SoliEstre",

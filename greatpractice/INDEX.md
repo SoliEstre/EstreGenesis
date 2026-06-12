@@ -9,13 +9,15 @@
 - `communication-discipline` (v0.1.1+ shipped) — A2A · bridge · outbox · inbox cursor 계열의 macro parent. mezzo: outbox-json-validation, pre-send-inbound-check, n-way-sync-registry, session-resume-bridge-spawn, watcher-liveness, a2a-relay-reliability.
 - `release-cadence` (v2.5.55 ratified, N=1 user steering) — Pre-publish 11-item checklist (9 hub-validated + 2 conditional) + N-way sync discipline. mezzo decomposition (8 candidates) scheduled v2.5.56+. enforcement_level: recommended.
 
-## Mezzo Tier (v0.1 — 1 entry)
+## Mezzo Tier (v0.3.1 — 9 entries)
 
-- `outbox-json-validation` (v2.5.50 ratified) — every outbox.jsonl append MUST be valid single-line JSON via scripts/eg_outbox_push.cjs + roundtrip parse + deep_equal check. enforcement_level: mandatory.
+- `outbox-json-validation` (v2.5.50 ratified, mandatory) — outbox.jsonl append 는 eg_outbox_push 경유 + roundtrip 검증.
+- release-cadence 계열 8종 (v2.5.61 batch ratified): `n-way-sync-registry` · `package-files-validate` · `bin-entry-validate` · `link-integrity-check` · `dry-run-smoke-test` · `pre-publish-user-gate` · `naming-hygiene-grep` · `auth-2fa-discipline`.
 
-## Micro Tier (v0.1 — 1 atom)
+## Micro Tier (v0.3.1 — 20 atoms)
 
-- `outbox-append-json-roundtrip` (v2.5.50) — atom: (JSON.stringify input) → appendFileSync → readback parse → assert deep_equal(input, readback). exit 2 on mismatch.
+- mezzo 9건 전부 atom 분해 완료 — 각 2개 (n-way-sync-registry 만 3개). 전부 command-check-decision 3-tuple.
+- 발견: `ls greatpractice/micro/` (파일명 = atom id). 정본: `micro/<id>.md`. mezzo→atom 매핑은 각 atom frontmatter `source_evidence` 가 보유.
 
 ## Retired (v0.3.0 retire 축, §7.7)
 
@@ -23,6 +25,5 @@
 
 ---
 
-**v0.1 cadence note**: 본 INDEX 는 v2.5.50 ship 시점의 1-mezzo + 1-micro minimal scope. v2.5.51-v2.5.55 에 macro 3 추가 (release-cadence, workspace-cleanliness, codification-boundary) + mezzo 6 추가 (pre-send-inbound-check, session-resume-bridge-spawn, a2a-priority, n-way-sync-registry, watcher-liveness, a2a-relay-reliability) + micro 7+ 추가 예정 (`Greatpractice.md §8.2` cadence 표).
 
 **SSoT**: 각 entry 의 정본은 `greatpractice/{tier}/<id>.md`. 본 INDEX 가 정의가 아니라 *발견 path* — 자세한 정의는 entry 본문 참조.
