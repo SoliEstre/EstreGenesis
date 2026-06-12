@@ -208,7 +208,10 @@ function spawnWatcher(base) {
 //       · 소유자 없는 inbox     → skip (register-all: 명시적 소유 필요 — 누락은 loud 경고)
 //       · 자기 소유 inbox       → 정상 처리
 // session_id source: CLAUDE_CODE_SESSION_ID env → 없으면 stdin payload(.session_id).
-// 레지스트리: AGENT_SESSIONS_PATH env || <cwd>/.agent-sessions.json.
+// 레지스트리 탐색 순서: AGENT_SESSIONS_PATH env → <cwd> → CLAUDE_PROJECT_DIR → INBOX_PATH 상위 디렉토리들.
+//   cwd 단독 의존은 함정 — 에이전트가 nested repo (예: inner 공개 repo) 로 cd 한 채 turn 이 끝나면
+//   레지스트리를 못 찾아 registry=none 레거시 경로(라우팅 보호 없음)로 떨어져, main hook 이 워커 소유
+//   inbox 의 cursor 를 전진시키는 cursor-steal 이 재발한다 (2026-06-12 실측). fallback 사슬이 이를 봉합.
 //   형식: { workers: { "<session_id>": { role, ownInboxes:[path,...] } } } (main 도 role='main' 로 등록 — boot 의례 first-action).
 function resolveSelfSession() {
   if (process.env.CLAUDE_CODE_SESSION_ID) return { id: process.env.CLAUDE_CODE_SESSION_ID, src: 'env' };
@@ -221,9 +224,24 @@ function resolveSelfSession() {
   return { id: null, src: 'none' };
 }
 const SELF = resolveSelfSession();
-const REGISTRY_PATH = process.env.AGENT_SESSIONS_PATH
-  ? path.resolve(process.env.AGENT_SESSIONS_PATH)
-  : path.join(process.cwd(), '.agent-sessions.json');
+function resolveRegistryPath() {
+  if (process.env.AGENT_SESSIONS_PATH) return path.resolve(process.env.AGENT_SESSIONS_PATH);
+  const candidates = [path.join(process.cwd(), '.agent-sessions.json')];
+  if (process.env.CLAUDE_PROJECT_DIR) candidates.push(path.join(process.env.CLAUDE_PROJECT_DIR, '.agent-sessions.json'));
+  // INBOX_PATH 상위 디렉토리 사슬 — 워크스페이스 루트가 cwd 와 무관하게 inbox 경로에 내포돼 있음
+  if (process.env.INBOX_PATH) {
+    let dir = path.dirname(path.resolve(process.env.INBOX_PATH));
+    for (let i = 0; i < 4; i++) {
+      candidates.push(path.join(dir, '.agent-sessions.json'));
+      const up = path.dirname(dir);
+      if (up === dir) break;
+      dir = up;
+    }
+  }
+  for (const c of candidates) { try { if (fs.existsSync(c)) return c; } catch { /* keep looking */ } }
+  return candidates[0]; // 전부 부재 — 기존 동작 보존 (cwd 기준, registry=none 로 보고됨)
+}
+const REGISTRY_PATH = resolveRegistryPath();
 function loadAgentRegistry() {
   try { const j = JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8')); return (j && typeof j === 'object') ? j : null; }
   catch { return null; }
