@@ -1,17 +1,33 @@
 @component ws-collab-invite
-@intent External-collab key issue + join-URL onboarding UI. "Issue key" click → onRegister(label) to host (host sends RegisterCollabKey over WS) → status=issuing (button disabled, "issuing…"). Host injects CollabKeyIssued{key, joinUrl, label} via setIssued → status=issued → show joinUrl + "Copy" button (clipboard, async). Before issue: idle (label input + issue button). Teal (collab role) accent. clipboard is an injected dependency (deps) — mockable in tests.
+@provenance 2026-06-12 — re-distilled from reference dashboard @ v2.5.88, rough tier (setupWsKeyMgmt; legacy setupWsCollab is dead code, not wired)
+@intent Unified key issuance + management surface (UI4 issue panel + UI5 manager modal). One 🔑 head button (setupWsKeyMgmt) covers all three key kinds — upstream ⬆ / local 🏠 / collab 🔗 — via radio row, default kind=local. Issue sends canonical KeyIssue{label?, kind, roleDescription?} over orch transport (issue → wsSendOrch); host replies KeyIssued / transitional aliases UpstreamKeyIssued + CollabKeyIssued (kind=collab fallback) → setIssued. Issued view branches: local kind shows join-command hint + key-file note (wire-private — key saved to joinFile, never sent over wire); other kinds show joinUrl with "URL 복사" + "키만 복사". Manager modal lists keys with 4 tabs, per-row kind emoji, relabel + two-mode revoke. Styling rides shared accent token (--accent), panel anchored under head button with click-outside close.
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
 @profile ui-component
 @state
-status  : string = "idle"  # idle | issuing | issued
-joinUrl : string = ""      # issued join URL
+status          : string = "idle"   # idle | issuing | issued | error  (setupWsKeyMgmt locals)
+kind            : string = "local"  # upstream | local | collab — radio row KIND_DEFS, default local
+label           : string = ""       # key label; placeholder varies by kind (render)
+roleDescription : string = ""       # optional textarea, relayed to joining agent; echoed 🎭 in issued view + manager rows
+key, joinUrl    : string = ""       # issued credential / join URL (non-local kinds)
+joinHint, joinFile : string = ""    # local kind: join command hint + key-file path (setIssued payload)
+modalKeys       : array = []        # UI5 manager list (setList)
+activeTab       : string = "all"    # all | upstream | local | collab (TAB_DEFS filter)
 @ports
-cmd setIssued(payload)   : host injects {key, joinUrl, label} → status=issued
-out onRegister(label)    : "issue key" click — host sends RegisterCollabKey
-deps clipboard : { writeText(s):Promise }  # injected, async, mockable
+out KeyIssue{label?, kind, roleDescription?}    : issue() — "키 발급" click or Enter on label input (Shift+Enter exempt)
+out KeyList{includeRevoked:true}                : requestList() — modal open + ↻ refresh
+out KeyRevoke{key, mode}                        : revoke() — mode "immediate" (always offered) | "sessionEnd" (only when connectionStatus=connected); wsConfirm-gated
+out KeyLabel{key, newLabel}                     : relabel() — wsPrompt for 1~64-char label
+cmd setIssued(p)  : KeyIssued / UpstreamKeyIssued / CollabKeyIssued(kind←collab fallback) → status=issued, absorbs {key, joinUrl, joinHint, joinFile, label, kind, roleDescription}
+cmd setError(p)   : KeyError → status=error, message inline in idle form (p.message || p.code)
+cmd setList(keys) : KeyListResult → modalKeys; re-render if modal open
+cmd onMutated()   : KeyRevoked / KeyLabeled / KeyRevokePending → re-requestList if modal open
+cmd openIssuePanel() / openManager() : external entry (head 🔑 button toggle + context-menu items)
+deps clipboard : navigator.clipboard.writeText — copy(btn, text), "복사됨 ✓" 1.5s revert, "복사 실패" fallback
+deps transport : wsSendOrch — routing-independent orch CUSTOM; send failure → status=error "WS 연결 안 됨"
 @machine status
-states: idle(initial) · issuing · issued
-dispatch: onRegister→issuing · setIssued→issued
+states: idle(initial) · issuing · issued · error
+dispatch: issue→issuing · setIssued→issued · setError→error · "새 키"→idle(reset fields) · error shows idle form + message
 @behavior gist
-idle = label input + issue button; issuing = disabled "issuing…"; issued = joinUrl + Copy (clipboard.writeText). teal accent for collab role.
+idle/error = kind radio row (selecting a kind re-renders + refocuses label input — rd.onchange) + label input + roleDescription textarea + 발급 button + 🔐 키 관리 shortcut. issuing = disabled "발급 중…". issued = kind-emoji meta (key truncated ~14 chars, omitted for local) + 🎭 roleDescription echo; local → joinHint command (fallback "LOCAL_KEY_FILE=<joinFile> WS_AGENT_ID=<label> node scripts/join-local.cjs") + "키는 <joinFile> 파일에 저장됨 (외부 wire 미전달)" note + 명령 복사; non-local → joinUrl(||key) + URL 복사 + 키만 복사; both add 새 키 + 🔐 관리.
+manager modal (buildModal/renderTable) = tabs 전체/⬆업스트림/🏠로컬워커/🔗외부협업 (filter on k.kind, default upstream); rows: conn dot (CONN_DOT connected/disconnected/never) + kind emoji + label + state chip (STATE_LABEL: ISSUED/ACTIVE/REVOKED_PENDING/REVOKED/DELETED) + sub line (key prefix or local-keys/<label>.key, conn text, lastAgent, lastSeenAt) + 🎭 roleDescription; non-terminal rows get ✏️ 라벨 + 🗑 즉시 삭제 (+⏳ 세션 유지 삭제 when connected); terminal rows show state note only. openManager renders placeholder table immediately, then refreshes (no blank wait). empty states per-tab. modal backdrop click closes.

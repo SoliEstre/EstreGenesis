@@ -1,14 +1,26 @@
 @component ws-fab-badge
-@intent Bottom-right floating action button (💬) + unseen-message badge for the live board. Click requests the host to toggle the WS popup (onToggle — popup body/channel state owned by host). Badge shows the sum of unseen across all channels, clamped to "99+"; hidden when sum is 0 or the popup is open. Host resets active-channel unseen and injects the sum via setUnseen. External open changes sync via setOpen WITHOUT re-firing onToggle (callback-loop guard). Isolated unit owning only the FAB + badge DOM.
+@intent Bottom-right floating action button (💬) + unseen-message badge + FAB-adjacent chrome for the live board: right-click context menu, popup anchor-preset placement (incl. persistence + drag/resize normalization helpers), and the window-settings modal. Click requests the host to toggle the WS popup (onToggle — popup body/channel state owned by host). Badge shows the sum of unseen across all channels, clamped to "99+"; hidden when sum is 0 or the popup is open. Host resets active-channel unseen and injects the sum via setUnseen. External open changes sync via setOpen WITHOUT re-firing onToggle (callback-loop guard). Popup BODY stays host-owned; this unit owns the popup's PLACEMENT surface (anchor classes + position persistence) applied to a host-provided popup element.
+@provenance re-distilled 2026-06-12 from reference dashboard @ v2.5.88, rough tier
+@source reference/dashboard/app.js (updateWsBadge · toggleWsPop · setupWsContextMenu · setupWsSettings · wsApplyPosition · wsLoadPositionPref · wsCurrentAnchor · wsRectToAnchorPos · wsApplyAnchorPos · wsSaveUI · wsLoadUI) + style.css (.ws-fab/.ws-pop z-index split · .ws-pop.pos-{tl,tr,bl,br})
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
 @profile ui-component
 @state
 unseen : number = 0      # total unseen across channels
 open   : boolean = false # popup open (host-synced)
+anchor : string = "br"   # 'tl'|'tr'|'bl'|'br' — popup placement preset, persisted localStorage 'constellation-ws-position' (wsLoadPositionPref, invalid → 'br')
+# popup UI persistence: localStorage 'constellation-ws-ui' {open, pos:{left,right,top,bottom,width,height}} — wsSaveUI/wsLoadUI; pos saved only after user drag/resize (inline coords present); legacy {left,top}-only entries migrated to anchor-distance form on load (wsLoadUI isLegacy branch)
 @ports
-cmd setUnseen(n) : host injects total unseen → refresh badge (clamp "99+", hide if 0 or open)
-cmd setOpen(b)   : host-driven open change — sync without firing onToggle
-out onToggle()   : FAB click — host toggles the popup
+cmd setUnseen(n)     : host injects total unseen → refresh badge (clamp "99+", hide if 0 or open) (updateWsBadge)
+cmd setOpen(b)       : host-driven open change — sync without firing onToggle
+out onToggle()       : FAB click — host toggles the popup
+out onOpenKeyIssue() : ctx-menu 🔑 — host opens key-issue panel (impl: wsKeyMgmt.openIssuePanel)
+out onOpenKeyManage(): ctx-menu 🔐 — host opens key-manager modal (impl: wsKeyMgmt.openManager)
 @behavior gist
-render FAB + badge; badge visible only when unseen>0 and !open; setOpen syncs silently (no onToggle loop).
+render FAB + badge; badge visible only when unseen>0 and !open; setOpen syncs silently (no onToggle loop). (updateWsBadge / toggleWsPop)
+ctx menu (setupWsContextMenu): FAB contextmenu → 4-item menu [⊕ center · 🔑 issue key · 🔐 manage keys · ⚙ settings]; every item first opens the popup if closed (toggleWsPop(true)); menu floats above the FAB, clamped into viewport (falls below if no room on top); closes on outside click, Escape, window blur.
+anchor presets (wsApplyPosition): popup carries one .pos-{tl,tr,bl,br} class (CSS default distances 22px side / 88px vertical); preset pick clears inline 4-coords (class fallback wins), persists 'constellation-ws-position' AND drops saved drag pos from 'constellation-ws-ui'. 'center' pseudo-preset centers the popup expressed as current-anchor corner distances (wsCurrentAnchor + wsRectToAnchorPos) — survives viewport resize.
+position math: wsRectToAnchorPos(rect, anchor) → inline {left,right,top,bottom} with non-anchor sides 'auto'; wsApplyAnchorPos writes all 4 (auto included, neutralizing class fallback). Host drag/resize handlers work in left/top during gesture, then normalize end-rect to anchor distances + wsSaveUI on mouseup.
+settings modal (setupWsSettings): head ⚙ button opens lazily-built modal; 2×2 .ws-pos-grid of .ws-pos-card (arrow glyph + name, .active = current pref); card click → wsApplyPosition + active re-toggle; active state re-synced from stored pref on every open; closes via ✕, backdrop click, Escape.
+@styles gist
+.ws-fab fixed 56px circle, accent bg, z-index 58 — deliberately BELOW .ws-pop z-index 59 so a popup dragged/resized over the FAB covers it. .ws-fab-badge top-right pill, var(--blocked) bg, [hidden]→display:none. .ws-pop.pos-* preset coords 22/88px per corner. .ws-fab-ctx fixed z 62 menu; .ws-settings-modal fixed inset-0 z 61. Mobile: FAB shifts by safe-area insets, host home-btn pushed left of it.
