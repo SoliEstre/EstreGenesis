@@ -43,7 +43,7 @@
       "name": "hyperbrief",
       "source": "./plugins/hyperbrief",
       "description": "Decision-delegation gating discipline. Wraps Hyperbrief.md v0.6.0 as 3 model-invoked skills (hyperbrief-trigger-check + hyperbrief + hyperbrief-revisit) + JSON IR schema (FullBrief + BlockedStub variants) + 4 templates (MD + HTML × FullBrief + BlockedStub) + deterministic Node renderer (mini-engine.cjs with self-engineered placeholder substitution + 3-axis × 5-level tone profile + ajv schema validation) + MCP server exposing 4 tools (hyperbrief_render / hyperbrief_validate / decision_ledger_append / decision_ledger_query) + PreToolUse + Stop hooks in advise mode (4-way review-queue routing: Constellation board / standalone placeholder / setup-ask / silent). v0.5.6 adds the §5.6.7 + MUST-19 skill-side auto-localize discipline (button label + trigger phrases follow the user's prevailing conversation language; EN/KO/JA reference literals in spec). Cross-module integrations active: Constellation §13.16.9 (5 A2A intent names + ack_tier='decided') + Superscalar §3.1 (orthogonal gate at write/deploy/send lane retire). §11.5 v1.0 readiness rubric (Lens A 7-dim module-wide GA / Lens B 6-dim host-specific marketplace registration) shipped. 4 self-applied dogfood entries + adopter bundle 008. npm dep: ajv ^8.17.0.",
-      "version": "0.6.2",
+      "version": "0.7.0",
       "category": "decision-delegation",
       "tags": [
         "decision-gating",
