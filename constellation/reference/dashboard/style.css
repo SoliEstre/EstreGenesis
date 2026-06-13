@@ -694,6 +694,16 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
   .home-btn { right: calc(86px + env(safe-area-inset-right, 0px)); }
   .ws-pop { right: calc(10px + env(safe-area-inset-right, 0px)); width: auto; left: calc(10px + env(safe-area-inset-left, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 }
+/* 모바일 — 실시간 창 fullscreen + 탭바 가로 스크롤 (#3a 반응형). inline 복원 위치/크기 override 위해 !important */
+@media (max-width: 560px) {
+  .ws-pop:not([hidden]) { inset: 0 !important; width: auto !important; height: auto !important; border-radius: 0 !important; z-index: 50; }
+  .ws-pop .ws-rsz { display: none; }                 /* fullscreen — 리사이즈 핸들 숨김 */
+  .ws-pop-head { padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; }
+  .ws-pop-body { padding: 8px calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px)); }
+  .ws-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .ws-tabs .grp { flex: 0 0 auto; }
+  .ws-actions { flex-wrap: wrap; }                    /* 입력 버튼들 좁은 폭에서 줄바꿈 */
+}
 
 /* ---- v2.4.0 #406 UI5 키 관리 모달 (KEY-MGMT 발급된 키 목록 + revoke + label rename) ---- */
 .ws-key-modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.42); }
