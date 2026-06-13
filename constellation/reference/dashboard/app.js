@@ -468,6 +468,38 @@ function clearedIfReviewed(d, draft, isFocused) {
   }
   return draft;                                                      // prefix 아님 → 보존
 }
+// ---- tier-1 알림 (#3a — 설정 + 항목별 토글; 연결중 showNotification) ----
+const WS_NOTIF_KEY = 'constellation-notif-prefs';
+let wsNotifPrefs = (() => { const d = { master: false, decision: true, a2a: true, abort: true }; try { return Object.assign(d, JSON.parse(localStorage.getItem(WS_NOTIF_KEY) || '{}')); } catch { return d; } })();
+let wsNotifSeenDec = null;   // null=미초기화(첫 렌더 알림 억제 — 기존 검토요청에 안 울림)
+function wsSaveNotifPrefs() { try { localStorage.setItem(WS_NOTIF_KEY, JSON.stringify(wsNotifPrefs)); } catch {} }
+function wsNotify(kind, title, body) {
+  if (!wsNotifPrefs.master || !wsNotifPrefs[kind]) return;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try { const n = new Notification(title, { body: (body || '').slice(0, 140), icon: '/icon-192.png', tag: 'constellation-' + kind }); n.onclick = () => { try { window.focus(); } catch {} n.close(); }; } catch {}
+}
+function wsNotifHint() {
+  const h = $('#notif-hint'); if (!h) return;
+  if (typeof Notification === 'undefined') { h.textContent = '이 브라우저는 알림 미지원'; return; }
+  if (!wsNotifPrefs.master) { h.textContent = '알림 꺼짐'; return; }
+  h.textContent = Notification.permission === 'granted' ? '✓ 알림 켜짐' : (Notification.permission === 'denied' ? '브라우저에서 차단됨 (사이트 설정에서 허용)' : '권한 대기 중');
+}
+function setupWsNotif() {
+  const btn = $('#ws-notif-btn'), panel = $('#ws-notif-panel');
+  const cbs = { master: $('#notif-master'), decision: $('#notif-decision'), a2a: $('#notif-a2a'), abort: $('#notif-abort') };
+  if (!btn || !panel) return;
+  for (const k in cbs) if (cbs[k]) cbs[k].checked = !!wsNotifPrefs[k];
+  wsNotifHint();
+  btn.onclick = (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) wsNotifHint(); };
+  document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('.ws-notif-wrap')) panel.hidden = true; });
+  if (cbs.master) cbs.master.onchange = () => {
+    wsNotifPrefs.master = cbs.master.checked; wsSaveNotifPrefs();
+    if (wsNotifPrefs.master && typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().then(() => wsNotifHint());
+    else wsNotifHint();
+  };
+  for (const k of ['decision', 'a2a', 'abort']) if (cbs[k]) cbs[k].onchange = () => { wsNotifPrefs[k] = cbs[k].checked; wsSaveNotifPrefs(); };
+}
+
 function renderDecisions() {
   const box = $('#decisions');
   // 재렌더가 입력을 방해하지 않도록 포커스/캐럿 보존 (decision did 또는 ad-hoc plannedId)
@@ -481,6 +513,11 @@ function renderDecisions() {
   box.innerHTML = '';
   ui.adhoc.forEach(item => box.append(buildAdhocCard(item)));   // 예정작업 즉석 피드백 카드 (최상단)
   const list = (ui.state.decisions || []).slice().sort((a, b) => (a.priority || 99) - (b.priority || 99));
+  try {   // tier-1 알림: 신규 미해결 검토요청 (#3a) — 첫 렌더는 억제, 이후 새 id 만
+    const _unres = list.filter(d => d.status !== 'resolved');
+    if (wsNotifSeenDec) { for (const d of _unres) if (!wsNotifSeenDec.has(d.id)) wsNotify('decision', '검토요청: ' + (d.title || d.id), d.detail || ''); }
+    wsNotifSeenDec = new Set(_unres.map(d => d.id));
+  } catch {}
   { const _decCount = list.filter(d => d.status !== 'resolved').length + ui.adhoc.length; const _decBadge = $('#decisions-badge'); if (_decBadge) { _decBadge.textContent = _decCount; _decBadge.hidden = (_decCount === 0); } }   // 검토사안 0이면 뱃지만 숨김(탭 유지) — EstreUF parity
 
   const buildCard = (d) => {
@@ -1770,6 +1807,9 @@ function wsPushRow(agentId, row) {
   ch.rows.push(row);
   while (ch.rows.length > 300) ch.rows.shift();
   if (wsState.replaying) return;   // 재생 중엔 데이터만 적재, 렌더·뱃지는 재생 끝나고 일괄
+  // tier-1 알림 (#3a) — 라이브 행만(재생 제외): a2acard=meaningful A2A, err=RUN_ERROR 중단·오류
+  if (row.kind === 'a2acard') wsNotify('a2a', 'A2A 수신: ' + (row.label || ''), (row.a2a && (row.a2a.summary || row.a2a.name)) || '');
+  else if (row.kind === 'err') wsNotify('abort', '작업 오류·중단', row.body || row.label || '');
   const active = wsState.active;
   const inView = agentId === active || (wsIsGroup(active) && wsGroupMembers(active).indexOf(agentId) >= 0);
   if (inView && wsState.popOpen) { if (wsIsGroup(active)) wsRenderActiveStream(); else wsRenderRow(row); }   // 그룹 뷰면 병합 재렌더
@@ -2789,6 +2829,7 @@ function setupWS() {
   // v2.4.2 UI 통합: setupWsCollab (🔗 별도 버튼) 제거 — setupWsKeyMgmt 가 kind dropdown 으로 모든 종류 발행 통합
   setupWsKeyMgmt();                                   // v2.4.0 #406 UI4/UI5 업스트림 키 발행 🔑 + 키 관리 모달 🗂
   setupWsSettings();                                  // 실시간 창 설정 모달 (창 배치 preset 등) — 헤드 ⚙ 버튼
+  setupWsNotif();                                     // tier-1 알림 설정 (🔔 — 항목별 토글 + 권한)
   setupWsContextMenu();                               // 🌐 fab 우클릭 → 화면 가운데로 / 키 관리 / 설정
   updateWsConn(); updateWsBadge(); wsRenderTabs();
   wsLoadBackends();                                   // C1 backend registry overlay (board-worker 분리 + model badge); 부재 시 graceful
