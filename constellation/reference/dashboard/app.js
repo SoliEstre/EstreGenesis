@@ -2506,7 +2506,7 @@ function updateWsConn() {
   const dot = $('#ws-conn-dot'), txt = $('#ws-conn-text'), agent = $('#ws-agent'), seq = $('#ws-seq'), hdot = $('#ws-head-dot'), meta = $('#ws-pop-meta');
   if (dot) dot.classList.toggle('on', connected);
   if (hdot) hdot.classList.toggle('off', !connected);
-  const grpName = active === 'group:up' ? '업스트림 그룹' : active === 'group:main' ? '메인 그룹' : '로컬 그룹';
+  const grpName = active === 'group:up' ? '업스트림 그룹' : active === 'group:main' ? '메인 그룹' : active === 'group:board-worker' ? '보드워커 그룹' : active === 'group:collab' ? '협업 그룹' : '로컬 그룹';
   if (agent) agent.textContent = grp ? grpName : ((ch && ch.name) || '에이전트');
   if (txt) txt.textContent = !wsState.open ? '서버 연결 끊김' : grp ? '그룹 병합 뷰(시간순)' : mon ? '모니터 (읽기 전용)' : (!ch ? '에이전트 없음' : (ch.connStatus === 'restored' ? '연결 복원됨' : (present ? '연결됨' : '연결 끊김')));
   if (seq) seq.textContent = (ch && ch.seq != null) ? `· seq ${ch.seq}` : '';
