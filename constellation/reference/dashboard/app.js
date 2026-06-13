@@ -9,6 +9,8 @@
 const $ = (s, r = document) => r.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// URL 스킴 allowlist (XSS) — javascript:/data:text/html/vbscript: 등 실행 스킴 차단. http(s)/blob/mailto/data:image + 상대경로만 허용, 그 외 '#'. iframe src·window.open URL sink 에 적용.
+const wsSafeUrl = (u) => { if (typeof u !== 'string') return '#'; const s = u.trim(); const m = s.match(/^([a-z][a-z0-9+.-]*):/i); if (m) { const sch = m[1].toLowerCase(); if (sch === 'http' || sch === 'https' || sch === 'blob' || sch === 'mailto') return s; if (sch === 'data' && /^data:image\//i.test(s)) return s; return '#'; } return s; };
 // 인라인 비주얼 강조: [역할]·✓(완료)·→(변화)·커밋해시·버전 을 색/monospace 로.
 const decoDetail = (s) => esc(s)
   .replace(/\*\*([^*]+)\*\*/g, '<b class="em">$1</b>')
@@ -532,7 +534,7 @@ function renderDecisions() {
     card.innerHTML = `<div class="row"><span class="q">${esc(d.question)}</span> ${projChip(d.project)}${reviewed}</div>
       <div class="ddetail">${esc(d.detail || '').replace(/\n/g, '<br>')}</div>
       ${d.status !== 'resolved' ? `<button type="button" class="dfallback" title="이 브리핑을 한 단계 더 쉬운 말로 다시 써달라고 요청해요">${esc((d.fallback && d.fallback.label) || '🙋 더 쉽게 설명해줘')}</button>` : ''}
-      ${d.previewUrl ? `<iframe src="${esc(d.previewUrl)}" loading="lazy"></iframe>` : ''}
+      ${d.previewUrl ? `<iframe src="${esc(wsSafeUrl(d.previewUrl))}" sandbox loading="lazy"></iframe>` : ''}
       ${d.previewHtml ? `<div class="dviz">${d.previewHtml}</div>` : ''}${attChips('decision-' + d.id, d.att)}`;
     const fbBtn = card.querySelector('.dfallback');
     if (fbBtn) fbBtn.onclick = async () => {
@@ -763,17 +765,17 @@ async function openAttachment(a) {
   }
   else if (a.t === 'html') body.innerHTML = `<iframe class="att-frame" sandbox srcdoc="${esc(a.body)}"></iframe>`;   // v2.4.12 보안: sandbox(빈 값=스크립트·동일출처 차단) — 첨부 HTML 의 same-origin JS 실행 방지 (peer 가 A2A 로 보낸 첨부 stored-XSS 차단)
   else if (a.t === 'img') body.innerHTML = `<img class="att-img" src="${esc(a.src)}" alt="${esc(a.title || a.name || '')}">`;
-  else if (a.t === 'link') body.innerHTML = `<iframe class="att-frame" sandbox src="${esc(a.src)}"></iframe>`;   // v2.4.12 보안: sandbox 정적 프리뷰 (외부 URL 스크립트 차단)
+  else if (a.t === 'link') body.innerHTML = `<iframe class="att-frame" sandbox src="${esc(wsSafeUrl(a.src))}"></iframe>`;   // v2.4.12 sandbox 정적 프리뷰 + v2.4.33 스킴 allowlist (javascript:/data:text/html 차단)
   else if (a.t === 'file') body.innerHTML = `<div class="att-fileinfo">📄 ${esc(a.name || a.title || '파일')}<div class="empty">미리보기 미지원 형식 — '새 탭'으로 열어 확인하세요${a.mime ? ` (${esc(a.mime)})` : ''}.</div></div>`;
 }
 function attNewTab(a) {
   let url;
-  if (a.t === 'img' || a.t === 'link' || a.t === 'file') url = a.src;
+  if (a.t === 'img' || a.t === 'link' || a.t === 'file') url = wsSafeUrl(a.src);   // v2.4.33 스킴 allowlist — window.open(javascript:/data:text/html) same-origin 실행 차단
   else {
     let doc;
     if (a.t === 'code') doc = `<!doctype html><meta charset="utf-8"><title>${esc(a.title || 'code')}</title><style>body{margin:0;background:#0f1115;color:#e7e9ea;font:13px/1.5 ui-monospace,monospace}pre{padding:18px;white-space:pre-wrap;word-break:break-word}</style><pre>${esc(a.body)}</pre>`;
-    else if (a.t === 'mermaid') doc = `<!doctype html><meta charset="utf-8"><title>${esc(a.title || 'diagram')}</title><body style="margin:0;background:#0f1115;display:flex;justify-content:center;padding:24px"><pre class="mermaid">${a.body}</pre><script type="module">import m from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';m.initialize({startOnLoad:true,theme:'dark'});<\/script>`;
-    else doc = a.body || '';
+    else if (a.t === 'mermaid') doc = `<!doctype html><meta charset="utf-8"><title>${esc(a.title || 'diagram')}</title><body style="margin:0;background:#0f1115;display:flex;justify-content:center;padding:24px"><pre class="mermaid">${esc(a.body)}</pre><script type="module">import m from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';m.initialize({startOnLoad:true,theme:'dark'});<\/script>`;   // v2.4.33 보안: esc(a.body) — raw 시 새탭 blob same-origin XSS (mermaid 는 textContent 디코딩본을 읽어 렌더 동일)
+    else doc = `<!doctype html><meta charset="utf-8"><body style="margin:0"><iframe sandbox srcdoc="${esc(a.body || '')}" style="border:0;width:100vw;height:100vh"></iframe>`;   // v2.4.33 보안: html 첨부 새탭도 sandbox iframe (raw blob same-origin XSS 차단; in-dialog 와 동일 정책)
     url = URL.createObjectURL(new Blob([doc], { type: 'text/html' }));
   }
   window.open(url, '_blank', 'noopener');
