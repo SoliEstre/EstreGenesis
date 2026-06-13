@@ -1,5 +1,5 @@
 @component ws-collab-invite
-@provenance 2026-06-12 — re-distilled from reference dashboard @ v2.5.88, rough tier (setupWsKeyMgmt; legacy setupWsCollab is dead code, not wired)
+@provenance 2026-06-12 — re-distilled from reference dashboard @ v2.5.88, rough tier (setupWsKeyMgmt; legacy setupWsCollab removed @ v2.4.22 (was dead code since the v2.4.2 unification))
 @intent Unified key issuance + management surface (UI4 issue panel + UI5 manager modal). One 🔑 head button (setupWsKeyMgmt) covers all three key kinds — upstream ⬆ / local 🏠 / collab 🔗 — via radio row, default kind=local. Issue sends canonical KeyIssue{label?, kind, roleDescription?} over orch transport (issue → wsSendOrch); host replies KeyIssued / transitional aliases UpstreamKeyIssued + CollabKeyIssued (kind=collab fallback) → setIssued. Issued view branches: local kind shows join-command hint + key-file note (wire-private — key saved to joinFile, never sent over wire); other kinds show joinUrl with "URL 복사" + "키만 복사". Manager modal lists keys with 4 tabs, per-row kind emoji, relabel + two-mode revoke. Styling rides shared accent token (--accent), panel anchored under head button with click-outside close.
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla

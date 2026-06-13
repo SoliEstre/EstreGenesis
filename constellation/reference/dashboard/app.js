@@ -2157,56 +2157,7 @@ function wsSendOrch(obj) { const ws = wsState.ws; if (!ws || ws.readyState !== 1
 // @machine status: idle → issuing → issued (→ reset → idle). 컨트롤러는 onWsEvent 가 setIssued 로 깨운다.
 let wsInvite = null;
 let wsKeyMgmt = null;   // v2.4.0 — 업스트림 키 발급(UI4) + 키 관리 모달(UI5) 통합 컨트롤러 (RegisterUpstreamKey transitional alias + canonical KeyIssue 둘 다 수용)
-function setupWsCollab() {
-  const head = $('#ws-pop-head'); if (!head || $('#ws-collab-wrap')) return;
-  const wrap = document.createElement('span'); wrap.id = 'ws-collab-wrap'; wrap.className = 'ws-collab-wrap';
-  const btn = document.createElement('button'); btn.id = 'ws-collab-btn'; btn.className = 'ws-arch-btn'; btn.type = 'button';
-  btn.title = '외부 협업 초대 — 협업 키 발급·접속 URL (#168)'; btn.textContent = '🔗';
-  const panel = document.createElement('div'); panel.id = 'ws-collab-panel'; panel.className = 'ws-collab-panel'; panel.hidden = true;
-  wrap.appendChild(btn); wrap.appendChild(panel);
-  const archWrap = head.querySelector('.ws-arch-wrap');
-  if (archWrap) head.insertBefore(wrap, archWrap); else head.appendChild(wrap);
-
-  let status = 'idle', key = '', joinUrl = '', label = '';
-  function render() {
-    panel.textContent = '';
-    const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '🔗 외부 협업 초대'; panel.appendChild(h);
-    if (status === 'idle') {
-      const inp = document.createElement('input'); inp.className = 'ws-invite-label'; inp.placeholder = '협업 대상 라벨'; inp.value = label;
-      const b = document.createElement('button'); b.className = 'ws-invite-btn'; b.type = 'button'; b.textContent = '키 발급';
-      b.onclick = () => { label = inp.value.trim(); register(); };
-      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { label = inp.value.trim(); register(); } });
-      panel.appendChild(inp); panel.appendChild(b);
-    } else if (status === 'issuing') {
-      const b = document.createElement('button'); b.className = 'ws-invite-btn'; b.type = 'button'; b.textContent = '발급 중…'; b.disabled = true;
-      panel.appendChild(b);
-    } else {   // issued
-      const meta = document.createElement('div'); meta.className = 'ws-invite-meta'; meta.textContent = (label || 'collab') + ' · ' + key.slice(0, 12) + '…';
-      const url = document.createElement('div'); url.className = 'ws-invite-url'; url.textContent = joinUrl;
-      const row = document.createElement('div'); row.className = 'ws-invite-row';
-      const cp = document.createElement('button'); cp.className = 'ws-invite-copy'; cp.type = 'button'; cp.textContent = '복사'; cp.onclick = () => copy(cp);
-      const nw = document.createElement('button'); nw.className = 'ws-invite-new'; nw.type = 'button'; nw.textContent = '새 키'; nw.onclick = () => { status = 'idle'; key = ''; joinUrl = ''; render(); };
-      row.appendChild(cp); row.appendChild(nw);
-      panel.appendChild(meta); panel.appendChild(url); panel.appendChild(row);
-    }
-  }
-  function register() {
-    if (wsSendOrch({ type: 'CUSTOM', name: 'RegisterCollabKey', value: { label } })) { status = 'issuing'; render(); }
-    else { const e = document.createElement('div'); e.className = 'ws-invite-url'; e.textContent = '⚠ WS 연결 안 됨 — 잠시 후 다시'; panel.appendChild(e); }
-  }
-  function copy(b) {
-    const done = () => { const o = b.textContent; b.textContent = '복사됨 ✓'; setTimeout(() => { b.textContent = o; }, 1500); };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(joinUrl).then(done).catch(() => { b.textContent = '복사 실패'; });
-    else b.textContent = '복사 실패';
-  }
-  btn.onclick = (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) render(); };
-  document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('#ws-collab-wrap')) panel.hidden = true; });
-  wsInvite = {
-    setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; if (p.label != null) label = p.label; status = 'issued'; panel.hidden = false; render(); },
-    get status() { return status; }, get joinUrl() { return joinUrl; },
-  };
-  render();
-}
+// setupWsCollab 제거됨 (v2.4.22 가지치기) — v2.4.2 에서 setupWsKeyMgmt 로 통합된 뒤 미호출 dead code 였음 (E2b 146-심볼 검증에서 확인).
 
 // ---- v2.4.0 #406 UI4/UI5 업스트림 키 관리 (WS-PROTOCOL-KEY-MGMT.md v0.2) ----
 // UI4: 🔑 발행 버튼 (협업 🔗 왼쪽) → KeyIssue → KeyIssued{key, joinUrl} 패널 (협업과 동일 패턴)
