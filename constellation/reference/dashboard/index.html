@@ -125,6 +125,14 @@
     <div class="ws-rsz se" data-dir="se"></div><div class="ws-rsz sw" data-dir="sw"></div>
   </div>
 
+  <!-- 모바일 하단 고정 탭바 (≤560px) — 최상위 탭전환 (실시간 = 팝업을 풀스크린 pane 으로 합류). 위키 = #4 Compendium 자리 -->
+  <nav id="mobile-tabbar" class="mobile-tabbar" aria-label="모바일 탭">
+    <button class="mtab" data-mtab="dashboard" type="button">📋<span>대시보드</span></button>
+    <button class="mtab" data-mtab="decisions" type="button">📝<span>검토사안</span></button>
+    <button class="mtab" data-mtab="wiki" type="button" disabled title="Compendium (예정)">📖<span>위키</span></button>
+    <button class="mtab" data-mtab="realtime" type="button">💬<span>실시간</span></button>
+  </nav>
+
   <dialog id="att-dialog" class="att-dialog">
     <div class="att-head">
       <span class="att-title" id="att-title"></span>

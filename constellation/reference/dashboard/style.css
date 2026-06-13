@@ -698,15 +698,26 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
   .home-btn { right: calc(86px + env(safe-area-inset-right, 0px)); }
   .ws-pop { right: calc(10px + env(safe-area-inset-right, 0px)); width: auto; left: calc(10px + env(safe-area-inset-left, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 }
-/* 모바일 — 실시간 창 fullscreen + 탭바 가로 스크롤 (#3a 반응형). inline 복원 위치/크기 override 위해 !important */
+/* 모바일 하단 고정 탭바 (A — 최상위 탭전환; 실시간=팝업 풀스크린 pane). 기본 숨김, ≤560px 에서 표시 */
+.mobile-tabbar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; height: calc(54px + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--panel); border-top: 1px solid var(--line); }
+.mobile-tabbar .mtab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: none; border: none; color: var(--muted); font-size: 1.05rem; cursor: pointer; padding: 4px 0; font-family: inherit; }
+.mobile-tabbar .mtab span { font-size: .6rem; font-weight: 600; letter-spacing: .01em; }
+.mobile-tabbar .mtab.active { color: var(--accent); }
+.mobile-tabbar .mtab[disabled] { opacity: .38; cursor: default; }
+/* 모바일 — 실시간 창 fullscreen(하단 탭바 공간 남김) + 탭바 가로 스크롤 + 하단 탭바 노출 (#3a). inline override 위해 !important */
 @media (max-width: 560px) {
-  .ws-pop:not([hidden]) { inset: 0 !important; width: auto !important; height: auto !important; border-radius: 0 !important; z-index: 50; }
-  .ws-pop .ws-rsz { display: none; }                 /* fullscreen — 리사이즈 핸들 숨김 */
+  .mobile-tabbar { display: flex; }
+  .topbar .tabs { display: none; }                    /* 최상위 탭전환은 하단 탭바로 이관 */
+  .ws-fab { display: none; }                          /* 실시간은 하단 탭바 버튼으로 */
+  main { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  .ws-pop:not([hidden]) { inset: 0 !important; width: auto !important; height: auto !important; bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important; border-radius: 0 !important; z-index: 45; }
+  .ws-pop .ws-rsz { display: none; }                  /* fullscreen — 리사이즈 핸들 숨김 */
   .ws-pop-head { padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; }
-  .ws-pop-body { padding: 8px calc(8px + env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px)); }
+  .ws-pop-body { padding: 8px calc(8px + env(safe-area-inset-right, 0px)) 8px calc(8px + env(safe-area-inset-left, 0px)); }
   .ws-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
   .ws-tabs .grp { flex: 0 0 auto; }
   .ws-actions { flex-wrap: wrap; }                    /* 입력 버튼들 좁은 폭에서 줄바꿈 */
+  .home-btn, .home-btn-dec { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }   /* 하단 탭바 위로 */
 }
 
 /* ---- v2.4.0 #406 UI5 키 관리 모달 (KEY-MGMT 발급된 키 목록 + revoke + label rename) ---- */

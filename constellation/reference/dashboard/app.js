@@ -918,6 +918,7 @@ function applyPanes() {
   main.classList.toggle('split', split);
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', ui.panes.includes(b.dataset.tab)));
   document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('active', ui.panes.includes(p.id.replace('tab-', ''))));
+  if (typeof syncMobileTabbar === 'function') syncMobileTabbar();   // 하단 탭바 active 동기 (모바일)
   const dv = $('#pane-divider'); if (dv) dv.hidden = !split;
   document.querySelectorAll('.pin-handle').forEach(h => h.hidden = !split);
   if (split) { applySplitSizing(); updatePinHandles(); }
@@ -2625,6 +2626,24 @@ function toggleWsPop(show) {
   }
   updateWsBadge();
   wsSaveUI();
+  syncMobileTabbar();
+}
+
+// ---- 모바일 하단 탭바 (A — 최상위 탭전환; 실시간=팝업 풀스크린 pane, ≤560px) ----
+function syncMobileTabbar() {
+  const bar = document.getElementById('mobile-tabbar'); if (!bar) return;
+  const active = wsState.popOpen ? 'realtime' : (ui.panes && ui.panes.includes('decisions') && !ui.panes.includes('dashboard') ? 'decisions' : (ui.panes && ui.panes.includes('dashboard') ? 'dashboard' : null));
+  bar.querySelectorAll('[data-mtab]').forEach((b) => b.classList.toggle('active', b.dataset.mtab === active));
+}
+function setupMobileTabbar() {
+  const bar = document.getElementById('mobile-tabbar'); if (!bar) return;
+  bar.querySelectorAll('[data-mtab]').forEach((b) => { b.onclick = () => {
+    const t = b.dataset.mtab; if (t === 'wiki') return;   // 위키 = #4 Compendium 자리(미구현)
+    if (t === 'realtime') { if (!wsState.popOpen) toggleWsPop(true); }
+    else { if (wsState.popOpen) toggleWsPop(false); setPanes(t, false); }
+    syncMobileTabbar();
+  }; });
+  syncMobileTabbar();
 }
 
 // ---- 8방향 리사이즈 (모든 면·모서리) ----
@@ -2846,6 +2865,7 @@ function setupWS() {
   setupWsKeyMgmt();                                   // v2.4.0 #406 UI4/UI5 업스트림 키 발행 🔑 + 키 관리 모달 🗂
   setupWsSettings();                                  // 실시간 창 설정 모달 (창 배치 preset 등) — 헤드 ⚙ 버튼
   setupWsNotif();                                     // tier-1 알림 설정 (🔔 — 항목별 토글 + 권한)
+  setupMobileTabbar();                                // 모바일 하단 탭바 (≤560px — 최상위 탭전환 + 실시간 pane)
   setupWsContextMenu();                               // 🌐 fab 우클릭 → 화면 가운데로 / 키 관리 / 설정
   updateWsConn(); updateWsBadge(); wsRenderTabs();
   wsLoadBackends();                                   // C1 backend registry overlay (board-worker 분리 + model badge); 부재 시 graceful
