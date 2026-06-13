@@ -1786,7 +1786,9 @@ const WS_MON_BOARD = '__mon_board__';  // 🔀 메인 ↔ 보드 (board-worker A
 let wsBackends = {};   // C1 backend registry overlay (backends.json): agentId → {role, model, connection, board}. 부재 시 {} → graceful (board-worker 는 local 로 접힘, badge 없음)
 function wsLoadBackends() {
   fetch('backends.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(reg => {
-    if (!reg || !Array.isArray(reg.agents)) return;
+    if (!reg) return;
+    if (reg.boardTitle) { const bn = $('#board-name'); if (bn) bn.textContent = reg.boardTitle; document.title = reg.boardTitle + ' 라이브 보드'; }   // 보드 타이틀 커스텀 (deployment 별)
+    if (!Array.isArray(reg.agents)) return;
     const m = {}; for (const a of reg.agents) if (a && a.agentId) m[a.agentId] = a;
     wsBackends = m;
     for (const [id, c] of wsState.channels) { const b = m[id]; if (b && b.role) c.role = b.role; }   // 이미 연결된 채널 role 재분류
