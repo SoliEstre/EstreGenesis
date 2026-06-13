@@ -434,7 +434,10 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-tabs.tab-edit .ghead, .ws-tabs.tab-edit .ws-tab { cursor: grab; }
 .ws-tabs.tab-edit .ghead { outline: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: -2px; }
 .ws-draggable.ws-dragging { opacity: .45; }
-.ws-draggable.ws-drop { outline: 2px dashed var(--accent); outline-offset: -2px; }
+/* 삽입 위치 인디케이터 — 드롭 시 배치될 지점 세로 바 (커서 좌/우 절반 → 앞/뒤) */
+.ws-tabs.tab-edit .ws-drop-before::before, .ws-tabs.tab-edit .ws-drop-after::before { content: ''; position: absolute; top: 2px; bottom: 2px; width: 3px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 5px var(--accent); z-index: 6; pointer-events: none; }
+.ws-tabs.tab-edit .ws-drop-before::before { left: -2px; }
+.ws-tabs.tab-edit .ws-drop-after::before { right: -2px; }
 /* 그룹 병합 뷰 출처 라벨 */
 .ws-src { flex: 0 0 auto; font-size: .62rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
 /* A2A 방향 뱃지 내 에이전트 이름 = role 색 (업스트림 주황 · 메인 보라 · 보드워커 녹색 · 로컬 파랑 · 협업 청록) */
