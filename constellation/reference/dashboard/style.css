@@ -385,7 +385,8 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-pop-head .ws-pop-dot { width: 8px; height: 8px; border-radius: 50%; background: #39d353; box-shadow: 0 0 6px #39d353; flex: 0 0 auto; }
 .ws-pop-head .ws-pop-dot.off { background: var(--muted); box-shadow: none; }
 .ws-pop-head .grow { flex: 1; }
-.ws-pop-meta { color: var(--muted); font-size: .78rem; }
+.ws-pop-head > b { flex: 0 0 auto; white-space: nowrap; }   /* 제목('실시간')은 절대 글자단위 wrap 안 함 — 좁으면 meta 가 truncate */
+.ws-pop-meta { color: var(--muted); font-size: .78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-pop-meta .ws-proj { color: var(--muted); }
 .ws-pop-meta .ws-repo { color: var(--accent); text-decoration: none; }
 .ws-pop-meta .ws-repo:hover { text-decoration: underline; }
@@ -718,6 +719,10 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
   .ws-tabs .grp { flex: 0 0 auto; }
   .ws-actions { flex-wrap: wrap; }                    /* 입력 버튼들 좁은 폭에서 줄바꿈 */
   .home-btn, .home-btn-dec { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }   /* 하단 탭바 위로 */
+  /* 카드 행: 좁은 폭에서 제목이 한 줄 차지하고 칩/버튼/reorder 는 다음 줄로 wrap (제목 글자단위 압착 방지) */
+  .card .row { flex-wrap: wrap; align-items: flex-start; row-gap: 6px; }
+  .card .row .title { flex: 1 1 auto; min-width: 0; }
+  .card .row .prio { flex: 0 0 auto; }
 }
 
 /* ---- v2.4.0 #406 UI5 키 관리 모달 (KEY-MGMT 발급된 키 목록 + revoke + label rename) ---- */
