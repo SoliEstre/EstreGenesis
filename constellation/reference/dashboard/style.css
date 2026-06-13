@@ -438,6 +438,14 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-tabs.tab-edit .ws-drop-before::before, .ws-tabs.tab-edit .ws-drop-after::before { content: ''; position: absolute; top: 2px; bottom: 2px; width: 3px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 5px var(--accent); z-index: 6; pointer-events: none; }
 .ws-tabs.tab-edit .ws-drop-before::before { left: -2px; }
 .ws-tabs.tab-edit .ws-drop-after::before { right: -2px; }
+/* 알림 설정 드롭다운 (#3a tier-1) */
+.ws-notif-wrap { position: relative; display: inline-flex; }
+.ws-notif-panel { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 200px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 30; padding: 8px; display: flex; flex-direction: column; gap: 4px; cursor: default; }
+.ws-notif-panel[hidden] { display: none; }
+.ws-notif-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--ink); cursor: pointer; padding: 2px 4px; white-space: nowrap; }
+.ws-notif-master { border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 2px; }
+.ws-notif-subs { display: flex; flex-direction: column; gap: 3px; padding-left: 6px; }
+.ws-notif-hint { font-size: .66rem; color: var(--muted); padding: 4px 4px 0; }
 /* 그룹 병합 뷰 출처 라벨 */
 .ws-src { flex: 0 0 auto; font-size: .62rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
 /* A2A 방향 뱃지 내 에이전트 이름 = role 색 (업스트림 주황 · 메인 보라 · 보드워커 녹색 · 로컬 파랑 · 협업 청록) */
