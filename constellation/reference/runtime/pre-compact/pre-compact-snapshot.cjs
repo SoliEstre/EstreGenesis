@@ -57,9 +57,10 @@ if (doc.includes(BEGIN) && doc.includes(END)) {
 fs.mkdirSync(path.dirname(HANDOFF), { recursive: true });
 fs.writeFileSync(HANDOFF, doc, 'utf8');
 
-process.stdout.write(JSON.stringify({
-  hookSpecificOutput: {
-    hookEventName: 'PreCompact',
-    additionalContext: `[pre-compact] environment snapshot saved to ${HANDOFF}. After compaction, READ this file and re-apply the standing-card procedure details before resuming work.`,
-  },
-}) + '\n');
+// PreCompact has no additionalContext channel (the host schema reserves additionalContext for
+// UserPromptSubmit/PostToolUse/Stop-family events). Re-injection after compaction is owned by a
+// SessionStart(matcher:"compact") hook that re-reads this whole file — so here we just write the
+// file and exit quietly. (Previously this emitted hookSpecificOutput:{hookEventName:'PreCompact'},
+// which failed schema validation on every compaction and left the snapshot stale.)
+process.stderr.write(`[pre-compact] environment snapshot saved: ${HANDOFF}\n`);
+process.stdout.write(JSON.stringify({ suppressOutput: true }) + '\n');
