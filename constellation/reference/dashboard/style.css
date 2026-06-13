@@ -429,6 +429,12 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .grp.sel .ws-tab .ubadge { background: #472a9e; }   /* 선택 그룹: 차분 / 비선택: 밝게(주목) */
 .ws-tab-x { margin-left: 2px; color: var(--muted); font-size: .68rem; padding: 0 3px; border-radius: 4px; opacity: .55; }
 .ws-tab-x:hover { opacity: 1; color: var(--blocked); background: var(--line); }
+/* 탭 편집 모드 — 드래그 순서 변경 (그룹=헤더 드래그 · 탭=탭 드래그) */
+#ws-tabedit-btn.on { color: var(--accent); background: var(--panel2); }
+.ws-tabs.tab-edit .ghead, .ws-tabs.tab-edit .ws-tab { cursor: grab; }
+.ws-tabs.tab-edit .ghead { outline: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); outline-offset: -2px; }
+.ws-draggable.ws-dragging { opacity: .45; }
+.ws-draggable.ws-drop { outline: 2px dashed var(--accent); outline-offset: -2px; }
 /* 그룹 병합 뷰 출처 라벨 */
 .ws-src { flex: 0 0 auto; font-size: .62rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
 /* A2A 방향 뱃지 내 에이전트 이름 = role 색 (업스트림 주황 · 메인 보라 · 보드워커 녹색 · 로컬 파랑 · 협업 청록) */
