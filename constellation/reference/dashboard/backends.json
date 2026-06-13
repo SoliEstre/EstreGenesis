@@ -2,6 +2,7 @@
   "$schema": "constellation-backends/v1",
   "note": "Declarative backend registry (C1) — reference/default example. Truth for role→model→connection per agent; NOT a call dispatcher (turn-based agents pick their own model at session start). The dashboard fetches this (relative ./backends.json, configurable) to split the board-worker role out of the generic local group and to render per-agent model badges. verify-nway cross-checks the deployment's registry against its local-keys/. Adopters edit this to declare their own agents; absent file → graceful fallback (board-worker folds back into local, no badges).",
   "board": "self",
+  "boardTitle": "Constellation",
   "agents": [
     { "agentId": "main-agent", "role": "main", "model": "opus", "connection": "bridge", "board": "self" },
     { "agentId": "board-observer", "role": "board-worker", "model": "opus", "connection": "local", "board": "self" }

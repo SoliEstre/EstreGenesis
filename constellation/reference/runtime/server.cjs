@@ -45,7 +45,7 @@ function storeAtt(att) {
   return att;
 }
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml' };
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.ico': 'image/x-icon' };
 // 연동 문서 — public/ 밖이지만 상대 에이전트(개발자)가 URL 로 받아볼 수 있게 화이트리스트로만 노출.
 // (WS-PROTOCOL.md = 공개 계약 SSoT, 레퍼런스 클라 = 포팅용. WS-INTEGRATION-AGREEMENT.md 등은 절대 노출 X)
 const INTEGRATION_DOCS = {
