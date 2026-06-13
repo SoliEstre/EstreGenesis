@@ -534,6 +534,9 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-meta { color: var(--muted); font-size: .78rem; }
 .ws-h { font-size: .78rem; color: var(--muted); margin: 0 1px 0; display: flex; align-items: center; gap: 6px; }   /* 상하 spacing 축소 — top 4→0 / bottom 7→0 */
 .ws-stream { flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: auto; padding: 0 5px 5px; }   /* top padding 0 — 날짜 변경선 sticky 가 stream 상단 딱 붙도록 */
+/* 모바일 그룹 페이저 (#3a B) — 데스크탑 기본 숨김, ≤560px 에서 #ws-stream 대신 노출 (아래 media query) */
+.ws-pager { display: none; }
+.ws-page-dots { display: none; }
 .ws-empty { color: var(--muted); font-size: .82rem; padding: 14px 10px; }
 /* 날짜 변경선 (sticky top:0, 가운데 날짜 + 좌우 ~물결) — A2A 대화에 일자 구분선 */
 .ws-dateline { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 10px; padding: 4px 8px; margin: 0 0 2px; background: var(--panel); }
@@ -716,8 +719,20 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
   .ws-pop .ws-rsz { display: none; }                  /* fullscreen — 리사이즈 핸들 숨김 */
   .ws-pop-head { padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; }
   .ws-pop-body { padding: 8px calc(8px + env(safe-area-inset-right, 0px)) calc(56px + env(safe-area-inset-bottom, 0px)) calc(8px + env(safe-area-inset-left, 0px)); }   /* 하단 = 탭바(54)에 안 가리게 */
-  .ws-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .ws-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scroll-behavior: smooth; }
   .ws-tabs .grp { flex: 0 0 auto; }
+  /* #3a B 그룹 페이저: #ws-stream 숨기고 그룹별 가로 scroll-snap 페이지 노출 */
+  #ws-stream { display: none; }
+  .ws-pager { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .ws-pager::-webkit-scrollbar { display: none; }
+  .ws-page { flex: 0 0 100%; width: 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; min-height: 0; }
+  .ws-page-ind { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 3px 6px 5px; font-size: .66rem; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
+  .ws-page-ind .gmerge { opacity: .55; } .ws-page-ind .gcnt { font-weight: 600; font-size: .58rem; opacity: .6; padding: 0 5px; border: 1px solid var(--line); border-radius: 8px; }
+  .ws-page-ind.up { color: #e0922e; } .ws-page-ind.main { color: #9a78ff; } .ws-page-ind.board-worker { color: #4cc564; } .ws-page-ind.local { color: #6fb6e8; } .ws-page-ind.collab { color: #3bb89e; }
+  .ws-page .ws-page-stream { flex: 1; min-height: 0; border-radius: 7px; }   /* .ws-stream 기본(border/bg/overflow/sticky dateline) 상속 */
+  .ws-page-dots { display: flex; flex: 0 0 auto; justify-content: center; align-items: center; gap: 6px; padding: 6px 0 2px; }
+  .ws-pd { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background .15s ease, width .15s ease; }
+  .ws-pd.on { width: 18px; border-radius: 3px; background: var(--accent); }
   .ws-actions { flex-wrap: wrap; }                    /* 입력 버튼들 좁은 폭에서 줄바꿈 */
   .home-btn, .home-btn-dec { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }   /* 하단 탭바 위로 */
   /* 카드 행: 좁은 폭에서 제목이 한 줄 차지하고 칩/버튼/reorder 는 다음 줄로 wrap (제목 글자단위 압착 방지) */

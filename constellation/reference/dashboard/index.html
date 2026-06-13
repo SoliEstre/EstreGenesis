@@ -103,6 +103,9 @@
       <div class="ws-h">실시간 스트림 <span class="muted">agent → 보드, AG-UI 이벤트</span><span class="grow"></span><button class="ws-dbg-btn" id="ws-dbg-btn" type="button" title="raw 이벤트 (개발자 debug drawer)">🐞 raw</button></div>
       <div class="ws-chan-filter" id="ws-chan-filter" role="tablist" hidden></div>
       <div class="ws-stream" id="ws-stream"><div class="ws-empty">아직 수신한 이벤트가 없어요. 에이전트가 연결되면 여기에 표시됩니다.</div></div>
+      <!-- 모바일 그룹 페이저 (#3a B) — ≤560px 에서 #ws-stream 대신 노출. 그룹별 가로 scroll-snap 페이지(JS 생성), swipe=그룹전환 -->
+      <div class="ws-pager" id="ws-pager"></div>
+      <div class="ws-page-dots" id="ws-page-dots" hidden></div>
       <div class="ws-debug" id="ws-debug" hidden><div class="ws-empty">raw 이벤트 없음</div></div>
       <div class="ws-input">
         <div class="ws-h">작업 중 프롬프트 주입 <span class="muted">· Ctrl+Enter · 📎 첨부·드롭·붙여넣기</span></div>
