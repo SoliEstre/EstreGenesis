@@ -1729,11 +1729,12 @@ function wsRenderActiveStream() {
   const s = $('#ws-stream'); if (!s) return;
   s.innerHTML = ''; s._lastDay = null;
   wsRenderChanFilter();   // 대화 위 출처(채널) 필터 탭 동기
-  if (wsIsGroup(wsState.active)) {   // §13.6 그룹 병합: 멤버 채널 rows 를 ts 정렬, 출처 라벨
+  if (wsIsGroup(wsState.active)) {   // §13.6 그룹 병합: 멤버 채널 rows 를 ts 정렬, 출처 라벨 (멤버 체크박스 필터 적용)
     const merged = [];
-    for (const cid of wsGroupMembers(wsState.active)) { const c = wsState.channels.get(cid); if (c) for (const row of c.rows) merged.push({ row, src: c.name || cid }); }
+    const _hidden = wsGrpHidden(wsState.active);
+    for (const cid of wsGroupMembers(wsState.active)) { if (_hidden.has(cid)) continue; const c = wsState.channels.get(cid); if (c) for (const row of c.rows) merged.push({ row, src: c.name || cid }); }
     merged.sort((a, b) => (a.row.ts || 0) - (b.row.ts || 0));
-    if (!merged.length) { s.innerHTML = '<div class="ws-empty">이 그룹에 아직 수신한 이벤트가 없어요.</div>'; return; }
+    if (!merged.length) { s.innerHTML = '<div class="ws-empty">' + (_hidden.size ? '표시할 멤버를 선택하세요.' : '이 그룹에 아직 수신한 이벤트가 없어요.') + '</div>'; return; }
     let lastDay = null;
     for (const { row, src } of merged) {
       const dk = wsDayKey(row.ts); if (dk && dk !== lastDay) { s.appendChild(wsDatelineEl(row.ts)); lastDay = dk; }
@@ -1758,9 +1759,24 @@ function wsRenderActiveStream() {
   s.scrollTop = s.scrollHeight;
 }
 // ---- 대화 위 출처(채널) 필터 탭 — 에이전트 통합 탭 안에서 channelId/threadId 출처별 필터. [전체]=모두+뱃지 ----
+function wsGrpHidden(gkey) { wsState.grpFilter = wsState.grpFilter || {}; if (!wsState.grpFilter[gkey]) wsState.grpFilter[gkey] = new Set(); return wsState.grpFilter[gkey]; }   // 그룹별 병합뷰에서 숨긴 멤버 id Set (기본 비어있음=전체 표시)
 function wsRenderChanFilter() {
   const bar = $('#ws-chan-filter'); if (!bar) return;
   const a = wsState.active;
+  if (wsIsGroup(a)) {   // 그룹 선택 시 멤버별 체크박스(기본 전체 표시) — 병합뷰 포함 멤버 필터 (데스크탑 공통, C)
+    const members = wsGroupMembers(a);
+    if (members.length < 2) { bar.hidden = true; bar.innerHTML = ''; return; }   // 멤버 1개면 필터 불필요
+    bar.hidden = false; bar.innerHTML = '';
+    const hidden = wsGrpHidden(a);
+    const lab = el('span', 'ws-cf-lab'); lab.textContent = '표시'; bar.appendChild(lab);
+    for (const cid of members) {
+      const on = !hidden.has(cid);
+      const t = el('button', 'ws-cf ws-cf-chk' + (on ? ' on' : '')); t.textContent = (on ? '☑ ' : '☐ ') + wsName(cid); t.title = cid;
+      t.onclick = () => { if (hidden.has(cid)) hidden.delete(cid); else hidden.add(cid); wsRenderActiveStream(); };
+      bar.appendChild(t);
+    }
+    return;
+  }
   const ch = (a && !wsIsGroup(a) && !wsIsMon(a)) ? wsState.channels.get(a) : null;
   if (!ch) { bar.hidden = true; bar.innerHTML = ''; return; }
   const chans = []; const seen = new Set(); let hasEmpty = false;
