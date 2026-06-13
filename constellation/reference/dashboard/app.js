@@ -1729,13 +1729,19 @@ function wsRenderRow(row) {
   s.scrollTop = s.scrollHeight;
 }
 function wsRenderActiveStream() {
-  const s = $('#ws-stream'); if (!s) return;
+  wsRenderChanFilter();   // 대화 위 출처(채널) 필터 탭 동기 (활성 기준)
+  if (wsPagerOn()) { wsSyncPager(); return; }   // 모바일: 페이저가 그룹 페이지별로 렌더 (#ws-stream 숨김)
+  wsRenderStreamInto($('#ws-stream'), wsState.active);
+}
+// item = 채널 id 또는 group key. 지정 컨테이너에 스트림 렌더 (데스크탑=#ws-stream, 모바일 페이저=각 .ws-page-stream).
+// #3a (B): 페이지 재사용 위해 컨테이너 인자형. 출처 필터 탭(#ws-chan-filter)은 호출측에서 활성 기준으로만 동기.
+function wsRenderStreamInto(s, item) {
+  if (!s) return;
   s.innerHTML = ''; s._lastDay = null;
-  wsRenderChanFilter();   // 대화 위 출처(채널) 필터 탭 동기
-  if (wsIsGroup(wsState.active)) {   // §13.6 그룹 병합: 멤버 채널 rows 를 ts 정렬, 출처 라벨 (멤버 체크박스 필터 적용)
+  if (wsIsGroup(item)) {   // §13.6 그룹 병합: 멤버 채널 rows 를 ts 정렬, 출처 라벨 (멤버 체크박스 필터 적용)
     const merged = [];
-    const _hidden = wsGrpHidden(wsState.active);
-    for (const cid of wsGroupMembers(wsState.active)) { if (_hidden.has(cid)) continue; const c = wsState.channels.get(cid); if (c) for (const row of c.rows) merged.push({ row, src: c.name || cid }); }
+    const _hidden = wsGrpHidden(item);
+    for (const cid of wsGroupMembers(item)) { if (_hidden.has(cid)) continue; const c = wsState.channels.get(cid); if (c) for (const row of c.rows) merged.push({ row, src: c.name || cid }); }
     merged.sort((a, b) => (a.row.ts || 0) - (b.row.ts || 0));
     if (!merged.length) { s.innerHTML = '<div class="ws-empty">' + (_hidden.size ? '표시할 멤버를 선택하세요.' : '이 그룹에 아직 수신한 이벤트가 없어요.') + '</div>'; return; }
     let lastDay = null;
@@ -1747,7 +1753,7 @@ function wsRenderActiveStream() {
     s.scrollTop = s.scrollHeight;
     return;
   }
-  const ch = wsState.active && wsState.channels.get(wsState.active);
+  const ch = item && wsState.channels.get(item);
   if (!ch || !ch.rows.length) { s.innerHTML = '<div class="ws-empty">아직 수신한 이벤트가 없어요. 에이전트가 연결되면 여기에 표시됩니다.</div>'; return; }
   const f = ch._chanFilter || '*';            // 출처 필터 (* = 전체)
   const showChan = (f === '*');               // 전체 보기일 때만 출처 뱃지(개별 채널은 이미 필터됨)
@@ -1815,8 +1821,9 @@ function wsRenderDebug() {
 }
 function wsToggleDebug() {
   wsState.debugOpen = !wsState.debugOpen;
-  const s = $('#ws-stream'), d = $('#ws-debug'), btn = $('#ws-dbg-btn');
+  const s = $('#ws-stream'), d = $('#ws-debug'), btn = $('#ws-dbg-btn'), pg = $('#ws-pager');
   if (s) s.hidden = wsState.debugOpen;
+  if (pg) pg.style.display = wsState.debugOpen ? 'none' : '';   // 모바일 페이저는 raw drawer 열면 숨김 (display='' → CSS 복귀)
   if (d) { d.hidden = !wsState.debugOpen; if (wsState.debugOpen) wsRenderDebug(); }
   if (btn) btn.classList.toggle('on', wsState.debugOpen);
 }
@@ -1830,9 +1837,14 @@ function wsPushRow(agentId, row) {
   if (row.kind === 'a2acard') wsNotify('a2a', 'A2A 수신: ' + (row.label || ''), (row.a2a && (row.a2a.summary || row.a2a.name)) || '');
   else if (row.kind === 'err') wsNotify('abort', '작업 오류·중단', row.body || row.label || '');
   const active = wsState.active;
-  const inView = agentId === active || (wsIsGroup(active) && wsGroupMembers(active).indexOf(agentId) >= 0);
-  if (inView && wsState.popOpen) { if (wsIsGroup(active)) wsRenderActiveStream(); else wsRenderRow(row); }   // 그룹 뷰면 병합 재렌더
-  else ch.unseen++;
+  const pagerOn = wsPagerOn();
+  const sameGroup = wsGroupKeyOf(agentId) === wsGroupKeyOf(active);
+  const inView = pagerOn ? sameGroup : (agentId === active || (wsIsGroup(active) && wsGroupMembers(active).indexOf(agentId) >= 0));
+  if (wsState.popOpen) {
+    if (pagerOn) { if (sameGroup) wsSyncPager(); else wsPagerEnsureSet(); }   // 모바일: active 그룹 행=갱신(하단 스크롤), 타 그룹 행=페이지 집합만 보장(active 페이지 안 흔듦)
+    else if (inView) { if (wsIsGroup(active)) wsRenderActiveStream(); else wsRenderRow(row); }   // 그룹 뷰면 병합 재렌더
+  }
+  if (!inView) ch.unseen++;
   wsRenderTabs(); updateWsBadge();
 }
 
@@ -2209,10 +2221,8 @@ function wsToggleTabEdit() {
 
 // ---- 채널 탭 ----
 // §13.6 계층 탭 그룹 (업스트림/메인/보드워커/로컬/협업). 그룹 헤더=병합 토글, 탭=단독. 편집 모드 시 드래그 재정렬.
-function wsRenderTabs() {
-  const bar = $('#ws-tabs'); if (!bar) return;
-  bar.innerHTML = '';
-  bar.classList.toggle('tab-edit', wsTabEdit);
+// §13.6 그룹 계산 (업스트림/메인/보드워커/로컬/협업) — 탭바·모바일 페이저(#3a B)가 동일 집합·순서 사용. 빈 그룹 포함(호출측 필터).
+function wsComputeGroups() {
   const byRole = (r) => [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id) && !c.hidden).map(([id]) => id);
   const has = (id) => wsState.channels.has(id);
   let groups = [
@@ -2223,13 +2233,20 @@ function wsRenderTabs() {
     { key: 'group:collab', cls: 'collab', label: '협업', tabs: byRole('collab') },
   ];
   groups = wsApplyOrder(groups, wsTabOrder.groups, (g) => g.key);   // 사용자 지정 그룹 순서
+  for (const g of groups) g.tabs = wsApplyOrder(g.tabs, (wsTabOrder.tabs || {})[g.key], (id) => id);   // 그룹 내 탭 순서
+  return groups;
+}
+function wsRenderTabs() {
+  const bar = $('#ws-tabs'); if (!bar) return;
+  bar.innerHTML = '';
+  bar.classList.toggle('tab-edit', wsTabEdit);
+  const groups = wsComputeGroups();
   wsLastGroupKeys = groups.map((g) => g.key);
   wsLastTabKeys = {};
   for (const g of groups) {
     if (!g.tabs.length) continue;   // 빈 그룹 숨김
-    g.tabs = wsApplyOrder(g.tabs, (wsTabOrder.tabs || {})[g.key], (id) => id);   // 그룹 내 탭 순서
     wsLastTabKeys[g.key] = g.tabs.slice();
-    const grp = el('div', 'grp ' + g.cls + (wsState.active === g.key ? ' sel' : ''));
+    const grp = el('div', 'grp ' + g.cls + (wsState.active === g.key ? ' sel' : '')); grp.dataset.gkey = g.key;
     const gh = el('div', 'ghead' + (wsState.active === g.key ? ' sel' : ''));
     gh.innerHTML = `<span class="gmerge">▦</span>${esc(g.label)}<span class="gcnt">${g.tabs.length}</span>`;
     if (wsTabEdit) { gh.title = g.label + ' 그룹 — 드래그하여 그룹 순서 변경'; wsMakeDraggable(gh, 'grp', g.key, g.key); }
@@ -2267,6 +2284,106 @@ function wsSetActive(id) {
   wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge();
   if (wsState.debugOpen) wsRenderDebug();
   wsShowTextarea(id);   // 채널별 입력란 스위칭(활성만 표시·포커스, 높이 통일)
+  if (wsPagerOn()) wsScrollToActive(true);   // #3a B: 탭 탭 → 페이저 내용영역 자동 수평 스크롤 + 탭바 동기
+}
+
+// ---- 모바일 그룹 페이저 (#3a B) — 실시간 내용영역을 그룹별 가로 scroll-snap 페이지로. swipe=그룹전환(탭선택·탭바스크롤 동기), 탭=페이저 자동 스크롤. 데스크탑 미사용(#ws-stream 그대로). ----
+const WS_MOBILE_MQ = matchMedia('(max-width: 560px)');
+let wsPagerKeys = [];        // 현재 페이저 그룹 key 순서 (집합 변경 감지)
+let wsPagerProg = false;     // 프로그램 스크롤 중 — settle 핸들러가 재선택 안 하게
+let wsPagerSettleT = null;
+function wsPagerOn() { try { return !!wsState.popOpen && WS_MOBILE_MQ.matches; } catch { return false; } }   // TDZ/부재 가드 (v2.4.32 교훈)
+function wsGroupKeyOf(id) {   // 채널/모니터 id → 소속 그룹 key (또는 group key 그대로)
+  if (wsIsGroup(id)) return id;
+  if (id === WS_MON_UP) return 'group:up';
+  if (id === WS_MON_LOCAL || id === WS_MON_COLLAB) return 'group:main';
+  if (id === WS_MON_BOARD) return 'group:board-worker';
+  const ch = wsState.channels.get(id); const role = ch && ch.role;
+  return role === 'upstream' ? 'group:up' : role === 'main' ? 'group:main' : role === 'board-worker' ? 'group:board-worker' : role === 'collab' ? 'group:collab' : 'group:local';
+}
+function wsPagerGroupKeys() { return wsComputeGroups().filter((g) => g.tabs.length).map((g) => g.key); }   // 비어있지 않은 그룹 = 탭바와 동일 집합
+function wsBuildPager() {
+  const pager = $('#ws-pager'); if (!pager) return;
+  const groups = wsComputeGroups().filter((g) => g.tabs.length);
+  wsPagerKeys = groups.map((g) => g.key);
+  pager.innerHTML = '';
+  for (const g of groups) {
+    const page = el('div', 'ws-page ' + g.cls); page.dataset.gkey = g.key;
+    const ind = el('div', 'ws-page-ind ' + g.cls); ind.innerHTML = `<span class="gmerge">▦</span>${esc(g.label)}<span class="gcnt">${g.tabs.length}</span>`;
+    const st = el('div', 'ws-stream ws-page-stream'); st.dataset.gkey = g.key;
+    page.append(ind, st);
+    pager.appendChild(page);
+    wsRenderStreamInto(st, g.key);   // eager 초기 렌더 (≤5 그룹 — drag 중 이웃 그룹 내용 보이도록)
+  }
+  if (!pager._wired) {   // settle 감지 (debounced scroll) — 1회만 등록
+    pager.addEventListener('scroll', () => { if (wsPagerSettleT) clearTimeout(wsPagerSettleT); wsPagerSettleT = setTimeout(wsPagerSettle, 120); }, { passive: true });
+    pager._wired = true;
+  }
+  wsMarkPagerSel(); wsRenderPageDots();
+}
+function wsPagerEnsureSet() {   // 그룹 집합 변경 시에만 재빌드. 반환: 재빌드 여부
+  const pager = $('#ws-pager'); if (!pager) return false;
+  const keys = wsPagerGroupKeys();
+  if (keys.join('|') !== wsPagerKeys.join('|') || pager.children.length !== keys.length) { wsBuildPager(); return true; }
+  return false;
+}
+function wsRenderActivePageFresh() {   // active 그룹 페이지만 state 로 재렌더 (라이브 catch-up)
+  const gkey = wsGroupKeyOf(wsState.active);
+  const sel = (window.CSS && CSS.escape) ? CSS.escape(gkey) : gkey;
+  const st = document.querySelector('#ws-pager .ws-page-stream[data-gkey="' + sel + '"]');
+  if (st) wsRenderStreamInto(st, gkey);
+}
+function wsSyncPager() {   // 페이저 빌드/갱신 — 스크롤은 안 함 (라이브 행이 페이저 위치 안 흔들도록)
+  if (!wsPagerEnsureSet()) wsRenderActivePageFresh();   // 재빌드면 전체 렌더됨, 아니면 active 만 갱신
+  wsMarkPagerSel(); wsRenderPageDots();
+}
+function wsMarkPagerSel() {
+  const pager = $('#ws-pager'); if (!pager) return;
+  const gk = wsGroupKeyOf(wsState.active);
+  pager.querySelectorAll('.ws-page').forEach((p) => p.classList.toggle('sel', p.dataset.gkey === gk));
+}
+function wsPagerSettle() {   // 사용자 swipe 종료 → 정착 그룹 활성화
+  const pager = $('#ws-pager'); if (!pager || !wsPagerOn()) return;
+  if (wsPagerProg) { wsPagerProg = false; return; }   // 프로그램 스크롤 = 이미 active 설정됨
+  const w = pager.clientWidth || 1; const idx = Math.round(pager.scrollLeft / w);
+  const gkey = wsPagerKeys[Math.max(0, Math.min(wsPagerKeys.length - 1, idx))];
+  if (gkey) wsActivateFromSwipe(gkey);
+}
+function wsActivateFromSwipe(gkey) {   // swipe=그룹단위 전환: 그룹 병합 active + 탭선택·탭바스크롤 동기 (페이저는 이미 그 위치라 스크롤 안 함)
+  if (wsGroupKeyOf(wsState.active) === gkey) { wsScrollTabToActive(); wsMarkPagerSel(); wsRenderPageDots(); return; }
+  wsState.active = gkey;
+  try { localStorage.setItem(WS_ACTIVE_KEY, gkey); } catch {}
+  for (const cid of wsGroupMembers(gkey)) { const c = wsState.channels.get(cid); if (c) c.unseen = 0; wsMaybeRequestHistory(cid); }
+  wsRenderTabs(); wsRenderChanFilter(); updateWsConn(); updateWsBadge(); wsShowTextarea(gkey);
+  if (wsState.debugOpen) wsRenderDebug();
+  wsRenderActivePageFresh(); wsMarkPagerSel(); wsScrollTabToActive(); wsRenderPageDots();
+}
+function wsScrollToActive(smooth) {   // 탭 탭/열기 → 페이저를 active 그룹 페이지로 + 탭바 동기
+  const pager = $('#ws-pager'); if (!pager) return;
+  const idx = wsPagerKeys.indexOf(wsGroupKeyOf(wsState.active));
+  if (idx >= 0) {
+    wsPagerProg = true;
+    pager.scrollTo({ left: idx * (pager.clientWidth || 0), behavior: smooth ? 'smooth' : 'auto' });
+    if (!smooth) setTimeout(() => { wsPagerProg = false; }, 60);   // instant 스크롤은 scroll 이벤트 안 날 수도 → 플래그 안전 해제
+  }
+  wsScrollTabToActive(); wsMarkPagerSel(); wsRenderPageDots();
+}
+function wsScrollTabToActive() {   // 탭바를 active 탭/그룹헤더가 보이게 가로 스크롤 (바만 — 조상 스크롤 영향 없음)
+  const bar = $('#ws-tabs'); if (!bar) return;
+  const gk = wsGroupKeyOf(wsState.active);
+  const sel = (window.CSS && CSS.escape) ? CSS.escape(gk) : gk;
+  const target = bar.querySelector('.ws-tab.active') || bar.querySelector('.grp[data-gkey="' + sel + '"]');
+  if (!target) return;
+  const r = target.getBoundingClientRect(), br = bar.getBoundingClientRect();
+  const delta = (r.left + r.width / 2) - (br.left + br.width / 2);
+  if (Math.abs(delta) > 4) { try { bar.scrollBy({ left: delta, behavior: 'smooth' }); } catch { bar.scrollLeft += delta; } }
+}
+function wsRenderPageDots() {   // 그룹 위치 인디케이터 (점 strip) — 현재 그룹 강조
+  const strip = $('#ws-page-dots'); if (!strip) return;
+  if (!wsPagerOn() || wsPagerKeys.length < 2) { strip.hidden = true; strip.innerHTML = ''; return; }
+  const gk = wsGroupKeyOf(wsState.active);
+  strip.hidden = false; strip.innerHTML = '';
+  wsPagerKeys.forEach((k) => { const d = el('span', 'ws-pd' + (k === gk ? ' on' : '')); strip.appendChild(d); });
 }
 
 // ---- 입력 송신 (활성 채널 targetAgentId) ----
@@ -2625,6 +2742,7 @@ function toggleWsPop(show) {
     const ch = wsState.active && wsState.channels.get(wsState.active); if (ch) ch.unseen = 0;
     wsRenderTabs(); wsRenderActiveStream(); updateWsConn();
     wsShowTextarea(wsState.active);   // 열 때 활성 채널 입력란 표시·포커스
+    if (wsPagerOn()) wsScrollToActive(false);   // #3a B: 모바일 — 열 때 페이저를 active 그룹 페이지로 정렬
   }
   updateWsBadge();
   wsSaveUI();
@@ -2647,6 +2765,11 @@ function setupMobileTabbar() {
     else { if (wsState.popOpen) toggleWsPop(false); setPanes(t, false); }
     syncMobileTabbar();
   }; });
+  WS_MOBILE_MQ.addEventListener('change', () => {   // #3a B: 560px 경계 교차 — 페이저↔단일스트림 모드 전환 재렌더
+    if (!wsState.popOpen) return;
+    wsRenderTabs(); wsRenderActiveStream(); updateWsConn();   // wsRenderActiveStream 이 wsPagerOn 분기
+    if (wsPagerOn()) wsScrollToActive(false);
+  });
   syncMobileTabbar();
 }
 
