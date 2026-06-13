@@ -2632,7 +2632,9 @@ function toggleWsPop(show) {
 // ---- 모바일 하단 탭바 (A — 최상위 탭전환; 실시간=팝업 풀스크린 pane, ≤560px) ----
 function syncMobileTabbar() {
   const bar = document.getElementById('mobile-tabbar'); if (!bar) return;
-  const active = wsState.popOpen ? 'realtime' : (ui.panes && ui.panes.includes('decisions') && !ui.panes.includes('dashboard') ? 'decisions' : (ui.panes && ui.panes.includes('dashboard') ? 'dashboard' : null));
+  let popOpen, panes;
+  try { popOpen = wsState.popOpen; panes = ui.panes; } catch (e) { return; }   // 초기 applyPanes 호출은 wsState(const, 하단 정의) 초기화 전 — TDZ 가드(이후 setupMobileTabbar/재호출에서 정상 동기)
+  const active = popOpen ? 'realtime' : (panes && panes.includes('decisions') && !panes.includes('dashboard') ? 'decisions' : (panes && panes.includes('dashboard') ? 'dashboard' : null));
   bar.querySelectorAll('[data-mtab]').forEach((b) => b.classList.toggle('active', b.dataset.mtab === active));
 }
 function setupMobileTabbar() {
