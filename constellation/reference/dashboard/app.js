@@ -1126,7 +1126,7 @@ function wsSyncAgents(agents) {
   let anyUnhidden = false;
   for (const a of agents) {
     const c = wsChannel(a.agentId, a.agentName);
-    c.role = a.role || 'local';   // §13.1 role 보관(탭 그룹·모니터 분류)
+    c.role = (wsBackends[a.agentId] && wsBackends[a.agentId].role) || a.role || 'local';   // §13.1 role; C1: backends.json overlay 가 board-worker 등 선언 role 우선
     if (c.hidden) { c.hidden = false; anyUnhidden = true; }   // FIX: agent 가 AgentList 에 present 면 닫힌 탭에서 자동 복원 (새로고침 후 업스트림 등이 archived stub 으로 처리됐다가 실제 연결돼 있을 때)
   }
   if (anyUnhidden) { wsSaveHidden(); wsRenderArchived(); }
@@ -1782,23 +1782,36 @@ function wsName(id) { const c = wsState.channels.get(id); return (c && c.name) |
 const WS_MON_UP = '__mon_up__';        // 🔀 업스트림 ↔ 메인
 const WS_MON_LOCAL = '__mon_local__';  // 🔀 메인 ↔ 로컬
 const WS_MON_COLLAB = '__mon_collab__';  // 🔀 메인 ↔ 협업(collab peer, §13.9 — collab/upstream = peer not worker)
+const WS_MON_BOARD = '__mon_board__';  // 🔀 메인 ↔ 보드 (board-worker A2A 별도 모니터 — C1 backends.json overlay)
+let wsBackends = {};   // C1 backend registry overlay (backends.json): agentId → {role, model, connection, board}. 부재 시 {} → graceful (board-worker 는 local 로 접힘, badge 없음)
+function wsLoadBackends() {
+  fetch('backends.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(reg => {
+    if (!reg || !Array.isArray(reg.agents)) return;
+    const m = {}; for (const a of reg.agents) if (a && a.agentId) m[a.agentId] = a;
+    wsBackends = m;
+    for (const [id, c] of wsState.channels) { const b = m[id]; if (b && b.role) c.role = b.role; }   // 이미 연결된 채널 role 재분류
+    wsRenderTabs();
+  }).catch(() => {});   // 부재/오류 = graceful no-op
+}
 let WS_LOCAL = 'main-agent';           // placeholder; updated dynamically from AgentList (the agentId whose role==='main') — §2 role model
 function wsRoleOf(id) { const c = wsState.channels.get(id); return (c && c.role) || (id === WS_LOCAL ? 'main' : 'local'); }
 function wsMonChannel(src, dst) {
   const sr = wsRoleOf(src), dr = wsRoleOf(dst);
   if (sr === 'upstream' || dr === 'upstream') return WS_MON_UP;
   if (sr === 'collab' || dr === 'collab') return WS_MON_COLLAB;   // §13.9 collab peer: Main↔Collab 별도 모니터
+  if (sr === 'board-worker' || dr === 'board-worker') return WS_MON_BOARD;   // C1: board-worker A2A → Main↔Board 별도 모니터
   return WS_MON_LOCAL;
 }
-function wsMonName(id) { return id === WS_MON_UP ? '🔀 Up↔Main' : id === WS_MON_COLLAB ? '🔀 Main↔Collab' : '🔀 Main↔Local'; }
-function wsIsMon(id) { return id === WS_MON_UP || id === WS_MON_LOCAL || id === WS_MON_COLLAB; }
+function wsMonName(id) { return id === WS_MON_UP ? '🔀 Up↔Main' : id === WS_MON_COLLAB ? '🔀 Main↔Collab' : id === WS_MON_BOARD ? '🔀 Main↔Board' : '🔀 Main↔Local'; }
+function wsIsMon(id) { return id === WS_MON_UP || id === WS_MON_LOCAL || id === WS_MON_COLLAB || id === WS_MON_BOARD; }
 function wsIsGroup(id) { return typeof id === 'string' && id.indexOf('group:') === 0; }
 function wsGroupMembers(gkey) {
-  const r = gkey === 'group:up' ? 'upstream' : gkey === 'group:main' ? 'main' : gkey === 'group:collab' ? 'collab' : 'local';
+  const r = gkey === 'group:up' ? 'upstream' : gkey === 'group:main' ? 'main' : gkey === 'group:collab' ? 'collab' : gkey === 'group:board-worker' ? 'board-worker' : 'local';
   const mem = [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id)).map(([id]) => id);
   if (gkey === 'group:up' && wsState.channels.has(WS_MON_UP)) mem.push(WS_MON_UP);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_LOCAL)) mem.push(WS_MON_LOCAL);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_COLLAB)) mem.push(WS_MON_COLLAB);   // group:main 병합에 Main↔Collab 취합(§13.9 collab peer)
+  if (gkey === 'group:board-worker' && wsState.channels.has(WS_MON_BOARD)) mem.push(WS_MON_BOARD);   // C1: board-worker 그룹 병합에 Main↔Board 취합
   return mem;
 }
 function wsGroupRep(gkey) {
@@ -2074,6 +2087,7 @@ function wsRenderTabs() {
   const groups = [
     { key: 'group:up', cls: 'up', label: '업스트림', tabs: byRole('upstream').concat(has(WS_MON_UP) ? [WS_MON_UP] : []) },
     { key: 'group:main', cls: 'main', label: '메인', tabs: byRole('main').concat(has(WS_MON_LOCAL) ? [WS_MON_LOCAL] : []).concat(has(WS_MON_COLLAB) ? [WS_MON_COLLAB] : []) },
+    { key: 'group:board-worker', cls: 'board-worker', label: '보드워커', tabs: byRole('board-worker').concat(has(WS_MON_BOARD) ? [WS_MON_BOARD] : []) },
     { key: 'group:local', cls: 'local', label: '로컬', tabs: byRole('local') },
     { key: 'group:collab', cls: 'collab', label: '협업', tabs: byRole('collab') },
   ];
@@ -2096,7 +2110,9 @@ function wsRenderTabs() {
       const dot = el('span', 'tdot' + (present ? '' : ' off'));
       const nm = el('span', 'nm' + (grpSel ? ' ' + g.cls : '')); nm.textContent = ch.name || id;   // 그룹 선택 시 이름에 그룹 색상
       const bg = el('span', 'ubadge'); bg.textContent = ch.unseen > 99 ? '99+' : String(ch.unseen); bg.hidden = !ch.unseen || id === wsState.active;
-      tab.append(dot, nm, bg);
+      tab.append(dot, nm);
+      const bk = wsBackends[id]; if (bk && bk.model && !mon) { const mb = el('span', 'mbadge ' + g.cls); mb.textContent = bk.model; mb.title = '선언 모델 · backends.json (C1)'; tab.append(mb); }   // C1 role/model badge
+      tab.append(bg);
       if (!mon) { const x = el('span', 'ws-tab-x', '✕'); x.title = '탭 닫기'; x.onclick = (e) => { e.stopPropagation(); wsCloseChannel(id); }; tab.append(x); }
       tab.onclick = () => wsSetActive(id);
       tabs.append(tab);
@@ -2696,6 +2712,7 @@ function setupWS() {
   setupWsSettings();                                  // 실시간 창 설정 모달 (창 배치 preset 등) — 헤드 ⚙ 버튼
   setupWsContextMenu();                               // 🌐 fab 우클릭 → 화면 가운데로 / 키 관리 / 설정
   updateWsConn(); updateWsBadge(); wsRenderTabs();
+  wsLoadBackends();                                   // C1 backend registry overlay (board-worker 분리 + model badge); 부재 시 graceful
   wsLoadUI();                                         // 팝업 위치·크기·열림 상태 복원
   connectWS();
 }
