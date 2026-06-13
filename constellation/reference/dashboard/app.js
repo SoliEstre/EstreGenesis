@@ -2096,29 +2096,37 @@ function wsApplyOrder(items, saved, keyFn) {
 }
 function wsMakeDraggable(node, kind, id, groupKey) {   // kind='grp'(헤더) | 'tab' — MIME 분리로 그룹/탭 드래그 충돌 차단
   node.draggable = true; node.classList.add('ws-draggable');
+  const vis = () => (kind === 'grp' ? (node.closest('.grp') || node) : node);   // 삽입 인디케이터 대상 (그룹=.grp, 탭=.ws-tab)
+  const clearAll = () => { const bar = $('#ws-tabs'); if (bar) bar.querySelectorAll('.ws-drop-before, .ws-drop-after').forEach((n) => { n.classList.remove('ws-drop-before', 'ws-drop-after'); delete n.dataset.dropSide; }); };
   node.addEventListener('dragstart', (e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/x-ws-' + kind, JSON.stringify({ id, groupKey })); node.classList.add('ws-dragging'); });
-  node.addEventListener('dragend', () => node.classList.remove('ws-dragging'));
-  node.addEventListener('dragover', (e) => { if ([...e.dataTransfer.types].includes('text/x-ws-' + kind)) { e.preventDefault(); node.classList.add('ws-drop'); } });
-  node.addEventListener('dragleave', () => node.classList.remove('ws-drop'));
+  node.addEventListener('dragend', () => { node.classList.remove('ws-dragging'); clearAll(); });
+  node.addEventListener('dragover', (e) => {
+    if (![...e.dataTransfer.types].includes('text/x-ws-' + kind)) return;
+    e.preventDefault(); clearAll();   // flicker 방지 — 매 dragover 전체 클리어 후 현재 대상에만 삽입바 표시
+    const v = vis(); const r = v.getBoundingClientRect();
+    const after = e.clientX > r.left + r.width / 2;   // 커서가 대상 오른쪽 절반 = 뒤에 삽입
+    v.classList.add(after ? 'ws-drop-after' : 'ws-drop-before'); v.dataset.dropSide = after ? 'after' : 'before';
+  });
   node.addEventListener('drop', (e) => {
-    node.classList.remove('ws-drop');
+    const v = vis(); const side = v.dataset.dropSide || 'before'; clearAll();
     if (![...e.dataTransfer.types].includes('text/x-ws-' + kind)) return;
     e.preventDefault();
     let src; try { src = JSON.parse(e.dataTransfer.getData('text/x-ws-' + kind)); } catch { return; }
-    if (kind === 'grp') wsReorderGroup(src.id, id);
-    else wsReorderTab(src.groupKey, src.id, id);   // 탭은 같은 그룹 내에서만 (다른 그룹 드롭 = no-op)
+    if (kind === 'grp') wsReorderGroup(src.id, id, side);
+    else wsReorderTab(src.groupKey, src.id, id, side);   // 탭은 같은 그룹 내에서만 (다른 그룹 드롭 = no-op)
   });
 }
-function wsReorderGroup(srcKey, dstKey) {
+function wsReorderGroup(srcKey, dstKey, side) {
   if (srcKey === dstKey) return;
   const order = (wsTabOrder.groups && wsTabOrder.groups.length ? wsTabOrder.groups.slice() : wsLastGroupKeys.slice());
   for (const k of wsLastGroupKeys) if (!order.includes(k)) order.push(k);   // 신규 그룹 보강
   if (order.indexOf(srcKey) < 0 || order.indexOf(dstKey) < 0) return;
   order.splice(order.indexOf(srcKey), 1);
-  order.splice(order.indexOf(dstKey), 0, srcKey);   // dst 앞에 삽입
+  let to = order.indexOf(dstKey); if (side === 'after') to += 1;   // 커서 위치 따라 앞/뒤
+  order.splice(to, 0, srcKey);
   wsTabOrder.groups = order; wsSaveTabOrder(); wsRenderTabs();
 }
-function wsReorderTab(groupKey, srcId, dstId) {
+function wsReorderTab(groupKey, srcId, dstId, side) {
   if (srcId === dstId) return;
   wsTabOrder.tabs = wsTabOrder.tabs || {};
   const cur = (wsLastTabKeys[groupKey] || []).slice();
@@ -2126,7 +2134,8 @@ function wsReorderTab(groupKey, srcId, dstId) {
   for (const k of cur) if (!base.includes(k)) base.push(k);
   if (base.indexOf(srcId) < 0 || base.indexOf(dstId) < 0) return;   // 다른 그룹 탭에 드롭 = 무시
   base.splice(base.indexOf(srcId), 1);
-  base.splice(base.indexOf(dstId), 0, srcId);
+  let to = base.indexOf(dstId); if (side === 'after') to += 1;   // 커서 위치 따라 앞/뒤
+  base.splice(to, 0, srcId);
   wsTabOrder.tabs[groupKey] = base; wsSaveTabOrder(); wsRenderTabs();
 }
 function wsToggleTabEdit() {
