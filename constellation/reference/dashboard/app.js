@@ -2077,27 +2077,93 @@ function onWsEvent(m) {
   updateWsConn();
 }
 
+// ---- 탭 편집 모드 (드래그 순서 변경 + 초기화) ----
+const WS_TABORDER_KEY = 'constellation-ws-taborder';
+let wsTabEdit = false;
+let wsTabOrder = (() => { try { return JSON.parse(localStorage.getItem(WS_TABORDER_KEY) || '{}') || {}; } catch { return {}; } })();   // { groups:[key], tabs:{ [groupKey]:[id] } }
+let wsLastGroupKeys = [], wsLastTabKeys = {};   // 직전 렌더 순서 — reorder 기준
+function wsSaveTabOrder() { try { localStorage.setItem(WS_TABORDER_KEY, JSON.stringify(wsTabOrder)); } catch {} }
+function wsResetTabOrder() { wsTabOrder = {}; try { localStorage.removeItem(WS_TABORDER_KEY); } catch {} wsRenderTabs(); }
+// 저장 순서 우선 + 미저장 항목은 원순서 유지(decorate-sort-undecorate 안정정렬)
+function wsApplyOrder(items, saved, keyFn) {
+  if (!saved || !saved.length) return items;
+  const idx = new Map(saved.map((k, i) => [k, i]));
+  return items.map((it, i) => [it, i]).sort((a, b) => {
+    const ka = idx.has(keyFn(a[0])) ? idx.get(keyFn(a[0])) : 1e9 + a[1];
+    const kb = idx.has(keyFn(b[0])) ? idx.get(keyFn(b[0])) : 1e9 + b[1];
+    return ka - kb;
+  }).map((x) => x[0]);
+}
+function wsMakeDraggable(node, kind, id, groupKey) {   // kind='grp'(헤더) | 'tab' — MIME 분리로 그룹/탭 드래그 충돌 차단
+  node.draggable = true; node.classList.add('ws-draggable');
+  node.addEventListener('dragstart', (e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/x-ws-' + kind, JSON.stringify({ id, groupKey })); node.classList.add('ws-dragging'); });
+  node.addEventListener('dragend', () => node.classList.remove('ws-dragging'));
+  node.addEventListener('dragover', (e) => { if ([...e.dataTransfer.types].includes('text/x-ws-' + kind)) { e.preventDefault(); node.classList.add('ws-drop'); } });
+  node.addEventListener('dragleave', () => node.classList.remove('ws-drop'));
+  node.addEventListener('drop', (e) => {
+    node.classList.remove('ws-drop');
+    if (![...e.dataTransfer.types].includes('text/x-ws-' + kind)) return;
+    e.preventDefault();
+    let src; try { src = JSON.parse(e.dataTransfer.getData('text/x-ws-' + kind)); } catch { return; }
+    if (kind === 'grp') wsReorderGroup(src.id, id);
+    else wsReorderTab(src.groupKey, src.id, id);   // 탭은 같은 그룹 내에서만 (다른 그룹 드롭 = no-op)
+  });
+}
+function wsReorderGroup(srcKey, dstKey) {
+  if (srcKey === dstKey) return;
+  const order = (wsTabOrder.groups && wsTabOrder.groups.length ? wsTabOrder.groups.slice() : wsLastGroupKeys.slice());
+  for (const k of wsLastGroupKeys) if (!order.includes(k)) order.push(k);   // 신규 그룹 보강
+  if (order.indexOf(srcKey) < 0 || order.indexOf(dstKey) < 0) return;
+  order.splice(order.indexOf(srcKey), 1);
+  order.splice(order.indexOf(dstKey), 0, srcKey);   // dst 앞에 삽입
+  wsTabOrder.groups = order; wsSaveTabOrder(); wsRenderTabs();
+}
+function wsReorderTab(groupKey, srcId, dstId) {
+  if (srcId === dstId) return;
+  wsTabOrder.tabs = wsTabOrder.tabs || {};
+  const cur = (wsLastTabKeys[groupKey] || []).slice();
+  const base = (wsTabOrder.tabs[groupKey] && wsTabOrder.tabs[groupKey].length ? wsTabOrder.tabs[groupKey].slice() : cur);
+  for (const k of cur) if (!base.includes(k)) base.push(k);
+  if (base.indexOf(srcId) < 0 || base.indexOf(dstId) < 0) return;   // 다른 그룹 탭에 드롭 = 무시
+  base.splice(base.indexOf(srcId), 1);
+  base.splice(base.indexOf(dstId), 0, srcId);
+  wsTabOrder.tabs[groupKey] = base; wsSaveTabOrder(); wsRenderTabs();
+}
+function wsToggleTabEdit() {
+  wsTabEdit = !wsTabEdit;
+  const tb = $('#ws-tabedit-btn'), rb = $('#ws-tabreset-btn');
+  if (tb) tb.classList.toggle('on', wsTabEdit);
+  if (rb) rb.hidden = !wsTabEdit;
+  wsRenderTabs();
+}
+
 // ---- 채널 탭 ----
-// §13.6 계층 탭 3그룹 (G1 업스트림+Up↔Main · G2 메인+Main↔Local · G3 로컬). 그룹 헤더=병합 토글, 탭=단독.
+// §13.6 계층 탭 그룹 (업스트림/메인/보드워커/로컬/협업). 그룹 헤더=병합 토글, 탭=단독. 편집 모드 시 드래그 재정렬.
 function wsRenderTabs() {
   const bar = $('#ws-tabs'); if (!bar) return;
   bar.innerHTML = '';
+  bar.classList.toggle('tab-edit', wsTabEdit);
   const byRole = (r) => [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id) && !c.hidden).map(([id]) => id);
   const has = (id) => wsState.channels.has(id);
-  const groups = [
+  let groups = [
     { key: 'group:up', cls: 'up', label: '업스트림', tabs: byRole('upstream').concat(has(WS_MON_UP) ? [WS_MON_UP] : []) },
     { key: 'group:main', cls: 'main', label: '메인', tabs: byRole('main').concat(has(WS_MON_LOCAL) ? [WS_MON_LOCAL] : []).concat(has(WS_MON_COLLAB) ? [WS_MON_COLLAB] : []) },
     { key: 'group:board-worker', cls: 'board-worker', label: '보드워커', tabs: byRole('board-worker').concat(has(WS_MON_BOARD) ? [WS_MON_BOARD] : []) },
     { key: 'group:local', cls: 'local', label: '로컬', tabs: byRole('local') },
     { key: 'group:collab', cls: 'collab', label: '협업', tabs: byRole('collab') },
   ];
+  groups = wsApplyOrder(groups, wsTabOrder.groups, (g) => g.key);   // 사용자 지정 그룹 순서
+  wsLastGroupKeys = groups.map((g) => g.key);
+  wsLastTabKeys = {};
   for (const g of groups) {
     if (!g.tabs.length) continue;   // 빈 그룹 숨김
+    g.tabs = wsApplyOrder(g.tabs, (wsTabOrder.tabs || {})[g.key], (id) => id);   // 그룹 내 탭 순서
+    wsLastTabKeys[g.key] = g.tabs.slice();
     const grp = el('div', 'grp ' + g.cls + (wsState.active === g.key ? ' sel' : ''));
     const gh = el('div', 'ghead' + (wsState.active === g.key ? ' sel' : ''));
     gh.innerHTML = `<span class="gmerge">▦</span>${esc(g.label)}<span class="gcnt">${g.tabs.length}</span>`;
-    gh.title = g.label + ' 그룹 — 클릭 시 그룹 전체 시간순 병합 보기';
-    gh.onclick = () => wsSetActive(g.key);
+    if (wsTabEdit) { gh.title = g.label + ' 그룹 — 드래그하여 그룹 순서 변경'; wsMakeDraggable(gh, 'grp', g.key, g.key); }
+    else { gh.title = g.label + ' 그룹 — 클릭 시 그룹 전체 시간순 병합 보기'; gh.onclick = () => wsSetActive(g.key); }
     grp.append(gh);
     const tabs = el('div', 'tabs');
     const grpSel = wsState.active === g.key;   // 그룹 탭 선택 시 멤버 이름에 그룹 색상 (EstreUF UI2 parity)
@@ -2113,8 +2179,8 @@ function wsRenderTabs() {
       tab.append(dot, nm);
       const bk = wsBackends[id]; if (bk && bk.model && !mon) { const mb = el('span', 'mbadge ' + g.cls); mb.textContent = bk.model; mb.title = '선언 모델 · backends.json (C1)'; tab.append(mb); }   // C1 role/model badge
       tab.append(bg);
-      if (!mon) { const x = el('span', 'ws-tab-x', '✕'); x.title = '탭 닫기'; x.onclick = (e) => { e.stopPropagation(); wsCloseChannel(id); }; tab.append(x); }
-      tab.onclick = () => wsSetActive(id);
+      if (!mon && !wsTabEdit) { const x = el('span', 'ws-tab-x', '✕'); x.title = '탭 닫기'; x.onclick = (e) => { e.stopPropagation(); wsCloseChannel(id); }; tab.append(x); }
+      if (wsTabEdit) wsMakeDraggable(tab, 'tab', id, g.key); else tab.onclick = () => wsSetActive(id);
       tabs.append(tab);
     }
     grp.append(tabs);
@@ -2704,6 +2770,8 @@ function setupWS() {
   const resume = $('#ws-resume'); if (resume) resume.onclick = () => wsSendCommand('resume');
   const cancel = $('#ws-cancel'); if (cancel) cancel.onclick = wsSendCancel;
   const dbg = $('#ws-dbg-btn'); if (dbg) dbg.onclick = wsToggleDebug;
+  const tedit = $('#ws-tabedit-btn'); if (tedit) tedit.onclick = wsToggleTabEdit;   // 탭 편집 토글
+  const treset = $('#ws-tabreset-btn'); if (treset) treset.onclick = wsResetTabOrder;   // 탭 순서 초기화
   const arch = $('#ws-arch-btn'), archMenu = $('#ws-arch-menu');
   if (arch) arch.onclick = (e) => { e.stopPropagation(); if (archMenu) { wsRenderArchived(); archMenu.hidden = !archMenu.hidden; } };
   document.addEventListener('click', (e) => { if (archMenu && !archMenu.hidden && !e.target.closest('.ws-arch-wrap')) archMenu.hidden = true; });
