@@ -23,6 +23,38 @@
 <link rel="icon" type="image/png" href="/icon-192.png" />
 <link rel="apple-touch-icon" href="/icon-192.png" />
 <meta name="theme-color" content="#0f1115" />
+<style>
+/* ---- Compendium wiki tab (v0.2-d) ---- */
+#tab-wiki { overflow: auto; padding: 18px 20px; }
+.wiki-head { max-width: 820px; margin: 0 auto 14px; }
+.wiki-title { font-size: 1.3rem; margin: 0 0 4px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.wiki-badge { font-size: .72rem; font-weight: 600; color: var(--muted); }
+.wiki-sub { margin: 0 0 10px; font-size: .82rem; color: var(--muted); line-height: 1.5; }
+.wiki-sub a { color: var(--accent); }
+.wiki-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.wiki-search { flex: 1 1 200px; min-width: 140px; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 9px; padding: 7px 11px; font: inherit; font-size: .85rem; }
+.wiki-search:focus { outline: none; border-color: var(--accent); }
+.wiki-reg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.wiki-reg-btn { background: var(--panel2); color: var(--muted); border: 0; padding: 7px 12px; font: inherit; font-size: .8rem; cursor: pointer; }
+.wiki-reg-btn.active { background: var(--accent); color: #fff; }
+.wiki-body { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.wiki-entry { background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 13px 15px; box-shadow: var(--shadow); scroll-margin-top: 70px; }
+.wiki-e-title { font-size: 1rem; margin: 0 0 6px; color: var(--ink); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.wiki-tag { font-size: .68rem; font-weight: 700; border-radius: 6px; padding: 1px 7px; }
+.wiki-tag.int { background: color-mix(in srgb, var(--ws-role-main) 22%, transparent); color: var(--ws-role-main); }
+.wiki-tag.gen { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+.wiki-tag.sup { background: color-mix(in srgb, var(--blocked) 20%, transparent); color: var(--blocked); }
+.wiki-def { margin: 0 0 8px; font-size: .9rem; line-height: 1.6; color: var(--ink); }
+.wiki-meta { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; }
+.wiki-ptr { color: var(--accent); text-decoration: none; }
+.wiki-ptr:hover { text-decoration: underline; }
+.wiki-ptr.gen { color: var(--muted); }
+.wiki-rel { color: var(--muted); }
+.wiki-xlink { color: var(--accent); text-decoration: none; margin-right: 8px; }
+.wiki-xlink:hover { text-decoration: underline; }
+.wiki-flash { animation: wikiFlash 1.2s ease; }
+@keyframes wikiFlash { 0%, 100% { box-shadow: var(--shadow); } 30% { box-shadow: 0 0 0 2px var(--accent); } }
+</style>
 </head>
 <body>
   <header class="topbar">
@@ -30,6 +62,7 @@
     <nav class="tabs">
       <button class="tab active" data-tab="dashboard">대시보드</button>
       <button class="tab" data-tab="decisions">검토 사안 <span id="decisions-badge" class="pill">0</span></button>
+      <button class="tab" data-tab="wiki" title="Compendium — 개념 용어집">📖 위키</button>
     </nav>
     <div class="filters-wrap">
       <button class="fnav fnav-l" type="button" aria-label="필터 이전" hidden>‹</button>
@@ -85,6 +118,20 @@
         <div id="decisions" class="cards"></div>
       </div>
     </section>
+    <section id="tab-wiki" class="tabpane">
+      <div class="wiki-head">
+        <h2 class="wiki-title">Compendium <span class="wiki-badge" id="wiki-count"></span></h2>
+        <p class="wiki-sub">개념 용어집 — 한 개념에 정의 하나, 공식 정의는 소유 모듈 스펙으로 연결(베끼지 않음). <a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Compendium.md" target="_blank" rel="noopener">스펙 →</a></p>
+        <div class="wiki-tools">
+          <input type="search" id="wiki-search" class="wiki-search" placeholder="용어 검색…" aria-label="용어 검색" />
+          <div class="wiki-reg" role="group" aria-label="설명 눈높이">
+            <button type="button" class="wiki-reg-btn active" data-reg="plain">쉽게</button>
+            <button type="button" class="wiki-reg-btn" data-reg="expert">전문</button>
+          </div>
+        </div>
+      </div>
+      <div id="wiki-body" class="wiki-body" aria-live="polite"></div>
+    </section>
   </main>
 
   <button id="home-btn" class="home-btn" type="button" title="현재 작업으로"></button>
@@ -132,7 +179,7 @@
   <nav id="mobile-tabbar" class="mobile-tabbar" aria-label="모바일 탭">
     <button class="mtab" data-mtab="dashboard" type="button">📋<span>대시보드</span></button>
     <button class="mtab" data-mtab="decisions" type="button">📝<span>검토사안</span></button>
-    <button class="mtab" data-mtab="wiki" type="button" disabled title="Compendium (예정)">📖<span>위키</span></button>
+    <button class="mtab" data-mtab="wiki" type="button" title="Compendium — 개념 용어집">📖<span>위키</span></button>
     <button class="mtab" data-mtab="realtime" type="button">💬<span>실시간</span></button>
   </nav>
 

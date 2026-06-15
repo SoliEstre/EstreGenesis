@@ -1,0 +1,155 @@
+{
+  "generated": "compendium/lint.cjs --reindex",
+  "count": 7,
+  "entries": [
+    {
+      "id": "ack-tier",
+      "title": "Ack Tier",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#1313-a2a-message-reliability--the-ack-layer",
+      "status": "active",
+      "superseded_by": null,
+      "links": [],
+      "definition": "The tier distinction in A2A acknowledgment — a transport-tier Ack is separate from the recipient agent surfacing the message body. Full definition lives in owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "transport-tier Ack != recipient inbox body arrival (at-most-once relay)"
+        },
+        {
+          "register": "plain",
+          "text": "a 'delivered' signal does not mean the other side actually read it"
+        }
+      ]
+    },
+    {
+      "id": "atomic-note",
+      "title": "Atomic Note",
+      "type": "glossary",
+      "register_class": "general",
+      "owner_spec": null,
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "computed-moc"
+      ],
+      "definition": "A note scoped to exactly one idea and addressed by a stable immutable id, composed with others by linking rather than nesting — the unit that makes a computed MOC and rename-safe cross-linking possible.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "one-concept-per-file with an opaque immutable id; links over hierarchy (Zettelkasten lineage)"
+        },
+        {
+          "register": "plain",
+          "text": "keep one idea per note and connect notes by links, instead of burying ideas inside big documents"
+        }
+      ]
+    },
+    {
+      "id": "compendium-module-spec",
+      "title": "Compendium Module Specification",
+      "type": "concept",
+      "register_class": "internal",
+      "owner_spec": "Compendium.md#1-concept--what-compendium-is",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "computed-moc"
+      ],
+      "definition": "The spec of a cross-cutting vocabulary substrate that navigates and synthesizes the module specs but does not restate their normative content — a source of information, not a source of truth. Full definition lives in owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "concept-anchored dual-register glossary + pointer-not-paraphrase charter + computed-MOC wiki + 4 lints, one-way authority Compendium->spec"
+        },
+        {
+          "register": "plain",
+          "text": "a glossary module that gathers terms from several modules in one place but only points to each module's own document for the real explanation"
+        }
+      ]
+    },
+    {
+      "id": "computed-moc",
+      "title": "Computed MOC",
+      "type": "glossary",
+      "register_class": "general",
+      "owner_spec": null,
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "atomic-note"
+      ],
+      "definition": "A map-of-content index auto-regenerated from frontmatter metadata — a navigation node that cannot drift because it is never hand-maintained.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "a derived view that removes the rot risk of a hand-maintained MOC — source = frontmatter, INDEX.md is the projection"
+        },
+        {
+          "register": "plain",
+          "text": "a way to rebuild the table of contents automatically from file information instead of editing it by hand"
+        }
+      ]
+    },
+    {
+      "id": "controlled-vocabulary",
+      "title": "Controlled Vocabulary",
+      "type": "glossary",
+      "register_class": "general",
+      "owner_spec": null,
+      "status": "active",
+      "superseded_by": null,
+      "links": [],
+      "definition": "A curated term set in which each concept has one preferred label plus admitted and hidden synonyms, so the same concept is not split across rival words and the same word is not overloaded across concepts.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "preferred / admitted / hidden_search_only labels per concept — collision control over an open term space"
+        },
+        {
+          "register": "plain",
+          "text": "agree on one main name per idea (and list the other names it goes by) so people do not talk past each other"
+        }
+      ]
+    },
+    {
+      "id": "decision-to-schedule-seam",
+      "title": "How Hyperbrief Gates Superscalar Retire",
+      "type": "concept",
+      "register_class": "general",
+      "owner_spec": null,
+      "status": "active",
+      "superseded_by": null,
+      "links": [],
+      "definition": "How Hyperbrief's decision gate conditions entry into Superscalar's retire queue — an Explanation-tier link for a cross-module seam that has no single-module home.",
+      "glosses": [
+        {
+          "register": "plain",
+          "text": "the linking relationship where the decision-delegation module must pass an item before the work-cleanup module can retire it"
+        }
+      ]
+    },
+    {
+      "id": "superseded-by",
+      "title": "superseded_by",
+      "type": "glossary",
+      "register_class": "general",
+      "owner_spec": null,
+      "status": "active",
+      "superseded_by": null,
+      "links": [],
+      "definition": "The frontmatter field that records a deprecation redirect from an evicted entry to its replacement (skos:replacedBy) — making eviction a first-class, traceable redirect rather than a silent delete.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "skos:replacedBy on the entry — status:superseded + superseded_by:<id>, old surfaces collapse into aliases"
+        },
+        {
+          "register": "plain",
+          "text": "instead of deleting an outdated term, mark it replaced and point to the new one, so old links still resolve"
+        }
+      ]
+    }
+  ]
+}

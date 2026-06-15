@@ -76,6 +76,7 @@ function loadEntries() {
         defText: defText(fm),
         hasConvTerm: /source:\s*conversation/.test(fm),
         redactionPass: field(fm, 'redaction_pass'),
+        glosses: [...fm.matchAll(/\{\s*register:\s*(\w+),\s*text:\s*"([^"]*)"\s*\}/g)].map((m) => ({ register: m[1], text: m[2] })),
       });
     }
   }
@@ -143,6 +144,14 @@ function reindex(entries) {
     lines.push('');
   }
   fs.writeFileSync(path.join(STORE, 'INDEX.md'), lines.join('\n'));
+  // machine-readable export for the dashboard wiki tab (v0.2-d) — derived, never hand-edited.
+  const json = entries.map((e) => ({
+    id: e.id, title: e.title, type: e.type, register_class: e.register_class,
+    owner_spec: e.owner_spec === 'null' ? null : e.owner_spec, status: e.status,
+    superseded_by: e.superseded_by === 'null' ? null : e.superseded_by,
+    links: e.links, definition: e.defText, glosses: e.glosses || [],
+  })).sort((a, b) => a.id.localeCompare(b.id));
+  fs.writeFileSync(path.join(STORE, 'index.json'), JSON.stringify({ generated: 'compendium/lint.cjs --reindex', count: json.length, entries: json }, null, 2) + '\n');
 }
 
 module.exports = { runLint, ghSlug, headingSlugs, loadEntries, frontmatter, field, listField, defText, STORE, INNER, SUBDIRS };
