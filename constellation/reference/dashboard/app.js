@@ -1013,6 +1013,54 @@ $('#home-btn-dec').onclick = () => {
   const fr = $('#free-req'); if (fr) fr.focus({ preventScroll: true });
 };
 
+// ---- Compendium wiki tab (v0.2-d) — static /compendium.json export, dual-register + click-to-define cross-links ----
+let wikiData = null, wikiReg = localStorage.getItem('eg-wiki-reg') || 'plain', wikiQuery = '';
+function wikiSpecUrl(sp) {
+  if (!sp) return null;
+  const h = sp.indexOf('#'); const f = h < 0 ? sp : sp.slice(0, h), s = h < 0 ? '' : sp.slice(h + 1);
+  return 'https://github.com/SoliEstre/EstreGenesis/blob/main/' + f + (s ? '#' + s : '');
+}
+function renderWiki() {
+  const body = $('#wiki-body'); if (!body || !wikiData) return;
+  const q = wikiQuery.trim().toLowerCase();
+  const all = wikiData.entries || [];
+  const byId = Object.fromEntries(all.map((e) => [e.id, e]));
+  const list = all.filter((e) => !q || (e.id + ' ' + (e.title || '') + ' ' + (e.definition || '')).toLowerCase().includes(q));
+  body.innerHTML = list.map((e) => {
+    const gloss = (e.glosses || []).find((g) => g.register === wikiReg);
+    const text = gloss ? gloss.text : (e.definition || '');
+    const reg = e.register_class === 'internal' ? '<span class="wiki-tag int">내부어</span>' : '<span class="wiki-tag gen">일반어</span>';
+    const st = e.status && e.status !== 'active' ? ' <span class="wiki-tag sup">' + esc(e.status) + '</span>' : '';
+    const sp = wikiSpecUrl(e.owner_spec);
+    const ptr = sp
+      ? '<a class="wiki-ptr" href="' + esc(wsSafeUrl(sp)) + '" target="_blank" rel="noopener">정의 원본 → ' + esc(e.owner_spec) + '</a>'
+      : '<span class="wiki-ptr gen">일반어 — Compendium 이 정의 소유</span>';
+    const xlinks = (e.links || []).filter((id) => byId[id]).map((id) => '<a class="wiki-xlink" href="#wiki-' + esc(id) + '" data-wiki-jump="' + esc(id) + '">' + esc(byId[id].title || id) + '</a>').join('');
+    return '<article class="wiki-entry" id="wiki-' + esc(e.id) + '">'
+      + '<h3 class="wiki-e-title">' + esc(e.title || e.id) + reg + st + '</h3>'
+      + '<p class="wiki-def">' + esc(text) + '</p>'
+      + '<div class="wiki-meta">' + ptr + (xlinks ? '<span class="wiki-rel">관련: ' + xlinks + '</span>' : '') + '</div>'
+      + '</article>';
+  }).join('') || '<div class="empty">검색 결과 없음.</div>';
+  // click-to-define: cross-link jump highlights the target entry (§8.1 — anchors over the escaped DOM, never raw HTML)
+  body.querySelectorAll('[data-wiki-jump]').forEach((a) => { a.onclick = (ev) => {
+    ev.preventDefault();
+    const t = document.getElementById('wiki-' + a.dataset.wikiJump);
+    if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.classList.add('wiki-flash'); setTimeout(() => t.classList.remove('wiki-flash'), 1200); }
+  }; });
+}
+function setupWiki() {
+  document.querySelectorAll('.wiki-reg-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.reg === wikiReg);
+    b.onclick = () => { wikiReg = b.dataset.reg; localStorage.setItem('eg-wiki-reg', wikiReg);
+      document.querySelectorAll('.wiki-reg-btn').forEach((x) => x.classList.toggle('active', x.dataset.reg === wikiReg)); renderWiki(); };
+  });
+  const s = $('#wiki-search'); if (s) s.oninput = () => { wikiQuery = s.value; renderWiki(); };
+  fetch('compendium.json', { cache: 'no-store' }).then((r) => r.json()).then((d) => {
+    wikiData = d; const cnt = $('#wiki-count'); if (cnt) cnt.textContent = (d.count || (d.entries || []).length) + ' terms'; renderWiki();
+  }).catch((e) => { const body = $('#wiki-body'); if (body) body.innerHTML = '<div class="empty">Compendium 데이터 로드 실패 (' + esc(String(e && e.message || e)) + ').</div>'; });
+}
+
 // ---- boot ----
 ui.panes = loadPanes(); ui.splitFrac = loadSplitFrac(); ui.splitFixed = loadSplitFixed();
 setupTopbar();         // fixed 상단바 높이 → --topbar-h (메인 패딩)
@@ -1023,6 +1071,7 @@ setupFreeRequest();    // 검토사안 최상단 자유 추가 요청
 setupAttachments();    // 항목 첨부(코드/mermaid/시각) 칩 → 팝업 → 별 탭
 setupStandbyToggle();  // 무한 대기 모드 토글 (conn 왼쪽)
 setupHomeTracking();   // 콘텐츠 크기 변화에 맞춰 홈 위치 유지 (초기 센터링 포함)
+setupWiki();           // Compendium 위키 탭 (v0.2-d) — /compendium.json fetch + dual-register 렌더
 fetch('/api/state').then(r => r.json()).then(applyState).catch(() => {});
 connect();
 // 검토 반영 시각의 상대시간 실시간 갱신
@@ -2760,7 +2809,7 @@ function syncMobileTabbar() {
 function setupMobileTabbar() {
   const bar = document.getElementById('mobile-tabbar'); if (!bar) return;
   bar.querySelectorAll('[data-mtab]').forEach((b) => { b.onclick = () => {
-    const t = b.dataset.mtab; if (t === 'wiki') return;   // 위키 = #4 Compendium 자리(미구현)
+    const t = b.dataset.mtab;   // 위키 = #4 Compendium 자리 (v0.2-d 구현 — else 분기에서 setPanes('wiki'))
     if (t === 'realtime') { if (!wsState.popOpen) toggleWsPop(true); }
     else { if (wsState.popOpen) toggleWsPop(false); setPanes(t, false); }
     syncMobileTabbar();
