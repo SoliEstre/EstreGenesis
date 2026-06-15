@@ -145,7 +145,7 @@ function reindex(entries) {
   fs.writeFileSync(path.join(STORE, 'INDEX.md'), lines.join('\n'));
 }
 
-module.exports = { runLint, ghSlug, headingSlugs };
+module.exports = { runLint, ghSlug, headingSlugs, loadEntries, frontmatter, field, listField, defText, STORE, INNER, SUBDIRS };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
