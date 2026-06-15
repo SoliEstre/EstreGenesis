@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compendium — concept-anchored dual-register vocabulary substrate · EstreGenesis</title>
+  <meta name="description" content="Compendium v0.2.1 — a concept-anchored dual-register vocabulary substrate. EstreGenesis's 6th module: a cross-module wiki + a glossary where one concept carries one register-neutral definition plus expert/plain terms, owning nothing normative (every internal entry is a one-directional pointer into the owning module spec). v0.2 runtime: a 7-entry content store + a 0-dep lint/pointer-resolution runtime + an 8-tool MCP server. The purest expression of north-star axis-2 (vocabulary survival > code survival); eviction is first-class and it models its own sunset.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="shared/shared.css">
+  <link rel="stylesheet" href="shared/themes.css">
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var levels = ['general', 'dev', 'expert'];
+      var aud = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(aud) === -1) aud = 'general';
+      html.setAttribute('data-audience', aud);
+      var langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages
+        : [navigator.language || navigator.userLanguage || ''];
+      var detected = 'en';
+      for (var i = 0; i < langs.length; i++) {
+        if (typeof langs[i] === 'string' && langs[i].toLowerCase().indexOf('ko') === 0) { detected = 'ko'; break; }
+      }
+      var lang = localStorage.getItem('eg-promo-lang') || detected;
+      html.setAttribute('lang', lang);
+    })();
+  </script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
+      <nav class="nav">
+        <a href="index.html" data-en="Home" data-ko="홈">Home</a>
+        <a href="superscalar.html">Superscalar</a>
+        <a href="hyperbrief.html">Hyperbrief</a>
+        <a href="greatpractice.html">Greatpractice</a>
+        <a href="ultrasafe.html">Ultrasafe</a>
+        <a href="constellation.html">Constellation</a>
+        <a href="compendium.html" class="active">Compendium</a>
+        <a class="sub-link" href="https://github.com/SoliEstre/EstreGenesis/blob/main/Compendium.md" target="_blank" rel="noopener" data-en="Spec" data-ko="스펙">Spec</a>
+      </nav>
+      <div class="controls">
+        <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
+        <div class="control-group"><span class="control-label" data-en="Level" data-ko="레벨">Level</span><div class="aud-toggle"><button data-aud-btn="general" data-en="general" data-ko="일반">general</button><button data-aud-btn="dev" data-en="dev" data-ko="개발">dev</button><button data-aud-btn="expert" data-en="expert" data-ko="전문">expert</button></div></div>
+        <div class="control-group"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-wide">
+    <section class="hero">
+      <h1>Compendium</h1>
+      <p class="tagline" data-aud="general" data-en="One place that gathers the terms used across several modules — and for each term, points you to the document that actually defines it." data-ko="여러 모듈에서 쓰는 용어를 한곳에 모아 두고, 각 용어마다 그것을 실제로 정의한 문서로 안내해 주는 곳입니다.">A glossary that gathers terms from several modules and points each one back to the document that defines it.</p>
+      <p class="tagline" data-aud="dev" data-en="A concept-anchored dual-register vocabulary substrate: one concept carries one register-neutral definition plus expert/plain terms, owns nothing normative (each internal entry is a one-directional pointer into the owning module spec), and treats deprecation as first-class." data-ko="개념-앵커 이중 register 어휘 기반입니다. 한 개념이 register-중립 정의 하나 + 전문가용/일반인용 용어를 가지며, normative 한 것은 아무것도 소유하지 않고(각 internal 엔트리는 소유 모듈 스펙으로의 단방향 포인터), deprecation을 1급으로 다룹니다.">A concept-anchored dual-register vocabulary substrate — one concept, one definition, two registers; pointer-not-paraphrase.</p>
+      <p class="tagline" data-aud="expert" data-en="A cross-cutting vocabulary substrate that navigates and synthesizes the module specs without restating their normative content — a source of information, not a source of truth. One-directional authority (Compendium→spec) makes the content layer clean-evictable, and the module models its own sunset." data-ko="모듈 스펙들을 가로질러 탐색·종합하되 그 normative 내용을 재진술하지 않는 cross-cutting 어휘 기반 — 진실의 원천이 아니라 정보의 원천입니다. 단방향 권위(Compendium→스펙)가 콘텐츠 계층을 깨끗하게 제거 가능하게 만들고, 모듈은 자기 자신의 sunset을 모델링합니다.">A cross-cutting vocabulary substrate: a source of information, not a source of truth. One-directional authority; self-evicting by design.</p>
+      <div class="badges">
+        <span class="badge">v0.2.1</span>
+        <span class="badge" data-en="6th module" data-ko="6번째 모듈">6th module</span>
+        <span class="badge">pointer-not-paraphrase</span>
+        <span class="badge">0-dep MCP · 8 tools</span>
+        <span class="badge">Apache-2.0</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="What Compendium is" data-ko="Compendium이란 무엇인가요?">What Compendium is</h2>
+      <h2 data-aud="dev" data-en="What Compendium is" data-ko="Compendium이란 무엇인가">What Compendium is</h2>
+      <h2 data-aud="expert" data-en="Overview" data-ko="개요">Overview</h2>
+
+      <p data-aud="general" data-en="When a project grows several modules, the same idea ends up described in slightly different words in different places, and the same word sometimes means different things. Compendium is the one place that gathers those terms, gives each a short plain-language and an expert-language label tied to a single meaning, and — crucially — points you back to the original document for the full definition instead of copying it. So it never goes out of sync with the source." data-ko="프로젝트에 모듈이 여러 개 생기면, 같은 개념이 여기저기서 조금씩 다른 말로 설명되고, 같은 단어가 곳에 따라 다른 뜻으로 쓰이기도 합니다. Compendium은 그런 용어들을 한곳에 모아, 각 용어에 '일반인이 쓰는 말'과 '전문가가 쓰는 말' 두 이름을 하나의 뜻에 묶어 붙이고 — 가장 중요하게는 — 전체 정의를 베끼지 않고 원래 문서로 다시 안내합니다. 그래서 원본과 절대 어긋나지 않습니다.">Gathers cross-module terms, gives each a plain + an expert label tied to one meaning, and points back to the source rather than copying it — so it never drifts.</p>
+      <p data-aud="dev" data-en="Compendium is a concept-anchored dual-register glossary plus a cross-module wiki. The load-bearing decision is that the glossary is anchored on the concept, not the word: one concept node carries one register-neutral canonical definition plus register-tagged terms and glosses, so the expert↔plain mapping lives implicitly inside the shared id rather than as a brittle term-A↔term-B link. An internal-register entry holds only a one-line orientation gloss and a machine-checkable pointer (owner_spec) into the owning module spec — the spec stays the single source of truth. Only general-register vocabulary that no spec owns carries a full definition (Compendium is the legitimate SSoT there)." data-ko="Compendium은 개념-앵커 이중 register 용어집 + cross-module 위키입니다. 핵심 결정은 용어집이 단어가 아니라 개념에 앵커된다는 것입니다. 한 개념 노드가 register-중립 canonical 정의 하나 + register 태그된 용어·gloss를 가지므로, 전문어↔일반어 매핑이 brittle한 term-A↔term-B 링크가 아니라 공유 id 안에 암묵적으로 존재합니다. internal-register 엔트리는 한 줄짜리 orientation gloss와 소유 모듈 스펙으로의 기계검증 가능한 포인터(owner_spec)만 가집니다 — 스펙이 단일 진실 원천으로 유지됩니다. 어느 스펙도 소유하지 않는 general-register 어휘만 full 정의를 가집니다(거기서는 Compendium이 정당한 SSoT)." >A concept-anchored dual-register glossary + cross-module wiki. One concept = one definition + register-tagged terms; internal entries are pointer-only into the owning spec, general entries (no owner) carry the full def.</p>
+      <p data-aud="expert" data-en="Compendium specifies a concept-anchored dual-register vocabulary substrate. Its load-bearing commitment is that register is a property of the term and the gloss, never of the concept's canonical definition — forking the definition per register is the principal drift trap. An internal-register entry restates nothing: it carries a one-line orientation gloss and a machine-checkable owner_spec pointer of the form <file>#<heading-slug>, and a pointer-resolution lint asserts the heading actually exists. Only general-register vocabulary owned by no spec carries a full definition, for which Compendium is the legitimate single source of truth. The boundary is one-directional (Compendium→spec), which is what makes the content layer clean-evictable." data-ko="Compendium은 개념-앵커 이중 register 어휘 기반을 규정한다. 그 핵심 commitment은 register가 용어와 gloss의 속성이지 개념의 canonical 정의의 속성이 결코 아니라는 것이다 — register별로 정의를 분기하는 것이 주된 drift trap이다. internal-register 엔트리는 아무것도 재진술하지 않는다. <file>#<heading-slug> 형태의 기계검증 가능한 owner_spec 포인터와 한 줄 orientation gloss만을 가지며, pointer-resolution lint가 그 heading이 실제로 존재함을 단언한다. 어느 스펙도 소유하지 않는 general-register 어휘만 full 정의를 가지며, 그에 대해 Compendium이 정당한 단일 진실 원천이다. 경계는 단방향(Compendium→스펙)이며, 이것이 콘텐츠 계층을 깨끗하게 제거 가능하게 만든다.">A concept-anchored dual-register substrate; register is a property of the term/gloss, never of the canonical definition. Internal entries are pointer-only (machine-checked owner_spec); general entries carry the full def. One-directional authority makes the content layer clean-evictable.</p>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="The core idea" data-ko="핵심 아이디어">The core idea</h4>
+        <h4 data-aud="dev" data-en="Central thesis" data-ko="핵심 명제">Central thesis</h4>
+        <h4 data-aud="expert" data-en="Central thesis" data-ko="중심 명제">Central thesis</h4>
+        <p data-aud="general" data-en="Point, don't copy. A glossary that copies definitions goes stale; one that points to the source never does." data-ko="베끼지 말고 가리켜라. 정의를 베끼는 용어집은 낡지만, 원본을 가리키는 용어집은 낡지 않습니다.">Point, don't copy — a glossary that points to the source can't go stale.</p>
+        <p data-aud="dev" data-en="The most durable thing a standard leaves behind is its vocabulary, not its runtime — so Compendium invests in the concept-anchored model and the content-boundary charter, and treats its own runtime + spec as the first prunable target when a provider-native equivalent arrives." data-ko="표준이 남기는 가장 오래가는 것은 런타임이 아니라 어휘입니다 — 그래서 Compendium은 개념-앵커 모델과 콘텐츠 경계 헌장에 투자하고, 제공자 native 등가물이 등장하면 자기 자신의 런타임 + 스펙을 가장 먼저 제거할 대상으로 다룹니다.">Vocabulary outlives runtime — so the durable investment is the concept-anchored model + the content-boundary charter, and the runtime/spec is the first prunable target.</p>
+        <p data-aud="expert" data-en="North-star axis-2 (concept survival > code survival) holds that the most durable value of a standard is its vocabulary and decomposition, not its implementation. Compendium is the purest expression of that thesis: a pointer-layer whose content is clean-evictable markdown, whose runtime and spec carry an explicit sunset path, and which therefore passes its own eviction-first-class test by construction." data-ko="북극성 axis-2(개념 생존 > 코드 생존)는 표준의 가장 오래가는 가치가 구현이 아니라 어휘와 분해라고 본다. Compendium은 그 명제의 가장 순수한 표현이다. 콘텐츠가 깨끗하게 제거 가능한 markdown인 포인터 계층이며, 런타임과 스펙이 명시적 sunset 경로를 지니므로, 자기 자신의 eviction-1급 시험을 구성적으로 통과한다.">North-star axis-2 (concept survival > code survival): the durable value is the vocabulary, so the runtime/spec is the first prunable target — passing its own eviction test by construction.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="What's inside" data-ko="안에 들어있는 것들">What's inside</h2>
+      <h2 data-aud="dev" data-en="What's in the box (v0.2)" data-ko="구성 요소 (v0.2)">What's in the box (v0.2)</h2>
+      <h2 data-aud="expert" data-en="Constituent components (v0.2)" data-ko="구성 요소 (v0.2)">Constituent components (v0.2)</h2>
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="Concept-anchored dual register" data-ko="개념-앵커 이중 register">Concept-anchored dual register</h3>
+          <p data-aud="general" data-en="One meaning, two labels: a plain-language name and an expert name, tied together so they never drift into two different ideas." data-ko="하나의 뜻에 두 이름: 일반인용 이름과 전문가용 이름을 하나로 묶어, 둘이 서로 다른 개념으로 갈라지지 않게 합니다.">One meaning, two labels (plain + expert), tied so they never split into two ideas.</p>
+          <p data-aud="dev" data-en="One concept node = one register-neutral definition + register-tagged terms (preferred/admitted/hidden_search_only) and glosses (expert/plain). hidden_search_only matches messy input (abbreviations, deprecated forms) without surfacing it." data-ko="한 개념 노드 = register-중립 정의 하나 + register 태그된 용어(preferred/admitted/hidden_search_only)와 gloss(expert/plain). hidden_search_only는 엉성한 입력(약어·폐기형)을 표면화하지 않고 매칭합니다.">One node = one neutral definition + register-tagged terms (preferred/admitted/hidden) + glosses. hidden_search_only matches messy input without surfacing.</p>
+          <p data-aud="expert" data-en="register is a property of the term and the gloss, never of the canonical definition; the expert↔plain mapping is implicit inside the shared concept id. hidden_search_only (SKOS hiddenLabel) matches deprecated/abbreviated forms for recall without promoting them." data-ko="register는 용어와 gloss의 속성이며 canonical 정의의 속성이 결코 아니다. 전문어↔일반어 매핑은 공유 개념 id 안에 암묵적이다. hidden_search_only(SKOS hiddenLabel)는 폐기·약어형을 승격 없이 회수용으로 매칭한다.">register is a property of the term/gloss, not the definition; expert↔plain is implicit in the shared id. SKOS hiddenLabel for recall.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Pointer-not-paraphrase charter" data-ko="포인터-비-패러프레이즈 헌장">Pointer-not-paraphrase charter</h3>
+          <p data-aud="general" data-en="Compendium owns no official content. For anything a module defines, it points to that module's document instead of restating it — so there is only ever one source to keep correct." data-ko="Compendium은 공식 내용을 소유하지 않습니다. 어떤 모듈이 정의한 것은 다시 적지 않고 그 모듈의 문서를 가리킵니다 — 그래서 맞게 유지할 원천은 언제나 하나뿐입니다.">Owns no official content — points to each module's document instead of restating it. Only one source to keep correct.</p>
+          <p data-aud="dev" data-en="One-directional authority: Compendium→spec. Internal entries carry a one-line gloss + a machine-checkable owner_spec pointer; the owning spec stays SSoT. The sole exception is general-register vocabulary no module owns (owner_spec=null), where Compendium is the legitimate SSoT. A redaction gate blocks conversation→public-glossary leakage." data-ko="단방향 권위: Compendium→스펙. internal 엔트리는 한 줄 gloss + 기계검증 가능한 owner_spec 포인터를 가지며, 소유 스펙이 SSoT로 유지됩니다. 유일한 예외는 어느 모듈도 소유하지 않는 general-register 어휘(owner_spec=null)로, 거기서는 Compendium이 정당한 SSoT입니다. redaction 게이트가 대화→공개-용어집 누출을 막습니다.">One-directional (Compendium→spec). Internal = gloss + owner_spec pointer (spec is SSoT); general (no owner) = full def. Redaction gate blocks conversation leakage.</p>
+          <p data-aud="expert" data-en="The content-boundary charter: one-directional authority Compendium→spec, a no-competing-full-def rule for internal entries (enforced by the pointer-resolution lint), and a redaction gate enforcing the public-repo discipline. The charter is what lets the content layer migrate cleanly to a provider-native surface without harming the specs." data-ko="콘텐츠 경계 헌장: 단방향 권위 Compendium→스펙, internal 엔트리에 대한 no-competing-full-def 규칙(pointer-resolution lint가 강제), 그리고 공개-repo 규율을 강제하는 redaction 게이트. 이 헌장이 콘텐츠 계층을 스펙을 해치지 않고 제공자 native 표면으로 깨끗하게 이주할 수 있게 한다.">One-directional authority + no-competing-full-def (lint-enforced) + redaction gate — the charter that lets the content layer migrate cleanly.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Content store + lints (v0.2-a)" data-ko="콘텐츠 스토어 + lint (v0.2-a)">Content store + lints (v0.2-a)</h3>
+          <p data-aud="general" data-en="The actual entries live as small files, with an automatic check that every 'points to' address really exists in the target document, plus housekeeping checks for broken links and stray entries." data-ko="실제 항목들은 작은 파일로 저장되고, 모든 '가리키는' 주소가 대상 문서에 실제로 존재하는지 자동으로 검사하며, 깨진 링크·외톨이 항목 같은 정리 검사도 합니다.">Entries as small files + an automatic check that every pointer address really exists + housekeeping checks.</p>
+          <p data-aud="dev" data-en="A markdown content store (glossary/ + concept/) with atomic entries (immutable id, computed backlinks). A 0-dep lint.cjs runs the four gardening lints (broken-link, orphan, duplicate-concept, stale) plus pointer-resolution: it computes the GitHub heading-slug set of each owner_spec target file and asserts the entry's slug resolves. --reindex regenerates the computed-MOC INDEX.md." data-ko="atomic 엔트리(불변 id, 계산된 backlink)를 갖는 markdown 콘텐츠 스토어(glossary/ + concept/). 0-의존성 lint.cjs가 4개 가드닝 lint(broken-link, orphan, duplicate-concept, stale)와 pointer-resolution을 실행합니다. 각 owner_spec 대상 파일의 GitHub heading-slug 집합을 계산해 엔트리 슬러그가 해소되는지 단언합니다. --reindex가 computed-MOC INDEX.md를 재생성합니다.">markdown store (atomic entries, computed backlinks) + 0-dep lint.cjs: 4 gardening lints + pointer-resolution (heading-slug grep). --reindex builds the computed MOC.</p>
+          <p data-aud="expert" data-en="A markdown content store of atomic entries (immutable opaque id, computed map-of-content, computed backlinks). The pointer-resolution check is also wired as a verify-nway axis: it derives the GitHub heading-slug set of each owner_spec target and fails on a miss, a competing internal full definition, a broken [[id]] link, or a conversation-sourced term lacking a redaction-pass marker." data-ko="atomic 엔트리(불변 opaque id, computed map-of-content, computed backlink)로 구성된 markdown 콘텐츠 스토어. pointer-resolution 검사는 verify-nway axis로도 연결된다. 각 owner_spec 대상의 GitHub heading-slug 집합을 도출하여, miss·competing internal full 정의·broken [[id]] 링크·redaction-pass 없는 대화-출처 용어에 대해 실패한다.">Atomic-entry markdown store; pointer-resolution wired as a verify-nway axis (slug-resolution + no-competing-def + broken-link + redaction).</p>
+        </div>
+        <div class="card">
+          <h3 data-en="MCP runtime — 8 tools (v0.2-b)" data-ko="MCP 런타임 — 8도구 (v0.2-b)">MCP runtime — 8 tools (v0.2-b)</h3>
+          <p data-aud="general" data-en="A small tool server that lets an AI assistant look terms up, define them in plain or expert wording, search even messy input, and check the glossary's health — without any external dependencies." data-ko="AI 도우미가 용어를 찾아보고, 일반인용/전문가용 표현으로 뜻을 돌려주고, 엉성한 입력도 검색하고, 용어집 건강도를 점검하게 해주는 작은 도구 서버입니다 — 외부 의존성 없이.">A small tool server: look up terms, define plain/expert, search messy input, check glossary health — 0 dependencies.</p>
+          <p data-aud="dev" data-en="A 0-dep line-delimited JSON-RPC stdio MCP server exposing eight tools: wiki_read, wiki_search, wiki_upsert (validates frontmatter + pointer-resolution + redaction gate before writing), term_define (the click-to-define backend), term_frequency_scan, term_promote (the count→queue promotion gate), compendium_backlinks, and compendium_lint." data-ko="8개 도구를 노출하는 0-의존성 줄단위 JSON-RPC stdio MCP 서버: wiki_read, wiki_search, wiki_upsert(쓰기 전에 frontmatter + pointer-resolution + redaction 게이트 검증), term_define(click-to-define 백엔드), term_frequency_scan, term_promote(count→queue 승격 게이트), compendium_backlinks, compendium_lint.">0-dep stdio MCP server, 8 tools: wiki_read/search/upsert · term_define/frequency_scan/promote · backlinks · lint.</p>
+          <p data-aud="expert" data-en="An 8-tool MCP surface over the content store (Compendium.md §10). term_define is the click-to-define backend (register-targeted gloss, neutral-definition fallback); term_promote runs the §7.1 gate (occurrence≥N ∧ distinct_sources≥S ∧ mono-sense → a Hyperbrief brief queued to the decisions panel; internal-register is excluded). Deferred to v0.2-d: the dashboard wiki-tab, the cross-link side panel, and the click-to-define a11y components." data-ko="콘텐츠 스토어 위의 8도구 MCP 표면(Compendium.md §10). term_define는 click-to-define 백엔드(register 타깃 gloss, neutral-definition fallback)이고, term_promote는 §7.1 게이트(occurrence≥N ∧ distinct_sources≥S ∧ mono-sense → 결정 패널에 큐잉되는 Hyperbrief 브리프; internal-register는 제외)를 실행한다. v0.2-d로 연기: 대시보드 위키 탭, cross-link 사이드 패널, click-to-define a11y 컴포넌트.">8-tool MCP surface (§10). term_define = click-to-define backend; term_promote = the §7.1 count→queue gate. Dashboard surfaces deferred to v0.2-d.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Taking terms out, not just adding them" data-ko="더하기만이 아니라 빼기도">Taking terms out, not just adding them</h2>
+      <h2 data-aud="dev" data-en="Eviction is first-class" data-ko="Eviction은 1급">Eviction is first-class</h2>
+      <h2 data-aud="expert" data-en="Eviction & self-eviction" data-ko="Eviction과 self-eviction">Eviction &amp; self-eviction</h2>
+      <p data-aud="general" data-en="A standard that can only add and never remove becomes a burden. When a term is renamed or absorbed, Compendium never silently deletes it — it marks it 'replaced' and points to the new one, so old links still work. And it plans its own retirement: if an AI assistant one day provides this lookup natively, the entries move cleanly and the bespoke parts are removed first." data-ko="더하기만 하고 빼지 못하는 표준은 짐이 됩니다. 용어가 이름이 바뀌거나 흡수되면, Compendium은 조용히 지우지 않고 '대체됨'으로 표시하고 새 용어를 가리켜서 옛 링크가 계속 동작하게 합니다. 그리고 자기 자신의 은퇴도 계획합니다 — 언젠가 AI 도우미가 이 조회를 native로 제공하면, 항목들은 깔끔하게 옮겨가고 맞춤 부분이 먼저 제거됩니다.">Never a silent delete — a renamed term is marked 'replaced' with a pointer, so old links work. And it plans its own retirement: entries migrate cleanly, the bespoke runtime/spec is pruned first.</p>
+      <p data-aud="dev" data-en="Deprecation is first-class via status (active/superseded/archived) + superseded_by, isomorphic with the Greatpractice retire-axis — a renamed entry redirects rather than disappears, and old surfaces collapse into aliases. Self-eviction is explicit: if a provider-native glossary/cross-link substrate absorbs the category, the markdown content + lints migrate to the native surface and the bespoke spec + MCP runtime are the first pruning target. The vocabulary survives; the machinery is evicted." data-ko="deprecation은 status(active/superseded/archived) + superseded_by로 1급이며, Greatpractice retire-axis와 동형입니다 — 이름이 바뀐 엔트리는 사라지지 않고 redirect되며, 옛 표면은 aliases로 흡수됩니다. self-eviction도 명시적입니다 — 제공자 native 용어집/cross-link 기반이 카테고리를 흡수하면, markdown 콘텐츠 + lint는 native 표면으로 이주하고 맞춤 스펙 + MCP 런타임이 가장 먼저 제거 대상이 됩니다. 어휘는 살아남고, 기계장치는 제거됩니다.">First-class deprecation (active/superseded/archived + superseded_by, isomorphic with the Greatpractice retire-axis). Explicit self-eviction: content migrates, the bespoke runtime/spec is pruned first.</p>
+      <p data-aud="expert" data-en="Deprecation is first-class at both the concept and term level (status + superseded_by — skos:replacedBy), never deletion. Self-eviction is a stated prune order: content (preserve·migrate) → lints (preserve·migrate) → MCP runtime (evict) → spec (evict). The module that puts eviction forward as its product would be self-refuting if it could not model its own eviction; Compendium passes the test because its content is clean-evictable markdown pointers and its machinery carries an explicit sunset path." data-ko="deprecation은 개념과 용어 양 수준에서 1급이며(status + superseded_by — skos:replacedBy), 삭제가 아니다. self-eviction은 명시된 prune 순서를 가진다: 콘텐츠(보존·이주) → lint(보존·이주) → MCP 런타임(제거) → 스펙(제거). eviction을 제품으로 내세우는 모듈이 자기 자신의 eviction을 모델링하지 못한다면 자기-반박이 될 것이다. Compendium은 그 콘텐츠가 깨끗하게 제거 가능한 markdown 포인터이고 그 기계장치가 명시적 sunset 경로를 지니므로 그 시험을 통과한다.">First-class deprecation (skos:replacedBy), never deletion. A stated prune order — content → lints → MCP → spec — so the module that sells eviction models its own.</p>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="When it's worth adopting" data-ko="언제 도입할 가치가 있나요?">When it's worth adopting</h2>
+      <h2 data-aud="dev" data-en="Adoption thresholds" data-ko="도입 임계값">Adoption thresholds</h2>
+      <h2 data-aud="expert" data-en="Adoption thresholds" data-ko="도입 임계값">Adoption thresholds</h2>
+      <p data-aud="general" data-en="Compendium is not for every project. It earns its keep only once a project has several modules with overlapping vocabulary, around 25+ cross-referenced terms in active use, a live dashboard where readers meet terms outside the original document, and real evidence of terms drifting. For a single-document or solo one-off project, a plain notes index is the right answer and Compendium would be over-engineering." data-ko="Compendium은 모든 프로젝트를 위한 것이 아닙니다. 여러 모듈이 겹치는 어휘를 갖고, 활발히 쓰이는 교차참조 용어가 약 25개 이상이며, 독자가 원문 밖에서 용어를 만나는 라이브 대시보드가 있고, 용어가 실제로 어긋난 증거가 있을 때에만 값을 합니다. 단일 문서나 1회성 프로젝트라면 평범한 노트 색인이 정답이고 Compendium은 과설계입니다.">Not for every project — earns its keep only with several modules, ~25+ cross-referenced terms, a live dashboard, and real drift evidence. For a single-doc or solo one-off, a plain index is the answer.</p>
+      <p data-aud="dev" data-en="Adopt only when all hold: (a) ≥2 module specs / large surfaces overlap or nomenclature is ambiguous; (b) ≥~25 cross-referenced concept/jargon terms in active circulation (below this a hand-maintained index suffices); (c) a live dashboard (Constellation) where readers meet terms outside the spec context; (d) recurring vocabulary-drift evidence. EG qualifies on all four (six module specs, ~8,500 spec lines, a live board, documented rename events). Below the thresholds, inline parentheses + a flat index are the right tool." data-ko="다음이 모두 성립할 때만 도입: (a) ≥2 모듈 스펙/큰 표면이 겹치거나 명명이 모호; (b) 활발히 유통되는 교차참조 개념/전문용어가 ≥~25개(이 아래면 수기 색인으로 충분); (c) 독자가 스펙 맥락 밖에서 용어를 만나는 라이브 대시보드(Constellation); (d) 반복되는 어휘-drift 증거. EG는 네 가지 모두 충족한다(6개 모듈 스펙, ~8,500 스펙 줄, 라이브 보드, 문서화된 rename 사건). 임계값 아래에서는 인라인 괄호 + 평면 색인이 맞는 도구다.">Adopt only when all hold: ≥2 overlapping specs, ~25+ active cross-referenced terms, a live dashboard, recurring drift. EG qualifies on all four. Below the bar, inline parentheses + a flat index are correct.</p>
+      <p data-aud="expert" data-en="The adoption gate is conjunctive (all four conditions), isomorphic with the Greatpractice/Superscalar thresholds: vocabulary scale, controlled-vocabulary ambiguity, an out-of-context reading surface, and demonstrated drift. The negative-ROI case is explicit — a single-doc, stable-and-small-vocabulary, no-live-board project — for which the governance overhead exceeds the corpus and the inline-gloss + flat-index answer dominates. The honest framing keeps the module from being mis-adopted as a universal default." data-ko="도입 게이트는 결합적(네 조건 모두)이며, Greatpractice/Superscalar 임계값과 동형이다: 어휘 규모, controlled-vocabulary 모호성, 맥락-밖 읽기 표면, 그리고 입증된 drift. negative-ROI 경우가 명시적이다 — 단일 문서, 안정적이고 작은 어휘, 라이브 보드 없음 — 그에 대해서는 거버넌스 오버헤드가 corpus를 초과하고 inline-gloss + flat-index 답이 지배한다. 이 정직한 프레이밍이 모듈이 보편 기본값으로 오-도입되는 것을 막는다.">A conjunctive gate (four conditions), isomorphic with the Greatpractice/Superscalar thresholds; the negative-ROI case is stated explicitly so the module is not mis-adopted as a universal default.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>EstreGenesis · Apache-2.0 · <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank">github.com/SoliEstre/EstreGenesis</a></p>
+  </footer>
+
+  <script src="shared/data.js"></script>
+  <script src="shared/i18n.js"></script>
+  <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
+</body>
+</html>
