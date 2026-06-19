@@ -31,15 +31,15 @@ const _isLoopback = WS_BIND === '127.0.0.1' || WS_BIND === '::1' || WS_BIND === 
 //   - agent.requireKey: true 면 노출 환경에서 무키/무효키 /ws 연결 거부 (v2.4.11 무인증 board 벡터 차단). 기본 false=현행.
 // 순수 가산: 운영자가 access.json 을 채우기 전엔 동작 무변화. (UI=HTTP 표면 · agent/MCP=WS 표면, MCP 는 HELLO capabilities 로 식별.)
 const ACCESS = process.env.ACCESS_FILE || path.join(DIR, 'access.json');
-const _accessDefault = () => ({ ui: { allowlist: null }, mcp: { allowlist: null }, agent: { requireKey: false } });
+const _accessDefault = () => ({ ui: { allowlist: null }, agent: { allowlist: null, requireKey: false }, mcp: { allowlist: null } });
 let accessCfg = _accessDefault();
 function loadAccess() {
   try {
     const j = JSON.parse(fs.readFileSync(ACCESS, 'utf8'));
     accessCfg = {
       ui: { allowlist: Array.isArray(j && j.ui && j.ui.allowlist) ? j.ui.allowlist.map(String) : null },
+      agent: { allowlist: Array.isArray(j && j.agent && j.agent.allowlist) ? j.agent.allowlist.map(String) : null, requireKey: !!(j && j.agent && j.agent.requireKey) },
       mcp: { allowlist: Array.isArray(j && j.mcp && j.mcp.allowlist) ? j.mcp.allowlist.map(String) : null },
-      agent: { requireKey: !!(j && j.agent && j.agent.requireKey) },
     };
   } catch { accessCfg = _accessDefault(); }   // 파일 부재/파손 = 기본 전체 허용 (fail-open: 보안 게이트는 명시 opt-in)
 }
@@ -47,12 +47,26 @@ loadAccess();
 try { fs.watchFile(ACCESS, { interval: 1000 }, () => loadAccess()); } catch {}   // 라이브 갱신 (재시작 불요)
 function normIp(ip) { return ip ? String(ip).replace(/^::ffff:/, '') : ''; }   // IPv4-mapped IPv6 prefix 제거
 function isLoopbackIp(ip) { ip = normIp(ip); return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || ip.startsWith('127.'); }
+function ip4ToInt(s) { const p = String(s).split('.'); if (p.length !== 4) return null; let n = 0; for (const x of p) { if (!/^\d{1,3}$/.test(x)) return null; const v = Number(x); if (v > 255) return null; n = (n * 256) + v; } return n >>> 0; }
+// allowlist 항목 매칭 — 정확-IP(IPv4/IPv6) 또는 IPv4 CIDR(a.b.c.d/n). ip 는 normIp 적용값. (IPv6 CIDR 미지원 — 정확-IPv6 는 매칭됨.)
+function ipMatch(entry, ip) {
+  entry = String(entry).trim(); if (!entry) return false;
+  if (entry === ip) return true;
+  const slash = entry.indexOf('/');
+  if (slash > 0) {
+    const base = ip4ToInt(entry.slice(0, slash)), cand = ip4ToInt(ip), bits = Number(entry.slice(slash + 1));
+    if (base == null || cand == null || !Number.isInteger(bits) || bits < 0 || bits > 32) return false;
+    const mask = bits === 0 ? 0 : (0xFFFFFFFF << (32 - bits)) >>> 0;
+    return (base & mask) === (cand & mask);
+  }
+  return false;
+}
 function surfaceAllowed(surface, ip) {
   if (_isLoopback) return true;                       // 비-노출 = 게이트 무동작
   if (isLoopbackIp(ip)) return true;                  // 로컬은 항상 통과
   const al = accessCfg[surface] && accessCfg[surface].allowlist;
   if (!Array.isArray(al)) return true;                // null = 전체 허용(기본)
-  return al.includes(normIp(ip));
+  const _ip = normIp(ip); return al.some((e) => ipMatch(e, _ip));   // 정확-IP 또는 CIDR 대역 매칭
 }
 
 const EXT_BY_MIME = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/svg+xml': '.svg', 'application/pdf': '.pdf', 'text/plain': '.txt', 'application/json': '.json' };
@@ -141,8 +155,8 @@ const server = http.createServer((req, res) => {
         let next; try { next = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); }
         const clean = {
           ui: { allowlist: Array.isArray(next && next.ui && next.ui.allowlist) ? next.ui.allowlist.map(String) : null },
+          agent: { allowlist: Array.isArray(next && next.agent && next.agent.allowlist) ? next.agent.allowlist.map(String) : null, requireKey: !!(next && next.agent && next.agent.requireKey) },
           mcp: { allowlist: Array.isArray(next && next.mcp && next.mcp.allowlist) ? next.mcp.allowlist.map(String) : null },
-          agent: { requireKey: !!(next && next.agent && next.agent.requireKey) },
         };
         try { fs.writeFileSync(ACCESS, JSON.stringify(clean, null, 2) + '\n'); loadAccess(); sendJson(res, 200, { ok: true, access: accessCfg }); }
         catch (e) { sendJson(res, 500, { ok: false, error: String(e) }); }
@@ -747,14 +761,15 @@ function wsDeadlockScan() {
 if (WS_DEADLOCK_DETECT) { setInterval(wsDeadlockScan, Math.min(WS_DEADLOCK_PROBE_MS, 30000)).unref(); console.log(`[server] WS_DEADLOCK_DETECT on — board-adapter strict 2-cycle detector (probe ≥${WS_DEADLOCK_PROBE_MS}ms, §13.19.10 Q3 opt-in; quasi-deadlock 은 에이전트측 SLA 규율 담당)`); }
 server.on('upgrade', (req, socket) => {
   if (req.url.split('?')[0] !== '/ws') { socket.destroy(); return; }
-  // #5a 노출 환경 무키/무효키 거부 (agent.requireKey opt-in) — v2.4.11 무인증 board 벡터 차단. 로컬/비-노출은 면제.
-  if (accessCfg.agent.requireKey && !_isLoopback && !isLoopbackIp(req.socket.remoteAddress)) {
-    let _k = null; try { const u = new URL(req.url, 'http://x').searchParams; _k = u.get('key') || u.get('upstreamKey') || u.get('collabKey'); } catch {}
-    if (!wsValidKey(_k)) { console.warn('[ws upgrade] #5a 무키/무효키 거부 ip=%s', req.socket.remoteAddress || '?'); socket.destroy(); return; }
-  }
+  // #5a-3 upgrade 사전검사 — 노출 환경에서 agent·MCP 둘 다 차단된 IP 는 handshake 전 거부 (접속 직후 보내는 History/AgentList 누수 차단).
+  //   둘 중 하나라도 허용이면 통과 후 HELLO 에서 표면별(agent/MCP) 정밀 판정 + requireKey 검사. loopback/비-노출은 면제.
+  { const _ip = req.socket.remoteAddress;
+    if (!_isLoopback && !isLoopbackIp(_ip) && !(surfaceAllowed('agent', _ip) || surfaceAllowed('mcp', _ip))) {
+      console.warn('[ws upgrade] #5a-3 차단 IP 거부 (agent·MCP 둘 다 allowlist 밖) ip=%s', _ip || '?'); socket.destroy(); return;
+    } }
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
-  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('upstreamKey') || u.get('collabKey'); const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
+  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
   conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
@@ -777,10 +792,17 @@ server.on('upgrade', (req, socket) => {
       conn.meta.agentName = msg.agentName || conn.meta.agentId;
       { const k = msg.key || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } }   // #168 HELLO 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
       conn.meta.roleHint = msg.role || '';                       // local/upstream 힌트(최종 판정은 키·main)
-      // #5a MCP 표면 IP allowlist — mcp-proxy capability 로 식별 (MCP 서버 HELLO 는 capabilities:['a2a','mcp-proxy','ack-layer'] 동반).
-      if (Array.isArray(msg.capabilities) && msg.capabilities.includes('mcp-proxy') && !surfaceAllowed('mcp', conn.remoteAddr)) {
-        console.warn('[ws HELLO] #5a MCP 거부 (mcp allowlist 밖) ip=%s agent=%s', conn.remoteAddr || '?', conn.meta.agentId);
-        try { conn.close(); } catch {} return;
+      // #5a-3 표면별 접근 판정 — HELLO 에서 agent/MCP 구분(capabilities mcp-proxy) 후 그 표면의 IP allowlist + (둘 다) requireKey 적용.
+      { const _ip = conn.remoteAddr;
+        const _surface = (Array.isArray(msg.capabilities) && msg.capabilities.includes('mcp-proxy')) ? 'mcp' : 'agent';
+        if (!surfaceAllowed(_surface, _ip)) {
+          console.warn('[ws HELLO] #5a-3 %s 거부 (IP allowlist 밖) ip=%s agent=%s', _surface, _ip || '?', conn.meta.agentId);
+          try { conn.close(); } catch {} return;
+        }
+        if (accessCfg.agent.requireKey && !_isLoopback && !isLoopbackIp(_ip)) {
+          const _k = msg.key || msg.upstreamKey || msg.collabKey || conn.meta._urlKey;
+          if (!wsValidKey(_k)) { console.warn('[ws HELLO] #5a-3 무키/무효키 거부 ip=%s agent=%s', _ip || '?', conn.meta.agentId); try { conn.close(); } catch {} return; }
+        }
       }
       console.log('[ws HELLO]%s agent=%s ip=%s ua=%s upstreamKey=%s → role=%s', _hadId ? '' : ' [ANON]', conn.meta.agentId, conn.remoteAddr || '?', (conn.ua || '').slice(0, 50) || '-', msg.upstreamKey ? String(msg.upstreamKey).slice(0, 14) + '…' : '(none)', wsAgentRole(conn));   // role 전환 audit + 출처(ip/ua)
       if (!_hadId) { console.log('[ws HELLO][ANON] 익명 HELLO 등록 거부(AgentList/relay/탭 제외) raw=%s', JSON.stringify(msg).slice(0, 240)); return; }   // 익명(agentId 누락) = 보드 탭 미생성·relay 제외, 출처 로깅만
@@ -877,8 +899,8 @@ server.listen(PORT, WS_BIND, () => {
   console.log(`[server] WS_PRIMARY_ID=${WS_PRIMARY_ID}  (메인 role 로 분류될 agentId — WS_PRIMARY_AGENT env 로 주입)`);
   if (!_isLoopback) {   // v2.4.11 — 비-loopback 바인드는 무인증 board 표면(키관리·SetMain)을 네트워크에 노출. 운영자 인지 필수.
     console.warn(`[server] ⚠⚠ WS_BIND=${WS_BIND} (비-loopback) — board 연결은 무인증이라 같은 네트워크의 누구나 키 발급/조회/SetMain 이 가능합니다. 신뢰 네트워크에서만 사용하거나 reverse-proxy + 인증을 앞단에 두세요. (기본값은 127.0.0.1 — 노출은 의도적 opt-in.)`);
-    const _ui = accessCfg.ui.allowlist, _mcp = accessCfg.mcp.allowlist;   // #5a 노출 시 접근 정책 1줄 표시
-    console.log(`[server] #5a access — ui:${Array.isArray(_ui) ? _ui.length + ' IPs' : 'all'} · mcp:${Array.isArray(_mcp) ? _mcp.length + ' IPs' : 'all'} · agent.requireKey:${accessCfg.agent.requireKey}  (access.json — 비우면 전체 허용)`);
+    const _f = (al) => Array.isArray(al) ? al.length + ' IPs' : 'all';   // #5a-3 노출 시 표면별 접근 정책 1줄 표시
+    console.log(`[server] #5a access — ui:${_f(accessCfg.ui.allowlist)} · agent:${_f(accessCfg.agent.allowlist)}(requireKey:${accessCfg.agent.requireKey}) · mcp:${_f(accessCfg.mcp.allowlist)}  (access.json — 비우면 전체 허용)`);
   }
   if (WS_PRIMARY_ID === 'main-agent') {   // generic default — 다운스트림은 자기 환경 메인 agentId 를 WS_PRIMARY_AGENT 로 주입해야 그 세션이 main 으로 분류됨 (미설정 시 모든 비-키 에이전트가 local). 재기동 시 env 누락 주의.
     console.warn(`[server] ⚠ WS_PRIMARY_AGENT 미설정 — WS_PRIMARY_ID 가 generic default 'main-agent' 입니다. 메인 세션의 agentId 와 다르면 그 세션이 local 로 분류돼요. 기동/재기동 시 WS_PRIMARY_AGENT=<main agentId> 주입 권장 (SetMain 핸드오프로도 전환 가능).`);
