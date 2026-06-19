@@ -807,8 +807,18 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-set-desc { font-size: .74rem; color: var(--ink); margin-top: 10px; line-height: 1.5; opacity: .9; }
 .ws-set-hint { font-size: .68rem; color: var(--muted); margin-top: 6px; line-height: 1.45; }
 /* #5a-2 접근 제어 편집기 */
-.ws-acc-stat { font-size: .72rem; color: var(--muted); margin-bottom: 10px; padding: 6px 8px; border-radius: 6px; background: var(--panel2, var(--panel)); border: 1px solid var(--line); }
+.ws-acc-stat { font-size: .68rem; color: var(--muted); padding: 3px 9px; border-radius: 999px; background: var(--panel2, var(--panel)); border: 1px solid var(--line); white-space: nowrap; }
 .ws-acc-stat.exposed { color: #b54708; border-color: #f0b37e; background: #fff7ed; }
+.ws-acc-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.ws-acc-surf { margin: 9px 0; }
+.ws-acc-surf-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ws-acc-surf-lab { font-size: .76rem; color: var(--ink); font-weight: 600; }
+.ws-acc-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; flex: none; }
+.ws-acc-seg-b { padding: 4px 11px; border: 0; background: var(--panel2, var(--panel)); color: var(--muted); cursor: pointer; font: inherit; font-size: .72rem; }
+.ws-acc-seg-b + .ws-acc-seg-b { border-left: 1px solid var(--line); }
+.ws-acc-seg-b.active { background: #2ea44f; color: #fff; font-weight: 600; }
+.ws-acc-surf .ws-acc-ta { margin-top: 5px; width: 100%; box-sizing: border-box; }
+.ws-acc-warn { font-size: .72rem; color: #b54708; background: #fff7ed; border: 1px solid #f0b37e; border-radius: 6px; padding: 6px 8px; margin: 6px 0; line-height: 1.45; }
 .ws-acc-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .ws-acc-field label { font-size: .74rem; color: var(--ink); font-weight: 600; }
 .ws-acc-ta { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .76rem; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel2, var(--panel)); color: var(--ink); resize: vertical; min-height: 2.4em; }

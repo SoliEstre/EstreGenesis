@@ -2912,7 +2912,7 @@ function setupWsSettings() {
     modal = document.createElement('div'); modal.id = 'ws-settings-modal'; modal.className = 'ws-settings-modal'; modal.hidden = true;
     const box = document.createElement('div'); box.className = 'ws-settings-box';
     const head = document.createElement('div'); head.className = 'ws-settings-head';
-    const title = document.createElement('b'); title.textContent = '⚙ 실시간 창 설정';
+    const title = document.createElement('b'); title.textContent = '⚙ 설정';
     const x = document.createElement('button'); x.className = 'ws-settings-mx'; x.type = 'button'; x.textContent = '✕'; x.onclick = close;
     head.append(title, x);
     const body = document.createElement('div'); body.className = 'ws-settings-body';
@@ -2946,44 +2946,67 @@ function setupWsSettings() {
     sec.appendChild(hint);
     body.appendChild(sec);
 
-    // #5a-2 접근 제어 — LAN 노출 시 표면별 IP allowlist 편집기 (server /api/access GET·POST)
+    // #5a-3 접속 제어 — 표면별(UI/agent/MCP) 기본 차단·허용 토글 + 키 요구 (server /api/access GET·POST)
     const asec = document.createElement('div'); asec.className = 'ws-set-section';
-    const ah = document.createElement('h4'); ah.textContent = '🔒 접속 제어 (LAN 노출 시)'; asec.appendChild(ah);
-    const astat = document.createElement('div'); astat.className = 'ws-acc-stat'; astat.textContent = '상태 확인 중…'; asec.appendChild(astat);
-    function mkField(labelText) {
-      const wrap = document.createElement('div'); wrap.className = 'ws-acc-field';
-      const lab = document.createElement('label'); lab.textContent = labelText; wrap.appendChild(lab);
-      const ta = document.createElement('textarea'); ta.className = 'ws-acc-ta'; ta.rows = 2; ta.spellcheck = false; ta.placeholder = '한 줄에 IP 하나 · 비우면 전체 허용'; wrap.appendChild(ta);
-      asec.appendChild(wrap); return ta;
+    const ahd = document.createElement('div'); ahd.className = 'ws-acc-hd';
+    const ah = document.createElement('h4'); ah.textContent = '🔒 접속 제어'; ah.style.margin = '0';
+    const astat = document.createElement('span'); astat.className = 'ws-acc-stat'; astat.textContent = '확인 중…';
+    ahd.append(ah, astat); asec.appendChild(ahd);
+    const aintro = document.createElement('div'); aintro.className = 'ws-set-hint'; aintro.textContent = '다른 기기(네트워크 IP)에서 각 표면에 접근하는 기본 정책 — 비-노출(loopback) 바인드면 무동작, 로컬은 항상 통과.';
+    asec.appendChild(aintro);
+    let _exposed = false;
+    function updateWarn() {
+      const danger = _exposed && sAgent.state.mode === 'allow' && !reqCb.checked;
+      awarn.hidden = !danger;
+      if (danger) awarn.textContent = '⚠ 네트워크에 열린 상태에서 에이전트가 키 없이 누구나 합류·보드 조작할 수 있어요. ‘에이전트 기본 차단’ 또는 ‘키 요구’를 권장.';
     }
-    const uiTa = mkField('UI(브라우저 화면) 허용 IP');
-    const mcpTa = mkField('MCP(도구 연결) 허용 IP');
+    function mkSurface(key, label) {   // 라벨 + 차단/허용 세그먼트 + (차단 시) 허용 IP textarea
+      const row = document.createElement('div'); row.className = 'ws-acc-surf';
+      const top = document.createElement('div'); top.className = 'ws-acc-surf-top';
+      const lab = document.createElement('span'); lab.className = 'ws-acc-surf-lab'; lab.textContent = label;
+      const seg = document.createElement('div'); seg.className = 'ws-acc-seg';
+      const bBlock = document.createElement('button'); bBlock.type = 'button'; bBlock.className = 'ws-acc-seg-b'; bBlock.textContent = '기본 차단';
+      const bAllow = document.createElement('button'); bAllow.type = 'button'; bAllow.className = 'ws-acc-seg-b'; bAllow.textContent = '기본 허용';
+      seg.append(bBlock, bAllow); top.append(lab, seg); row.appendChild(top);
+      const ta = document.createElement('textarea'); ta.className = 'ws-acc-ta'; ta.rows = 2; ta.spellcheck = false; ta.placeholder = '허용할 IP/대역 — 한 줄에 하나 (예: 192.168.0.5 또는 192.168.0.0/24). 비우면 로컬만'; row.appendChild(ta);
+      const state = { mode: 'allow' };
+      function render() { bBlock.classList.toggle('active', state.mode === 'block'); bAllow.classList.toggle('active', state.mode === 'allow'); ta.style.display = state.mode === 'block' ? '' : 'none'; updateWarn(); }
+      bBlock.onclick = () => { state.mode = 'block'; render(); };
+      bAllow.onclick = () => { state.mode = 'allow'; render(); };
+      asec.appendChild(row);
+      return { key, state, set(al) { state.mode = Array.isArray(al) ? 'block' : 'allow'; ta.value = Array.isArray(al) ? al.join('\n') : ''; render(); }, get() { return state.mode === 'allow' ? null : ta.value.split('\n').map((s) => s.trim()).filter(Boolean); } };
+    }
+    const sUi = mkSurface('ui', '이 화면 (UI)');
+    const sAgent = mkSurface('agent', '에이전트 (A2A)');
+    const sMcp = mkSurface('mcp', '도구 연결 (MCP)');
     const reqWrap = document.createElement('label'); reqWrap.className = 'ws-acc-check';
-    const reqCb = document.createElement('input'); reqCb.type = 'checkbox';
-    reqWrap.append(reqCb, document.createTextNode(' 에이전트 합류에 키 요구 (노출 시 무키 거부)'));
+    const reqCb = document.createElement('input'); reqCb.type = 'checkbox'; reqCb.onchange = () => updateWarn();
+    reqWrap.append(reqCb, document.createTextNode(' 모르는 에이전트 막기 — /ws 합류에 키 요구'));
     asec.appendChild(reqWrap);
+    const awarn = document.createElement('div'); awarn.className = 'ws-acc-warn'; awarn.hidden = true; asec.appendChild(awarn);
     const arow = document.createElement('div'); arow.className = 'ws-acc-row';
     const asave = document.createElement('button'); asave.type = 'button'; asave.className = 'ws-acc-save'; asave.textContent = '저장';
     const amsg = document.createElement('span'); amsg.className = 'ws-acc-msg'; arow.append(asave, amsg);
     asec.appendChild(arow);
-    const adesc = document.createElement('div'); adesc.className = 'ws-set-desc'; adesc.textContent = '비우면 전체 허용 · 로컬(loopback) 접속은 항상 통과 · loopback 전용 바인드면 게이트 무동작. 저장(access.json 기록)은 이 컴퓨터(로컬)에서만 — 즉시 반영돼요.';
+    const adesc = document.createElement('div'); adesc.className = 'ws-set-desc'; adesc.textContent = '기본 허용 = 누구나 · 기본 차단 = 허용 IP/대역(CIDR) 목록만(비우면 로컬만). 저장(access.json)은 이 컴퓨터(로컬)에서만 — 즉시 반영. 실제 LAN 노출은 서버 기동 시 WS_BIND 로 따로 켜요.';
     asec.appendChild(adesc);
-    const listToLines = (al) => Array.isArray(al) ? al.join('\n') : '';
-    const linesToList = (ta) => { const v = ta.value.split('\n').map((s) => s.trim()).filter(Boolean); return v.length ? v : null; };
     wsAccessRefresh = () => {
-      astat.textContent = '상태 확인 중…'; astat.className = 'ws-acc-stat';
+      astat.textContent = '확인 중…'; astat.className = 'ws-acc-stat';
       fetch('/api/access').then((r) => r.json()).then((d) => {
-        if (!d || !d.ok) { astat.textContent = '접근 설정을 불러올 수 없어요 (서버가 #5a 미지원일 수 있음).'; return; }
-        astat.textContent = d.exposed ? `노출됨 — bind=${d.bind} · 게이트 활성` : 'loopback 전용 — 게이트 무동작 (노출 안 함)';
+        if (!d || !d.ok) { astat.textContent = '(서버 #5a 미지원)'; return; }
+        _exposed = !!d.exposed;
+        astat.textContent = d.exposed ? `🌐 네트워크 열림 (bind=${d.bind})` : '🔒 이 컴퓨터에서만';
         astat.className = 'ws-acc-stat' + (d.exposed ? ' exposed' : '');
-        uiTa.value = listToLines(d.access.ui.allowlist);
-        mcpTa.value = listToLines(d.access.mcp.allowlist);
+        sUi.set(d.access.ui && d.access.ui.allowlist);
+        sAgent.set(d.access.agent && d.access.agent.allowlist);
+        sMcp.set(d.access.mcp && d.access.mcp.allowlist);
         reqCb.checked = !!(d.access.agent && d.access.agent.requireKey);
-      }).catch(() => { astat.textContent = '접근 설정 조회 실패 (서버 미지원/네트워크).'; });
+        updateWarn();
+      }).catch(() => { astat.textContent = '(조회 실패)'; });
     };
     asave.onclick = () => {
       amsg.textContent = '저장 중…'; amsg.className = 'ws-acc-msg';
-      const payload = { ui: { allowlist: linesToList(uiTa) }, mcp: { allowlist: linesToList(mcpTa) }, agent: { requireKey: reqCb.checked } };
+      const payload = { ui: { allowlist: sUi.get() }, agent: { allowlist: sAgent.get(), requireKey: reqCb.checked }, mcp: { allowlist: sMcp.get() } };
       fetch('/api/access', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then((r) => r.json().then((d) => ({ status: r.status, d })))
         .then(({ status, d }) => {
