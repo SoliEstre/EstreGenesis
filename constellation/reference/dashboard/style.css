@@ -803,13 +803,14 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-settings-mx { background: none; border: 1px solid var(--line); color: var(--muted); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font: inherit; }
 .ws-settings-mx:hover { color: var(--ink); border-color: var(--accent); }
 .ws-settings-body { padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.ws-set-section { border: 1px solid var(--line); border-radius: 10px; padding: 12px 12px 8px; }
 .ws-set-section h4 { margin: 0 0 8px; font-size: .82rem; color: var(--ink); font-weight: 700; letter-spacing: .02em; }
 .ws-set-desc { font-size: .74rem; color: var(--ink); margin-top: 10px; line-height: 1.5; opacity: .9; }
 .ws-set-hint { font-size: .68rem; color: var(--muted); margin-top: 6px; line-height: 1.45; }
 /* #5a-2 접근 제어 편집기 */
-.ws-acc-stat { font-size: .68rem; color: var(--muted); padding: 3px 9px; border-radius: 999px; background: var(--panel2, var(--panel)); border: 1px solid var(--line); white-space: nowrap; }
+.ws-acc-stat { font-size: .68rem; color: var(--muted); padding: 3px 9px; border-radius: 999px; background: var(--panel2, var(--panel)); border: 1px solid var(--line); white-space: nowrap; margin-left: auto; }
 .ws-acc-stat.exposed { color: #b54708; border-color: #f0b37e; background: #fff7ed; }
-.ws-acc-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.ws-acc-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .ws-acc-surf { margin: 9px 0; }
 .ws-acc-surf-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ws-acc-surf-lab { font-size: .76rem; color: var(--ink); font-weight: 600; }
@@ -819,12 +820,20 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-acc-seg-b.active { background: #2ea44f; color: #fff; font-weight: 600; }
 .ws-acc-surf .ws-acc-ta { margin-top: 5px; width: 100%; box-sizing: border-box; }
 .ws-acc-warn { font-size: .72rem; color: #b54708; background: #fff7ed; border: 1px solid #f0b37e; border-radius: 6px; padding: 6px 8px; margin: 6px 0; line-height: 1.45; }
+/* #5a-4 노출 토글 + 저장-묶음 블록 분리 (블록 카드는 .ws-set-section 공통 — 창배치·접속제어 둘 다) */
+.ws-acc-tag { font-size: .64rem; color: #8250df; background: #f3effc; border: 1px solid #d8c9f0; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.ws-rt-tag { font-size: .62rem; font-weight: 500; color: #1a7f37; background: #e6f4ea; border: 1px solid #aedcbc; border-radius: 999px; padding: 1px 7px; margin-left: 8px; vertical-align: middle; }
+.ws-acc-expose { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 2px; }
+.ws-acc-surfs { transition: opacity .15s; }
+.ws-acc-surfs.ws-acc-dim { opacity: .45; }
+.ws-acc-restart { background: #bf8700; }
+.ws-acc-restart:hover { opacity: .9; }
 .ws-acc-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .ws-acc-field label { font-size: .74rem; color: var(--ink); font-weight: 600; }
 .ws-acc-ta { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .76rem; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel2, var(--panel)); color: var(--ink); resize: vertical; min-height: 2.4em; }
 .ws-acc-check { display: flex; align-items: center; gap: 6px; font-size: .74rem; color: var(--ink); margin: 4px 0 10px; cursor: pointer; }
-.ws-acc-row { display: flex; align-items: center; gap: 10px; }
-.ws-acc-save { padding: 6px 16px; border: 1px solid var(--line); border-radius: 7px; background: #2ea44f; color: #fff; cursor: pointer; font: inherit; font-size: .78rem; font-weight: 600; }
+.ws-acc-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ws-acc-save { flex: none; min-width: max-content; white-space: nowrap; padding: 6px 16px; border: 1px solid var(--line); border-radius: 7px; background: #2ea44f; color: #fff; cursor: pointer; font: inherit; font-size: .78rem; font-weight: 600; }
 .ws-acc-save:hover { opacity: .9; }
 .ws-acc-msg { font-size: .73rem; color: var(--muted); }
 .ws-acc-msg.ok { color: #1a7f37; }

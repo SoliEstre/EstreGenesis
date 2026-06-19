@@ -2918,7 +2918,9 @@ function setupWsSettings() {
     const body = document.createElement('div'); body.className = 'ws-settings-body';
     // 창 배치 preset 4종
     const sec = document.createElement('div'); sec.className = 'ws-set-section';
-    const h = document.createElement('h4'); h.textContent = '창 배치 기준'; sec.appendChild(h);
+    const h = document.createElement('h4'); h.textContent = '창 배치 기준';
+    const hrt = document.createElement('span'); hrt.className = 'ws-rt-tag'; hrt.textContent = '실시간'; h.appendChild(hrt);
+    sec.appendChild(h);
     const grid = document.createElement('div'); grid.className = 'ws-pos-grid';
     const POS_DEFS = [
       { v: 'tl', arrow: '↖', name: '좌상' },
@@ -2946,21 +2948,47 @@ function setupWsSettings() {
     sec.appendChild(hint);
     body.appendChild(sec);
 
-    // #5a-3 접속 제어 — 표면별(UI/agent/MCP) 기본 차단·허용 토글 + 키 요구 (server /api/access GET·POST)
-    const asec = document.createElement('div'); asec.className = 'ws-set-section';
+    // #5a-4 접속 제어 — 노출 토글 + 표면별 차단/허용 + 키요구 + 저장/저장및재시작.
+    //   창 배치(실시간)와 달리 '저장' 으로 적용되는 별도 블록(ws-acc-block 카드 + "저장해야 적용" 태그).
+    const asec = document.createElement('div'); asec.className = 'ws-set-section ws-acc-block';
     const ahd = document.createElement('div'); ahd.className = 'ws-acc-hd';
     const ah = document.createElement('h4'); ah.textContent = '🔒 접속 제어'; ah.style.margin = '0';
+    const atag = document.createElement('span'); atag.className = 'ws-acc-tag'; atag.textContent = '저장해야 적용';
     const astat = document.createElement('span'); astat.className = 'ws-acc-stat'; astat.textContent = '확인 중…';
-    ahd.append(ah, astat); asec.appendChild(ahd);
-    const aintro = document.createElement('div'); aintro.className = 'ws-set-hint'; aintro.textContent = '다른 기기(네트워크 IP)에서 각 표면에 접근하는 기본 정책 — 비-노출(loopback) 바인드면 무동작, 로컬은 항상 통과.';
-    asec.appendChild(aintro);
-    let _exposed = false;
+    ahd.append(ah, atag, astat); asec.appendChild(ahd);
+
+    let _exposeIntent = false;   // 대시보드에서 의도하는 노출 상태 (재시작 시 적용)
+    let _exposedNow = false;     // 서버의 현재 실제 bind 상태
+    const surfWrap = document.createElement('div'); surfWrap.className = 'ws-acc-surfs';
     function updateWarn() {
-      const danger = _exposed && sAgent.state.mode === 'allow' && !reqCb.checked;
+      const danger = _exposeIntent && sAgent && sAgent.state.mode === 'allow' && !reqCb.checked;
       awarn.hidden = !danger;
-      if (danger) awarn.textContent = '⚠ 네트워크에 열린 상태에서 에이전트가 키 없이 누구나 합류·보드 조작할 수 있어요. ‘에이전트 기본 차단’ 또는 ‘키 요구’를 권장.';
+      if (danger) awarn.textContent = '⚠ 노출 시 에이전트가 키 없이 누구나 합류·보드 조작할 수 있어요. ‘에이전트 기본 차단’ 또는 ‘키 요구’ 권장.';
     }
-    function mkSurface(key, label) {   // 라벨 + 차단/허용 세그먼트 + (차단 시) 허용 IP textarea
+    function applyExposeUi() {
+      exOff.classList.toggle('active', !_exposeIntent);
+      exOn.classList.toggle('active', _exposeIntent);
+      surfWrap.classList.toggle('ws-acc-dim', !_exposeIntent);
+      const changed = _exposeIntent !== _exposedNow;
+      exhint.textContent = !_exposeIntent
+        ? '꺼짐 — 이 컴퓨터에서만 접속. 아래 IP 정책은 노출해야 적용돼요.'
+        : (changed ? '켜기 예정 — [저장 및 재시작] 을 눌러야 실제로 LAN 에 열려요.' : 'LAN 에 열려 있어요. 아래 IP 정책이 지금 적용 중.');
+      updateWarn();
+    }
+    // 1) 네트워크 노출 마스터 (WS_BIND — 재시작으로 적용)
+    const exrow = document.createElement('div'); exrow.className = 'ws-acc-expose';
+    const exlab = document.createElement('span'); exlab.className = 'ws-acc-surf-lab'; exlab.textContent = '네트워크 노출 (다른 기기 접속)';
+    const exseg = document.createElement('div'); exseg.className = 'ws-acc-seg';
+    const exOff = document.createElement('button'); exOff.type = 'button'; exOff.className = 'ws-acc-seg-b'; exOff.textContent = '끄기';
+    const exOn = document.createElement('button'); exOn.type = 'button'; exOn.className = 'ws-acc-seg-b'; exOn.textContent = '켜기';
+    exseg.append(exOff, exOn); exrow.append(exlab, exseg); asec.appendChild(exrow);
+    const exhint = document.createElement('div'); exhint.className = 'ws-set-hint'; asec.appendChild(exhint);
+    exOff.onclick = () => { _exposeIntent = false; applyExposeUi(); };
+    exOn.onclick = () => { _exposeIntent = true; applyExposeUi(); };
+
+    // 2) 표면별 IP 정책 (노출 시 적용 — 노출 꺼지면 흐리게)
+    asec.appendChild(surfWrap);
+    function mkSurface(key, label) {
       const row = document.createElement('div'); row.className = 'ws-acc-surf';
       const top = document.createElement('div'); top.className = 'ws-acc-surf-top';
       const lab = document.createElement('span'); lab.className = 'ws-acc-surf-lab'; lab.textContent = label;
@@ -2973,7 +3001,7 @@ function setupWsSettings() {
       function render() { bBlock.classList.toggle('active', state.mode === 'block'); bAllow.classList.toggle('active', state.mode === 'allow'); ta.style.display = state.mode === 'block' ? '' : 'none'; updateWarn(); }
       bBlock.onclick = () => { state.mode = 'block'; render(); };
       bAllow.onclick = () => { state.mode = 'allow'; render(); };
-      asec.appendChild(row);
+      surfWrap.appendChild(row);
       return { key, state, set(al) { state.mode = Array.isArray(al) ? 'block' : 'allow'; ta.value = Array.isArray(al) ? al.join('\n') : ''; render(); }, get() { return state.mode === 'allow' ? null : ta.value.split('\n').map((s) => s.trim()).filter(Boolean); } };
     }
     const sUi = mkSurface('ui', '이 화면 (UI)');
@@ -2982,38 +3010,50 @@ function setupWsSettings() {
     const reqWrap = document.createElement('label'); reqWrap.className = 'ws-acc-check';
     const reqCb = document.createElement('input'); reqCb.type = 'checkbox'; reqCb.onchange = () => updateWarn();
     reqWrap.append(reqCb, document.createTextNode(' 모르는 에이전트 막기 — /ws 합류에 키 요구'));
-    asec.appendChild(reqWrap);
-    const awarn = document.createElement('div'); awarn.className = 'ws-acc-warn'; awarn.hidden = true; asec.appendChild(awarn);
+    surfWrap.appendChild(reqWrap);
+    const awarn = document.createElement('div'); awarn.className = 'ws-acc-warn'; awarn.hidden = true; surfWrap.appendChild(awarn);
+
+    // 3) 버튼 — 저장(allowlist 즉시 hot-reload) · 저장 및 재시작(노출 변경 적용)
     const arow = document.createElement('div'); arow.className = 'ws-acc-row';
     const asave = document.createElement('button'); asave.type = 'button'; asave.className = 'ws-acc-save'; asave.textContent = '저장';
-    const amsg = document.createElement('span'); amsg.className = 'ws-acc-msg'; arow.append(asave, amsg);
+    const arestart = document.createElement('button'); arestart.type = 'button'; arestart.className = 'ws-acc-save ws-acc-restart'; arestart.textContent = '저장 및 재시작';
+    const amsg = document.createElement('span'); amsg.className = 'ws-acc-msg'; arow.append(asave, arestart, amsg);
     asec.appendChild(arow);
-    const adesc = document.createElement('div'); adesc.className = 'ws-set-desc'; adesc.textContent = '기본 허용 = 누구나 · 기본 차단 = 허용 IP/대역(CIDR) 목록만(비우면 로컬만). 저장(access.json)은 이 컴퓨터(로컬)에서만 — 즉시 반영. 실제 LAN 노출은 서버 기동 시 WS_BIND 로 따로 켜요.';
+    const adesc = document.createElement('div'); adesc.className = 'ws-set-desc'; adesc.textContent = '기본 허용 = 누구나 · 기본 차단 = 허용 IP/대역(CIDR)만(비우면 로컬만). IP 정책은 [저장] 시 즉시 반영, 노출 켜기/끄기는 [저장 및 재시작] 으로 적용(서버 재기동). 저장은 이 컴퓨터(로컬)에서만.';
     asec.appendChild(adesc);
+
+    function buildPayload() { return { expose: _exposeIntent, ui: { allowlist: sUi.get() }, agent: { allowlist: sAgent.get(), requireKey: reqCb.checked }, mcp: { allowlist: sMcp.get() } }; }
+    function postAccess() { return fetch('/api/access', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildPayload()) }).then((r) => r.json().then((d) => ({ status: r.status, d }))); }
     wsAccessRefresh = () => {
       astat.textContent = '확인 중…'; astat.className = 'ws-acc-stat';
       fetch('/api/access').then((r) => r.json()).then((d) => {
         if (!d || !d.ok) { astat.textContent = '(서버 #5a 미지원)'; return; }
-        _exposed = !!d.exposed;
-        astat.textContent = d.exposed ? `🌐 네트워크 열림 (bind=${d.bind})` : '🔒 이 컴퓨터에서만';
+        _exposedNow = !!d.exposed; _exposeIntent = !!(d.access && d.access.expose);
+        astat.textContent = d.exposed ? `🌐 열림 (bind=${d.bind})` : '🔒 이 컴퓨터에서만';
         astat.className = 'ws-acc-stat' + (d.exposed ? ' exposed' : '');
         sUi.set(d.access.ui && d.access.ui.allowlist);
         sAgent.set(d.access.agent && d.access.agent.allowlist);
         sMcp.set(d.access.mcp && d.access.mcp.allowlist);
         reqCb.checked = !!(d.access.agent && d.access.agent.requireKey);
-        updateWarn();
+        applyExposeUi();
       }).catch(() => { astat.textContent = '(조회 실패)'; });
     };
     asave.onclick = () => {
       amsg.textContent = '저장 중…'; amsg.className = 'ws-acc-msg';
-      const payload = { ui: { allowlist: sUi.get() }, agent: { allowlist: sAgent.get(), requireKey: reqCb.checked }, mcp: { allowlist: sMcp.get() } };
-      fetch('/api/access', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-        .then((r) => r.json().then((d) => ({ status: r.status, d })))
-        .then(({ status, d }) => {
-          if (status === 200 && d.ok) { amsg.textContent = '✓ 저장됨'; amsg.className = 'ws-acc-msg ok'; if (wsAccessRefresh) wsAccessRefresh(); }
-          else if (status === 403) { amsg.textContent = '✗ 로컬에서만 저장 가능 (이 화면은 원격 접속)'; amsg.className = 'ws-acc-msg err'; }
-          else { amsg.textContent = '✗ 저장 실패: ' + ((d && d.error) || status); amsg.className = 'ws-acc-msg err'; }
-        }).catch(() => { amsg.textContent = '✗ 저장 실패 (네트워크)'; amsg.className = 'ws-acc-msg err'; });
+      postAccess().then(({ status, d }) => {
+        if (status === 200 && d.ok) { amsg.textContent = (_exposeIntent !== _exposedNow) ? '✓ 저장됨 — 노출 변경은 [저장 및 재시작] 필요' : '✓ 저장됨'; amsg.className = 'ws-acc-msg ok'; if (wsAccessRefresh) wsAccessRefresh(); }
+        else if (status === 403) { amsg.textContent = '✗ 로컬에서만 저장 가능 (이 화면은 원격 접속)'; amsg.className = 'ws-acc-msg err'; }
+        else { amsg.textContent = '✗ 저장 실패: ' + ((d && d.error) || status); amsg.className = 'ws-acc-msg err'; }
+      }).catch(() => { amsg.textContent = '✗ 저장 실패 (네트워크)'; amsg.className = 'ws-acc-msg err'; });
+    };
+    arestart.onclick = () => {
+      if (!window.confirm('저장하고 보드 서버를 재시작할까요? 잠시(수 초) 연결이 끊겼다 자동 복구돼요.')) return;
+      amsg.textContent = '저장 중…'; amsg.className = 'ws-acc-msg';
+      postAccess().then(({ status, d }) => {
+        if (status !== 200 || !d.ok) { amsg.textContent = status === 403 ? '✗ 로컬에서만 가능' : ('✗ 저장 실패: ' + ((d && d.error) || status)); amsg.className = 'ws-acc-msg err'; return; }
+        amsg.textContent = '재시작 중… 잠시 후 자동 새로고침'; amsg.className = 'ws-acc-msg';
+        fetch('/api/restart', { method: 'POST' }).catch(() => {}).finally(() => { setTimeout(() => location.reload(), 5000); });
+      }).catch(() => { amsg.textContent = '✗ 저장 실패 (네트워크)'; amsg.className = 'ws-acc-msg err'; });
     };
     body.appendChild(asec);
 
