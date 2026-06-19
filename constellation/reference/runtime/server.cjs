@@ -20,6 +20,41 @@ const ATT_DIR = path.join(DIR, 'feedback-atts');   // 첨부 data-URL 추출 보
 const PORT = Number(process.env.PORT) || 7878;
 const MAX_BODY = 32 * 1024 * 1024;                  // 첨부(이미지 등) 허용 위해 상향
 
+// v2.4.11 secure-by-default 바인드 (상세 주석은 listen 부). #5a access-gating 이 노출 판정을 모듈 로드시 쓰므로 상단 정의.
+const WS_BIND = process.env.WS_BIND || '127.0.0.1';
+const _isLoopback = WS_BIND === '127.0.0.1' || WS_BIND === '::1' || WS_BIND === 'localhost';
+
+// ── #5a 표면별 접근 제어 (Constellation §13.25) ──────────────────────────────────────────
+// access.json (server 옆, gitignore) = { ui:{allowlist}, mcp:{allowlist}, agent:{requireKey} }.
+//   - allowlist: null/미배열 = 전체 허용(기본). 배열이면 그 IP 들만 통과. loopback 은 항상 통과.
+//   - 비-노출(loopback bind) 환경에선 게이트 전체 무동작 (로컬 전용이라 의미 없음).
+//   - agent.requireKey: true 면 노출 환경에서 무키/무효키 /ws 연결 거부 (v2.4.11 무인증 board 벡터 차단). 기본 false=현행.
+// 순수 가산: 운영자가 access.json 을 채우기 전엔 동작 무변화. (UI=HTTP 표면 · agent/MCP=WS 표면, MCP 는 HELLO capabilities 로 식별.)
+const ACCESS = process.env.ACCESS_FILE || path.join(DIR, 'access.json');
+const _accessDefault = () => ({ ui: { allowlist: null }, mcp: { allowlist: null }, agent: { requireKey: false } });
+let accessCfg = _accessDefault();
+function loadAccess() {
+  try {
+    const j = JSON.parse(fs.readFileSync(ACCESS, 'utf8'));
+    accessCfg = {
+      ui: { allowlist: Array.isArray(j && j.ui && j.ui.allowlist) ? j.ui.allowlist.map(String) : null },
+      mcp: { allowlist: Array.isArray(j && j.mcp && j.mcp.allowlist) ? j.mcp.allowlist.map(String) : null },
+      agent: { requireKey: !!(j && j.agent && j.agent.requireKey) },
+    };
+  } catch { accessCfg = _accessDefault(); }   // 파일 부재/파손 = 기본 전체 허용 (fail-open: 보안 게이트는 명시 opt-in)
+}
+loadAccess();
+try { fs.watchFile(ACCESS, { interval: 1000 }, () => loadAccess()); } catch {}   // 라이브 갱신 (재시작 불요)
+function normIp(ip) { return ip ? String(ip).replace(/^::ffff:/, '') : ''; }   // IPv4-mapped IPv6 prefix 제거
+function isLoopbackIp(ip) { ip = normIp(ip); return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || ip.startsWith('127.'); }
+function surfaceAllowed(surface, ip) {
+  if (_isLoopback) return true;                       // 비-노출 = 게이트 무동작
+  if (isLoopbackIp(ip)) return true;                  // 로컬은 항상 통과
+  const al = accessCfg[surface] && accessCfg[surface].allowlist;
+  if (!Array.isArray(al)) return true;                // null = 전체 허용(기본)
+  return al.includes(normIp(ip));
+}
+
 const EXT_BY_MIME = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/svg+xml': '.svg', 'application/pdf': '.pdf', 'text/plain': '.txt', 'application/json': '.json' };
 function attExt(mime, name) {
   const fromName = name && /\.[a-z0-9]{1,8}$/i.test(name) ? name.slice(name.lastIndexOf('.')) : '';
@@ -86,6 +121,36 @@ function sendJson(res, code, obj) {
 
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
+
+  // #5a UI 표면 IP allowlist — 대시보드·state·events·feedback·정적. /join·연동문서는 키-게이트 agent-facing 이라 제외.
+  if (!(url.startsWith('/join/') || INTEGRATION_DOCS[url])) {
+    if (!surfaceAllowed('ui', req.socket.remoteAddress)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('403 — UI 접근 거부: 이 IP 는 ui allowlist 에 없어요. (로컬에서 access.json 의 ui.allowlist 에 추가하거나, 비워서 전체 허용)');
+      return;
+    }
+  }
+
+  if (url === '/api/access') {   // #5a 접근 제어 설정 — GET=조회(UI 게이트 통과분) · POST=loopback 전용(운영자 로컬 관리)
+    if (req.method === 'GET') return sendJson(res, 200, { ok: true, access: accessCfg, exposed: !_isLoopback, bind: WS_BIND });
+    if (req.method === 'POST') {
+      if (!isLoopbackIp(req.socket.remoteAddress)) return sendJson(res, 403, { ok: false, error: 'access.json 변경은 로컬(loopback)에서만 가능해요.' });
+      let body = '';
+      req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
+      req.on('end', () => {
+        let next; try { next = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); }
+        const clean = {
+          ui: { allowlist: Array.isArray(next && next.ui && next.ui.allowlist) ? next.ui.allowlist.map(String) : null },
+          mcp: { allowlist: Array.isArray(next && next.mcp && next.mcp.allowlist) ? next.mcp.allowlist.map(String) : null },
+          agent: { requireKey: !!(next && next.agent && next.agent.requireKey) },
+        };
+        try { fs.writeFileSync(ACCESS, JSON.stringify(clean, null, 2) + '\n'); loadAccess(); sendJson(res, 200, { ok: true, access: accessCfg }); }
+        catch (e) { sendJson(res, 500, { ok: false, error: String(e) }); }
+      });
+      return;
+    }
+    res.writeHead(405); res.end('405'); return;
+  }
 
   if (url === '/api/state') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
@@ -682,6 +747,11 @@ function wsDeadlockScan() {
 if (WS_DEADLOCK_DETECT) { setInterval(wsDeadlockScan, Math.min(WS_DEADLOCK_PROBE_MS, 30000)).unref(); console.log(`[server] WS_DEADLOCK_DETECT on — board-adapter strict 2-cycle detector (probe ≥${WS_DEADLOCK_PROBE_MS}ms, §13.19.10 Q3 opt-in; quasi-deadlock 은 에이전트측 SLA 규율 담당)`); }
 server.on('upgrade', (req, socket) => {
   if (req.url.split('?')[0] !== '/ws') { socket.destroy(); return; }
+  // #5a 노출 환경 무키/무효키 거부 (agent.requireKey opt-in) — v2.4.11 무인증 board 벡터 차단. 로컬/비-노출은 면제.
+  if (accessCfg.agent.requireKey && !_isLoopback && !isLoopbackIp(req.socket.remoteAddress)) {
+    let _k = null; try { const u = new URL(req.url, 'http://x').searchParams; _k = u.get('key') || u.get('upstreamKey') || u.get('collabKey'); } catch {}
+    if (!wsValidKey(_k)) { console.warn('[ws upgrade] #5a 무키/무효키 거부 ip=%s', req.socket.remoteAddress || '?'); socket.destroy(); return; }
+  }
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
   try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('upstreamKey') || u.get('collabKey'); const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
@@ -707,6 +777,11 @@ server.on('upgrade', (req, socket) => {
       conn.meta.agentName = msg.agentName || conn.meta.agentId;
       { const k = msg.key || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } }   // #168 HELLO 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
       conn.meta.roleHint = msg.role || '';                       // local/upstream 힌트(최종 판정은 키·main)
+      // #5a MCP 표면 IP allowlist — mcp-proxy capability 로 식별 (MCP 서버 HELLO 는 capabilities:['a2a','mcp-proxy','ack-layer'] 동반).
+      if (Array.isArray(msg.capabilities) && msg.capabilities.includes('mcp-proxy') && !surfaceAllowed('mcp', conn.remoteAddr)) {
+        console.warn('[ws HELLO] #5a MCP 거부 (mcp allowlist 밖) ip=%s agent=%s', conn.remoteAddr || '?', conn.meta.agentId);
+        try { conn.close(); } catch {} return;
+      }
       console.log('[ws HELLO]%s agent=%s ip=%s ua=%s upstreamKey=%s → role=%s', _hadId ? '' : ' [ANON]', conn.meta.agentId, conn.remoteAddr || '?', (conn.ua || '').slice(0, 50) || '-', msg.upstreamKey ? String(msg.upstreamKey).slice(0, 14) + '…' : '(none)', wsAgentRole(conn));   // role 전환 audit + 출처(ip/ua)
       if (!_hadId) { console.log('[ws HELLO][ANON] 익명 HELLO 등록 거부(AgentList/relay/탭 제외) raw=%s', JSON.stringify(msg).slice(0, 240)); return; }   // 익명(agentId 누락) = 보드 탭 미생성·relay 제외, 출처 로깅만
       const prev = wsAgents.get(conn.meta.agentId);
@@ -796,13 +871,14 @@ server.on('upgrade', (req, socket) => {
 // v2.4.11 보안: 기본 바인드 = loopback(127.0.0.1). board(대시보드) 연결은 인증 없이 키 발급·SetMain 을
 // 할 수 있는 trusted-operator 전제라, 네트워크 노출은 명시 opt-in 이어야 함 (secure-by-default).
 // LAN/원격 노출이 필요하면 WS_BIND=0.0.0.0 (또는 특정 인터페이스 IP) 를 명시 주입 + 그땐 token 게이트 권장.
-const WS_BIND = process.env.WS_BIND || '127.0.0.1';
-const _isLoopback = WS_BIND === '127.0.0.1' || WS_BIND === '::1' || WS_BIND === 'localhost';
+// (WS_BIND/_isLoopback 정의는 상단 config 블록으로 이동 — #5a access-gating 이 모듈 로드시 노출 판정을 사용.)
 server.listen(PORT, WS_BIND, () => {
   console.log(`Constellation live dashboard → http://localhost:${PORT}/  (state: ${STATE})  [WS: /ws]  [bind: ${WS_BIND}]`);
   console.log(`[server] WS_PRIMARY_ID=${WS_PRIMARY_ID}  (메인 role 로 분류될 agentId — WS_PRIMARY_AGENT env 로 주입)`);
   if (!_isLoopback) {   // v2.4.11 — 비-loopback 바인드는 무인증 board 표면(키관리·SetMain)을 네트워크에 노출. 운영자 인지 필수.
     console.warn(`[server] ⚠⚠ WS_BIND=${WS_BIND} (비-loopback) — board 연결은 무인증이라 같은 네트워크의 누구나 키 발급/조회/SetMain 이 가능합니다. 신뢰 네트워크에서만 사용하거나 reverse-proxy + 인증을 앞단에 두세요. (기본값은 127.0.0.1 — 노출은 의도적 opt-in.)`);
+    const _ui = accessCfg.ui.allowlist, _mcp = accessCfg.mcp.allowlist;   // #5a 노출 시 접근 정책 1줄 표시
+    console.log(`[server] #5a access — ui:${Array.isArray(_ui) ? _ui.length + ' IPs' : 'all'} · mcp:${Array.isArray(_mcp) ? _mcp.length + ' IPs' : 'all'} · agent.requireKey:${accessCfg.agent.requireKey}  (access.json — 비우면 전체 허용)`);
   }
   if (WS_PRIMARY_ID === 'main-agent') {   // generic default — 다운스트림은 자기 환경 메인 agentId 를 WS_PRIMARY_AGENT 로 주입해야 그 세션이 main 으로 분류됨 (미설정 시 모든 비-키 에이전트가 local). 재기동 시 env 누락 주의.
     console.warn(`[server] ⚠ WS_PRIMARY_AGENT 미설정 — WS_PRIMARY_ID 가 generic default 'main-agent' 입니다. 메인 세션의 agentId 와 다르면 그 세션이 local 로 분류돼요. 기동/재기동 시 WS_PRIMARY_AGENT=<main agentId> 주입 권장 (SetMain 핸드오프로도 전환 가능).`);

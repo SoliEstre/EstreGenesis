@@ -17,6 +17,8 @@ key.json
 ws-keys.json
 local-keys/
 *.key
+# #5a 표면별 접근 제어 설정 (server.cjs 가 /api/access POST 로 작성; 배포별 IP allowlist → 커밋 금지)
+access.json
 
 # Constellation reference runtime — operational JSONL streams (inbox / outbox / etc.)
 # Written by the running runtime when it acts as the local bridge for an interactive
