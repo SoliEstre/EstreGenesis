@@ -2903,6 +2903,7 @@ function wsPrompt(message, initialValue, opts) {
 
 // ---- 실시간 창 설정 모달 (창 배치 등) ----
 let wsSettings = null;
+let wsAccessRefresh = null;   // #5a-2 접근 제어 섹션 GET 갱신 (설정 모달 open 시 호출)
 function setupWsSettings() {
   const btn = $('#ws-settings-btn'); if (!btn) return;
   let modal = null;
@@ -2944,6 +2945,55 @@ function setupWsSettings() {
     const hint = document.createElement('div'); hint.className = 'ws-set-hint'; hint.textContent = '창을 드래그하면 그 위치가 새 거리로 자동 저장. 기본 거리로 되돌리려면 위 옵션 중 하나를 다시 클릭.';
     sec.appendChild(hint);
     body.appendChild(sec);
+
+    // #5a-2 접근 제어 — LAN 노출 시 표면별 IP allowlist 편집기 (server /api/access GET·POST)
+    const asec = document.createElement('div'); asec.className = 'ws-set-section';
+    const ah = document.createElement('h4'); ah.textContent = '🔒 접속 제어 (LAN 노출 시)'; asec.appendChild(ah);
+    const astat = document.createElement('div'); astat.className = 'ws-acc-stat'; astat.textContent = '상태 확인 중…'; asec.appendChild(astat);
+    function mkField(labelText) {
+      const wrap = document.createElement('div'); wrap.className = 'ws-acc-field';
+      const lab = document.createElement('label'); lab.textContent = labelText; wrap.appendChild(lab);
+      const ta = document.createElement('textarea'); ta.className = 'ws-acc-ta'; ta.rows = 2; ta.spellcheck = false; ta.placeholder = '한 줄에 IP 하나 · 비우면 전체 허용'; wrap.appendChild(ta);
+      asec.appendChild(wrap); return ta;
+    }
+    const uiTa = mkField('UI(브라우저 화면) 허용 IP');
+    const mcpTa = mkField('MCP(도구 연결) 허용 IP');
+    const reqWrap = document.createElement('label'); reqWrap.className = 'ws-acc-check';
+    const reqCb = document.createElement('input'); reqCb.type = 'checkbox';
+    reqWrap.append(reqCb, document.createTextNode(' 에이전트 합류에 키 요구 (노출 시 무키 거부)'));
+    asec.appendChild(reqWrap);
+    const arow = document.createElement('div'); arow.className = 'ws-acc-row';
+    const asave = document.createElement('button'); asave.type = 'button'; asave.className = 'ws-acc-save'; asave.textContent = '저장';
+    const amsg = document.createElement('span'); amsg.className = 'ws-acc-msg'; arow.append(asave, amsg);
+    asec.appendChild(arow);
+    const adesc = document.createElement('div'); adesc.className = 'ws-set-desc'; adesc.textContent = '비우면 전체 허용 · 로컬(loopback) 접속은 항상 통과 · loopback 전용 바인드면 게이트 무동작. 저장(access.json 기록)은 이 컴퓨터(로컬)에서만 — 즉시 반영돼요.';
+    asec.appendChild(adesc);
+    const listToLines = (al) => Array.isArray(al) ? al.join('\n') : '';
+    const linesToList = (ta) => { const v = ta.value.split('\n').map((s) => s.trim()).filter(Boolean); return v.length ? v : null; };
+    wsAccessRefresh = () => {
+      astat.textContent = '상태 확인 중…'; astat.className = 'ws-acc-stat';
+      fetch('/api/access').then((r) => r.json()).then((d) => {
+        if (!d || !d.ok) { astat.textContent = '접근 설정을 불러올 수 없어요 (서버가 #5a 미지원일 수 있음).'; return; }
+        astat.textContent = d.exposed ? `노출됨 — bind=${d.bind} · 게이트 활성` : 'loopback 전용 — 게이트 무동작 (노출 안 함)';
+        astat.className = 'ws-acc-stat' + (d.exposed ? ' exposed' : '');
+        uiTa.value = listToLines(d.access.ui.allowlist);
+        mcpTa.value = listToLines(d.access.mcp.allowlist);
+        reqCb.checked = !!(d.access.agent && d.access.agent.requireKey);
+      }).catch(() => { astat.textContent = '접근 설정 조회 실패 (서버 미지원/네트워크).'; });
+    };
+    asave.onclick = () => {
+      amsg.textContent = '저장 중…'; amsg.className = 'ws-acc-msg';
+      const payload = { ui: { allowlist: linesToList(uiTa) }, mcp: { allowlist: linesToList(mcpTa) }, agent: { requireKey: reqCb.checked } };
+      fetch('/api/access', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then((r) => r.json().then((d) => ({ status: r.status, d })))
+        .then(({ status, d }) => {
+          if (status === 200 && d.ok) { amsg.textContent = '✓ 저장됨'; amsg.className = 'ws-acc-msg ok'; if (wsAccessRefresh) wsAccessRefresh(); }
+          else if (status === 403) { amsg.textContent = '✗ 로컬에서만 저장 가능 (이 화면은 원격 접속)'; amsg.className = 'ws-acc-msg err'; }
+          else { amsg.textContent = '✗ 저장 실패: ' + ((d && d.error) || status); amsg.className = 'ws-acc-msg err'; }
+        }).catch(() => { amsg.textContent = '✗ 저장 실패 (네트워크)'; amsg.className = 'ws-acc-msg err'; });
+    };
+    body.appendChild(asec);
+
     box.append(head, body); modal.appendChild(box);
     modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
     document.body.appendChild(modal);
@@ -2954,6 +3004,7 @@ function setupWsSettings() {
     // re-sync active 상태 (외부에서 변경됐을 수도)
     const cur = wsLoadPositionPref();
     modal.querySelectorAll('.ws-pos-card').forEach((el) => el.classList.toggle('active', el.dataset.pos === cur));
+    if (wsAccessRefresh) wsAccessRefresh();   // #5a-2 접근 제어 현재값 로드
   }
   function close() { if (modal) modal.hidden = true; }
   btn.onclick = (e) => { e.stopPropagation(); open(); };
