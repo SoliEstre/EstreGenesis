@@ -1,7 +1,32 @@
 {
   "generated": "compendium/lint.cjs --reindex",
-  "count": 7,
+  "count": 26,
   "entries": [
+    {
+      "id": "a2a-intent-family",
+      "title": "A2A Intent Family",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#13169-message-classification-by-intent-board-directed-vs-a2a-intent",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "ack-tier",
+        "pre-send-probe",
+        "xss-boundary"
+      ],
+      "definition": "The classification of agent-to-agent CUSTOM messages by named intent (Report, Delegate, BlockerManifest, ULTRASAFE_*, etc.) on an allowlist, splitting board-directed from a2a-intent so the dashboard + watcher treat each correctly. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "named-intent allowlist (4-group classification) — board-directed vs a2a-intent; drives card render + meaningful-inbound filter"
+        },
+        {
+          "register": "plain",
+          "text": "messages between agents are tagged by what they're for, so the board and the watcher know how to handle each kind"
+        }
+      ]
+    },
     {
       "id": "ack-tier",
       "title": "Ack Tier",
@@ -43,6 +68,76 @@
         {
           "register": "plain",
           "text": "keep one idea per note and connect notes by links, instead of burying ideas inside big documents"
+        }
+      ]
+    },
+    {
+      "id": "blocker-tracking",
+      "title": "Blocker Tracking",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#1320-blocker-tracking--periodic-nudge-discipline--making-waiting-on-external-work-observable-and-time-bounded",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "deadlock-resolution"
+      ],
+      "definition": "The discipline of making 'waiting on external work' observable and time-bounded — a blocker manifest data structure + a periodic BlockerNudge cadence + a 4-tier nudge escalation (polite → explicit → deadline → human). See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "blocker manifest + BlockerNudge every N rearm cycles + 4-tier nudge escalation; waiting becomes observable, not silent"
+        },
+        {
+          "register": "plain",
+          "text": "when work is stuck waiting on someone else, the system keeps it visible and pings on a schedule instead of quietly stalling"
+        }
+      ]
+    },
+    {
+      "id": "board-worker",
+      "title": "Board Worker",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#13233-board-worker-is-a-projected-role-not-a-wire-role",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "collab-key",
+        "blocker-tracking"
+      ],
+      "definition": "A projected dashboard role (not a wire role) for an agent dedicated to maintaining the live board — derived from the backends.json registry, shown as its own tab group. The board worker mutates state.json on the main's delegation. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "projected (not wire) role from backends.json; a delegated agent that maintains the live board state.json"
+        },
+        {
+          "register": "plain",
+          "text": "an agent whose job is to keep the live status board updated, shown as its own group on the dashboard"
+        }
+      ]
+    },
+    {
+      "id": "collab-key",
+      "title": "Collab Key (ck-)",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#131611-key-management-unification--kind-enum-ssot-v251",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "board-worker"
+      ],
+      "definition": "A KEY-MGMT key of kind 'collab' (prefix ck-) admitting a peer agent to a board's collab channel — one of the kind enum (upstream/collab/local) governing join role + onboarding. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "kind='collab' key (ck- prefix) in the KEY-MGMT 5-state machine; gates peer collab-channel join"
+        },
+        {
+          "register": "plain",
+          "text": "a key that lets a partner agent join the shared board as a peer collaborator"
         }
       ]
     },
@@ -114,6 +209,30 @@
       ]
     },
     {
+      "id": "deadlock-resolution",
+      "title": "Deadlock Resolution",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#1319-deadlock-resolution--formal-spec-prevention--detection--auto-resolution--escalation-layered-above-1313",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "blocker-tracking",
+        "ack-tier"
+      ],
+      "definition": "Constellation's layered handling of agents stuck waiting on each other — prevention, DFS wait-edge detection (2-agent sufficient), auto-resolution, and a 4-tier escalation ladder ending at the human via the decisions panel. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "wait-edge DFS detection + auto-resolution + 4-tier escalation, layered above the §13.13 ack layer"
+        },
+        {
+          "register": "plain",
+          "text": "when two agents are each waiting on the other and nothing moves, the system detects it and breaks the standoff (or asks a person)"
+        }
+      ]
+    },
+    {
       "id": "decision-to-schedule-seam",
       "title": "How Hyperbrief Gates Superscalar Retire",
       "type": "concept",
@@ -127,6 +246,270 @@
         {
           "register": "plain",
           "text": "the linking relationship where the decision-delegation module must pass an item before the work-cleanup module can retire it"
+        }
+      ]
+    },
+    {
+      "id": "deterministic-hook",
+      "title": "Deterministic Hook",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Greatpractice.md#4-hook-mechanism--deterministic-enforcement",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "tier-hierarchy",
+        "maturation-gate",
+        "phronesis-boundary"
+      ],
+      "definition": "Greatpractice's enforcement mechanism — a deterministic if-then hook fired on lifecycle events, with tiered strictness (1st bold / 2nd revert-block / 3rd discuss). Hook block messages must themselves pass the voice lint. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "7-event if-then hook DSL with tiered BRD escalation; the hook's own block message is voice-linted"
+        },
+        {
+          "register": "plain",
+          "text": "an automatic rule-checker that nudges, then blocks, then asks for discussion when a practice is violated"
+        }
+      ]
+    },
+    {
+      "id": "divergence-reconvergence",
+      "title": "Divergence–Reconvergence",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Superscalar.md#15-topology--divergence-reconvergence-and-the-four-patterns",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "issue-width",
+        "speculation-gate"
+      ],
+      "definition": "The fan-out/fan-in topology of parallel sub-agent work — tasks diverge to run independently then reconverge at a barrier where results are merged. One of the four dispatch patterns. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "fan-out → independent execution → reconvergence barrier (merge); one of the four §1.5 patterns"
+        },
+        {
+          "register": "plain",
+          "text": "split work to run in parallel, then bring the results back together at a meeting point"
+        }
+      ]
+    },
+    {
+      "id": "four-score-escalation",
+      "title": "4-Score Escalation",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Hyperbrief.md#21-escalation-4-score-each-indicator-0-3",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "nine-section-ir",
+        "tone-tier"
+      ],
+      "definition": "Hyperbrief's invocation trigger — four indicators each scored 0–3; total ≥4 (or any MUST-trigger condition) means the decision warrants a full brief rather than a silent agent call. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "4 indicators × 0–3; sum ≥4 OR a MUST-trigger → full Hyperbrief brief (else proceed/recommend)"
+        },
+        {
+          "register": "plain",
+          "text": "a quick four-part score that decides whether a choice is big enough to write up for a person instead of just deciding it"
+        }
+      ]
+    },
+    {
+      "id": "issue-width",
+      "title": "Issue Width",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Superscalar.md#1-concept-mapping",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "divergence-reconvergence",
+        "speculation-gate"
+      ],
+      "definition": "Borrowed from CPU superscalar design — how many sub-agent tasks are dispatched in parallel per cycle. The scheduling discipline tunes issue width against the cost-benefit gate rather than maximizing it blindly. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "parallel dispatch degree per cycle (CPU-superscalar metaphor); bounded by the cost-benefit gate, not maximized"
+        },
+        {
+          "register": "plain",
+          "text": "how many tasks are run at the same time — chosen deliberately, not just as many as possible"
+        }
+      ]
+    },
+    {
+      "id": "maturation-gate",
+      "title": "Maturation Gate",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Greatpractice.md#5-maturation-gate--raw--draft--ratified",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "tier-hierarchy",
+        "retire-axis"
+      ],
+      "definition": "The raw→draft→ratified promotion gate for a practice, scored on a 5-axis multi-criteria maturity_score (cross-ref §5.1). A practice is enforced only once it clears the gate. See owner_spec for the axes.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "raw→draft→ratified state machine; 5-axis maturity_score + notability gate decide promotion to enforced"
+        },
+        {
+          "register": "plain",
+          "text": "a new practice has to prove itself across a few checks before the system starts enforcing it"
+        }
+      ]
+    },
+    {
+      "id": "nine-section-ir",
+      "title": "9-Section IR",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Hyperbrief.md#1-concept--what-hyperbrief-actually-is",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "tone-tier",
+        "four-score-escalation"
+      ],
+      "definition": "Hyperbrief's intermediate representation for a delegated decision — a structured 9-section JSON brief (header, why, consequences, options, …) that a deterministic renderer turns into the surfaced decision card. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "9-section JSON IR (header/why/consequences/options/…) → deterministic renderer → decision card"
+        },
+        {
+          "register": "plain",
+          "text": "a fixed-shape form a decision is written into, so it always renders into a consistent choice card"
+        }
+      ]
+    },
+    {
+      "id": "phronesis-boundary",
+      "title": "Phronesis Boundary",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Greatpractice.md#53-phronesis-codify-boundary--the-region-not-to-codify",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "maturation-gate"
+      ],
+      "definition": "The region Greatpractice deliberately does NOT codify — context-dependent practical judgment (phronesis) that resists being frozen into a rule. The boundary keeps the mandatory tier minimal. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "the codify/​don't-codify line — situated judgment (phronesis) is left to the agent, not frozen into an enforced rule"
+        },
+        {
+          "register": "plain",
+          "text": "some things are judgment calls that change with the situation, so the system on purpose does not turn them into fixed rules"
+        }
+      ]
+    },
+    {
+      "id": "pre-send-probe",
+      "title": "Pre-send Probe",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#13166-watcher-liveness-probe-discipline",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "a2a-intent-family",
+        "ack-tier"
+      ],
+      "definition": "The read-before-write discipline: before every outbound emit (and at every turn-close) probe the inbox from the last-surfaced cursor for meaningful inbound, then incorporate-or-abort. Constellation A2A has no in-flight rejection, so stale-context sends silently drift. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "cursor-tail probe before each emit + cycle-end rearm — at-most-once relay has no in-flight reject, so read-before-write prevents stale-context drift"
+        },
+        {
+          "register": "plain",
+          "text": "always check for new incoming messages right before sending, so you don't reply based on outdated information"
+        }
+      ]
+    },
+    {
+      "id": "readiness-rubric",
+      "title": "Readiness Rubric (two-lens GA)",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Hyperbrief.md#115-v10-readiness-rubric--two-evaluation-lenses-v055-dogfood-entry-04-reflection-v060-self-application--methodology--lenses--anchor-slots",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "four-score-escalation",
+        "tone-tier"
+      ],
+      "definition": "Hyperbrief's v1.0 (general-availability) readiness rubric — two evaluation lenses (methodology + self-application) with anchor slots, used to judge whether a module is ready to declare GA rather than guessing. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "two-lens GA rubric (methodology + self-application lenses, anchor slots) for v1.0 readiness judgment"
+        },
+        {
+          "register": "plain",
+          "text": "a checklist seen from two angles that decides whether a module is truly ready for its 1.0 release"
+        }
+      ]
+    },
+    {
+      "id": "retire-axis",
+      "title": "Retire Axis",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Greatpractice.md#77-retire-axis--active--probation--retired-3-state-state-machine-v030",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "maturation-gate",
+        "superseded-by"
+      ],
+      "definition": "A practice's lifecycle state machine — active → probation → retired — the eviction-first-class counterpart to maturation: a codified practice that stops earning its keep is demoted, not silently kept. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "active/probation/retired 3-state machine; eviction discipline mirroring the maturation gate (pruning is first-class)"
+        },
+        {
+          "register": "plain",
+          "text": "a practice can be marked active, on probation, or retired — so stale rules get demoted instead of lingering forever"
+        }
+      ]
+    },
+    {
+      "id": "speculation-gate",
+      "title": "Speculation Gate",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Superscalar.md#speculation-is-speculative-divergence",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "issue-width",
+        "divergence-reconvergence"
+      ],
+      "definition": "The opt-in, andon-bound gate for speculative execution — dispatching work before its precondition is confirmed. Off by default (per the workspace serial + speculation-off policy); enabled only when the cost-benefit gate clears. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "speculative divergence = run-before-confirmed; opt-in + andon-bound, default off, cost-benefit-gated"
+        },
+        {
+          "register": "plain",
+          "text": "starting work before you're sure it's needed — only turned on deliberately, with a quick stop-cord if it's wasteful"
         }
       ]
     },
@@ -148,6 +531,77 @@
         {
           "register": "plain",
           "text": "instead of deleting an outdated term, mark it replaced and point to the new one, so old links still resolve"
+        }
+      ]
+    },
+    {
+      "id": "tier-hierarchy",
+      "title": "Tier Hierarchy (macro/mezzo/micro)",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Greatpractice.md#2-tier-hierarchy--macro--mezzo--micro",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "maturation-gate",
+        "deterministic-hook"
+      ],
+      "definition": "Greatpractice's lazy 3-tier working set — macro (broad doctrine), mezzo (concrete practice), micro (atomic rule) — each tier with its own frontmatter density and edit policy. See owner_spec for the per-tier responsibility split.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "macro/mezzo/micro lazy hierarchy — tier sets frontmatter density + edit_policy; instantiate only the tier a practice actually needs"
+        },
+        {
+          "register": "plain",
+          "text": "practices are written at three zoom levels — big-picture, concrete how-to, and single rule — and you only create the level you need"
+        }
+      ]
+    },
+    {
+      "id": "tone-tier",
+      "title": "Tone Tier (L a.b.c)",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Hyperbrief.md#56-audience-tuned-rendering--audience_profile-3-axis--5-level",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "nine-section-ir",
+        "readiness-rubric"
+      ],
+      "definition": "Hyperbrief's audience-tuned rendering coordinate — a 3-axis (domain-familiarity, abbreviation, jargon-density), 5-level profile written L`a`.`b`.`c`. e.g. L2.2.2 is the plain register the live board uses for content. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "audience_profile = 3-axis × 5-level, notated L a.b.c; sets abbreviation + jargon density of rendered text"
+        },
+        {
+          "register": "plain",
+          "text": "a setting for how plain or technical the wording is, on three sliders — e.g. the board writes at a friendly level"
+        }
+      ]
+    },
+    {
+      "id": "xss-boundary",
+      "title": "XSS Boundary (esc)",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#131612-dashboard-render-patterns--interaction-date-line-attachment-connection-upstream-visibility",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "a2a-intent-family"
+      ],
+      "definition": "The dashboard render discipline that all agent-supplied content is escaped (esc()) post-escape before insertion — attachments via sandboxed iframe, mermaid via textContent — so untrusted A2A/board content cannot execute as script. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "esc()-only render boundary + sandboxed-iframe attachments + textContent mermaid; untrusted content never parsed as live HTML"
+        },
+        {
+          "register": "plain",
+          "text": "everything other agents send is treated as plain text when shown, so it can't run hidden code in the dashboard"
         }
       ]
     }
