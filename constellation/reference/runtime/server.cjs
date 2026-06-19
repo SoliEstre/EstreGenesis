@@ -20,31 +20,33 @@ const ATT_DIR = path.join(DIR, 'feedback-atts');   // 첨부 data-URL 추출 보
 const PORT = Number(process.env.PORT) || 7878;
 const MAX_BODY = 32 * 1024 * 1024;                  // 첨부(이미지 등) 허용 위해 상향
 
-// v2.4.11 secure-by-default 바인드 (상세 주석은 listen 부). #5a access-gating 이 노출 판정을 모듈 로드시 쓰므로 상단 정의.
-const WS_BIND = process.env.WS_BIND || '127.0.0.1';
-const _isLoopback = WS_BIND === '127.0.0.1' || WS_BIND === '::1' || WS_BIND === 'localhost';
-
-// ── #5a 표면별 접근 제어 (Constellation §13.25) ──────────────────────────────────────────
-// access.json (server 옆, gitignore) = { ui:{allowlist}, mcp:{allowlist}, agent:{requireKey} }.
-//   - allowlist: null/미배열 = 전체 허용(기본). 배열이면 그 IP 들만 통과. loopback 은 항상 통과.
-//   - 비-노출(loopback bind) 환경에선 게이트 전체 무동작 (로컬 전용이라 의미 없음).
-//   - agent.requireKey: true 면 노출 환경에서 무키/무효키 /ws 연결 거부 (v2.4.11 무인증 board 벡터 차단). 기본 false=현행.
-// 순수 가산: 운영자가 access.json 을 채우기 전엔 동작 무변화. (UI=HTTP 표면 · agent/MCP=WS 표면, MCP 는 HELLO capabilities 로 식별.)
+// ── #5a 표면별 접근 제어 + 노출 (Constellation §13.25) ─────────────────────────────────────
+// access.json (server 옆, gitignore) = { expose:bool, ui:{allowlist}, agent:{allowlist,requireKey}, mcp:{allowlist} }.
+//   - allowlist: null/미배열 = 전체 허용(기본). 배열이면 그 IP/CIDR 만 통과. loopback 은 항상 통과.
+//   - 비-노출(loopback bind) 환경에선 IP 게이트 전체 무동작 (로컬 전용이라 의미 없음).
+//   - agent.requireKey: true 면 노출 환경에서 무키/무효키 /ws 연결 거부 (v2.4.11 무인증 board 벡터 차단). 기본 false.
+//   - expose (#5a-4): true 면 WS_BIND 미지정 시 0.0.0.0(LAN 노출) 로 bind. WS_BIND env 가 있으면 그게 우선. 변경은 /api/restart 로 적용(bind-time).
+// 순수 가산: access.json 부재 시 동작 무변화(loopback + 전체 허용). (UI=HTTP 표면 · agent/MCP=WS 표면, MCP 는 HELLO capabilities 로 식별.)
 const ACCESS = process.env.ACCESS_FILE || path.join(DIR, 'access.json');
-const _accessDefault = () => ({ ui: { allowlist: null }, agent: { allowlist: null, requireKey: false }, mcp: { allowlist: null } });
+const _accessDefault = () => ({ expose: false, ui: { allowlist: null }, agent: { allowlist: null, requireKey: false }, mcp: { allowlist: null } });
 let accessCfg = _accessDefault();
 function loadAccess() {
   try {
     const j = JSON.parse(fs.readFileSync(ACCESS, 'utf8'));
     accessCfg = {
+      expose: !!(j && j.expose),
       ui: { allowlist: Array.isArray(j && j.ui && j.ui.allowlist) ? j.ui.allowlist.map(String) : null },
       agent: { allowlist: Array.isArray(j && j.agent && j.agent.allowlist) ? j.agent.allowlist.map(String) : null, requireKey: !!(j && j.agent && j.agent.requireKey) },
       mcp: { allowlist: Array.isArray(j && j.mcp && j.mcp.allowlist) ? j.mcp.allowlist.map(String) : null },
     };
-  } catch { accessCfg = _accessDefault(); }   // 파일 부재/파손 = 기본 전체 허용 (fail-open: 보안 게이트는 명시 opt-in)
+  } catch { accessCfg = _accessDefault(); }   // 파일 부재/파손 = 기본(비노출 + 전체 허용) (fail-open: 보안 게이트는 명시 opt-in)
 }
 loadAccess();
-try { fs.watchFile(ACCESS, { interval: 1000 }, () => loadAccess()); } catch {}   // 라이브 갱신 (재시작 불요)
+try { fs.watchFile(ACCESS, { interval: 1000 }, () => loadAccess()); } catch {}   // allowlist/requireKey hot-reload (expose 변경은 /api/restart 로 bind 재적용)
+
+// v2.4.11 secure-by-default 바인드. WS_BIND env 우선, 없으면 access.json 의 expose 로 결정 (#5a-4 — 그래서 access block 뒤에 정의).
+const WS_BIND = process.env.WS_BIND || (accessCfg.expose ? '0.0.0.0' : '127.0.0.1');
+const _isLoopback = WS_BIND === '127.0.0.1' || WS_BIND === '::1' || WS_BIND === 'localhost';
 function normIp(ip) { return ip ? String(ip).replace(/^::ffff:/, '') : ''; }   // IPv4-mapped IPv6 prefix 제거
 function isLoopbackIp(ip) { ip = normIp(ip); return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || ip.startsWith('127.'); }
 function ip4ToInt(s) { const p = String(s).split('.'); if (p.length !== 4) return null; let n = 0; for (const x of p) { if (!/^\d{1,3}$/.test(x)) return null; const v = Number(x); if (v > 255) return null; n = (n * 256) + v; } return n >>> 0; }
@@ -154,6 +156,7 @@ const server = http.createServer((req, res) => {
       req.on('end', () => {
         let next; try { next = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); }
         const clean = {
+          expose: !!(next && next.expose),
           ui: { allowlist: Array.isArray(next && next.ui && next.ui.allowlist) ? next.ui.allowlist.map(String) : null },
           agent: { allowlist: Array.isArray(next && next.agent && next.agent.allowlist) ? next.agent.allowlist.map(String) : null, requireKey: !!(next && next.agent && next.agent.requireKey) },
           mcp: { allowlist: Array.isArray(next && next.mcp && next.mcp.allowlist) ? next.mcp.allowlist.map(String) : null },
@@ -164,6 +167,23 @@ const server = http.createServer((req, res) => {
       return;
     }
     res.writeHead(405); res.end('405'); return;
+  }
+
+  if (url === '/api/restart' && req.method === 'POST') {   // #5a-4 self-restart — 저장한 expose(bind) 적용. loopback 전용.
+    if (!isLoopbackIp(req.socket.remoteAddress)) return sendJson(res, 403, { ok: false, error: '재시작은 로컬(loopback)에서만 가능해요.' });
+    sendJson(res, 200, { ok: true, restarting: true });
+    console.log('[server] #5a-4 /api/restart — restart-self-board.ps1 스폰 후 self-exit (새 서버가 access.json expose 로 bind)');
+    try {
+      const ps = path.join(DIR, 'restart-self-board.ps1');
+      if (fs.existsSync(ps) && process.platform === 'win32') {
+        // Windows 완전 분리: cmd /c start (detached spawn 단독은 부모 self-exit 시 child 가 안 살아남음 — 실측 확인). start "" /min 로 독립 프로세스.
+        const _ch = require('child_process').spawn('cmd.exe', ['/c', 'start', '', '/min', 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps], { detached: true, stdio: 'ignore', windowsHide: true });
+        _ch.on('error', (e) => console.warn('[server] restart spawn error:', e.message));
+        _ch.unref();
+      } else { console.warn('[server] restart-self-board.ps1 부재 또는 비-Windows — 자동 재시작 불가, 수동 재기동 필요'); }
+    } catch (e) { console.warn('[server] restart spawn 실패:', e.message); }
+    setTimeout(() => process.exit(0), 700);
+    return;
   }
 
   if (url === '/api/state') {
