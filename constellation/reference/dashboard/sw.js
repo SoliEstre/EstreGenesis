@@ -25,6 +25,17 @@ self.addEventListener('fetch', (e) => {
     }).catch(() => caches.match(e.request).then((m) => m || caches.match('/index.html')))
   );
 });
+// #3b tier-2 Web Push — push 이벤트(탭/SW 만 살아있으면 탭 닫혀도 도달): tickle 수신 → /api/push/latest 본문 fetch → showNotification.
+//  RFC8291 페이로드 암호화 회피(서버 deps-0) 방식이라 push 데이터는 비어있고, 본문은 latest 엔드포인트에서 당겨와요.
+self.addEventListener('push', (e) => {
+  e.waitUntil(
+    fetch('/api/push/latest', { cache: 'no-store' }).then((r) => r.json()).then((d) => {
+      const title = (d && d.title) || 'Constellation';
+      const body = ((d && d.body) || '').slice(0, 180);
+      return self.registration.showNotification(title, { body, icon: '/icon-192.png', badge: '/icon-192.png', tag: 'constellation-push', renotify: true });
+    }).catch(() => self.registration.showNotification('Constellation', { body: '새 활동이 있어요', icon: '/icon-192.png', tag: 'constellation-push' }))
+  );
+});
 // 알림 클릭 → 기존 창 포커스(없으면 새 창). tier1/tier2 공통.
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();

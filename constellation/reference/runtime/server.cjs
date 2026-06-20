@@ -11,6 +11,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const push = require('./push.cjs');                 // #3b webpush (tier-2) — deps-0 VAPID tickle
 
 const DIR = __dirname;
 const PUBLIC = path.join(DIR, 'public');
@@ -19,6 +20,7 @@ const FEEDBACK = path.join(DIR, 'feedback.jsonl');
 const ATT_DIR = path.join(DIR, 'feedback-atts');   // 첨부 data-URL 추출 보관 (gitignore)
 const PORT = Number(process.env.PORT) || 7878;
 const MAX_BODY = 32 * 1024 * 1024;                  // 첨부(이미지 등) 허용 위해 상향
+push.init(DIR, { subject: 'mailto:admin@constellation.local' });   // #3b VAPID 키쌍 로드/생성(.vapid.json) + 구독 로드(.push-subs.json)
 
 // ── #5a 표면별 접근 제어 + 노출 (Constellation §13.25) ─────────────────────────────────────
 // access.json (server 옆, gitignore) = { expose:bool, ui:{allowlist}, agent:{allowlist,requireKey}, mcp:{allowlist} }.
@@ -217,6 +219,22 @@ const server = http.createServer((req, res) => {
         sendJson(res, 200, { ok: true });
       } catch (e) { sendJson(res, 500, { ok: false, error: String(e) }); }
     });
+    return;
+  }
+
+  // ── #3b Web Push (tier-2) — VAPID tickle 구독/발송 엔드포인트 (deps-0, push.cjs). UI 표면이라 #5a ui allowlist 게이트 적용. ──
+  if (url === '/api/push/vapid-public-key') { return sendJson(res, 200, { key: push.publicKey() }); }
+  if (url === '/api/push/latest') { return sendJson(res, 200, push.latest()); }
+  if (url === '/api/push/subscribe' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
+    req.on('end', () => { let sub; try { sub = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); } sendJson(res, 200, push.subscribe(sub)); });
+    return;
+  }
+  if (url === '/api/push/unsubscribe' && req.method === 'POST') {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
+    req.on('end', () => { let b; try { b = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); } sendJson(res, 200, push.unsubscribe(b && b.endpoint)); });
     return;
   }
 
@@ -881,6 +899,7 @@ server.on('upgrade', (req, socket) => {
       }
       wsToBoards(msg);                                           // 모니터링: 항상 board 로 broadcast (A2A 도 대시보드가 관찰)
       wsRecord(msg);                                             // 대화 기록 영속
+      try { push.maybePush(msg); } catch {}                      // #3b webpush — 의미있는 A2A(noise 제외)면 구독자에게 tickle (탭 닫혀도 도달)
       return;
     }
     // 오케스트레이션 (board/사용자발 SetMain·RegisterUpstreamKey 등)

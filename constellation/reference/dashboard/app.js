@@ -472,7 +472,7 @@ function clearedIfReviewed(d, draft, isFocused) {
 }
 // ---- tier-1 알림 (#3a — 설정 + 항목별 토글; 연결중 showNotification) ----
 const WS_NOTIF_KEY = 'constellation-notif-prefs';
-let wsNotifPrefs = (() => { const d = { master: false, decision: true, a2a: true, abort: true }; try { return Object.assign(d, JSON.parse(localStorage.getItem(WS_NOTIF_KEY) || '{}')); } catch { return d; } })();
+let wsNotifPrefs = (() => { const d = { master: false, decision: true, a2a: true, abort: true, background: false }; try { return Object.assign(d, JSON.parse(localStorage.getItem(WS_NOTIF_KEY) || '{}')); } catch { return d; } })();
 let wsNotifSeenDec = null;   // null=미초기화(첫 렌더 알림 억제 — 기존 검토요청에 안 울림)
 function wsSaveNotifPrefs() { try { localStorage.setItem(WS_NOTIF_KEY, JSON.stringify(wsNotifPrefs)); } catch {} }
 function wsNotify(kind, title, body) {
@@ -486,12 +486,44 @@ function wsNotifHint() {
   if (!wsNotifPrefs.master) { h.textContent = '알림 꺼짐'; return; }
   h.textContent = Notification.permission === 'granted' ? '✓ 알림 켜짐' : (Notification.permission === 'denied' ? '브라우저에서 차단됨 (사이트 설정에서 허용)' : '권한 대기 중');
 }
+// ---- tier-2 백그라운드 알림 (#3b — Web Push; 탭 닫혀도 도달. VAPID tickle 구독 → SW push 핸들러가 showNotification) ----
+function wsB64ToU8(b64url) {
+  const pad = '='.repeat((4 - (b64url.length % 4)) % 4);
+  const b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(b64), arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+async function wsPushSubscribe() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('이 브라우저는 Web Push 미지원');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const r = await fetch('/api/push/vapid-public-key'); const j = await r.json();
+    if (!j || !j.key) throw new Error('VAPID 공개키 응답 없음');
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: wsB64ToU8(j.key) });
+  }
+  await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub) });
+  return sub;
+}
+async function wsPushUnsubscribe() {
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (sub) { try { await fetch('/api/push/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) }); } catch {} try { await sub.unsubscribe(); } catch {} }
+}
+async function wsPushHint() {
+  const h = $('#notif-bg-hint'); if (!h) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) { h.textContent = '이 브라우저는 백그라운드 알림 미지원'; return; }
+  try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); h.textContent = sub ? '✓ 구독됨 — 탭 닫아도 도달' : '구독 안 됨'; } catch { h.textContent = ''; }
+}
 function setupWsNotif() {
   const btn = $('#ws-notif-btn'), panel = $('#ws-notif-panel');
-  const cbs = { master: $('#notif-master'), decision: $('#notif-decision'), a2a: $('#notif-a2a'), abort: $('#notif-abort') };
+  const cbs = { master: $('#notif-master'), decision: $('#notif-decision'), a2a: $('#notif-a2a'), abort: $('#notif-abort'), background: $('#notif-background') };
   if (!btn || !panel) return;
   for (const k in cbs) if (cbs[k]) cbs[k].checked = !!wsNotifPrefs[k];
   wsNotifHint();
+  wsPushHint();
   btn.onclick = (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) wsNotifHint(); };
   document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('.ws-notif-wrap')) panel.hidden = true; });
   if (cbs.master) cbs.master.onchange = () => {
@@ -500,6 +532,19 @@ function setupWsNotif() {
     else wsNotifHint();
   };
   for (const k of ['decision', 'a2a', 'abort']) if (cbs[k]) cbs[k].onchange = () => { wsNotifPrefs[k] = cbs[k].checked; wsSaveNotifPrefs(); };
+  if (cbs.background) cbs.background.onchange = async () => {
+    if (cbs.background.checked) {
+      try {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') await Notification.requestPermission();
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') { cbs.background.checked = false; wsNotifPrefs.background = false; wsSaveNotifPrefs(); const h = $('#notif-bg-hint'); if (h) h.textContent = '권한 필요 — 먼저 알림 허용'; return; }
+        await wsPushSubscribe(); wsNotifPrefs.background = true; wsSaveNotifPrefs();
+      } catch (e) { cbs.background.checked = false; wsNotifPrefs.background = false; wsSaveNotifPrefs(); const h = $('#notif-bg-hint'); if (h) h.textContent = '구독 실패: ' + ((e && e.message) || e); return; }
+    } else {
+      try { await wsPushUnsubscribe(); } catch {}
+      wsNotifPrefs.background = false; wsSaveNotifPrefs();
+    }
+    wsPushHint();
+  };
 }
 
 function renderDecisions() {

@@ -8,6 +8,9 @@ constellation/reference/runtime/.*-bridge.lock
 # join-local / watchdog / 기타 client 가 동일 패턴으로 lock 파일 생성.
 constellation/reference/runtime/.*.pid
 constellation/reference/runtime/scripts/.*.pid
+# v2.4.43 (#3b webpush) — push.cjs 가 생성하는 VAPID 개인키 + 구독 저장 (배포별 런타임, 절대 추적 금지).
+constellation/reference/runtime/.vapid.json
+constellation/reference/runtime/.push-subs.json
 
 # Constellation runtime credential files — server-keys hazard: NEVER commit.
 # server.cjs writes key.json (KEY-MGMT 5-state store) + local-keys/<label>.key

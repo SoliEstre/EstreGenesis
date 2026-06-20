@@ -447,6 +447,8 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-notif-master { border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 2px; }
 .ws-notif-subs { display: flex; flex-direction: column; gap: 3px; padding-left: 6px; }
 .ws-notif-hint { font-size: .66rem; color: var(--muted); padding: 4px 4px 0; }
+.ws-notif-bg { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 6px; }
+.ws-notif-bgtag { font-size: .58rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; line-height: 1.5; }
 /* 그룹 멤버 체크박스 필터 (C — 병합뷰 표시 멤버 선택) */
 .ws-chan-filter .ws-cf-lab { font-size: .66rem; color: var(--muted); align-self: center; padding: 0 2px 0 4px; }
 .ws-chan-filter .ws-cf-chk { font-size: .68rem; }
