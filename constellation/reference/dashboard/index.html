@@ -54,6 +54,24 @@
 .wiki-xlink:hover { text-decoration: underline; }
 .wiki-flash { animation: wikiFlash 1.2s ease; }
 @keyframes wikiFlash { 0%, 100% { box-shadow: var(--shadow); } 30% { box-shadow: 0 0 0 2px var(--accent); } }
+/* §8/§11 cross-link side panel (click-to-define) — non-modal complementary landmark; bottom-sheet on mobile */
+.wiki-xlink { cursor: pointer; border-bottom: 1px dotted color-mix(in srgb, var(--accent) 45%, transparent); }
+.wiki-aside { position: fixed; top: calc(var(--topbar-h, 56px) + 16px); right: 18px; width: min(340px, 92vw); max-height: 72vh; overflow: auto; background: var(--panel); border: 1px solid var(--accent); border-radius: 13px; box-shadow: 0 12px 34px rgba(0,0,0,.45); z-index: 60; opacity: 0; transform: translateY(6px); transition: opacity .15s ease, transform .15s ease; }
+.wiki-aside.open { opacity: 1; transform: translateY(0); }
+.wiki-aside[hidden] { display: none; }
+.wiki-aside-bar { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 13px; background: var(--panel); border-bottom: 1px solid var(--line); border-radius: 13px 13px 0 0; }
+.wiki-aside-eyebrow { font-size: .72rem; font-weight: 700; color: var(--muted); }
+.wiki-aside-close { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; width: 27px; height: 27px; cursor: pointer; font-size: .82rem; line-height: 1; }
+.wiki-aside-close:hover { border-color: var(--accent); }
+.wiki-aside-body { padding: 12px 14px 15px; }
+.wiki-aside-title { font-size: 1rem; margin: 0 0 7px; color: var(--ink); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.wiki-aside-jump { display: inline-block; margin-top: 10px; font-size: .77rem; color: var(--accent); text-decoration: none; }
+.wiki-aside-jump:hover { text-decoration: underline; }
+@media (max-width: 560px) {
+  .wiki-aside { top: auto; right: 0; bottom: calc(54px + env(safe-area-inset-bottom, 0px)); left: 0; width: auto; max-height: 58vh; border: 1px solid var(--line); border-bottom: 0; border-radius: 16px 16px 0 0; box-shadow: 0 -8px 28px rgba(0,0,0,.42); transform: translateY(120%); }
+  .wiki-aside.open { transform: translateY(0); }
+  .wiki-aside-bar { border-radius: 16px 16px 0 0; }
+}
 </style>
 </head>
 <body>
@@ -131,6 +149,10 @@
         </div>
       </div>
       <div id="wiki-body" class="wiki-body" aria-live="polite"></div>
+      <aside id="wiki-aside" class="wiki-aside" hidden role="complementary" aria-label="용어 풀이" tabindex="-1">
+        <div class="wiki-aside-bar"><span class="wiki-aside-eyebrow">📖 용어 풀이</span><button type="button" class="wiki-aside-close" id="wiki-aside-close" aria-label="용어 풀이 닫기">✕</button></div>
+        <div class="wiki-aside-body" id="wiki-aside-body"></div>
+      </aside>
     </section>
   </main>
 

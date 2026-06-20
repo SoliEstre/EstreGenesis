@@ -1059,17 +1059,64 @@ $('#home-btn-dec').onclick = () => {
 };
 
 // ---- Compendium wiki tab (v0.2-d) — static /compendium.json export, dual-register + click-to-define cross-links ----
+// v0.2 polish (§8/§11): cross-link side panel = non-modal complementary landmark. A cross-link click opens the
+//   term's gloss in an aside (peek without losing reading position) instead of only jumping. §8.2 a11y: glosses can
+//   contain cross-links → dialog/disclosure semantics (aria-haspopup="dialog", never role=tooltip); focus moves into
+//   the panel on open, Escape closes + restores focus to the trigger; mobile (≤560px) renders as a bottom-sheet.
 let wikiData = null, wikiReg = localStorage.getItem('eg-wiki-reg') || 'plain', wikiQuery = '';
+let wikiById = {}, wikiAsideTrigger = null;
 function wikiSpecUrl(sp) {
   if (!sp) return null;
   const h = sp.indexOf('#'); const f = h < 0 ? sp : sp.slice(0, h), s = h < 0 ? '' : sp.slice(h + 1);
   return 'https://github.com/SoliEstre/EstreGenesis/blob/main/' + f + (s ? '#' + s : '');
 }
+// cross-link anchors — §8.2 dialog semantics (the gloss they open may itself contain cross-links).
+function wikiXlinksHTML(e, byId) {
+  return (e.links || []).filter((id) => byId[id]).map((id) =>
+    '<a class="wiki-xlink" href="#wiki-' + esc(id) + '" data-wiki-def="' + esc(id) + '" aria-haspopup="dialog" aria-controls="wiki-aside" aria-expanded="false">' + esc(byId[id].title || id) + '</a>').join('');
+}
+function wikiGlossText(e) { const g = (e.glosses || []).find((x) => x.register === wikiReg); return g ? g.text : (e.definition || ''); }
+function wikiEntryMetaHTML(e, byId) {
+  const reg = e.register_class === 'internal' ? '<span class="wiki-tag int">내부어</span>' : '<span class="wiki-tag gen">일반어</span>';
+  const st = e.status && e.status !== 'active' ? ' <span class="wiki-tag sup">' + esc(e.status) + '</span>' : '';
+  const sp = wikiSpecUrl(e.owner_spec);
+  const ptr = sp
+    ? '<a class="wiki-ptr" href="' + esc(wsSafeUrl(sp)) + '" target="_blank" rel="noopener">정의 원본 → ' + esc(e.owner_spec) + '</a>'
+    : '<span class="wiki-ptr gen">일반어 — Compendium 이 정의 소유</span>';
+  const xl = wikiXlinksHTML(e, byId);
+  return { reg, st, ptr, xl };
+}
+// §11 cross-link side panel — open a term's gloss in the non-modal aside (chainable; focus moves into the panel).
+function wikiOpenAside(id, trigger) {
+  const e = wikiById[id]; if (!e) return;
+  const aside = $('#wiki-aside'), body = $('#wiki-aside-body'); if (!aside || !body) return;
+  if (wikiAsideTrigger && wikiAsideTrigger !== trigger) wikiAsideTrigger.setAttribute('aria-expanded', 'false');
+  if (trigger) wikiAsideTrigger = trigger;
+  const m = wikiEntryMetaHTML(e, wikiById);
+  body.innerHTML = '<h3 class="wiki-aside-title">' + esc(e.title || e.id) + m.reg + m.st + '</h3>'
+    + '<p class="wiki-def">' + esc(wikiGlossText(e)) + '</p>'
+    + '<div class="wiki-meta">' + m.ptr + (m.xl ? '<span class="wiki-rel">관련: ' + m.xl + '</span>' : '') + '</div>'
+    + '<a class="wiki-aside-jump" href="#wiki-' + esc(e.id) + '" data-wiki-jump="' + esc(e.id) + '">전체 항목으로 →</a>';
+  aside.hidden = false; aside.classList.add('open');
+  if (trigger) trigger.setAttribute('aria-expanded', 'true');
+  body.querySelectorAll('[data-wiki-def]').forEach((a) => { a.onclick = (ev) => { ev.preventDefault(); wikiOpenAside(a.dataset.wikiDef, a); }; });
+  body.querySelectorAll('[data-wiki-jump]').forEach((a) => { a.onclick = (ev) => { ev.preventDefault(); wikiCloseAside(true); wikiJumpTo(a.dataset.wikiJump); }; });
+  const cl = $('#wiki-aside-close'); if (cl) cl.focus();
+}
+function wikiCloseAside(skipFocus) {
+  const aside = $('#wiki-aside'); if (!aside || aside.hidden) return;
+  aside.classList.remove('open'); aside.hidden = true;
+  if (wikiAsideTrigger) { wikiAsideTrigger.setAttribute('aria-expanded', 'false'); if (!skipFocus) { try { wikiAsideTrigger.focus(); } catch {} } wikiAsideTrigger = null; }
+}
+function wikiJumpTo(id) {
+  const t = document.getElementById('wiki-' + id);
+  if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.classList.add('wiki-flash'); setTimeout(() => t.classList.remove('wiki-flash'), 1200); }
+}
 function renderWiki() {
   const body = $('#wiki-body'); if (!body || !wikiData) return;
   const q = wikiQuery.trim().toLowerCase();
   const all = wikiData.entries || [];
-  const byId = Object.fromEntries(all.map((e) => [e.id, e]));
+  const byId = Object.fromEntries(all.map((e) => [e.id, e])); wikiById = byId;
   const list = all.filter((e) => !q || (e.id + ' ' + (e.title || '') + ' ' + (e.definition || '')).toLowerCase().includes(q));
   body.innerHTML = list.map((e) => {
     const gloss = (e.glosses || []).find((g) => g.register === wikiReg);
@@ -1080,27 +1127,25 @@ function renderWiki() {
     const ptr = sp
       ? '<a class="wiki-ptr" href="' + esc(wsSafeUrl(sp)) + '" target="_blank" rel="noopener">정의 원본 → ' + esc(e.owner_spec) + '</a>'
       : '<span class="wiki-ptr gen">일반어 — Compendium 이 정의 소유</span>';
-    const xlinks = (e.links || []).filter((id) => byId[id]).map((id) => '<a class="wiki-xlink" href="#wiki-' + esc(id) + '" data-wiki-jump="' + esc(id) + '">' + esc(byId[id].title || id) + '</a>').join('');
+    const xlinks = wikiXlinksHTML(e, byId);
     return '<article class="wiki-entry" id="wiki-' + esc(e.id) + '">'
       + '<h3 class="wiki-e-title">' + esc(e.title || e.id) + reg + st + '</h3>'
       + '<p class="wiki-def">' + esc(text) + '</p>'
       + '<div class="wiki-meta">' + ptr + (xlinks ? '<span class="wiki-rel">관련: ' + xlinks + '</span>' : '') + '</div>'
       + '</article>';
   }).join('') || '<div class="empty">검색 결과 없음.</div>';
-  // click-to-define: cross-link jump highlights the target entry (§8.1 — anchors over the escaped DOM, never raw HTML)
-  body.querySelectorAll('[data-wiki-jump]').forEach((a) => { a.onclick = (ev) => {
-    ev.preventDefault();
-    const t = document.getElementById('wiki-' + a.dataset.wikiJump);
-    if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.classList.add('wiki-flash'); setTimeout(() => t.classList.remove('wiki-flash'), 1200); }
-  }; });
+  // §8/§11 click-to-define: a cross-link opens the term's gloss in the non-modal side panel (§8.1 — anchors over the escaped DOM, never raw HTML)
+  body.querySelectorAll('[data-wiki-def]').forEach((a) => { a.onclick = (ev) => { ev.preventDefault(); wikiOpenAside(a.dataset.wikiDef, a); }; });
 }
 function setupWiki() {
   document.querySelectorAll('.wiki-reg-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.reg === wikiReg);
     b.onclick = () => { wikiReg = b.dataset.reg; localStorage.setItem('eg-wiki-reg', wikiReg);
-      document.querySelectorAll('.wiki-reg-btn').forEach((x) => x.classList.toggle('active', x.dataset.reg === wikiReg)); renderWiki(); };
+      document.querySelectorAll('.wiki-reg-btn').forEach((x) => x.classList.toggle('active', x.dataset.reg === wikiReg)); wikiCloseAside(true); renderWiki(); };
   });
-  const s = $('#wiki-search'); if (s) s.oninput = () => { wikiQuery = s.value; renderWiki(); };
+  const s = $('#wiki-search'); if (s) s.oninput = () => { wikiQuery = s.value; wikiCloseAside(true); renderWiki(); };
+  const cl = $('#wiki-aside-close'); if (cl) cl.onclick = () => wikiCloseAside();
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { const a = $('#wiki-aside'); if (a && !a.hidden) { ev.stopPropagation(); wikiCloseAside(); } } });
   fetch('compendium.json', { cache: 'no-store' }).then((r) => r.json()).then((d) => {
     wikiData = d; const cnt = $('#wiki-count'); if (cnt) cnt.textContent = (d.count || (d.entries || []).length) + ' terms'; renderWiki();
   }).catch((e) => { const body = $('#wiki-body'); if (body) body.innerHTML = '<div class="empty">Compendium 데이터 로드 실패 (' + esc(String(e && e.message || e)) + ').</div>'; });
