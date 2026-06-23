@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # 9-Section IR
 
 위임 결정을 담는 Hyperbrief 의 9-섹션 JSON 중간표현. 전체 정의는 owner_spec (`Hyperbrief.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[tone-tier]] · [[four-score-escalation]]  
+**정의 원본 / Source:** [Hyperbrief.md#1-concept--what-hyperbrief-actually-is](../../Hyperbrief.md#1-concept--what-hyperbrief-actually-is)
+<!-- compendium:obsidian:end -->

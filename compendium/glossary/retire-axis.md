@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Retire Axis
 
 관행의 active→probation→retired 수명 상태기계(eviction 일급). 전체 정의는 owner_spec (`Greatpractice.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[maturation-gate]] · [[superseded-by]]  
+**정의 원본 / Source:** [Greatpractice.md#77-retire-axis--active--probation--retired-3-state-state-machine-v030](../../Greatpractice.md#77-retire-axis--active--probation--retired-3-state-state-machine-v030)
+<!-- compendium:obsidian:end -->

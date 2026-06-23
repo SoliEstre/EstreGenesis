@@ -21,3 +21,7 @@ audit: { created: 2026-06-15, updated: 2026-06-15, last_reviewed: 2026-06-15 }
 ---
 
 A general-register concept owned by no module spec. The entry/page model of this store is atomic: one concept per file, an immutable `id` as the link anchor, and outbound `links` mirrored in frontmatter so backlinks can be computed rather than hand-maintained.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[computed-moc]]
+<!-- compendium:obsidian:end -->

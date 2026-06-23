@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Board Worker
 
 라이브 보드 유지 전담의 투영(projected) 역할. 전체 정의는 owner_spec (`Constellation.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[collab-key]] · [[blocker-tracking]]  
+**정의 원본 / Source:** [Constellation.md#13233-board-worker-is-a-projected-role-not-a-wire-role](../../Constellation.md#13233-board-worker-is-a-projected-role-not-a-wire-role)
+<!-- compendium:obsidian:end -->

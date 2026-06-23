@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Pre-send Probe
 
 발신·턴종료 전 인박스를 커서부터 probe 해 stale-context 발신을 막는 규율. 전체 정의는 owner_spec (`Constellation.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[a2a-intent-family]] · [[ack-tier]]  
+**정의 원본 / Source:** [Constellation.md#13166-watcher-liveness-probe-discipline](../../Constellation.md#13166-watcher-liveness-probe-discipline)
+<!-- compendium:obsidian:end -->

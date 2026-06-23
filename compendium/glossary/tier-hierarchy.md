@@ -25,3 +25,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Tier Hierarchy (macro/mezzo/micro)
 
 Greatpractice 의 3-tier 작업 집합. 전체 정의·근거는 owner_spec (`Greatpractice.md`) 가 SSoT — 본 항목은 방향 제시용 한 줄 글로스 + 포인터.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[maturation-gate]] · [[deterministic-hook]]  
+**정의 원본 / Source:** [Greatpractice.md#2-tier-hierarchy--macro--mezzo--micro](../../Greatpractice.md#2-tier-hierarchy--macro--mezzo--micro)
+<!-- compendium:obsidian:end -->

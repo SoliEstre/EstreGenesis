@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Phronesis Boundary
 
 Greatpractice 가 의도적으로 코드화하지 않는 영역(상황 의존 실천지). 전체 정의는 owner_spec (`Greatpractice.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[maturation-gate]]  
+**정의 원본 / Source:** [Greatpractice.md#53-phronesis-codify-boundary--the-region-not-to-codify](../../Greatpractice.md#53-phronesis-codify-boundary--the-region-not-to-codify)
+<!-- compendium:obsidian:end -->

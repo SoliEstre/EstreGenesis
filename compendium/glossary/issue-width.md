@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Issue Width
 
 한 사이클에 병렬 디스패치되는 서브에이전트 작업 수(superscalar 은유). 전체 정의는 owner_spec (`Superscalar.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[divergence-reconvergence]] · [[speculation-gate]]  
+**정의 원본 / Source:** [Superscalar.md#1-concept-mapping](../../Superscalar.md#1-concept-mapping)
+<!-- compendium:obsidian:end -->

@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Tone Tier (L a.b.c)
 
 청중 맞춤 렌더링 좌표(3축·5단계, L a.b.c 표기). 전체 정의는 owner_spec (`Hyperbrief.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[nine-section-ir]] · [[readiness-rubric]]  
+**정의 원본 / Source:** [Hyperbrief.md#56-audience-tuned-rendering--audience_profile-3-axis--5-level](../../Hyperbrief.md#56-audience-tuned-rendering--audience_profile-3-axis--5-level)
+<!-- compendium:obsidian:end -->

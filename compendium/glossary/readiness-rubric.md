@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Readiness Rubric (two-lens GA)
 
 모듈의 v1.0 GA 준비도를 두 렌즈로 판정하는 루브릭. 전체 정의는 owner_spec (`Hyperbrief.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[four-score-escalation]] · [[tone-tier]]  
+**정의 원본 / Source:** [Hyperbrief.md#115-v10-readiness-rubric--two-evaluation-lenses-v055-dogfood-entry-04-reflection-v060-self-application--methodology--lenses--anchor-slots](../../Hyperbrief.md#115-v10-readiness-rubric--two-evaluation-lenses-v055-dogfood-entry-04-reflection-v060-self-application--methodology--lenses--anchor-slots)
+<!-- compendium:obsidian:end -->

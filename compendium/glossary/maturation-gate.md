@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Maturation Gate
 
 관행이 강제되기 전 통과해야 하는 raw→draft→ratified 게이트. 전체 정의는 owner_spec (`Greatpractice.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[tier-hierarchy]] · [[retire-axis]]  
+**정의 원본 / Source:** [Greatpractice.md#5-maturation-gate--raw--draft--ratified](../../Greatpractice.md#5-maturation-gate--raw--draft--ratified)
+<!-- compendium:obsidian:end -->

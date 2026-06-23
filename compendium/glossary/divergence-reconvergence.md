@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Divergence–Reconvergence
 
 병렬 작업의 fan-out/fan-in 토폴로지. 전체 정의는 owner_spec (`Superscalar.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[issue-width]] · [[speculation-gate]]  
+**정의 원본 / Source:** [Superscalar.md#15-topology--divergence-reconvergence-and-the-four-patterns](../../Superscalar.md#15-topology--divergence-reconvergence-and-the-four-patterns)
+<!-- compendium:obsidian:end -->

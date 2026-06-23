@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Deadlock Resolution
 
 서로 기다리며 멈춘 에이전트를 탐지·해소하는 계층 규약. 전체 정의는 owner_spec (`Constellation.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[blocker-tracking]] · [[ack-tier]]  
+**정의 원본 / Source:** [Constellation.md#1319-deadlock-resolution--formal-spec-prevention--detection--auto-resolution--escalation-layered-above-1313](../../Constellation.md#1319-deadlock-resolution--formal-spec-prevention--detection--auto-resolution--escalation-layered-above-1313)
+<!-- compendium:obsidian:end -->

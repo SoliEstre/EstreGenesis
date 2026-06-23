@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Deterministic Hook
 
 라이프사이클 이벤트에 발화하는 if-then 강제 훅. 전체 정의는 owner_spec (`Greatpractice.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[tier-hierarchy]] · [[maturation-gate]] · [[phronesis-boundary]]  
+**정의 원본 / Source:** [Greatpractice.md#4-hook-mechanism--deterministic-enforcement](../../Greatpractice.md#4-hook-mechanism--deterministic-enforcement)
+<!-- compendium:obsidian:end -->
