@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # 4-Score Escalation
 
 브리프 발동을 정하는 4-지표(각 0–3) 점수. 전체 정의는 owner_spec (`Hyperbrief.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[nine-section-ir]] · [[tone-tier]]  
+**정의 원본 / Source:** [Hyperbrief.md#21-escalation-4-score-each-indicator-0-3](../../Hyperbrief.md#21-escalation-4-score-each-indicator-0-3)
+<!-- compendium:obsidian:end -->

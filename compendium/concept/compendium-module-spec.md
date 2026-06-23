@@ -23,3 +23,8 @@ audit: { created: 2026-06-15, updated: 2026-06-15, last_reviewed: 2026-06-15 }
 ---
 
 The self-application entry: this store treats its own spec as a concept entry (Appendix B dogfood). Because the spec satisfies the very frontmatter form it defines, it holds the authority to apply that form to other entries. The normative definition is owned by [`Compendium.md` §1](../../Compendium.md#1-concept--what-compendium-is); this entry is a one-line orientation gloss plus the pointer, not a restatement.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[computed-moc]]  
+**정의 원본 / Source:** [Compendium.md#1-concept--what-compendium-is](../../Compendium.md#1-concept--what-compendium-is)
+<!-- compendium:obsidian:end -->

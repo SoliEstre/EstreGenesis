@@ -24,3 +24,7 @@ audit: { created: 2026-06-15, updated: 2026-06-15, last_reviewed: 2026-06-15 }
 ---
 
 Orientation primer only — the normative definition is owned by [`Constellation.md` §13.13](../../Constellation.md#1313-a2a-message-reliability--the-ack-layer). Compendium holds a one-line gloss plus the pointer; it does **not** restate the ack-layer contract. For the three-tier transport / commitment / application model and the at-least-once relay semantics, read the owner spec.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**정의 원본 / Source:** [Constellation.md#1313-a2a-message-reliability--the-ack-layer](../../Constellation.md#1313-a2a-message-reliability--the-ack-layer)
+<!-- compendium:obsidian:end -->

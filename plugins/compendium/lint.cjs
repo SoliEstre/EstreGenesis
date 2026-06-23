@@ -152,9 +152,40 @@ function reindex(entries) {
     links: e.links, definition: e.defText, glosses: e.glosses || [],
   })).sort((a, b) => a.id.localeCompare(b.id));
   fs.writeFileSync(path.join(STORE, 'index.json'), JSON.stringify({ generated: 'compendium/lint.cjs --reindex', count: json.length, entries: json }, null, 2) + '\n');
+  const obs = obsidianProjection(entries);
+  console.log(`[compendium-lint] Obsidian projection (§11/§8): ${obs} entr${obs === 1 ? 'y' : 'ies'} updated ([[wikilink]] peers + owner_spec pointer)`);
 }
 
-module.exports = { runLint, ghSlug, headingSlugs, loadEntries, frontmatter, field, listField, defText, STORE, INNER, SUBDIRS };
+// §11/§8 Obsidian-compatible projection (v0.2.2) — emit an auto-managed block in each entry body so the SAME
+//   markdown store lights up in Obsidian's graph (peer relations as in-vault `[[id]]` edges) while frontmatter
+//   stays the typed SSoT. The `owner_spec` authority pointer renders as a relative link OUT of the store — the
+//   pointer-not-paraphrase charter made visual (peer = graph edge; authority = external pointer). Idempotent:
+//   the delimited block is stripped + regenerated each `--reindex`; frontmatter is never touched.
+const OBS_START = '<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->';
+const OBS_END = '<!-- compendium:obsidian:end -->';
+function obsidianProjection(entries) {
+  let n = 0;
+  for (const e of entries) {
+    const abs = path.join(INNER, e.file);
+    let src;
+    try { src = fs.readFileSync(abs, 'utf8'); } catch { continue; }
+    let body = src;
+    const s = body.indexOf(OBS_START);
+    if (s >= 0) { const en = body.indexOf(OBS_END, s); if (en >= 0) body = body.slice(0, s) + body.slice(en + OBS_END.length); }
+    body = body.replace(/\s+$/, '');
+    const rows = [];
+    const peers = (e.links || []).filter(Boolean);
+    if (peers.length) rows.push('**관련 / Related:** ' + peers.map((id) => `[[${id}]]`).join(' · '));
+    if (e.owner_spec && e.owner_spec !== 'null') rows.push(`**정의 원본 / Source:** [${e.owner_spec}](../../${e.owner_spec})`);
+    const next = rows.length
+      ? `${body}\n\n${OBS_START}\n${rows.join('  \n')}\n${OBS_END}\n`
+      : `${body}\n`;
+    if (next !== src) { fs.writeFileSync(abs, next); n++; }
+  }
+  return n;
+}
+
+module.exports = { runLint, ghSlug, headingSlugs, loadEntries, frontmatter, field, listField, defText, STORE, INNER, SUBDIRS, obsidianProjection };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);

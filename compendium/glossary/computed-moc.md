@@ -21,3 +21,7 @@ audit: { created: 2026-06-15, updated: 2026-06-15, last_reviewed: 2026-06-15 }
 ---
 
 A general-register concept owned by no module spec — Compendium is the legitimate single source of truth. The store's own `INDEX.md` is a computed MOC: regenerated from each entry's frontmatter, never hand-edited, so it cannot drift out of sync with the entries.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[atomic-note]]
+<!-- compendium:obsidian:end -->

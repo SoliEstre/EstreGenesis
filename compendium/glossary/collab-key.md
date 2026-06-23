@@ -23,3 +23,8 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 # Collab Key (ck-)
 
 board 의 collab 채널에 peer 를 들이는 kind='collab' 키. 전체 정의는 owner_spec (`Constellation.md`) 가 SSoT.
+
+<!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
+**관련 / Related:** [[board-worker]]  
+**정의 원본 / Source:** [Constellation.md#131611-key-management-unification--kind-enum-ssot-v251](../../Constellation.md#131611-key-management-unification--kind-enum-ssot-v251)
+<!-- compendium:obsidian:end -->
