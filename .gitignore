@@ -1,5 +1,8 @@
 /assets/
 .claude/settings.local.json
+# Obsidian vault config — local app state (workspace layout / graph view / enabled plugins).
+# Created wherever a folder is opened as a vault (e.g. compendium/ for the §11 dogfood). Never tracked.
+.obsidian/
 
 # Constellation reference runtime — single-instance lockfile (per _proposals/003 Fix 1, local-bridge.cjs L53)
 # Per-agentId PID lockfile written by the single-instance guard; never tracked.
