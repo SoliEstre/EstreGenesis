@@ -509,3 +509,11 @@ Entry 04's measurement caveat was that the +127% wall-clock there was *sequentia
 - **Recovery**: single re-issue with the journal-backed resume cache (§3.2). All 25 retired lanes returned from the journal with zero re-execution; 9 further lanes had already written their output artifacts before their retirement could be journaled (the §3.2 crash window) and were idempotently overwritten on re-run; the remaining lanes executed live. Final: 53/53 lanes + a verification lane PASS — zero content loss, zero duplicate cost on retired work.
 - **Reading**: validates both §3.2 preconditions in one incident — the *idempotent-artifact* rule (9/53 lanes landed in the artifact-written-but-not-journaled window) and the *determinism* precondition (the script carried an inlined static work-list; a timestamp-bearing list would have changed the cache key and missed everything).
 - **Caveats**: n=1 and incidental (not a controlled measurement); all lanes read-only — write-lane resume composes with §3 worktree isolation in principle but is unmeasured.
+
+<!-- graph-nav -->
+
+## Related
+
+- **Sibling modules** — [Constellation](Constellation.md) · [Hyperbrief](Hyperbrief.md) · [Greatpractice](Greatpractice.md) · [Ultrasafe](Ultrasafe.md) · [Compendium](Compendium.md)
+- **Plugin** — [superscalar plugin](plugins/superscalar/README.md)
+- **Project overview** — [README.md](README.md)

@@ -644,3 +644,11 @@ audit: { created: 2026-06-15, updated: 2026-06-15, last_reviewed: 2026-06-15 }
 2. **occurrence_count=1** — as a new module the frequency signal is weak. This is unrelated to the promotion gate (§7.1) (internal-register is not a frequency-promotion target — §7.3), so it is normal.
 
 This appendix is itself the starting point of Compendium's self-trust — because the spec satisfies its own frontmatter form, it holds the authority to apply it to external entries.
+
+<!-- graph-nav -->
+
+## Related
+
+- **Sibling modules** — [Constellation](Constellation.md) · [Superscalar](Superscalar.md) · [Hyperbrief](Hyperbrief.md) · [Greatpractice](Greatpractice.md) · [Ultrasafe](Ultrasafe.md)
+- **Plugin** — [compendium plugin](plugins/compendium/README.md)
+- **Project overview** — [README.md](README.md)

@@ -44,3 +44,12 @@ The plugin's skill is a condensed checklist; the spec is the authoritative sourc
 ## License
 
 Apache-2.0.
+
+<!-- graph-nav -->
+
+## Related
+
+- **Module spec** — [Superscalar.md](../../Superscalar.md)
+- **Skills** — [superscalar](skills/superscalar/SKILL.md)
+- **Other plugins** — [constellation](../constellation/README.md) · [hyperbrief](../hyperbrief/README.md) · [greatpractice](../greatpractice/README.md) · [ultrasafe](../ultrasafe/README.md) · [compendium](../compendium/README.md)
+- **Project overview** — [README.md](../../README.md)

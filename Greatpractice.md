@@ -2252,3 +2252,19 @@ This aligns exactly with humanities §3.8 (the *self-instantiation* requirement 
 At every cut of this spec in v0.2+, *re-run* this appendix — update the frontmatter's maturity_score · lifecycle · last_referenced_turn · audit_trail + note whether the 4 C.3 gap points are resolved. Once the PARTIAL → PASS transition completes around v0.5+, this appendix can be promoted to a reference exemplar of a *macro tier ratified entry* — isomorphic to the promotion path of §5.4-§5.6 (`psychology §1.10` Lally 66-day consolidation).
 
 This appendix itself is the starting point of this spec's *self-trust*.
+
+<!-- graph-nav -->
+
+## Related
+
+- **Sibling modules** — [Constellation](Constellation.md) · [Superscalar](Superscalar.md) · [Hyperbrief](Hyperbrief.md) · [Ultrasafe](Ultrasafe.md) · [Compendium](Compendium.md)
+- **Plugin** — [greatpractice plugin](plugins/greatpractice/README.md)
+- **Project overview** — [README.md](README.md)
+
+## Practice tree index
+
+Ratified entries in the `greatpractice/` content store — the canonical tier hierarchy this spec governs (§5). Each links to its entry file.
+
+- **Macro** (1) — [release-cadence](greatpractice/macro/release-cadence.md)
+- **Mezzo** (9) — [auth-2fa-discipline](greatpractice/mezzo/auth-2fa-discipline.md) · [bin-entry-validate](greatpractice/mezzo/bin-entry-validate.md) · [dry-run-smoke-test](greatpractice/mezzo/dry-run-smoke-test.md) · [link-integrity-check](greatpractice/mezzo/link-integrity-check.md) · [n-way-sync-registry](greatpractice/mezzo/n-way-sync-registry.md) · [naming-hygiene-grep](greatpractice/mezzo/naming-hygiene-grep.md) · [outbox-json-validation](greatpractice/mezzo/outbox-json-validation.md) · [package-files-validate](greatpractice/mezzo/package-files-validate.md) · [pre-publish-user-gate](greatpractice/mezzo/pre-publish-user-gate.md)
+- **Micro** (20) — [bin-file-exists-check](greatpractice/micro/bin-file-exists-check.md) · [bin-path-prefix-strip](greatpractice/micro/bin-path-prefix-strip.md) · [changelog-en-ko-pair](greatpractice/micro/changelog-en-ko-pair.md) · [diff-surface-summary](greatpractice/micro/diff-surface-summary.md) · [dist-bin-inclusion-check](greatpractice/micro/dist-bin-inclusion-check.md) · [dry-run-file-list-review](greatpractice/micro/dry-run-file-list-review.md) · [internal-anchor-allowance](greatpractice/micro/internal-anchor-allowance.md) · [internal-name-grep-zero](greatpractice/micro/internal-name-grep-zero.md) · [markdown-link-absolute-check](greatpractice/micro/markdown-link-absolute-check.md) · [notice-license-include-fixed-value](greatpractice/micro/notice-license-include-fixed-value.md) · [otp-env-fallback](greatpractice/micro/otp-env-fallback.md) · [outbox-append-json-roundtrip](greatpractice/micro/outbox-append-json-roundtrip.md) · [outbox-write-route-gate](greatpractice/micro/outbox-write-route-gate.md) · [post-approval-publish-trigger](greatpractice/micro/post-approval-publish-trigger.md) · [readme-current-line-sync](greatpractice/micro/readme-current-line-sync.md) · [redact-then-recheck-loop](greatpractice/micro/redact-then-recheck-loop.md) · [smoke-import-invoke-exit0](greatpractice/micro/smoke-import-invoke-exit0.md) · [tty-publish-check](greatpractice/micro/tty-publish-check.md) · [user-approval-prompt](greatpractice/micro/user-approval-prompt.md) · [version-bump-all-surfaces](greatpractice/micro/version-bump-all-surfaces.md)

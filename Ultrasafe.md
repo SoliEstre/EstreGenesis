@@ -3466,3 +3466,11 @@ This appendix itself is the starting point of Ultrasafe's *self-trust* and the *
 **Backing research**: 17-axis cross-domain deep research (`reports/2026-06-05-ultrasafe-research/` 91 files) — harness · web · AI · threat-modeling · multi-agent · adversarial-ml · fuzzing · supply-chain · devsecops · IR · crypto · human-factors · game-theory · compliance · cognitive · visualization · protocol-trust-evolution.
 
 ---
+
+<!-- graph-nav -->
+
+## Related
+
+- **Sibling modules** — [Constellation](Constellation.md) · [Superscalar](Superscalar.md) · [Hyperbrief](Hyperbrief.md) · [Greatpractice](Greatpractice.md) · [Compendium](Compendium.md)
+- **Plugin** — [ultrasafe plugin](plugins/ultrasafe/README.md)
+- **Project overview** — [README.md](README.md)

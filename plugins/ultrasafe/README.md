@@ -51,3 +51,12 @@ publish-equivalent 명령 (`npm publish`, `git push --tags`, `gh release create`
 ## License
 
 Apache-2.0
+
+<!-- graph-nav -->
+
+## Related
+
+- **Module spec** — [Ultrasafe.md](../../Ultrasafe.md)
+- **Skills** — [ultrasafe-ai-llm-redteam](skills/ultrasafe-ai-llm-redteam/SKILL.md) · [ultrasafe-crypto-reviewer](skills/ultrasafe-crypto-reviewer/SKILL.md) · [ultrasafe-methodology-compliance](skills/ultrasafe-methodology-compliance/SKILL.md) · [ultrasafe-social-engineer](skills/ultrasafe-social-engineer/SKILL.md) · [ultrasafe-supply-chain-auditor](skills/ultrasafe-supply-chain-auditor/SKILL.md) · [ultrasafe-synthesizer](skills/ultrasafe-synthesizer/SKILL.md) · [ultrasafe-threat-model-lifecycle](skills/ultrasafe-threat-model-lifecycle/SKILL.md) · [ultrasafe-web-api-attacker](skills/ultrasafe-web-api-attacker/SKILL.md)
+- **Other plugins** — [constellation](../constellation/README.md) · [superscalar](../superscalar/README.md) · [hyperbrief](../hyperbrief/README.md) · [greatpractice](../greatpractice/README.md) · [compendium](../compendium/README.md)
+- **Project overview** — [README.md](../../README.md)

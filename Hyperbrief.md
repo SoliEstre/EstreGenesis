@@ -711,3 +711,11 @@ The triage doc carries per-candidate spec sketches (schema proposal, rationale, 
 ---
 
 *This module's principal claim: an agent's job is not to manufacture decisions for the user — it is to* **block the manufacture of decisions** *and to surface, with epistemic honesty, exactly the irreducible choice the user must make. Hyperbrief is the structural defense for that claim.*
+
+<!-- graph-nav -->
+
+## Related
+
+- **Sibling modules** — [Constellation](Constellation.md) · [Superscalar](Superscalar.md) · [Greatpractice](Greatpractice.md) · [Ultrasafe](Ultrasafe.md) · [Compendium](Compendium.md)
+- **Plugin** — [hyperbrief plugin](plugins/hyperbrief/README.md)
+- **Project overview** — [README.md](README.md)

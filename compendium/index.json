@@ -150,7 +150,8 @@
       "status": "active",
       "superseded_by": null,
       "links": [
-        "computed-moc"
+        "computed-moc",
+        "controlled-vocabulary"
       ],
       "definition": "The spec of a cross-cutting vocabulary substrate that navigates and synthesizes the module specs but does not restate their normative content — a source of information, not a source of truth. Full definition lives in owner_spec.",
       "glosses": [
@@ -195,7 +196,10 @@
       "owner_spec": null,
       "status": "active",
       "superseded_by": null,
-      "links": [],
+      "links": [
+        "compendium-module-spec",
+        "superseded-by"
+      ],
       "definition": "A curated term set in which each concept has one preferred label plus admitted and hidden synonyms, so the same concept is not split across rival words and the same word is not overloaded across concepts.",
       "glosses": [
         {
@@ -240,7 +244,10 @@
       "owner_spec": null,
       "status": "active",
       "superseded_by": null,
-      "links": [],
+      "links": [
+        "four-score-escalation",
+        "retire-axis"
+      ],
       "definition": "How Hyperbrief's decision gate conditions entry into Superscalar's retire queue — an Explanation-tier link for a cross-module seam that has no single-module home.",
       "glosses": [
         {
@@ -308,7 +315,8 @@
       "superseded_by": null,
       "links": [
         "nine-section-ir",
-        "tone-tier"
+        "tone-tier",
+        "decision-to-schedule-seam"
       ],
       "definition": "Hyperbrief's invocation trigger — four indicators each scored 0–3; total ≥4 (or any MUST-trigger condition) means the decision warrants a full brief rather than a silent agent call. See owner_spec.",
       "glosses": [
@@ -475,7 +483,8 @@
       "superseded_by": null,
       "links": [
         "maturation-gate",
-        "superseded-by"
+        "superseded-by",
+        "decision-to-schedule-seam"
       ],
       "definition": "A practice's lifecycle state machine — active → probation → retired — the eviction-first-class counterpart to maturation: a codified practice that stops earning its keep is demoted, not silently kept. See owner_spec.",
       "glosses": [
