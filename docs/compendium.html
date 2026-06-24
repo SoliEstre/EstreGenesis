@@ -197,7 +197,7 @@
           <span class="step-num">B</span>
           <span class="step-title" data-en="Install Compendium" data-ko="Compendium 설치">Install Compendium</span>
         </div>
-        <p class="step-desc" data-en="Install the Compendium plugin. It bundles the content store, the 0-dep lint/pointer-resolution runtime, the 8-tool MCP server, and the two cross-tool curation skills (compendium-curate + compendium-lint) — no extra dependencies." data-ko="Compendium 플러그인을 설치해요. 콘텐츠 스토어, 0-의존성 lint/pointer-resolution 런타임, 8도구 MCP 서버, 그리고 두 cross-tool 큐레이션 스킬(compendium-curate + compendium-lint)이 함께 들어 있어요 — 추가 의존성 없음.">Install the Compendium plugin — it bundles the content store, the 0-dep lint runtime, the 8-tool MCP server, and the two cross-tool curation skills.</p>
+        <p class="step-desc" data-en="Install the Compendium plugin. It comes with everything — the term files, the automatic checker, the small helper an AI assistant uses, and the two instruction files for adding and checking terms — with nothing else to install." data-ko="Compendium 플러그인을 설치해요. 모든 게 함께 들어 있어요 — 용어 파일들, 자동 점검기, AI 도우미가 쓰는 작은 도우미, 그리고 용어를 추가·점검하는 두 안내 파일 — 따로 설치할 것 없이.">Install the Compendium plugin — it comes with the term files, the automatic checker, the small AI helper, and the two instruction files, with nothing else to install.</p>
         <div class="cmd-row">
           <pre><code data-en="/plugin install compendium@estregenesis-plugins" data-ko="/plugin install compendium@estregenesis-plugins">/plugin install compendium@estregenesis-plugins</code></pre>
           <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
@@ -207,9 +207,9 @@
       <div class="install-step-card">
         <div class="step-header">
           <span class="step-num">C</span>
-          <span class="step-title" data-en="Optional — open the store in any vault viewer" data-ko="선택 — 스토어를 아무 vault 뷰어에서 열기">Optional — open the store in any vault viewer</span>
+          <span class="step-title" data-en="Optional — open it in any notes app" data-ko="선택 — 아무 노트 앱에서 열기">Optional — open it in any notes app</span>
         </div>
-        <p class="step-desc" data-en="Run the reindex once to emit the viewer-agnostic projection, then open the content folder as a vault in your notes app (e.g. Obsidian) — you'll get the live graph + backlinks with no further setup." data-ko="reindex 를 한 번 실행해 뷰어-무관 투영을 생성한 뒤, 콘텐츠 폴더를 노트 앱(예: 옵시디언)에서 vault 로 열면 — 추가 설정 없이 살아있는 그래프 + 백링크가 나와요.">Run the reindex once, then open the content folder as a vault in your notes app (e.g. Obsidian) for the live graph + backlinks.</p>
+        <p class="step-desc" data-en="Run the command below once — it adds the kind of links that notes apps understand — then open the term folder in your notes app (for example, Obsidian). You'll see a live map of how the terms connect, with no extra setup." data-ko="아래 명령을 한 번 실행하세요 — 노트 앱이 알아보는 형태의 링크를 넣어 줘요 — 그런 다음 용어 폴더를 노트 앱(예: 옵시디언)에서 열면, 추가 설정 없이 용어들이 어떻게 이어지는지 살아있는 지도가 나와요.">Run the command below once, then open the term folder in your notes app (e.g. Obsidian) to see a live map of how the terms connect.</p>
         <div class="cmd-row">
           <pre><code data-en="node plugins/compendium/lint.cjs --reindex" data-ko="node plugins/compendium/lint.cjs --reindex">node plugins/compendium/lint.cjs --reindex</code></pre>
           <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
@@ -224,9 +224,9 @@
           <span class="step-num">1</span>
           <span class="step-title" data-en="Add a term the Compendium way (don't paraphrase)" data-ko="Compendium 방식으로 용어 추가 (베끼지 않기)">Add a term the Compendium way (don't paraphrase)</span>
         </div>
-        <p class="step-desc" data-en="When you're about to write a glossary entry or a second copy of a definition that already lives in a spec, ask for the compendium-curate discipline — it produces a one-line gloss + a pointer to the owner, plain/expert glosses, and the right frontmatter instead of a rotting copy." data-ko="용어집 항목이나, 스펙에 이미 있는 정의의 두 번째 사본을 쓰려고 할 때 compendium-curate 규율을 요청하세요 — 낡아 갈 사본 대신 한 줄 gloss + 소유자 포인터, 쉽게/전문 gloss, 올바른 frontmatter 를 만들어 줘요.">When about to write a glossary entry or copy a spec's definition, ask for compendium-curate — a one-line gloss + owner pointer + dual-register, not a rotting copy.</p>
+        <p class="step-desc" data-en="When you're about to write a glossary entry — or a second copy of a definition that already lives in one of the project's documents — ask the assistant to add it the Compendium way. Instead of a copy that will go stale, you get a one-line summary, a link to the document that really defines it, and both a plain and an expert wording." data-ko="용어집 항목을 쓰려 하거나, 프로젝트 문서에 이미 있는 정의를 한 번 더 베껴 적으려 할 때, 도우미에게 'Compendium 방식으로 추가해 줘' 라고 하세요. 낡아 갈 사본 대신 — 한 줄 요약 + 그것을 진짜로 정의한 문서로의 링크 + 쉬운 말·전문가 말 두 가지를 만들어 줘요.">When about to write a glossary entry or copy a definition already in a project doc, ask the assistant to add it the Compendium way — a one-line summary + a link to the real source + a plain and an expert wording, not a copy that goes stale.</p>
         <div class="cmd-row">
-          <pre><code data-en="Add 'ack-tier' to the Compendium the curate way — gloss + owner_spec pointer, not a restatement." data-ko="'ack-tier' 를 Compendium 에 curate 방식으로 추가해줘 — 재진술 말고 gloss + owner_spec 포인터로.">Add 'ack-tier' to the Compendium the curate way — gloss + owner_spec pointer, not a restatement.</code></pre>
+          <pre><code data-en="Add the term 'ack-tier' to the Compendium the right way — a one-line summary plus a link to the document that defines it, not a copy of the full definition." data-ko="'ack-tier' 용어를 Compendium 에 제대로 추가해줘 — 전체 정의를 베끼지 말고, 한 줄 요약 + 그걸 정의한 문서로의 링크로.">Add the term 'ack-tier' to the Compendium the right way — a one-line summary plus a link to the document that defines it, not a copy of the full definition.</code></pre>
           <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
         </div>
       </div>
@@ -235,7 +235,7 @@
           <span class="step-num">2</span>
           <span class="step-title" data-en="Check the glossary's health" data-ko="용어집 건강도 점검">Check the glossary's health</span>
         </div>
-        <p class="step-desc" data-en="Before committing or publishing, run the gardening checks — pointer-resolution (every pointer resolves to a real heading), broken-link, no-competing-full-def, redaction, orphan, duplicate, stale. By runtime, or by the compendium-lint skill where no runtime exists." data-ko="커밋·배포 전에 가드닝 검사를 돌리세요 — pointer-resolution(모든 포인터가 실재 heading 으로 해소), broken-link, no-competing-full-def, redaction, orphan, duplicate, stale. 런타임으로, 또는 런타임이 없으면 compendium-lint 스킬로.">Before committing, run the gardening checks (pointer-resolution / broken-link / no-competing-def / redaction / orphan / duplicate / stale) — by runtime or the compendium-lint skill.</p>
+        <p class="step-desc" data-en="Before you save or publish, run the housekeeping checks — that every link points to a heading that really exists, that no entry quietly recopied a full definition, that nothing private leaked in, and that there are no broken, stray, or out-of-date entries. Run them with the command below, or have the assistant check by hand where the command isn't available." data-ko="저장하거나 배포하기 전에 정리 점검을 돌리세요 — 모든 링크가 실제로 존재하는 제목을 가리키는지, 어느 항목도 전체 정의를 몰래 베끼지 않았는지, 비공개 내용이 새어 들어가지 않았는지, 깨지거나 외톨이이거나 낡은 항목이 없는지. 아래 명령으로 돌리거나, 명령을 쓸 수 없으면 도우미가 직접 점검하게 하세요.">Before you save, run the housekeeping checks — every link points to a real heading, no entry recopied a full definition, nothing private leaked, no broken/stray/out-of-date entries. With the command below, or have the assistant check by hand.</p>
         <div class="cmd-row">
           <pre><code data-en="node plugins/compendium/lint.cjs" data-ko="node plugins/compendium/lint.cjs">node plugins/compendium/lint.cjs</code></pre>
           <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
@@ -304,5 +304,6 @@
   <script src="shared/i18n.js"></script>
   <script src="shared/theme.js"></script>
   <script src="shared/audience.js"></script>
+  <script src="shared/copy.js"></script>
 </body>
 </html>

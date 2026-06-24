@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.5.130" src="https://img.shields.io/badge/version-v2.5.130-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.5.131" src="https://img.shields.io/badge/version-v2.5.131-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -284,7 +284,9 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.5.130 (2026-06-24) — **Compendium promo docs — plain-language (L1.1.1) pass on the general copy** — rewrote the remaining jargon in the general-audience text of docs/compendium.html to L1.1.1 (plain audience, abbreviations expanded, no jargon): the MCP card ("needs nothing else installed" not "0 dependencies"), eviction ("custom-built parts retired first" not "bespoke runtime pruned"), adoption ("parts that share words / terms that refer to each other / live shared screen" not "modules / cross-referenced / dashboard / over-engineering"), the portable use-case ("stuck with one app" not "lock-in"), the dashboard card ("glossary page / plain-or-expert switch" not "wiki tab / toggle"), and the "Want to read more?" tour (each spec section in plain words, not a §1–§12 jargon list). Docs only, EN/KO. verify-nway 15-axis PASS.
+**Current**: v2.5.131 (2026-06-24) — **docs: fix non-working Copy buttons across all six module pages + plain-language the Compendium Install/Example copy** — (1) Bug fix — the Copy buttons on hyperbrief / constellation / superscalar / greatpractice / ultrasafe / compendium did nothing because none of those pages loaded `shared/copy.js` (only index.html did); added the script to all six. Verified on compendium via Playwright: handlers attached 5/5, every button copies and shows "✓ Copied". (2) Plain-language (L1.1.1) pass on the Compendium Install + Example-prompts copy: the "add a term" example became a plain natural-language prompt (a one-line summary + a link to the defining doc, not "curate way — gloss + owner_spec pointer"), the lint example describes each check in plain words, and the install descriptions are un-jargoned. Docs only, EN/KO. verify-nway 15-axis PASS.
+
+Previously: v2.5.130 (2026-06-24) — **Compendium promo docs — plain-language (L1.1.1) pass on the general copy** — rewrote the remaining jargon in the general-audience text of docs/compendium.html to L1.1.1 (plain audience, abbreviations expanded, no jargon): the MCP card ("needs nothing else installed" not "0 dependencies"), eviction ("custom-built parts retired first" not "bespoke runtime pruned"), adoption ("parts that share words / terms that refer to each other / live shared screen" not "modules / cross-referenced / dashboard / over-engineering"), the portable use-case ("stuck with one app" not "lock-in"), the dashboard card ("glossary page / plain-or-expert switch" not "wiki tab / toggle"), and the "Want to read more?" tour (each spec section in plain words, not a §1–§12 jargon list). Docs only, EN/KO. verify-nway 15-axis PASS.
 
 Previously: v2.5.129 (2026-06-24) — **Compendium promo docs — add the missing "Want to read more?" footer section** — completes the v2.5.128 cut: docs/compendium.html gains the standard bottom "Want to read more? / 더 자세히 알고 싶다면" section (a plain tour of Compendium.md §1–§12 + the cross-tool skills path + the spec link) that every other module page carries. Docs only, EN/KO. verify-nway 15-axis PASS.
 
