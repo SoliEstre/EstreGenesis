@@ -49,3 +49,12 @@ Or use Claude Code's plugin install: `/plugin install greatpractice@estregenesis
 ## License
 
 Apache-2.0
+
+<!-- graph-nav -->
+
+## Related
+
+- **Module spec** — [Greatpractice.md](../../Greatpractice.md)
+- **Practice tree** — entry index in [Greatpractice.md](../../Greatpractice.md); entries under `greatpractice/{macro,mezzo,micro}/`
+- **Other plugins** — [constellation](../constellation/README.md) · [superscalar](../superscalar/README.md) · [hyperbrief](../hyperbrief/README.md) · [ultrasafe](../ultrasafe/README.md) · [compendium](../compendium/README.md)
+- **Project overview** — [README.md](../../README.md)

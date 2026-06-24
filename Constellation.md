@@ -1608,3 +1608,11 @@ A file beside `server.cjs` (`ACCESS_FILE` env relocates it), hot-reloaded via `f
 - §3.1 KEY-MGMT — the keys the `agent` surface trusts.
 - §8 MCP integration — the `mcp-proxy` client this gates.
 - The dashboard access editor (settings-modal "접속 제어" section — a distinct **save-gated block** vs the real-time 창 배치 block): a **네트워크 노출 끄기/켜기** master toggle (`expose`; dims the IP policy when off), per-surface **기본 차단/허용** toggles for UI/agent/MCP each with a CIDR-capable allowlist textarea, a `requireKey` checkbox, an exposed/bind status badge, and an exposed-without-key warning. **저장** writes `access.json` (allowlists hot-reload); **저장 및 재시작** also `POST /api/restart`s to apply an `expose` change. Shipped v2.4.40 (#5a-2) → 3 surfaces + CIDR v2.4.41 (#5a-3) → expose toggle + self-restart + block separation v2.4.42 (#5a-4). Settings modal title generalized to "⚙ 설정".
+
+<!-- graph-nav -->
+
+## Related
+
+- **Sibling modules** — [Superscalar](Superscalar.md) · [Hyperbrief](Hyperbrief.md) · [Greatpractice](Greatpractice.md) · [Ultrasafe](Ultrasafe.md) · [Compendium](Compendium.md)
+- **Plugin** — [constellation plugin](plugins/constellation/README.md)
+- **Project overview** — [README.md](README.md)

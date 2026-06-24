@@ -5,3 +5,12 @@ Reference plugin for the **Compendium** module — EstreGenesis's 6th module, a 
 **v0.2.0 — runtime foundation.** This plugin ships the manifest, the spec's MCP tool signatures (`Compendium.md` §10), and `lint.cjs` — the v0.2 runtime implementation of the §9.1 gardening lints + the §9.2 pointer-resolution check (`node lint.cjs --reindex`), operating on the `compendium/` content store (7 seed entries — 5 glossary + 2 concept, `owner_spec` slugs resolved against the real spec headings). The MCP server, dashboard board surfaces, and click-to-define component remain deferred v0.2.x prunable units (`Compendium.md` §13). Adopt the spec directly; the harness adapter lands across v0.2.x.
 
 License: Apache-2.0.
+
+<!-- graph-nav -->
+
+## Related
+
+- **Module spec** — [Compendium.md](../../Compendium.md)
+- **Skills** — [compendium-curate](skills/compendium-curate/SKILL.md) · [compendium-lint](skills/compendium-lint/SKILL.md)
+- **Other plugins** — [constellation](../constellation/README.md) · [superscalar](../superscalar/README.md) · [hyperbrief](../hyperbrief/README.md) · [greatpractice](../greatpractice/README.md) · [ultrasafe](../ultrasafe/README.md)
+- **Project overview** — [README.md](../../README.md)

@@ -125,3 +125,12 @@ https://github.com/SoliEstre/EstreGenesis/blob/main/Hyperbrief.md
 ## License
 
 Apache-2.0.
+
+<!-- graph-nav -->
+
+## Related
+
+- **Module spec** — [Hyperbrief.md](../../Hyperbrief.md)
+- **Skills** — [hyperbrief](skills/hyperbrief/SKILL.md) · [hyperbrief-revisit](skills/hyperbrief-revisit/SKILL.md) · [hyperbrief-trigger-check](skills/hyperbrief-trigger-check/SKILL.md)
+- **Other plugins** — [constellation](../constellation/README.md) · [superscalar](../superscalar/README.md) · [greatpractice](../greatpractice/README.md) · [ultrasafe](../ultrasafe/README.md) · [compendium](../compendium/README.md)
+- **Project overview** — [README.md](../../README.md)

@@ -118,3 +118,12 @@ Without `INBOX_PATH` the hook degrades gracefully — it logs `[probe] inbox.log
 ## License
 
 Apache-2.0.
+
+<!-- graph-nav -->
+
+## Related
+
+- **Module spec** — [Constellation.md](../../Constellation.md)
+- **Skills** — [before-compact](skills/before-compact/SKILL.md) · [constellation-a2a-emit](skills/constellation-a2a-emit/SKILL.md) · [constellation-board](skills/constellation-board/SKILL.md) · [constellation-start](skills/constellation-start/SKILL.md) · [drillnow](skills/drillnow/SKILL.md) · [roundnext](skills/roundnext/SKILL.md)
+- **Other plugins** — [superscalar](../superscalar/README.md) · [hyperbrief](../hyperbrief/README.md) · [greatpractice](../greatpractice/README.md) · [ultrasafe](../ultrasafe/README.md) · [compendium](../compendium/README.md)
+- **Project overview** — [README.md](../../README.md)
