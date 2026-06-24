@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.5.129" src="https://img.shields.io/badge/version-v2.5.129-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.5.130" src="https://img.shields.io/badge/version-v2.5.130-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -284,7 +284,9 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.5.129 (2026-06-24) — **Compendium promo docs — add the missing "Want to read more?" footer section** — completes the v2.5.128 cut: docs/compendium.html gains the standard bottom "Want to read more? / 더 자세히 알고 싶다면" section (a plain tour of Compendium.md §1–§12 + the cross-tool skills path + the spec link) that every other module page carries. Docs only, EN/KO. verify-nway 15-axis PASS.
+**Current**: v2.5.130 (2026-06-24) — **Compendium promo docs — plain-language (L1.1.1) pass on the general copy** — rewrote the remaining jargon in the general-audience text of docs/compendium.html to L1.1.1 (plain audience, abbreviations expanded, no jargon): the MCP card ("needs nothing else installed" not "0 dependencies"), eviction ("custom-built parts retired first" not "bespoke runtime pruned"), adoption ("parts that share words / terms that refer to each other / live shared screen" not "modules / cross-referenced / dashboard / over-engineering"), the portable use-case ("stuck with one app" not "lock-in"), the dashboard card ("glossary page / plain-or-expert switch" not "wiki tab / toggle"), and the "Want to read more?" tour (each spec section in plain words, not a §1–§12 jargon list). Docs only, EN/KO. verify-nway 15-axis PASS.
+
+Previously: v2.5.129 (2026-06-24) — **Compendium promo docs — add the missing "Want to read more?" footer section** — completes the v2.5.128 cut: docs/compendium.html gains the standard bottom "Want to read more? / 더 자세히 알고 싶다면" section (a plain tour of Compendium.md §1–§12 + the cross-tool skills path + the spec link) that every other module page carries. Docs only, EN/KO. verify-nway 15-axis PASS.
 
 Previously: v2.5.128 (2026-06-24) — **Compendium promo docs — recent-updates coverage + the missing standard sections** — the public Compendium page gains a **"Portable over any vault"** section covering the v0.2.2–v0.2.4 surfaces (the Obsidian/vault projection, the two cross-tool curation skills, the dashboard wiki tab + click-to-define side panel) with the pointer-not-paraphrase wedge as the headline, plus the three standard sections every other module page has — **Install**, **Example prompts**, and **Use cases** (three scenarios: stopping glossary drift, click-to-define on the live dashboard, carrying the discipline across tools). The stale "deferred to v0.2-d" claims (page + index card) are un-deferred. Docs only, all three audience levels × EN/KO; Playwright-verified render (9 sections, audience-gating correct, 0 console errors). verify-nway 15-axis PASS.
 
