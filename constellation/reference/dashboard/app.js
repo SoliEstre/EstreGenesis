@@ -1695,10 +1695,13 @@ function wsRowHover(e, row) {
 // ---- row 렌더 (활성 채널만 DOM, 그 외 데이터+뱃지) ----
 // ---- ack 마킹: 별도 줄 대신 원 요청/메시지 줄에 ✓ + hover 툴팁(시각·agent) (§13.13 ack UX) ----
 function wsAckBadgeEl(info) {
-  const b = el('span', 'ws-ack'); b.textContent = ' ✓';
-  const who = info && info.agent ? wsName(info.agent) : '';
-  const when = info && info.at ? fmtDateTime(info.at) : '';
-  b.title = [when, who].filter(Boolean).join(' · ') || '수신 확인';
+  const b = el('span', 'ws-ack'); b.textContent = ' ✓'; b.style.cursor = 'help';
+  const who = info && info.agent ? wsName(info.agent) : '(unknown)';
+  const when = info && info.at ? fmtDateTime(info.at) : '(unknown)';
+  const full = { '시각': when, 'agent': who };   // native title 대신 A2A 미리보기와 동일한 커서 4분면 팝업(자체 구현)
+  b.addEventListener('mouseenter', (ev) => { if (!wsPopPinned) wsHoverPop('✓ 수신 확인 (accepted)', full, ev.clientX, ev.clientY, false); });
+  b.addEventListener('mouseleave', () => { if (!wsPopPinned) wsHidePop(); });
+  b.addEventListener('click', (ev) => { ev.stopPropagation(); wsHoverPop('✓ 수신 확인 (accepted)', full, ev.clientX, ev.clientY, true); });   // 클릭 = 고정(pin)
   return b;
 }
 // 원 요청/메시지 줄(promptId 또는 msgId 일치)에 ack 스탬프. 모든 채널 탐색(ack 와 원본이 다른 채널키일 수 있음).
@@ -2563,11 +2566,11 @@ function wsSend(obj) {
   if (ch && ch.threadId) extra.threadId = ch.threadId;
   try { ws.send(JSON.stringify({ ...wsCommon(), targetAgentId: route, ...extra, ...obj })); return true; } catch { return false; }
 }
-function wsLocalRow(kind, label, body) {
+function wsLocalRow(kind, label, body, extra) {
   const a = wsState.active; if (!a || wsIsMon(a)) return;
   let pushKey = a;
   if (wsIsGroup(a)) { const rep = wsGroupRep(a); if (!rep) return; pushKey = rep; }   // 그룹 = 대표에 push (그룹 뷰가 대표 워커 행을 보여줌)
-  wsPushRow(pushKey, { kind, label, body, dim: false, t: nowHM() });
+  wsPushRow(pushKey, { kind, label, body, dim: false, t: nowHM(), ...(extra || {}) });   // extra: promptId 등(ack 상관 — live 로컬 에코가 replay History 처럼 promptId 보유)
 }
 function wsSendPrompt() {
   const ta = wsActiveTextarea(); if (!ta) return;
@@ -2575,7 +2578,7 @@ function wsSendPrompt() {
   const promptId = 'p-' + Date.now().toString(36);
   const atts = wsAtts.map(a => ({ ...a }));
   if (wsSend({ type: 'CUSTOM', name: 'UserPrompt', value: { promptId, text, atts } })) {
-    wsLocalRow('user', '🙋 UserPrompt', text + (atts.length ? `  📎${atts.length}` : ''));
+    wsLocalRow('user', '🙋 UserPrompt', text + (atts.length ? `  📎${atts.length}` : ''), { promptId });
     ta.value = ''; ta._h = WS_TA_MIN; wsRecalcTaH(); wsSaveDrafts(); wsAtts.length = 0; renderComposeAtts($('#ws-atts'), wsAtts, () => {}, null);
   } else wsLocalRow('err', '⚠ 미전송', wsState.active ? 'WS 연결 안 됨' : '채널(에이전트) 없음');
 }
