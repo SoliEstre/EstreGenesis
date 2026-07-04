@@ -1693,6 +1693,28 @@ function wsRowHover(e, row) {
 }
 
 // ---- row 렌더 (활성 채널만 DOM, 그 외 데이터+뱃지) ----
+// ---- ack 마킹: 별도 줄 대신 원 요청/메시지 줄에 ✓ + hover 툴팁(시각·agent) (§13.13 ack UX) ----
+function wsAckBadgeEl(info) {
+  const b = el('span', 'ws-ack'); b.textContent = ' ✓';
+  const who = info && info.agent ? wsName(info.agent) : '';
+  const when = info && info.at ? fmtDateTime(info.at) : '';
+  b.title = [when, who].filter(Boolean).join(' · ') || '수신 확인';
+  return b;
+}
+// 원 요청/메시지 줄(promptId 또는 msgId 일치)에 ack 스탬프. 모든 채널 탐색(ack 와 원본이 다른 채널키일 수 있음).
+function wsMarkAck(key, info) {
+  if (!key) return false;
+  for (const ch of wsState.channels.values()) {
+    for (const row of ch.rows) {
+      if (row.promptId === key || row.msgId === key) {
+        row.ackedBy = info;
+        if (row._el && row._el.isConnected && !row._el.querySelector('.ws-ack')) row._el.appendChild(wsAckBadgeEl(info));
+        return true;
+      }
+    }
+  }
+  return false;
+}
 function wsRowEl(row, showChan = true) {   // showChan: 출처 뱃지 표시 여부(전체 보기=true, 개별 채널 필터=false)
   if (row.kind === 'toolcard') {
     const wrap = el('div', 'ws-ev ws-toolrow');
@@ -1710,6 +1732,7 @@ function wsRowEl(row, showChan = true) {   // showChan: 출처 뱃지 표시 여
     const t = el('span', 'ws-t'); t.textContent = row.t;
     wrap.append(t); if (row.src) wrap.append(wsSrcEl(row)); if (row.chan && showChan) wrap.append(wsChanEl(row)); wrap.append(wsA2aCardEl(row));
     if (row.full) wsRowHover(wrap, row);   // 다른 A2A row 와 동일: hover→미리보기, 클릭→단독 플로팅 창(최우측 토글 버튼은 stopPropagation 으로 제외)
+    row._el = wrap; if (row.ackedBy) wrap.appendChild(wsAckBadgeEl(row.ackedBy));
     return wrap;
   }
   if (row.kind === 'selection') {   // #406 UI6 SelectionPrompt chip 카드
@@ -1727,6 +1750,7 @@ function wsRowEl(row, showChan = true) {   // showChan: 출처 뱃지 표시 여
   { const _atts = wsAttachments(row.full); if (_atts.length) { const ab = el('div', 'ws-att-row'); for (const a of _atts) ab.appendChild(wsAttChipEl(a)); e.append(ab); } }   // 일반 A2A row 첨부 칩
   row._b = b; row._md = md;
   if (row.full) wsRowHover(e, row);   // 요약 가능한 A2A 메시지(WorkerReport·Delegate 등): hover 시 커서 4분면 팝업에 전체 렌더
+  row._el = e; if (row.ackedBy) e.appendChild(wsAckBadgeEl(row.ackedBy));
   return e;
 }
 // ---- 날짜 변경선 (A2A 대화 stream 안 일자 구분, sticky top:0) ----
@@ -2143,7 +2167,7 @@ function onWsEvent(m) {
     const label = nm === 'UserPrompt' ? '🙋 UserPrompt' : nm === 'Command' ? '⌘ Command' : nm === 'Cancel' ? '⏹ Stop' : '✦ ' + (nm || 'CUSTOM');
     // raw JSON 은 timeline 에 노출하지 않음(§1) — 의미 필드만, 전체 원본은 debug drawer 에서
     const body = nm === 'UserPrompt' ? (v.text || '') : nm === 'Command' ? (v.name || '') : nm === 'Cancel' ? '작업 중단 요청' : (typeof v === 'string' ? v : (v.text || v.message || v.summary || v.label || ''));
-    wsPushRow(ukey, { kind: 'user', label, body, dim: false, t: _t, ts: _ts, chan: wsChanLabel(m), chanFull: wsChanFull(m) });
+    wsPushRow(ukey, { kind: 'user', label, body, dim: false, promptId: (v && v.promptId) || undefined, msgId: m.msgId || m.id, t: _t, ts: _ts, chan: wsChanLabel(m), chanFull: wsChanFull(m) });
     return;
   }
   const agentId = m.agentId; if (!agentId) return;       // agent outbound 는 agentId 필수
@@ -2171,7 +2195,7 @@ function onWsEvent(m) {
   if (m.runId) ch.runId = m.runId;
   const _chan = a2a ? '' : wsChanLabel(m), _chanFull = a2a ? '' : wsChanFull(m);   // 출처 뱃지(에이전트 통합 채널 내 대화 구분). 모니터(a2a)는 _src 뱃지
   // 발신 시각(_t/_ts)은 onWsEvent 최상단에서 wsMsgEpoch/wsRowTime 로 도출 (m.timestamp → m.at ISO → fallback). replay 후에도 원본 고정.
-  const push = (kind, label, body, dim, full) => wsPushRow(chId, { kind, label, body: body || '', dim, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull, src: _src, full: (full && typeof full === 'object') ? full : null });
+  const push = (kind, label, body, dim, full) => wsPushRow(chId, { kind, label, body: body || '', dim, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull, src: _src, msgId: m.msgId || m.id, full: (full && typeof full === 'object') ? full : null });
   switch (t) {
     case 'RUN_STARTED': push('run', '▶ RUN_STARTED', m.runId || '', true); break;
     case 'RUN_FINISHED': push('ok', '✓ RUN_FINISHED', wsOutcome(m.outcome), true); break;
@@ -2243,13 +2267,13 @@ function onWsEvent(m) {
       break;
     }
     case 'CUSTOM':
-      if (m.name === 'UserPromptAccepted') push('ok', '✓ Accepted', (m.value && m.value.promptId) ? `queued · ${m.value.promptId}` : 'queued', true);
-      else if (m.name === 'UserPrompt') push('user', '🙋 발화', (m.value && m.value.text) || '', false);   // A2A 발화(에이전트 간) — raw 이름(✦ UserPrompt) 대신 대화로 렌더
+      if (m.name === 'UserPromptAccepted') { const v = m.value || {}; if (!wsMarkAck(v.promptId, { at: _ts, agent: agentId })) push('ok', '✓ Accepted', v.promptId ? `queued · ${v.promptId}` : 'queued', true); }   // 원 요청 줄에 ✓ 스탬프(상관 실패 시만 별도 dim 줄)
+      else if (m.name === 'UserPrompt') wsPushRow(chId, { kind: 'user', label: '🙋 발화', body: (m.value && m.value.text) || '', dim: false, promptId: (m.value && m.value.promptId) || undefined, msgId: m.msgId || m.id, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull, src: _src });   // A2A 발화 — 대화로 렌더 + promptId(ack 상관)
       else if (m.name === 'Command') push('user', '⌘ Command', (m.value && m.value.name) || '', false);
       else if (m.name === 'Cancel') push('user', '⏹ Stop', '작업 중단 요청', false);
       // AgentHello·OnboardAck·Delegate·WorkerReport·WorkerAck 는 WS_A2A_INTENT 카드 분기로 통일 (전용 text/user/ok row 제거 — 카드 미표시 항목 카드화)
-      else if (m.name === 'Ack') { const v = m.value || {}; push('ok', '✅ delivered', [v.kind, v.ackFor].filter(Boolean).join(' · ') || (v.re || v.summary || v.notice || ''), true, v); }   // §13.13 server delivered ack — board 미표시(alarm fatigue 게이팅), hidden=true로 hover/drawer만 접근
-      else if (m.name === 'AckProcessed') { const v = m.value || {}; push('ok', '✅ processed', [v.kind || 'processed', v.ackFor].filter(Boolean).join(' · ') || (v.re || v.summary || v.notice || ''), true, v); }   // §13.13 agent processed ack(WILCO) — board 미표시
+      else if (m.name === 'Ack') { const v = m.value || {}; if (!wsMarkAck(v.ackFor, { at: _ts, agent: agentId })) push('ok', '✅ delivered', [v.kind, v.ackFor].filter(Boolean).join(' · ') || (v.re || v.summary || v.notice || ''), true, v); }   // §13.13 delivered ack → 원 메시지 줄에 ✓(상관 실패 시만 dim 줄)
+      else if (m.name === 'AckProcessed') { const v = m.value || {}; if (!wsMarkAck(v.ackFor, { at: _ts, agent: agentId })) push('ok', '✅ processed', [v.kind || 'processed', v.ackFor].filter(Boolean).join(' · ') || (v.re || v.summary || v.notice || ''), true, v); }   // §13.13 processed ack → 원 메시지 줄에 ✓(상관 실패 시만 dim 줄)
       else if (m.name === 'AckCumulative') { const v = m.value || {}; push('ok', '✅ cumulative', 'upToSeq=' + (v.upToSeq != null ? v.upToSeq : '?'), true, v); }   // §13.13 telemetry 누적 ack — board 미표시
       else if (m.name === 'Ping') { const v = m.value || {}; push('text', '🛰 ping', (v.re ? 're=' + v.re : '') + (v.ttl != null ? ' · ttl=' + v.ttl : '') + (v.notice ? ' · ' + v.notice : ''), true, v); }   // §13.13 liveness probe(RFC1122 보수적 multi-probe, 재전송 도구 아님) — board 미표시
       else if (m.name === 'Pong') { const v = m.value || {}; push('text', '🛰 pong', (v.re ? 're=' + v.re : '') + (v.notice ? ' · ' + v.notice : ''), true, v); }   // §13.13 liveness 응답(application-layer, transport keepalive 아님) — board 미표시
@@ -2271,13 +2295,13 @@ function onWsEvent(m) {
       // SelectionResolved 는 onWsEvent 상단에서 라우팅-무관 조기 처리 (agent-outbound 가드 앞) — 여기 중복 분기 제거
       else if (WS_A2A_INTENT[m.name]) {   // §13.16.9 A2A-intent allowlist(Report·BlockerManifest·ReviewSLAAck·PR* / Deadlock* family) → 카드 form(아이콘+요약+펼침 details), NOT raw/TEXT fallback
         const spec = WS_A2A_INTENT[m.name]; const v = m.value || {};
-        wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (spec.label || m.name || 'CUSTOM'), full: (v && typeof v === 'object') ? v : (v != null ? { value: v } : null), src: _src, chan: _chan, chanFull: _chanFull, t: _t, ts: _ts });
+        wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (spec.label || m.name || 'CUSTOM'), full: (v && typeof v === 'object') ? v : (v != null ? { value: v } : null), src: _src, chan: _chan, chanFull: _chanFull, msgId: m.msgId || m.id, t: _t, ts: _ts });
       }
       else {   // 미분류 CUSTOM 도 카드로 통일 (카드 미표시 항목 카드화). 객체값 → a2acard(generic spec, re > summary 우선 fallback), 비-객체 → text row.
         const v = m.value;
         if (v != null && typeof v === 'object') {
           const spec = { icon: '✦', label: m.name || 'CUSTOM', sum: ['re', 'text', 'message', 'notice', 'summary', 'label', 'ask', 'body', 'detail'] };
-          wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (m.name || 'CUSTOM'), full: v, src: _src, chan: _chan, chanFull: _chanFull, t: _t, ts: _ts });
+          wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (m.name || 'CUSTOM'), full: v, src: _src, chan: _chan, chanFull: _chanFull, msgId: m.msgId || m.id, t: _t, ts: _ts });
         } else {
           push('text', `✦ ${m.name || 'CUSTOM'}`, (v == null ? '' : String(v)), true, v);
         }
