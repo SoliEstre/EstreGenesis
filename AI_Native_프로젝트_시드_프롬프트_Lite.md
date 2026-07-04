@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v2.5.0; date: 2026-06-11; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = 가지치기+레지스트리 cut — 운영 규율 §13.x 인라인 → Constellation.md SSoT 포인터화 (invariant 어휘 + 1줄 요지만 시드 유지) + provenance/verbatim redaction + § EG 모듈 레지스트리 (5종 1-테이블) 신설 -->
+<!-- seed-tier: Lite; language: Korean; version: v2.5.1; date: 2026-07-04; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = 가지치기+레지스트리 cut — 운영 규율 §13.x 인라인 → Constellation.md SSoT 포인터화 (invariant 어휘 + 1줄 요지만 시드 유지) + provenance/verbatim redaction + § EG 모듈 레지스트리 (5종 1-테이블) 신설; v2.5.1 = 레지스트리 6종 — Compendium 행 추가 (Migration-B dogfood 후속) -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -677,7 +677,7 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 
 ## EG 모듈 레지스트리
 
-본 시드와 같은 repo (EstreGenesis) 가 ship 하는 **선택 모듈 5종**. 도입 카탈로그와 같은 원리 — 메뉴이지 체크리스트가 아니며, 트리거 발화 시에만 채택. 본문 SSoT 는 각 모듈 `.md` (raw URL 최신 `main` = `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/<모듈>.md`; 재현성은 tag 핀). 버전 위치: 각 모듈 `.md` frontmatter `version:` + `plugins/<모듈>/.claude-plugin/plugin.json` + repo 루트 `.claude-plugin/marketplace.json` — 같은 cut 에 동기 (N-way sync 등록부 대상).
+본 시드와 같은 repo (EstreGenesis) 가 ship 하는 **선택 모듈 6종**. 도입 카탈로그와 같은 원리 — 메뉴이지 체크리스트가 아니며, 트리거 발화 시에만 채택. 본문 SSoT 는 각 모듈 `.md` (raw URL 최신 `main` = `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/<모듈>.md`; 재현성은 tag 핀). 버전 위치: 각 모듈 `.md` frontmatter `version:` + `plugins/<모듈>/.claude-plugin/plugin.json` + repo 루트 `.claude-plugin/marketplace.json` — 같은 cut 에 동기 (N-way sync 등록부 대상).
 
 | 모듈 | 카테고리 (1줄) | 채택 트리거 | 본문 | 플러그인 |
 | --- | --- | --- | --- | --- |
@@ -686,6 +686,7 @@ Layer 1 (`PreToolUse`) 은 Claude Code 만 제공. 다른 모든 AI 브릿지 (C
 | Hyperbrief | 결정 위임 — 9-section JSON IR 브리핑 | 결정 escalation (4-score ≥ 4 또는 MUST-trigger 발화) 을 사용자에게 압축 위임할 때 | `Hyperbrief.md` | `plugins/hyperbrief` |
 | Greatpractice | 반복 작업 관행 코드화 (macro/mezzo/micro 트리) | 같은 작업 패턴 반복 + 누락 비용이 문서화 비용 초과 | `Greatpractice.md` | `plugins/greatpractice` |
 | Ultrasafe | 외부 발행 전 보안 attestation (advisory → blocking) | publish/release 명령이 에이전트 자동화 루프에 들어갈 때 (pre-release 게이트) | `Ultrasafe.md` | `plugins/ultrasafe` |
+| Compendium | 개념-앵커 이중-레지스터 어휘 기층 (dual-register 용어집 + pointer-not-paraphrase 소유 포인터) | 교차 모듈 공용 어휘가 쌓여 정의 중복·설명 드리프트 비용이 문서화 비용 초과 | `Compendium.md` | `plugins/compendium` |
 
 
 ---
