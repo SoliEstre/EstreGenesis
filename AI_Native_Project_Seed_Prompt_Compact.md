@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Seed Prompt — Compact
 
-<!-- seed-tier: Compact; language: English; version: v2.5.0; date: 2026-06-11; counterpart: AI_Native_프로젝트_시드_프롬프트_Compact.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = pruning+registry cut — §13.x operating disciplines pointerized from inline to the Constellation.md SSoT (seed keeps invariant vocabulary + one-line gists) + provenance/verbatim redaction + § EG Module Registry (one-table of 5 modules) added -->
+<!-- seed-tier: Compact; language: English; version: v2.5.1; date: 2026-07-04; counterpart: AI_Native_프로젝트_시드_프롬프트_Compact.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = pruning+registry cut — §13.x operating disciplines pointerized from inline to the Constellation.md SSoT (seed keeps invariant vocabulary + one-line gists) + provenance/verbatim redaction + § EG Module Registry (one-table of 5 modules) added; v2.5.1 = registry to six — Compendium row added (Migration-B dogfood follow-up) -->
 
 > Paste as first message to any AI coding agent. **Self-contained** — no references to other tiers; for authors who already know the AI Native pattern. The library's other tiers (Master, Lite) ship the same patterns at different depth; pick **one tier per project repo** — mixed tiers produce dead links. Inline scripts here are described as algorithm specs (the agent generates them following the spec); if the agent should copy-paste-ready full source instead, use the Master or Lite tier in this library.
 
@@ -80,7 +80,7 @@ Subsystems that are seed-compliant → run Migration B. Subsystems that are ad-h
 
 ## EG Module Registry
 
-**Five optional modules** shipped by the same repo (EstreGenesis) as this seed. Same principle as the Adoption Catalog — a menu, not a checklist; adopt only when a trigger fires. The full-text SSoT is each module's `.md` (raw URL on `main` = `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/<Module>.md`; pin a tag for reproducibility). Version locations: each module `.md` frontmatter `version:` + `plugins/<module>/.claude-plugin/plugin.json` + repo-root `.claude-plugin/marketplace.json` — synced in the same cut (an N-way sync registry surface).
+**Six optional modules** shipped by the same repo (EstreGenesis) as this seed. Same principle as the Adoption Catalog — a menu, not a checklist; adopt only when a trigger fires. The full-text SSoT is each module's `.md` (raw URL on `main` = `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/<Module>.md`; pin a tag for reproducibility). Version locations: each module `.md` frontmatter `version:` + `plugins/<module>/.claude-plugin/plugin.json` + repo-root `.claude-plugin/marketplace.json` — synced in the same cut (an N-way sync registry surface).
 
 | Module | Category (one line) | Adoption trigger | Body | Plugin |
 | --- | --- | --- | --- | --- |
@@ -89,6 +89,7 @@ Subsystems that are seed-compliant → run Migration B. Subsystems that are ad-h
 | Hyperbrief | Decision delegation — 9-section JSON IR briefing | A decision escalation (4-score ≥ 4 or a MUST-trigger utterance) should be compressed and delegated to the user | `Hyperbrief.md` | `plugins/hyperbrief` |
 | Greatpractice | Recurring-practice codification (macro/mezzo/micro tree) | The same work pattern repeats + omission cost exceeds documentation cost | `Greatpractice.md` | `plugins/greatpractice` |
 | Ultrasafe | Pre-publish security attestation (advisory → blocking) | publish/release commands enter an agent automation loop (pre-release gate) | `Ultrasafe.md` | `plugins/ultrasafe` |
+| Compendium | Concept-anchored dual-register vocabulary substrate (dual-register glossary + pointer-not-paraphrase owner pointers) | Cross-cutting vocabulary accumulates + definition-duplication/drift cost exceeds documentation cost | `Compendium.md` | `plugins/compendium` |
 
 
 ## Multi-agent cadence (if P5 = yes)
