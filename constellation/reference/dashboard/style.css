@@ -872,3 +872,6 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .dfallback { margin: 6px 0 2px; padding: 4px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--line, #444); background: transparent; color: var(--fg-dim, #aaa); cursor: pointer; }
 .dfallback:hover:not(:disabled) { border-color: var(--accent, #7ec27a); color: var(--fg, #ddd); }
 .dfallback:disabled { opacity: .6; cursor: default; }
+
+/* ack ✓ badge on the original request line (hover=time·agent) — §13.13 ack UX */
+.ws-ack { color:#39d353; font-weight:700; cursor:help; margin-left:4px; }
