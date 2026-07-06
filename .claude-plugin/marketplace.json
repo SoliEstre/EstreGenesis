@@ -94,7 +94,7 @@
       "name": "compendium",
       "source": "./plugins/compendium",
       "description": "Concept-anchored dual-register vocabulary substrate — v0.2.1 runtime (content store + lint/pointer-resolution + §10 8-tool MCP server; dashboard surfaces deferred v0.2.x). Wraps Compendium.md, EstreGenesis's 6th module and the purest expression of north-star axis-2 (vocabulary survival > code survival): a markdown wiki of cross-module concept pages + a concept-anchored dual-register glossary (internal/expert term <-> general/plain term <-> one shared definition) + a cross-link/click-to-define system. Owns nothing normative — every entry resolves to a one-directional pointer into the owning module spec (Constellation/Superscalar/Hyperbrief/Greatpractice/Ultrasafe = SSoT); the sole exception is general-register vocabulary no module owns (owner_spec=null), for which Compendium is the legitimate SSoT. Also the relocation home for deprecated vocabulary (status:superseded + superseded_by redirects — axis-3 eviction first-class) and it models its own eviction. Right-sized v0.1 ships the concept-anchored model + frontmatter schema + content-boundary charter (pointer-not-paraphrase + one-directional authority) + ~25-term EG seed vocabulary exemplars + 4 gardening lints + pointer-resolution check (verify-nway 13th axis form fixed). Promotion is a single count->queue-Hyperbrief-brief gate; hysteresis/debounce automation, click-to-define a11y component, multi-tab split, MCP runtime, and dashboard board surfaces are named prunable units deferred to v0.2+. 0 npm deps.",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "category": "vocabulary-substrate",
       "tags": [
         "compendium",
