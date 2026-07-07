@@ -3,7 +3,7 @@
 
 window.EG_DATA = {
   meta: {
-    version: 'v2.5.135',
+    version: 'v2.5.136',
     shipCount: 91,
     cycleHours: 24,
     e2ePRs: 5,

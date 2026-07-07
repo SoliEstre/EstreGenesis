@@ -11,6 +11,8 @@ This mechanizes Constellation §13.16.6 element 6 (pre-large-work context materi
 
 ## Procedure
 
+0. **Codify recurring practices first** (soft — only if Greatpractice is adopted). Before materializing session-specific state, invoke `/routinize` to mine this session's *recurring* work into durable practice captures. This timing is routinize's prime trigger: the accumulated context is the raw material and it is about to be compacted away, so cross-session durable practices should be captured before session-specific resume state. The two are complementary, not redundant — routinize captures *what recurs across sessions* (→ `memory/feedback_*.md`), this skill captures *what is in flight in this one* (→ the handoff card). Skip if Greatpractice / the `/routinize` skill is not in use.
+
 1. **Scan for volatile details** from this session:
    - **Procedure conventions**: script call requirements (env vars, arguments, ordering), policies agreed this session that are not yet in memory/guides. (Observed failure class: a required env-var prefix on one script call lived only in-context, was dropped by a compaction summary, and the post-compact agent reverted to the script's default — misrouting messages until a human noticed.)
    - **In-flight cycle anchors**: files touched so far + next step + the reasoning behind the current approach (if a track doc already holds this, record only the pointer).
