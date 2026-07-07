@@ -11,7 +11,7 @@ EstreGenesis is a bootstrap of agentic-coding patterns plus six optional modules
 | **Constellation** | agent-to-agent communication (live board + A2A) | `Constellation.md` | board · a2a-emit · start · roundnext · drillnow · before-compact · echo-mode | ✅ `constellation` |
 | **Superscalar** | dispatch within an agent (parallel fan-out policy) | `Superscalar.md` | superscalar | — |
 | **Hyperbrief** | decision-delegation back to the user | `Hyperbrief.md` | hyperbrief · hyperbrief-trigger-check · hyperbrief-revisit | ✅ `hyperbrief` |
-| **Greatpractice** | codification of recurring work | `Greatpractice.md` | *(schemas + hook; no model-invoked skill)* | — |
+| **Greatpractice** | codification of recurring work | `Greatpractice.md` | routinize (관행화 — codify a recurring practice) · *+ schemas + hook* | — |
 | **Ultrasafe** | pre-release security attestation | `Ultrasafe.md` | 8 attacker skills (`ultrasafe-*`) | ✅ `ultrasafe` |
 | **Compendium** | shared cross-module vocabulary | `Compendium.md` | compendium-curate · compendium-lint | ✅ `compendium` |
 
