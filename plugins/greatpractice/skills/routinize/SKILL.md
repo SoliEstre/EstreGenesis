@@ -1,6 +1,6 @@
 ---
 name: routinize
-description: Codify a recurring work pattern into a durable practice ("관행화"). Invoke when the same task pattern has recurred and should stop being re-remembered by hand — automatically when you notice a repeat, or explicitly via /routinize. Prime trigger — before-compact time, when the session's accumulated context (the raw material) is about to be compacted away. Follows Greatpractice's capture-eager / promote-deferred discipline (Greatpractice.md §5.4): captures the pattern to memory immediately, but never auto-ratifies a blocking practice — promotion to an enforced entry is user-gated. Skips phronesis-heavy work (judgement-heavy / rare-context) by design.
+description: "Codify a recurring work pattern into a durable practice (\"관행화\"). Invoke when the same task pattern has recurred and should stop being re-remembered by hand — automatically when you notice a repeat, or explicitly via /routinize. Prime trigger — before-compact time, when the session's accumulated context (the raw material) is about to be compacted away. Follows Greatpractice's capture-eager / promote-deferred discipline (Greatpractice.md §5.4): captures the pattern to memory immediately, but never auto-ratifies a blocking practice — promotion to an enforced entry is user-gated. Skips phronesis-heavy work (judgement-heavy / rare-context) by design."
 ---
 
 # /routinize — codify a recurring practice (관행화)

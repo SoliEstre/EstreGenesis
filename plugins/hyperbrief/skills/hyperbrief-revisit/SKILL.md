@@ -1,7 +1,7 @@
 ---
 name: hyperbrief-revisit
 version: 0.6.0
-description: Invoke when a stored Hyperbrief decision's revisit_date is reached, OR when an assumed_invariant in decision_lineage is violated by recent A2A signals, OR at session-start / Stop hook / 6h cron tick to scan the ledger. Loads the original IR, prompts user for actual outcome, computes outcome-quality vs decision-quality delta (Brier score increment), appends retrospective to ledger, supersedes/affirms decision_id chain. Closes the learning loop that fire-and-forget briefs leave open. v0.6: aware of 4 new schema slots (evaluation_lenses / recommended_methodology / maturity_anchor / term_pairing) — back-compat with v0.5.6 IRs preserved.
+description: "Invoke when a stored Hyperbrief decision's revisit_date is reached, OR when an assumed_invariant in decision_lineage is violated by recent A2A signals, OR at session-start / Stop hook / 6h cron tick to scan the ledger. Loads the original IR, prompts user for actual outcome, computes outcome-quality vs decision-quality delta (Brier score increment), appends retrospective to ledger, supersedes/affirms decision_id chain. Closes the learning loop that fire-and-forget briefs leave open. v0.6: aware of 4 new schema slots (evaluation_lenses / recommended_methodology / maturity_anchor / term_pairing) — back-compat with v0.5.6 IRs preserved."
 ---
 
 # Hyperbrief Revisit — close the learning loop
