@@ -1,7 +1,7 @@
 ---
 name: ultrasafe-ai-llm-redteam
 version: 0.2.0
-description: Pre-release simulated penetration testing from the AI/LLM red-team perspective — direct/indirect prompt injection, model extraction, jailbreak, hallucination-leverage, agentic misalignment, alignment-faking probe. Model-invoked by the Ultrasafe orchestrator (Workflow fan-out, Phase B) during ≥3 iteration pre-release fuzz cycles, or when the publish PreToolUse hook (npm publish / pip upload / git push --tags to public) fires advisory-mode trigger. Emits findings via ULTRASAFE_FINDING A2A intent (Constellation §13.16) with `value.advisory: true` in v0.2.x (report-only, no publish block). Skip for purely local dev runs without LLM-integrated surface.
+description: "Pre-release simulated penetration testing from the AI/LLM red-team perspective — direct/indirect prompt injection, model extraction, jailbreak, hallucination-leverage, agentic misalignment, alignment-faking probe. Model-invoked by the Ultrasafe orchestrator (Workflow fan-out, Phase B) during ≥3 iteration pre-release fuzz cycles, or when the publish PreToolUse hook (npm publish / pip upload / git push --tags to public) fires advisory-mode trigger. Emits findings via ULTRASAFE_FINDING A2A intent (Constellation §13.16) with `value.advisory: true` in v0.2.x (report-only, no publish block). Skip for purely local dev runs without LLM-integrated surface."
 ---
 
 # AI/LLM Red Team — Ultrasafe Attacker Skill

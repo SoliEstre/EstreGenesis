@@ -1,8 +1,10 @@
 {
   "name": "compendium-mcp",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Compendium MCP server — the Compendium.md §10 runtime (wiki_read/search/upsert · term_define/frequency_scan/promote · compendium_backlinks/lint) over the compendium/ content store. 0 npm deps; reuses plugins/compendium/lint.cjs for parsing + lints + pointer-resolution.",
   "private": true,
-  "bin": { "compendium-mcp": "./server.cjs" },
+  "bin": {
+    "compendium-mcp": "./server.cjs"
+  },
   "license": "Apache-2.0"
 }

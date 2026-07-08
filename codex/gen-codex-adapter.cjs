@@ -99,11 +99,12 @@ function discoverMcp() {
   const servers = [];
   for (const mod of listModules()) {
     const pj = JSON.parse(fs.readFileSync(path.join(PLUGINS, mod, '.claude-plugin', 'plugin.json'), 'utf8'));
-    if (!pj.mcp) continue;
+    const mcpBlock = pj.mcpServers || pj.mcp;      // current schema = mcpServers (legacy `mcp` fallback)
+    if (!mcpBlock) continue;
     const serverCjs = path.join(PLUGINS, mod, 'mcp', 'server.cjs');
     servers.push({
       module: mod,
-      canonical: Object.keys(pj.mcp)[0],           // e.g. constellation-mcp
+      canonical: Object.keys(mcpBlock)[0],         // e.g. constellation-mcp
       serverRel: path.relative(REPO, serverCjs).replace(/\\/g, '/'),
       deps: externalDeps(serverCjs),
     });

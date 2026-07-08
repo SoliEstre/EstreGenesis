@@ -1,7 +1,7 @@
 ---
 name: compendium-lint
 version: 0.2.4
-description: Use to gardening-check a Compendium-style controlled-vocabulary store before committing or publishing it — verifying pointer integrity, register discipline, and store health. Invoke after adding/editing entries, on a cadence, or before a release that touches the vocabulary store. Runs the deterministic `lint.cjs` if the runtime is present (`node plugins/compendium/lint.cjs [--reindex]`); otherwise applies the same six checks by inspection. Portable: the checks are defined over plain markdown+frontmatter, so they hold for any vault (a dashboard store, an Obsidian vault, a provider memory directory). Pairs with `compendium-curate` (curate first, then lint).
+description: "Use to gardening-check a Compendium-style controlled-vocabulary store before committing or publishing it — verifying pointer integrity, register discipline, and store health. Invoke after adding/editing entries, on a cadence, or before a release that touches the vocabulary store. Runs the deterministic `lint.cjs` if the runtime is present (`node plugins/compendium/lint.cjs [--reindex]`); otherwise applies the same six checks by inspection. Portable: the checks are defined over plain markdown+frontmatter, so they hold for any vault (a dashboard store, an Obsidian vault, a provider memory directory). Pairs with `compendium-curate` (curate first, then lint)."
 ---
 
 # Compendium Lint — gardening checks for the vocabulary store
