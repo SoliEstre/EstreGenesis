@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# ⚠ bash 전용 — busybox/dash 등 POSIX sh 불가 (meaningful() 의 node heredoc 인용 구조 + $'\r' 등).
+#    alpine 컨테이너에서는 `apk add bash` 후 `bash self-wake-watcher.sh` 로 실행할 것.
 # self-wake-watcher.sh — 무한대기(standby) 모드의 self-wake 패턴 레퍼런스 구현.
 #
 # 의도: turn-based 로컬 IDE 에이전트가 작업 턴 종료 후 idle 에 빠지더라도, 외부 새 입력
@@ -14,12 +16,14 @@
 #          (커서 파일은 inbox 경로에서 자동 파생 → runtime/.w2-inbox-cursor, 메인 커서와 충돌 없음)
 #
 # ▣ 의미 필터 (Constellation §13.16.9 Message classification by intent SSoT 참조):
-#   noise blocklist === §13.16.9 board-directed allowlist + transport-tier
+#   noise blocklist === §13.16.9 board-directed allowlist + transport-tier + handshake-group
 #     (ServerNotice/AgentList/Status/ConnectionRestored/Heartbeat/Typing/UserPromptAccepted/
-#      PersistentAdapterSmoke/OnboardAck/WorkerInboxReceived/EditMessage/MainChanged/History/
+#      PersistentAdapterSmoke/OnboardAck/AgentHello/WorkerInboxReceived/EditMessage/MainChanged/History/
 #      Ack/AckProcessed/AckCumulative/AckPolicyUpdate) — 흡수(커서 전진, 깨우지 않음).
+#     (v2.4.47: AgentHello 는 §13.16.9 4-group SSoT[v2.4.37] 에서 handshake 그룹 = non-wake.
+#      종전 레퍼런스 watcher 는 meaningful 로 남아 피어 connect 마다 불필요 wake 했음 — SSoT 정렬.)
 #   meaningful allowlist === §13.16.9 A2A-intent allowlist
-#     (Report/Delegate/WorkerReport/WorkerAck/AgentHello/Handoff/HandoffRequested/HandoffReady/
+#     (Report/Delegate/WorkerReport/WorkerAck/Handoff/HandoffRequested/HandoffReady/
 #      Command/Priority/Cancel/UserPrompt/BlockerManifest/BlockerNudge/PRRequest/PRDraftReady/
 #      PRReviewAck/PRMergeRequest/PRMergeAck/PRStatusUpdate/DeadlockProbe/ReviewSLAAck/
 #      PreemptRequest/PreemptForce/MediationProposal/MediationAck/EscalationRequest) — 깨움.
@@ -49,6 +53,9 @@
 #   WS_INBOX_CURSOR 커서 파일 (기본 = inbox 경로에서 파생: .<name>-cursor)
 #   WS_FEEDBACK     보드 feedback (기본 feedback.jsonl) — 부재 시 WARN 후 무시
 #   WS_STATE        보드 state.json (기본 state.json) — standby 키 읽기용
+#   WS_STANDBY_MODE standby 판정 소스: state(기본 — board state.json 의 standby) |
+#                   always(board standby 무시, inbox 의미변화·feedback 만 감시 — 헤드리스 hub-main
+#                   supervisor 루프용: 공개 standby 값과 무관하게 상시-arm; 사설 우회파일 불요)
 #   WS_AGENT_ID     내 agentId (기본 main-agent) — armed 로그 표시용
 #   WS_WAIT_TICKS   폴 횟수 (기본 588 ≈ 49분 = 5초×588)
 #   WS_WAIT_INTERVAL 폴 간격 초 (기본 5)
@@ -59,6 +66,7 @@ ICUR="${WS_INBOX_CURSOR:-$(dirname "$INBOX")/.$(basename "${INBOX%.jsonl}")-curs
 FB="${WS_FEEDBACK:-feedback.jsonl}"
 FCUR=".$(basename "${FB%.jsonl}")-cursor"
 STATE_FILE="${WS_STATE:-state.json}"
+SBMODE="${WS_STANDBY_MODE:-state}"   # state | always (헤드리스 상시-arm — board standby 무시)
 WID="${WS_AGENT_ID:-main-agent}"
 INTERVAL=${WS_WAIT_INTERVAL:-5}
 MAX=${WS_WAIT_TICKS:-588}
@@ -76,7 +84,7 @@ fi
 
 ic=$(cat "$ICUR" 2>/dev/null || echo 0)
 fc=$(cat "$FCUR" 2>/dev/null || echo 0)
-echo "[ws-wait] armed: inbox=$INBOX cursor=$ic agent=$WID feedback=$FB feedback_cursor=$fc (의미필터 · interval=${INTERVAL}s max=${MAX})"
+echo "[ws-wait] armed: inbox=$INBOX cursor=$ic agent=$WID feedback=$FB feedback_cursor=$fc standby_mode=$SBMODE (의미필터 · interval=${INTERVAL}s max=${MAX})"
 
 # 새 줄(인자=시작 커서 이후) 중 의미 있는 항목이 있으면 1, 아니면 0 출력.
 # blocklist — inbox 는 이미 나에게 라우팅된 큐이므로 알려진 noise 만 흡수하고 나머지는 모두 깨운다.
@@ -96,7 +104,7 @@ echo "[ws-wait] armed: inbox=$INBOX cursor=$ic agent=$WID feedback=$FB feedback_
 meaningful() {
   node -e '
     const fs = require("fs"), f = process.argv[1], from = +process.argv[2];
-    const NOISE = ["ServerNotice", "AgentList", "Status", "ConnectionRestored", "Heartbeat", "Typing", "UserPromptAccepted", "PersistentAdapterSmoke", "OnboardAck", "WorkerInboxReceived", "EditMessage", "MainChanged", "History", "Ack", "AckProcessed", "AckCumulative", "AckPolicyUpdate"];
+    const NOISE = ["ServerNotice", "AgentList", "Status", "ConnectionRestored", "Heartbeat", "Typing", "UserPromptAccepted", "PersistentAdapterSmoke", "OnboardAck", "AgentHello", "WorkerInboxReceived", "EditMessage", "MainChanged", "History", "Ack", "AckProcessed", "AckCumulative", "AckPolicyUpdate"];
     let ls = []; try { ls = fs.readFileSync(f, "utf8").trim().split("\n").filter(Boolean); } catch {}
     const ok = ls.slice(from).some(s => { try { const o = JSON.parse(s);
       return !NOISE.includes(o.name || o.type || ""); } catch { return false; } });
@@ -107,9 +115,16 @@ meaningful() {
 n=0
 while [ "$n" -lt "$MAX" ]; do
   sleep "$INTERVAL"; n=$((n + 1))
-  it=$(wc -l < "$INBOX" 2>/dev/null || echo 0)
-  ft=$(wc -l < "$FB" 2>/dev/null || echo 0)
-  sb=$(node -e 'try{process.stdout.write(String(require("./'"$STATE_FILE"'").standby))}catch(e){process.stdout.write("true")}' 2>/dev/null)
+  # B1(v2.4.47): 파일 부재 시 `< "$FB"` 입력 리다이렉션 실패는 wc 실행 전에 셸이 자기 stderr 로
+  # 보고하므로 `2>/dev/null`(wc 적용)로 안 잡힘 → 매 폴 stderr 누수. -f 가드로 리다이렉션 자체를 회피.
+  it=$([ -f "$INBOX" ] && wc -l < "$INBOX" || echo 0)
+  ft=$([ -f "$FB" ] && wc -l < "$FB" || echo 0)
+  # B4(v2.4.47): WS_STANDBY_MODE=always 면 board standby 무시(항상 standby 취급) — 헤드리스 상시-arm.
+  if [ "$SBMODE" = "always" ]; then
+    sb=true
+  else
+    sb=$(node -e 'try{process.stdout.write(String(require("./'"$STATE_FILE"'").standby))}catch(e){process.stdout.write("true")}' 2>/dev/null)
+  fi
   # feedback 새 줄 · standby 해제 → 즉시 깨움
   if [ "$ft" -gt "$fc" ] || [ "$sb" != "true" ]; then
     echo "[ws-wait] WAKE (feedback/standby) inbox:$ic->$it feedback:$fc->$ft standby:$sb"
