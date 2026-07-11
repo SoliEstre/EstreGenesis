@@ -133,12 +133,16 @@ function onInbound(m) {
   //   Skips _BRIDGE_ACK_KINDS (Ack / AckProcessed / Ping / Pong) — never ack-the-ack (would
   //   recursively burn msgIds + cancel the dedup chain). Application-tier outcome acks
   //   (Report / DONE / BLOCKED per §13.13) are preserved on the agent layer separately.
-  //   v2.5.19 GATE: only emit when RELAY_REDELIVERY=on. With redelivery disabled the server's
-  //   pending queue is dormant (no entry to clear), so a delivered-persist emit is pure board
-  //   noise. Mirrors main's bridge gate (process.env.RELAY_REDELIVERY === 'on'); deployments
-  //   running the redelivery scheduler turn the gate on, deployments running broker-forward
-  //   workaround mode leave it off and skip the emit cleanly.
-  if (process.env.RELAY_REDELIVERY === 'on' && appended && m.msgId && !_BRIDGE_ACK_KINDS.has(m.name)) {
+  //   GATE (v2.4.51, 2026-07-12 — default flipped to ON): the reference server runs the
+  //   §13.13.2 redelivery scheduler *unconditionally* (setInterval on boot, no env gate), so
+  //   an opt-in bridge ack meant the two reference halves were incoherent out of the box:
+  //   every targeted msgId CUSTOM got redelivered 3× and closed with a false
+  //   RelayUnreachable{commitment-ack-absent}. Measured on EG's own board — every delegation
+  //   and every peer Report arrived in triplicate. The v2.5.19 opt-in was written for
+  //   broker-forward workaround deployments whose server has no pending queue; those now
+  //   opt *out* with RELAY_REDELIVERY=off. Server-with-redelivery is the default, so the
+  //   commitment ack is the default.
+  if (process.env.RELAY_REDELIVERY !== 'off' && appended && m.msgId && !_BRIDGE_ACK_KINDS.has(m.name)) {
     const srcAgent = m.agentId || (m.value && m.value.agentId);
     if (srcAgent) {
       send('CUSTOM', { name: 'AckProcessed', targetAgentId: srcAgent, value: { ackFor: m.msgId, tier: 'delivered-persist' } });
