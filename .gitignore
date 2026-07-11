@@ -49,3 +49,8 @@ constellation/reference/runtime/*.jsonl
 # probe wrappers, etc). Ephemeral and project-local; never tracked.
 # Memory feedback_workspace_cleanliness applies.
 /tmp/
+
+# P4b dynamic-gate anchor dev-deps (constellation/package.json devDependencies — fast-check).
+# Installed modules and the lockfile are dev-only harness state; runtime stays dependency-zero.
+constellation/node_modules/
+constellation/package-lock.json
