@@ -104,7 +104,16 @@ function findRepoRoot(startDir) {
   return startDir;
 }
 
-const REPO_ROOT = findRepoRoot(process.cwd());
+// v0.2.4 — anchor the state dir to a STABLE root, not the shell's current cwd.
+// A hook fires with whatever cwd the tool call happens to carry, so a session that
+// `cd`s into a nested repo (a vendored subrepo, a monorepo package) writes its
+// events into a *second* `.ultrasafe/`. The evidence then splits across two files
+// and any single-file read undercounts it (measured 2026-07-11: 5 events visible,
+// 11 actual). Precedence: explicit env → host-provided project root → cwd walk.
+const REPO_ROOT =
+  process.env.CLAUDE_PROJECT_DIR ||
+  process.env.ULTRASAFE_REPO_ROOT ||
+  findRepoRoot(process.cwd());
 const STATE_DIR = process.env.ULTRASAFE_STATE_DIR || path.join(REPO_ROOT, ".ultrasafe");
 const STATE_PATH = path.join(STATE_DIR, "state.json");
 

@@ -56,7 +56,13 @@ function findRepoRoot(startDir) {
   return startDir;
 }
 
-const REPO_ROOT = findRepoRoot(process.cwd());
+// v0.2.4 — same stable-root anchoring as the PreToolUse trigger: a hook must not
+// let the tool call's cwd decide which `.ultrasafe/` it reads/writes, or the Stop
+// hook evaluates a different state file than the one the trigger appended to.
+const REPO_ROOT =
+  process.env.CLAUDE_PROJECT_DIR ||
+  process.env.ULTRASAFE_REPO_ROOT ||
+  findRepoRoot(process.cwd());
 const STATE_DIR = process.env.ULTRASAFE_STATE_DIR || path.join(REPO_ROOT, ".ultrasafe");
 const STATE_PATH = path.join(STATE_DIR, "state.json");
 
