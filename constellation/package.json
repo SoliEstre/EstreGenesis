@@ -1,0 +1,9 @@
+{
+  "name": "eg-constellation-p4-anchors",
+  "private": true,
+  "description": "Dev-only harness dependencies for P4b dynamic-gate anchors (<component>.p4.mjs, loaded by EstreUX spike/p4-check.mjs --run). The Constellation reference runtime itself stays dependency-zero; fast-check is used only when executing metamorphic properties.",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "fast-check": "^3.23.2"
+  }
+}
