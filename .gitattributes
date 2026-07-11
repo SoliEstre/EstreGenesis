@@ -1,0 +1,3 @@
+# f3 (reverse-sync e2e 001, 2026-07-11) 재발 방지 — .eux 스펙은 LF 고정.
+# Windows autocrlf 체크아웃이 .eux 를 CRLF 로 물질화하면 라인싱글 `(.+)$` 계열 파서가 절 추출 0건으로 조용히 죽음 (런타임 스크립트는 runtime/.gitattributes 가 별도 관리).
+*.eux  text eol=lf
