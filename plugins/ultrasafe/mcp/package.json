@@ -1,6 +1,6 @@
 {
   "name": "ultrasafe-mcp",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Ultrasafe MCP server — v0.2.x runtime activation cut. 5 tools (ultrasafe_run_fanout / ultrasafe_finding_aggregate / ultrasafe_clean_signal_check / ultrasafe_report_generate / ultrasafe_release_gate) over stdio JSON-RPC, all inline in server.cjs (single file). Advisory-mode (v0.2.x) — no publish blocking; blocking authority deferred to v0.3+. Per Ultrasafe.md §16. Single npm dep (ajv); schema files (plugins/ultrasafe/schemas/) are not shipped in v0.2.x — the validator gracefully skips when absent, contracts are normative in Ultrasafe.md §4/§8.1.",
   "main": "server.cjs",
   "bin": {
