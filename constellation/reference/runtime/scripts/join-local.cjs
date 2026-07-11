@@ -33,6 +33,7 @@ const LOG = path.join(DIR, 'local-' + AGENT_ID + '.log');
 const OUTBOX = process.env.LOCAL_OUTBOX || path.join(DIR, 'local-' + AGENT_ID + '-outbox.jsonl');   // v2.4.7: 워커 세션이 append → drain 송신 (gateway-client 패턴). 워커 emit 경로.
 const OUT_CURSOR = path.join(DIR, '.local-' + AGENT_ID + '-outbox-cursor');
 
+const ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);   // §13.13 ack/ping류 — commitment-ack 대상 아님 (서버 pending 도 비추적)
 let ws = null, connected = false, seq = 0, backoff = 500;
 function log(obj) { try { fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(), ...obj }) + '\n'); } catch {} }
 function send(type, extra) {
@@ -70,6 +71,15 @@ function connect() {
     let m; try { m = JSON.parse(e.data); } catch { return; }
     if (m.type === 'History' || m.type === 'AgentList' || m.type === 'SERVER_HELLO') log({ ev: 'inbound-meta', type: m.type });
     else log({ ev: 'inbound', msg: m });
+    // v2.4.50 — §13.13.2 commitment-tier ack. 서버의 at-least-once pending 은 수신자의
+    // AckProcessed{ackFor} 로만 clear 됨. 미회신 시 매 targeted CUSTOM 이 바운드 재전달(동일
+    // msgId 3×) 후 발신자에게 RelayUnreachable{commitment-ack-absent} 로 종결되는 소음이
+    // 매 위임마다 발생 (2026-07-04~11 실측). ack/ping 류는 서버 pending 비추적이라 제외(스톰 방지).
+    if (m && m.type === 'CUSTOM' && m.msgId && m.targetAgentId === AGENT_ID && m.agentId
+        && m.source !== 'server' && !ACK_KINDS.has(m.name)) {
+      send('CUSTOM', { name: 'AckProcessed', targetAgentId: m.agentId, value: { ackFor: m.msgId } });
+      log({ ev: 'ackprocessed-sent', ackFor: m.msgId, to: m.agentId });
+    }
   };
   ws.onerror = (err) => { log({ ev: 'ws-error', e: String((err && err.message) || err) }); };
   ws.onclose = (ev) => { connected = false; ws = null; log({ ev: 'closed', code: ev && ev.code }); setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 8000); };
