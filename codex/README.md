@@ -52,7 +52,7 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 
 <!-- BEGIN AUTO-INVENTORY (gen-codex-adapter.cjs --write) -->
 
-**Skills projected: 22** across 6 modules · **MCP servers: 4**
+**Skills projected: 29** across 7 modules · **MCP servers: 4**
 
 ### Agent Skills (→ `.agents/skills/<dir>/SKILL.md`)
 
@@ -67,6 +67,13 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 | constellation | `drillnow` | drillnow |
 | constellation | `echo-mode` | echo-mode |
 | constellation | `roundnext` | roundnext |
+| estregenesis | `eg-bootstrap` | eg-bootstrap |
+| estregenesis | `eg-migration` | eg-migration |
+| estregenesis | `eg-upgrade` | eg-upgrade |
+| estregenesis | `egboot` | egboot |
+| estregenesis | `egmig` | egmig |
+| estregenesis | `egrich` | egrich |
+| estregenesis | `egup` | egup |
 | greatpractice | `routinize` | routinize |
 | hyperbrief | `hyperbrief` | hyperbrief |
 | hyperbrief | `hyperbrief-revisit` | hyperbrief-revisit |
