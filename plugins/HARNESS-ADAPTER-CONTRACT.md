@@ -48,7 +48,7 @@ The agent-loop row is deliberately out of adapter scope: loops conform to the **
 
 - **Stage 1 — read-only projection**: the host consumes generated configuration + inventory; humans wire anything the host cannot auto-load. (Codex today.)
 - **Stage 2 — native registration**: the projection is installable through the host's own extension mechanism (marketplace, plugin registry) without manual wiring.
-- **Stage 3 — loop-composed**: the host also implements the loop contract (§13.27.4), so EG disciplines run unattended on that host's own agent loop. This is the target for self-hosted personal-AI environments running user-owned models (the third adapter, planned).
+- **Stage 3 — loop-composed**: the host also implements the loop contract (§13.27.4), so EG disciplines run unattended on that host's own agent loop. This is the declared target for **[Estrelle](https://github.com/SoliEstre/Estrelle)** — a self-hosted personal-AI OS running user-owned models (local LLMs included) whose vision names EG as its agent harness; the third adapter, contract-first.
 
 ## 7. Existing implementations
 
@@ -56,4 +56,4 @@ The agent-loop row is deliberately out of adapter scope: loops conform to the **
 |---|---|---|
 | Claude Code | reference host (no adapter needed) | `plugins/*` load natively |
 | Codex | Stage 1 | `codex/gen-codex-adapter.cjs` · `codex/config.toml.example` · `codex/README.md` inventory · verify axis `codex-adapter` |
-| self-hosted personal-AI environment (local-LLM loop) | planned — target Stage 3 | contract-first: this document + §13.27.4 precede any code |
+| [Estrelle](https://github.com/SoliEstre/Estrelle) (personal-AI OS, local-LLM loop) | planned — target Stage 3 | contract-first: this document + §13.27.4 precede any code; mutual entry-point links (Estrelle vision ↔ this repo) |
