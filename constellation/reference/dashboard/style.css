@@ -897,6 +897,14 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-tab .mbadge.rt { color: var(--ws-role-rt, #35c0d0); }
 .ws-src .r-roundtable { color: var(--ws-role-rt, #35c0d0); }
 .ws-target-dot.roundtable { background: var(--ws-role-rt, #35c0d0); }
+.ws-rt-pin { margin: 4px 6px 8px; border: 1px solid color-mix(in srgb, var(--ws-role-rt, #35c0d0) 45%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--ws-role-rt, #35c0d0) 7%, transparent); font-size: 12px; }
+.ws-rt-pin > summary { cursor: pointer; padding: 5px 9px; color: var(--ws-role-rt, #35c0d0); user-select: none; }
+.ws-rt-pin-refresh { background: none; border: none; cursor: pointer; font-size: 11px; padding: 0 2px; opacity: .7; }
+.ws-rt-pin-refresh:hover { opacity: 1; }
+.ws-rt-pin-body { padding: 2px 10px 8px; display: flex; flex-direction: column; gap: 6px; }
+.ws-rt-pin-sec b { color: var(--ws-role-rt, #35c0d0); font-size: 11px; }
+.ws-rt-pin-txt, .ws-rt-pin-dec { white-space: pre-wrap; word-break: break-word; opacity: .92; }
+.ws-rt-pin-dec { padding-left: 8px; border-left: 2px solid color-mix(in srgb, var(--ws-role-rt, #35c0d0) 35%, transparent); margin-top: 3px; }
 .ws-rt-dlg { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 300; display: flex; align-items: center; justify-content: center; }
 .ws-rt-box { background: var(--card, #171b22); border: 1px solid var(--ws-role-rt, #35c0d0); border-radius: 10px; padding: 14px 16px; width: min(420px, 92vw); max-height: 84vh; overflow-y: auto; font-size: 13px; }
 .ws-rt-title { font-weight: 700; margin-bottom: 10px; color: #5fd3e0; }

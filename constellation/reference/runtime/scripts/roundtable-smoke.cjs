@@ -4,7 +4,8 @@
 // and exercises the deterministic floor end-to-end: room lifecycle, fan-out + single
 // summary ack, all four guards (rate / consecutive / autoHop / stall-signal), human
 // soft-yield reset, notice-reply surfacing, floor-queue registration (including the
-// "raise a hand while the chain is capped" case), and closed-room rejection.
+// "raise a hand while the chain is capped" case), room artifacts (fetch / update with
+// delta broadcast / persistence / non-participant rejection), and closed-room rejection.
 //
 // Usage: node roundtable-smoke.cjs            (from this scripts/ dir)
 //        SMOKE_PORT=17878 node roundtable-smoke.cjs
@@ -93,11 +94,28 @@ function mkClient(kind, agentId) {
     const fl = B.custom('RoomFloor').pop();
     T('floor request registered even when chain-capped', !!fl && fl.value.queue.some((q) => q.agentId === 'agent-a' && q.bid === 5));
 
+    // §13.30.5 artifacts — fetch(empty) → update(header+decision+summary) → delta broadcast → versioned re-fetch
+    A.send({ type: 'CUSTOM', name: 'RequestRoomArtifacts', value: { roomId } });
+    await sleep(250);
+    const art0 = A.custom('RoomArtifacts').pop();
+    T('artifacts fetch: empty initial state, version 0', !!art0 && art0.value.version === 0 && art0.value.artifacts && art0.value.artifacts.header === null);
+    B.send({ type: 'CUSTOM', name: 'RoomArtifactsUpdate', value: { roomId, header: { text: 'objective: smoke' }, decision: { text: 'use two layers' }, summary: { text: 'digest v1', covers_until: 'sm-9' } } });
+    await sleep(250);
+    const artEv = C.custom('RoomArtifacts').pop();
+    T('artifacts update: delta broadcast to participants', !!artEv && artEv.value.delta && !!artEv.value.delta.header && !!artEv.value.delta.decision && !!artEv.value.delta.summary && artEv.value.version === 1);
+    A.send({ type: 'CUSTOM', name: 'RequestRoomArtifacts', value: { roomId } });
+    await sleep(250);
+    const art1 = A.custom('RoomArtifacts').pop();
+    T('artifacts re-fetch: persisted with version', !!art1 && art1.value.version === 1 && art1.value.artifacts.header && art1.value.artifacts.header.text === 'objective: smoke' && art1.value.artifacts.decisions.length === 1 && art1.value.artifacts.summary.covers_until === 'sm-9');
+
     C.send({ type: 'CUSTOM', name: 'RoomLeave', value: { roomId } });
     await sleep(200);
     C.send({ type: 'CUSTOM', name: 'Say', roomId, msgId: 'sm-11', value: { text: 'after leave' } });
     await sleep(250);
     T('non-participant parked after RoomLeave', A.find((m) => m.msgId === 'sm-11').length === 0 && C.custom('RoomGuard').some((m) => m.value.rule === 'not-participant'));
+    C.send({ type: 'CUSTOM', name: 'RoomArtifactsUpdate', value: { roomId, header: { text: 'hijack attempt' } } });
+    await sleep(250);
+    T('non-participant artifacts update ignored', C.custom('RoomGuard').some((m) => m.value.rule === 'not-participant' && m.value.action === 'ignored'));
 
     BOARD.send({ type: 'CUSTOM', name: 'RoomClose', value: { roomId, reason: 'smoke done' } });
     await sleep(250);

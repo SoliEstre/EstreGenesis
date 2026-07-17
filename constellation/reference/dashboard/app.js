@@ -1921,7 +1921,8 @@ function wsRenderStreamInto(s, item) {
     return;
   }
   const ch = item && wsState.channels.get(item);
-  if (!ch || !ch.rows.length) { s.innerHTML = '<div class="ws-empty">아직 수신한 이벤트가 없어요. 에이전트가 연결되면 여기에 표시됩니다.</div>'; return; }
+  const _pin = (typeof item === 'string' && item.indexOf('room:') === 0) ? wsRtPinnedEl(item.slice(5)) : null;   // §13.30.8 pinned header/digest 접이식
+  if (!ch || !ch.rows.length) { s.innerHTML = '<div class="ws-empty">아직 수신한 이벤트가 없어요. 에이전트가 연결되면 여기에 표시됩니다.</div>'; if (_pin) s.prepend(_pin); return; }
   const f = ch._chanFilter || '*';            // 출처 필터 (* = 전체)
   const showChan = (f === '*');               // 전체 보기일 때만 출처 뱃지(개별 채널은 이미 필터됨)
   let n = 0, lastDay = null;
@@ -1931,8 +1932,32 @@ function wsRenderStreamInto(s, item) {
     s.appendChild(wsRowEl(row, showChan)); n++;
   }
   s._lastDay = lastDay;
-  if (!n) { s.innerHTML = '<div class="ws-empty">이 출처에 표시할 이벤트가 없어요.</div>'; return; }
+  if (!n) { s.innerHTML = '<div class="ws-empty">이 출처에 표시할 이벤트가 없어요.</div>'; if (_pin) s.prepend(_pin); return; }
+  if (_pin) s.prepend(_pin);
   s.scrollTop = s.scrollHeight;
+}
+// §13.30.5/8 — room 고정 문서(개요·결정 장부·진행 요약) 접이식 블록. 동적 텍스트는 전부 textContent (§8.1 esc-only).
+function wsRtPinnedEl(roomId) {
+  let rt; try { rt = wsRtRooms.get(roomId); } catch { return null; }   // TDZ 가드 — 초기 applyPanes(load) 경로가 wsRtRooms(2639) 선언 실행 전 호출 가능 (v2.4.32 사고 클래스)
+  if (!rt) return null;
+  const a = rt.artifacts;
+  const d = document.createElement('details'); d.className = 'ws-rt-pin'; d.open = !!rt._pinOpen;
+  d.ontoggle = () => { rt._pinOpen = d.open; };
+  const sum = document.createElement('summary');
+  sum.textContent = '📌 고정 문서' + (rt.artVersion ? ' v' + rt.artVersion : '') + (a && a.summary && a.summary.covers_until ? ' · digest ≤ ' + a.summary.covers_until : '');
+  const rf = document.createElement('button'); rf.className = 'ws-rt-pin-refresh'; rf.textContent = '🔄';
+  rf.title = '서버에서 다시 가져오기 (RequestRoomArtifacts)';
+  rf.onclick = (e) => { e.preventDefault(); e.stopPropagation(); wsSendOrch({ type: 'CUSTOM', name: 'RequestRoomArtifacts', value: { roomId } }); };
+  sum.append(' '); sum.append(rf); d.append(sum);
+  const bd = el('div', 'ws-rt-pin-body');
+  if (!a || (!a.header && !(a.decisions && a.decisions.length) && !a.summary)) {
+    bd.textContent = '아직 고정 문서가 없어요 — RoomArtifactsUpdate 로 채워져요.';
+  } else {
+    if (a.header) { const h = el('div', 'ws-rt-pin-sec'); h.innerHTML = '<b>개요</b>'; const t = el('div', 'ws-rt-pin-txt'); t.textContent = a.header.text || ''; h.append(t); bd.append(h); }
+    if (a.decisions && a.decisions.length) { const h = el('div', 'ws-rt-pin-sec'); h.innerHTML = '<b>결정 장부</b>'; for (const dc of a.decisions) { const t = el('div', 'ws-rt-pin-dec'); t.textContent = (dc.id ? dc.id + ' · ' : '') + (dc.text || '') + (dc.supersedes ? ' (↩ ' + dc.supersedes + ' 대체)' : ''); h.append(t); } bd.append(h); }
+    if (a.summary) { const h = el('div', 'ws-rt-pin-sec'); h.innerHTML = '<b>진행 요약</b>'; const t = el('div', 'ws-rt-pin-txt'); t.textContent = a.summary.text || ''; h.append(t); bd.append(h); }
+  }
+  d.append(bd); return d;
 }
 // ---- 대화 위 출처(채널) 필터 탭 — 에이전트 통합 탭 안에서 channelId/threadId 출처별 필터. [전체]=모두+뱃지 ----
 function wsGrpHidden(gkey) { wsState.grpFilter = wsState.grpFilter || {}; if (!wsState.grpFilter[gkey]) wsState.grpFilter[gkey] = new Set(); return wsState.grpFilter[gkey]; }   // 그룹별 병합뷰에서 숨긴 멤버 id Set (기본 비어있음=전체 표시)
@@ -2467,6 +2492,9 @@ function wsSetActive(id) {
   else { const ch = wsState.channels.get(id); if (ch) ch.unseen = 0; wsMaybeRequestHistory(id); }   // C: cold stub 이면 내용 on-demand 로드
   wsRenderTabs(); wsRenderActiveStream(); updateWsConn(); updateWsBadge();
   if (wsState.debugOpen) wsRenderDebug();
+  if (typeof id === 'string' && id.indexOf('room:') === 0) {   // §13.30.5 — 방 탭 진입 시 고정 문서 1회 자동 fetch (미보유 시)
+    try { const _rt = wsRtRooms.get(id.slice(5)); if (_rt && !_rt.closed && !_rt.artifacts) wsSendOrch({ type: 'CUSTOM', name: 'RequestRoomArtifacts', value: { roomId: id.slice(5) } }); } catch {}
+  }
   wsShowTextarea(id);   // 채널별 입력란 스위칭(활성만 표시·포커스, 높이 통일)
   if (wsPagerOn()) wsScrollToActive(true);   // #3a B: 탭 탭 → 페이저 내용영역 자동 수평 스크롤 + 탭바 동기
 }
@@ -2628,6 +2656,17 @@ function wsRtIntake(m, _t, _ts) {
   else if (m.name === 'RoomGuard') { kind = 'err'; label = '🛡 RoomGuard'; body = (v.rule || '') + ' → ' + (v.action || '') + (v.agentId ? ' (' + wsName(v.agentId) + ')' : ''); }
   else if (m.name === 'RoomYield') { label = '✋ soft-yield'; body = '사람 발화 — 에이전트는 현재 턴 완결 후 반영'; }
   else if (m.name === 'RoomFloor') { label = '🎤 발언권 큐'; body = (v.queue || []).map((q) => wsName(q.agentId) + (q.bid ? '(' + q.bid + ')' : '')).join(' → ') || '(비어 있음)'; }
+  else if (m.name === 'RoomArtifacts') {   // §13.30.5 — fetch 회신(full) + 변경 브로드캐스트(delta) 공통 인테이크
+    if (rt) {
+      const a = rt.artifacts = rt.artifacts || { header: null, decisions: [], summary: null };
+      const src = v.artifacts || v.delta || {};
+      if (v.artifacts) { a.header = src.header || null; a.decisions = Array.isArray(src.decisions) ? src.decisions : []; a.summary = src.summary || null; }
+      else { if (src.header) a.header = src.header; if (src.decision) a.decisions.push(src.decision); if (src.summary) a.summary = src.summary; }
+      rt.artVersion = v.version || 0;
+    }
+    label = '📌 고정 문서'; body = 'v' + (v.version || 0) + (v.delta ? ' — ' + Object.keys(v.delta).join('·') + ' 갱신' : ' 수신');
+    if (!wsState.replaying) { try { wsRenderActiveStream(); } catch {} }   // pinned 블록 즉시 갱신
+  }
   else { kind = m.speakerClass === 'human-operator' ? 'user' : 'agent'; label = (m.speakerClass === 'human-operator' ? '👤 ' : '') + (m.name === 'UserPrompt' ? '🙋 ' + who : who) + (m.autoHop ? ' · hop ' + m.autoHop : ''); }
   wsPushRow(key, { kind, label, body, dim: kind === 'note', t: _t, ts: _ts, msgId: m.msgId || m.id, promptId: (v && v.promptId) || undefined });
   if (m.name === 'RoomCreated' && !wsState.replaying && Date.now() - _wsRtJustCreated < 15000) { _wsRtJustCreated = 0; wsSetActive(key); }
