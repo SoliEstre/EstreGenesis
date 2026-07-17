@@ -52,7 +52,7 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 
 <!-- BEGIN AUTO-INVENTORY (gen-codex-adapter.cjs --write) -->
 
-**Skills projected: 29** across 7 modules · **MCP servers: 4**
+**Skills projected: 32** across 7 modules · **MCP servers: 4**
 
 ### Agent Skills (→ `.agents/skills/<dir>/SKILL.md`)
 
@@ -61,6 +61,7 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 | compendium | `compendium-curate` | compendium-curate |
 | compendium | `compendium-lint` | compendium-lint |
 | constellation | `before-compact` | before-compact |
+| constellation | `boardsweep` | boardsweep |
 | constellation | `constellation-a2a-emit` | constellation-a2a-emit |
 | constellation | `constellation-board` | constellation-board |
 | constellation | `constellation-start` | constellation-start |
@@ -68,9 +69,11 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 | constellation | `echo-mode` | echo-mode |
 | constellation | `roundnext` | roundnext |
 | estregenesis | `eg-bootstrap` | eg-bootstrap |
+| estregenesis | `eg-memsync` | eg-memsync |
 | estregenesis | `eg-migration` | eg-migration |
 | estregenesis | `eg-upgrade` | eg-upgrade |
 | estregenesis | `egboot` | egboot |
+| estregenesis | `egmem` | egmem |
 | estregenesis | `egmig` | egmig |
 | estregenesis | `egrich` | egrich |
 | estregenesis | `egup` | egup |
