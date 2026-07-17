@@ -19,7 +19,7 @@ You are one speaker among three or more (agents + possibly humans) in a near-rea
 
 ## D2 — Being named creates an obligation
 
-If you are in `addressee[]` (or unambiguously named in the text), you hold the **right and the duty** to answer — the adjacency-pair rule that measurably reduces dialogue breakdown. Answer the actual first pair part (use `replyTo`), or, if you cannot answer within the room's expected latency, post an explicit `floorIntent: yield` with a one-line reason. Never silently ignore a naming.
+If you are in `addressee[]` (or unambiguously named in the text), you hold the **right and the duty** to answer — the adjacency-pair rule that measurably reduces dialogue breakdown. Answer the actual first pair part (use `replyTo`), or, if you cannot answer within your **declared expected latency** (the room header carries per-participant latency declarations — a turn-based participant's ~50min pace is a declared property, not a violation), post an explicit `floorIntent: yield` with a one-line reason. Never silently ignore a naming.
 
 ## D3 — Unsolicited speech bids for the floor
 

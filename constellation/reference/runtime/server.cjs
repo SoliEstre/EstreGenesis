@@ -833,7 +833,7 @@ const WS_ROOMS_FILE = path.join(DIR, 'rooms.json');
 let wsRooms = new Map();                                     // roomId → room object (§13.30.2)
 try { for (const r of JSON.parse(fs.readFileSync(WS_ROOMS_FILE, 'utf8'))) if (r && r.roomId && !r.closedAt) wsRooms.set(r.roomId, r); } catch {}
 function wsRoomsSave() { try { const tmp = WS_ROOMS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify([...wsRooms.values()], null, 2)); fs.renameSync(tmp, WS_ROOMS_FILE); } catch (e) { console.warn('[room] persist fail:', e.message); } }
-const WS_ROOM_BUDGET_DEFAULTS = { maxConsecutive: 2, ratePerMin: 10, maxAutoHop: 4, stallRounds: 3 };
+const WS_ROOM_BUDGET_DEFAULTS = { maxConsecutive: 2, ratePerMin: 10, maxAutoHop: 6, stallRounds: 3 };   // maxAutoHop = D4 self-cap 상단(5)+1 — floor 가 규율 준수자를 먼저 걸면 안 됨 (피어 리뷰 반영)
 function wsRoomEvent(name, value) { const ev = wscore.event('CUSTOM', { name, value }); ev.source = 'server'; return ev; }
 function wsRoomBroadcast(room, ev) {                         // room 이벤트 → 참여 에이전트 전원 + board 전체 (기록 포함)
   ev.roomId = room.roomId;
