@@ -255,6 +255,12 @@ const server = http.createServer((req, res) => {
       res.end(wsUpstreamOnboardMd(req.headers.host || ('localhost:' + PORT), key));
       return;
     }
+    if (group === 'peer') {   // v2.4.52 — peer-main 온보딩 (§13.9.3; 자율 upstream 과 구분)
+      if (!key || keyRole !== 'peer') { res.writeHead(403, { 'Content-Type': 'text/markdown; charset=utf-8' }); res.end('# 접속 거부\n\n유효한 피어 키가 필요합니다. (URL 형식: `/join/peer?key=pk-…`)'); return; }
+      res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
+      res.end(wsPeerOnboardMd(req.headers.host || ('localhost:' + PORT), key));
+      return;
+    }
     if (group === 'local') {   // v2.4.1 §3.6 — label 만 받음 (키는 URL 노출 안 함)
       const label = new URL(req.url, 'http://x').searchParams.get('label');
       if (!label || !keyValidateLabelSafe(label)) { res.writeHead(400, { 'Content-Type': 'text/markdown; charset=utf-8' }); res.end('# 잘못된 라벨\n\n로컬 키 라벨은 `[a-zA-Z0-9_-]+` 패턴이어야 해요. (URL 형식: `/join/local?label=worker-1`)'); return; }
@@ -264,7 +270,7 @@ const server = http.createServer((req, res) => {
       res.end(wsLocalOnboardMd(req.headers.host || ('localhost:' + PORT), label, k.roleDescription));
       return;
     }
-    res.writeHead(404, { 'Content-Type': 'text/markdown; charset=utf-8' }); res.end('# 알 수 없는 그룹\n\n지원: `/join/collab` · `/join/upstream` · `/join/local`'); return;
+    res.writeHead(404, { 'Content-Type': 'text/markdown; charset=utf-8' }); res.end('# 알 수 없는 그룹\n\n지원: `/join/collab` · `/join/upstream` · `/join/peer` · `/join/local`'); return;
   }
 
   // 연동 문서 (화이트리스트) — 상대 에이전트가 ws://host:7878 와 같은 호스트에서 가이드/레퍼런스를 바로 받아볼 수 있게
@@ -378,14 +384,14 @@ function wsIsAckable(msg) {   // §13.13 A2A delivered ack 대상: ack/ping류·
 // 메인(main) 에이전트 — 대상(targetAgentId) 미지정 inbound/CUSTOM 의 우선 수신자(오케스트레이터). 핸드오프로 변경 가능.
 let WS_PRIMARY_ID = process.env.WS_PRIMARY_AGENT || 'main-agent';   // generic default (dashboard WS_LOCAL 과 일관); 다운스트림이 자기 환경 메인 agentId 를 env 로 주입
 function wsPrimaryAgent() { const p = wsAgents.get(WS_PRIMARY_ID); if (p && p.alive) return p; for (const c of wsAgents.values()) if (c.alive) return c; return null; }
-function wsAgentRole(c) { return c.meta.collab ? 'collab' : (c.meta.upstream ? 'upstream' : (c.meta.agentId === WS_PRIMARY_ID ? 'main' : 'local')); }   // v0.3 오케스트레이션 role (+collab #168)
+function wsAgentRole(c) { return c.meta.collab ? 'collab' : (c.meta.peer ? 'peer' : (c.meta.upstream ? 'upstream' : (c.meta.agentId === WS_PRIMARY_ID ? 'main' : 'local'))); }   // v0.3 오케스트레이션 role (+collab #168, +peer v2.4.52 — peer-main ≠ 자율 upstream)
 // 업스트림 등록키 레지스트리 (영속, gitignore). 메인이 발급 → 사용자 경유 업스트림에 전달 → 그 키로 upstream role.
 const crypto = require('crypto');
 const WS_KEYS = path.join(DIR, 'ws-keys.json');
 let wsKeys = [];
 try { const k = JSON.parse(fs.readFileSync(WS_KEYS, 'utf8')); if (Array.isArray(k)) wsKeys = k; } catch {}
 function wsSaveKeys() { try { fs.writeFileSync(WS_KEYS, JSON.stringify(wsKeys)); } catch {} }
-function wsIssueKey(label, role) { const r = role || 'upstream'; const prefix = r === 'collab' ? 'ck-' : r === 'local' ? 'lk-' : 'uk-'; const key = prefix + crypto.randomBytes(12).toString('hex'); wsKeys.push({ key, label: label || r, role: r, createdAt: new Date().toISOString() }); wsSaveKeys(); return key; }   // #168 role 메타(collab=ck- / upstream=uk- / v2.4.1 local=lk-)
+function wsIssueKey(label, role) { const r = role || 'upstream'; const prefix = r === 'collab' ? 'ck-' : r === 'local' ? 'lk-' : r === 'peer' ? 'pk-' : 'uk-'; const key = prefix + crypto.randomBytes(12).toString('hex'); wsKeys.push({ key, label: label || r, role: r, createdAt: new Date().toISOString() }); wsSaveKeys(); return key; }   // #168 role 메타(collab=ck- / upstream=uk- / v2.4.1 local=lk- / v2.4.52 peer=pk-)
 function wsValidKey(key) { return !!key && wsKeys.some((k) => k.key === key); }
 function wsKeyRole(key) { const k = wsKeys.find((x) => x.key === key); return k ? (k.role || 'upstream') : null; }   // #168 키 role 조회(collab/upstream)
 function wsRevokeKey(key) { const n = wsKeys.length; wsKeys = wsKeys.filter((k) => k.key !== key); if (wsKeys.length !== n) wsSaveKeys(); }
@@ -455,8 +461,8 @@ function keyOnConnClose(conn) {   // §4: REVOKED_PENDING 키의 마지막 live 
   if (m && m.alive) { const ev = wscore.event('CUSTOM', { name: 'KeyRevoked', value: { key, mode: 'sessionEnd', agentsDisconnected: 1, agentsNotified: 1 } }); ev.source = 'server'; ev.targetAgentId = m.meta.agentId; m.send(ev); }
 }
 function wsKeyReply(conn, name, value, ackForMsg) { const ev = wscore.event('CUSTOM', { name, value }); ev.source = 'server'; if (ackForMsg && (ackForMsg.msgId || ackForMsg.messageId)) ev.value.re_msgId = ackForMsg.msgId || ackForMsg.messageId; if (conn.meta.agentId) ev.targetAgentId = conn.meta.agentId; conn.send(ev); }
-function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (upstream/collab/local) + roleDescription
-  const kind = (v.kind === 'local' || v.kind === 'collab' || v.kind === 'upstream') ? v.kind : 'upstream';
+function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (upstream/collab/local/peer) + roleDescription
+  const kind = (v.kind === 'local' || v.kind === 'collab' || v.kind === 'upstream' || v.kind === 'peer') ? v.kind : 'upstream';
   const label = (v.label != null && v.label !== '') ? String(v.label) : kind;
   if (!keyValidate(label)) return keyError(conn, msg, 'INVALID_LABEL', 'label must be 1..64 chars, no control chars');
   if (kind === 'local' && !keyValidateLabelSafe(label)) return keyError(conn, msg, 'INVALID_LABEL', 'local key label must match /^[a-zA-Z0-9_-]+$/ (used as filename)');
@@ -479,7 +485,7 @@ function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (u
     wsKeyReply(conn, 'KeyIssued', { kind: 'local', label, roleDescription, ttl, issuedAt, joinFile: relFile, joinScript: 'scripts/join-local.cjs', joinHint }, msg);
     return;
   }
-  const urlParam = kind === 'collab' ? 'key' : 'upstreamKey';
+  const urlParam = kind === 'collab' ? 'key' : kind === 'peer' ? 'peerKey' : 'upstreamKey';   // v2.4.52 peer 전용 파라미터 — upstream 파라미터에 편승 금지 (kind 혼동 방지)
   const joinUrl = `ws://${process.env.WS_PUBLIC_HOST || ('localhost:' + PORT)}/ws?${urlParam}=${encodeURIComponent(key)}`;
   wsKeyReply(conn, 'KeyIssued', { key, joinUrl, label, kind, roleDescription, ttl, issuedAt }, msg);
 }
@@ -600,6 +606,29 @@ function wsLocalOnboardMd(host, label, roleDescription) {   // v2.4.1 §3.6 — 
     '```', '',
     `_라벨: ${label} · 호스트: ${host} · 파일: ${filePath} · 문의: 보드 메인 에이전트_`, '',
   ].filter(Boolean).join('\n');
+}
+function wsPeerOnboardMd(host, key) {   // v2.4.52 — peer-main 온보딩 md (§13.9.3 duty profile; 자율 upstream 과 구분)
+  return [
+    '# 🤝 Constellation 라이브보드 — 피어(peer-main) 합류',
+    '', '환영합니다. 이 보드에 **peer-main** (자기 프로젝트의 main 에이전트가 타 보드에 피어로 합류) 으로 붙는 안내입니다.', '',
+    '## 접속 (한 줄)', '```', `ws://${host}/ws?peerKey=${key}`, '```',
+    '위 키로 접속하면 **peer role** 로 자동 분류돼요 — 자기 프로젝트에선 orchestrator-main, 이 보드에선 피어 (§13.9.3).', '',
+    '## peer vs upstream vs collab — 차이 한 줄',
+    '- **peer** = 타 프로젝트의 main (key prefix `pk-`). 프로젝트 간 대등 협의 채널. Delegate-wait 없음, SetMain 자격 없음.',
+    '- **upstream** = 자율 외부 에이전트 / 거버넌스 layer (key prefix `uk-`). 결정을 아래로 내릴 수 있는 방향성.',
+    '- **collab** = 외부 협업 worker/어댑터 (key prefix `ck-`). 메인 위임 수신 + 보고.',
+    '',
+    wsChannelGuideMd(),
+    '## 운영 규약',
+    '- **모든 발신 메시지는 `targetAgentId` 명시** (이 보드의 메인 = `' + WS_PRIMARY_ID + '`).',
+    '- 응답 라우팅: **응답은 요청이 들어온 채널로** (received-channel). 자기 보드 사안은 자기 보드에.',
+    '- 이 보드의 메인이 board 갱신을 워커에 위임해 운용 중이면, 보드 등재 요청은 메인에게 — 직접 state 편집 금지.',
+    '',
+    '## 온보딩 프롬프트 (첫 지시문 복붙)', '```',
+    `이 Constellation 라이브보드에 peer-main 으로 합류해줘. 접속: ws://${host}/ws?peerKey=${key} (HELLO 시 agentName 지정 + role 힌트 'peer'). 너는 네 프로젝트의 main 이고 이 보드에선 피어야 — 대등 협의 채널로 쓰고, 모든 발신에 targetAgentId 명시 (메인=${WS_PRIMARY_ID}). IDE/CLI 면 AGENT-CONNECT §1.9 무한대기로 운영.`,
+    '```', '',
+    `_발급 키: ${key} · 호스트: ${host} · 문의: 보드 메인 에이전트_`, '',
+  ].join('\n');
 }
 function wsUpstreamOnboardMd(host, key) {   // v2.3.23 — 업스트림 온보딩 md (collab 패턴 + upstream 특화)
   return [
@@ -807,7 +836,7 @@ server.on('upgrade', (req, socket) => {
     } }
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
-  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
+  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
   conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
@@ -828,7 +857,7 @@ server.on('upgrade', (req, socket) => {
       conn.meta.agentId = _hadId ? msg.agentId : ('agent-' + conn.id.slice(0, 4));
       conn.meta.clientId = msg.clientId;
       conn.meta.agentName = msg.agentName || conn.meta.agentId;
-      { const k = msg.key || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } }   // #168 HELLO 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭)
+      { const k = msg.key || msg.peerKey || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } }   // #168 HELLO 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
       conn.meta.roleHint = msg.role || '';                       // local/upstream 힌트(최종 판정은 키·main)
       // #5a-3 표면별 접근 판정 — HELLO 에서 agent/MCP 구분(capabilities mcp-proxy) 후 그 표면의 IP allowlist + (둘 다) requireKey 적용.
       { const _ip = conn.remoteAddr;
@@ -838,7 +867,7 @@ server.on('upgrade', (req, socket) => {
           try { conn.close(); } catch {} return;
         }
         if (accessCfg.agent.requireKey && !_isLoopback && !isLoopbackIp(_ip)) {
-          const _k = msg.key || msg.upstreamKey || msg.collabKey || conn.meta._urlKey;
+          const _k = msg.key || msg.peerKey || msg.upstreamKey || msg.collabKey || conn.meta._urlKey;
           if (!wsValidKey(_k)) { console.warn('[ws HELLO] #5a-3 무키/무효키 거부 ip=%s agent=%s', _ip || '?', conn.meta.agentId); try { conn.close(); } catch {} return; }
         }
       }

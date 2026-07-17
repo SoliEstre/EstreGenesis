@@ -2020,6 +2020,9 @@ const WS_MON_UP = '__mon_up__';        // 🔀 업스트림 ↔ 메인
 const WS_MON_LOCAL = '__mon_local__';  // 🔀 메인 ↔ 로컬
 const WS_MON_COLLAB = '__mon_collab__';  // 🔀 메인 ↔ 협업(collab peer, §13.9 — collab/upstream = peer not worker)
 const WS_MON_BOARD = '__mon_board__';  // 🔀 메인 ↔ 보드 (board-worker A2A 별도 모니터 — C1 backends.json overlay)
+const WS_MON_PEER = '__mon_peer__';    // 🔀 메인 ↔ 피어 (peer-main A2A — v2.4.52 §13.9.3; 메인 그룹에 취합)
+const WS_MON_PEER_PEER = '__mon_peer_peer__';      // 🔀 피어 ↔ 피어 (피어 그룹에 취합)
+const WS_MON_PEER_COLLAB = '__mon_peer_collab__';  // 🔀 피어 ↔ 협업 (피어 그룹에 취합)
 let wsBackends = {};   // C1 backend registry overlay (backends.json): agentId → {role, model, connection, board}. 부재 시 {} → graceful (board-worker 는 local 로 접힘, badge 없음)
 function wsLoadBackends() {
   fetch('backends.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(reg => {
@@ -2036,21 +2039,29 @@ let WS_LOCAL = 'main-agent';           // placeholder; updated dynamically from 
 function wsRoleOf(id) { const c = wsState.channels.get(id); return (c && c.role) || (id === WS_LOCAL ? 'main' : 'local'); }
 function wsMonChannel(src, dst) {
   const sr = wsRoleOf(src), dr = wsRoleOf(dst);
+  if (sr === 'peer' || dr === 'peer') {   // v2.4.52 peer 우선 분기 — 피어 관여 A2A 는 피어 계열 모니터로
+    if (sr === 'peer' && dr === 'peer') return WS_MON_PEER_PEER;
+    if (sr === 'collab' || dr === 'collab') return WS_MON_PEER_COLLAB;
+    return WS_MON_PEER;   // main·local·board-worker·upstream ↔ peer → Main↔Peer 취합
+  }
   if (sr === 'upstream' || dr === 'upstream') return WS_MON_UP;
   if (sr === 'collab' || dr === 'collab') return WS_MON_COLLAB;   // §13.9 collab peer: Main↔Collab 별도 모니터
   if (sr === 'board-worker' || dr === 'board-worker') return WS_MON_BOARD;   // C1: board-worker A2A → Main↔Board 별도 모니터
   return WS_MON_LOCAL;
 }
-function wsMonName(id) { return id === WS_MON_UP ? '🔀 Up↔Main' : id === WS_MON_COLLAB ? '🔀 Main↔Collab' : id === WS_MON_BOARD ? '🔀 Main↔Board' : '🔀 Main↔Local'; }
-function wsIsMon(id) { return id === WS_MON_UP || id === WS_MON_LOCAL || id === WS_MON_COLLAB || id === WS_MON_BOARD; }
+function wsMonName(id) { return id === WS_MON_UP ? '🔀 Up↔Main' : id === WS_MON_COLLAB ? '🔀 Main↔Collab' : id === WS_MON_BOARD ? '🔀 Main↔Board' : id === WS_MON_PEER ? '🔀 Main↔Peer' : id === WS_MON_PEER_PEER ? '🔀 Peer↔Peer' : id === WS_MON_PEER_COLLAB ? '🔀 Peer↔Collab' : '🔀 Main↔Local'; }
+function wsIsMon(id) { return id === WS_MON_UP || id === WS_MON_LOCAL || id === WS_MON_COLLAB || id === WS_MON_BOARD || id === WS_MON_PEER || id === WS_MON_PEER_PEER || id === WS_MON_PEER_COLLAB; }
 function wsIsGroup(id) { return typeof id === 'string' && id.indexOf('group:') === 0; }
 function wsGroupMembers(gkey) {
-  const r = gkey === 'group:up' ? 'upstream' : gkey === 'group:main' ? 'main' : gkey === 'group:collab' ? 'collab' : gkey === 'group:board-worker' ? 'board-worker' : 'local';
+  const r = gkey === 'group:up' ? 'upstream' : gkey === 'group:main' ? 'main' : gkey === 'group:collab' ? 'collab' : gkey === 'group:board-worker' ? 'board-worker' : gkey === 'group:peer' ? 'peer' : 'local';
   const mem = [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id)).map(([id]) => id);
   if (gkey === 'group:up' && wsState.channels.has(WS_MON_UP)) mem.push(WS_MON_UP);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_LOCAL)) mem.push(WS_MON_LOCAL);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_COLLAB)) mem.push(WS_MON_COLLAB);   // group:main 병합에 Main↔Collab 취합(§13.9 collab peer)
+  if (gkey === 'group:main' && wsState.channels.has(WS_MON_PEER)) mem.push(WS_MON_PEER);   // v2.4.52: group:main 병합에 Main↔Peer 취합
   if (gkey === 'group:board-worker' && wsState.channels.has(WS_MON_BOARD)) mem.push(WS_MON_BOARD);   // C1: board-worker 그룹 병합에 Main↔Board 취합
+  if (gkey === 'group:peer' && wsState.channels.has(WS_MON_PEER_PEER)) mem.push(WS_MON_PEER_PEER);   // v2.4.52: 피어 그룹 병합에 Peer↔Peer 취합
+  if (gkey === 'group:peer' && wsState.channels.has(WS_MON_PEER_COLLAB)) mem.push(WS_MON_PEER_COLLAB);   // v2.4.52: 피어 그룹 병합에 Peer↔Collab 취합
   return mem;
 }
 function wsGroupRep(gkey) {
@@ -2393,9 +2404,10 @@ function wsComputeGroups() {
   const has = (id) => wsState.channels.has(id);
   let groups = [
     { key: 'group:up', cls: 'up', label: '업스트림', tabs: byRole('upstream').concat(has(WS_MON_UP) ? [WS_MON_UP] : []) },
-    { key: 'group:main', cls: 'main', label: '메인', tabs: byRole('main').concat(has(WS_MON_LOCAL) ? [WS_MON_LOCAL] : []).concat(has(WS_MON_COLLAB) ? [WS_MON_COLLAB] : []) },
+    { key: 'group:main', cls: 'main', label: '메인', tabs: byRole('main').concat(has(WS_MON_LOCAL) ? [WS_MON_LOCAL] : []).concat(has(WS_MON_COLLAB) ? [WS_MON_COLLAB] : []).concat(has(WS_MON_PEER) ? [WS_MON_PEER] : []) },
     { key: 'group:board-worker', cls: 'board-worker', label: '보드워커', tabs: byRole('board-worker').concat(has(WS_MON_BOARD) ? [WS_MON_BOARD] : []) },
     { key: 'group:local', cls: 'local', label: '로컬', tabs: byRole('local') },
+    { key: 'group:peer', cls: 'peer', label: '피어', tabs: byRole('peer').concat(has(WS_MON_PEER_PEER) ? [WS_MON_PEER_PEER] : []).concat(has(WS_MON_PEER_COLLAB) ? [WS_MON_PEER_COLLAB] : []) },   // v2.4.52 peer-main 그룹 (로컬↔협업 사이; §13.9.3)
     { key: 'group:collab', cls: 'collab', label: '협업', tabs: byRole('collab') },
   ];
   groups = wsApplyOrder(groups, wsTabOrder.groups, (g) => g.key);   // 사용자 지정 그룹 순서
@@ -2440,10 +2452,12 @@ function wsRenderTabs() {
     bar.appendChild(grp);
   }
   wsRenderArchived();   // 닫은 세션 버튼·드롭다운 동기
+  wsRenderTargetSel();   // v2.4.52 타깃 셀렉터 — 채널/role 변동을 즉시 반영
 }
 const WS_ACTIVE_KEY = 'constellation-ws-active';   // 새로고침 시 마지막 선택 탭 복원용 (탭별 입력 draft 와 별개; §13.14 generic key)
 function wsSetActive(id) {
   wsState.active = id;
+  wsTargetOverride = null;   // v2.4.52 탭/그룹 전환 = 타깃 오버라이드 리셋 → 자동 타깃이 즉시 셀렉터에 인디케이팅
   try { localStorage.setItem(WS_ACTIVE_KEY, id || ''); } catch {}   // 영속 — wsReplayHistory 초기 active 결정부에서 복원
   if (wsIsGroup(id)) { for (const cid of wsGroupMembers(id)) { const c = wsState.channels.get(cid); if (c) c.unseen = 0; wsMaybeRequestHistory(cid); } }
   else { const ch = wsState.channels.get(id); if (ch) ch.unseen = 0; wsMaybeRequestHistory(id); }   // C: cold stub 이면 내용 on-demand 로드
@@ -2462,10 +2476,11 @@ function wsPagerOn() { try { return !!wsState.popOpen && WS_MOBILE_MQ.matches; }
 function wsGroupKeyOf(id) {   // 채널/모니터 id → 소속 그룹 key (또는 group key 그대로)
   if (wsIsGroup(id)) return id;
   if (id === WS_MON_UP) return 'group:up';
-  if (id === WS_MON_LOCAL || id === WS_MON_COLLAB) return 'group:main';
+  if (id === WS_MON_LOCAL || id === WS_MON_COLLAB || id === WS_MON_PEER) return 'group:main';
   if (id === WS_MON_BOARD) return 'group:board-worker';
+  if (id === WS_MON_PEER_PEER || id === WS_MON_PEER_COLLAB) return 'group:peer';
   const ch = wsState.channels.get(id); const role = ch && ch.role;
-  return role === 'upstream' ? 'group:up' : role === 'main' ? 'group:main' : role === 'board-worker' ? 'group:board-worker' : role === 'collab' ? 'group:collab' : 'group:local';
+  return role === 'upstream' ? 'group:up' : role === 'main' ? 'group:main' : role === 'board-worker' ? 'group:board-worker' : role === 'collab' ? 'group:collab' : role === 'peer' ? 'group:peer' : 'group:local';
 }
 function wsPagerGroupKeys() { return wsComputeGroups().filter((g) => g.tabs.length).map((g) => g.key); }   // 비어있지 않은 그룹 = 탭바와 동일 집합
 function wsBuildPager() {
@@ -2554,11 +2569,44 @@ function wsRenderPageDots() {   // 그룹 위치 인디케이터 (점 strip) —
 
 // ---- 입력 송신 (활성 채널 targetAgentId) ----
 function wsCommon() { return { id: 'b-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), source: 'board', timestamp: Date.now() }; }
+// v2.4.52 프롬프트 타깃 셀렉터 — 주입 행 우측 셀렉터가 유효 전달 대상을 상시 인디케이팅; 변경 시 현재 선택에 한해 오버라이드 (탭 전환 시 자동으로 리셋)
+let wsTargetOverride = null;
+function wsEffectiveTarget() {   // 유효 전달 대상 채널 키 — 오버라이드 > 활성 탭(그룹이면 대표 워커)
+  if (wsTargetOverride && wsState.channels.has(wsTargetOverride) && !wsIsMon(wsTargetOverride)) return wsTargetOverride;
+  let k = wsState.active;
+  if (!k || wsIsMon(k)) return null;
+  if (wsIsGroup(k)) k = wsGroupRep(k);
+  return k;
+}
+function wsRenderTargetSel() {
+  const sel = $('#ws-target-sel'), dot = $('#ws-target-dot'); if (!sel) return;
+  const eff = wsEffectiveTarget();
+  sel.innerHTML = '';
+  for (const g of wsComputeGroups()) {   // 그룹별 optgroup — "어떤 그룹의 어떤 에이전트인지" 한 눈에
+    const members = g.tabs.filter((id) => !wsIsMon(id));
+    if (!members.length) continue;
+    const og = document.createElement('optgroup'); og.label = g.label;
+    for (const id of members) {
+      const o = document.createElement('option'); o.value = id; o.textContent = wsName(id);
+      if (id === eff) o.selected = true;
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+  const monView = !!(wsState.active && wsIsMon(wsState.active));
+  sel.disabled = monView || !sel.options.length;
+  if (dot) {
+    const gk = eff ? wsGroupKeyOf(eff) : null;
+    dot.className = 'ws-target-dot' + (gk ? ' ' + gk.slice('group:'.length) : '') + (wsTargetOverride ? ' ovr' : '');
+    dot.title = monView ? '모니터 탭 = 읽기 전용 (전달 불가)' : wsTargetOverride ? '오버라이드 중 — 탭 전환 시 자동으로 돌아감' : '자동 (활성 탭/그룹 대표 기준)';
+  }
+  sel.onchange = () => { wsTargetOverride = sel.value || null; wsRenderTargetSel(); };
+}
 function wsSend(obj) {
   const ws = wsState.ws; if (!ws || ws.readyState !== 1 || !wsState.active) return false;
   if (wsIsMon(wsState.active)) return false;   // 모니터 = 읽기 전용
-  let routeKey = wsState.active;
-  if (wsIsGroup(routeKey)) { const rep = wsGroupRep(routeKey); if (!rep) return false; routeKey = rep; }   // 그룹 = 대표 워커로 라우팅 (group:up→업스트림 대표 · group:main→메인)
+  const routeKey = wsEffectiveTarget();   // v2.4.52 셀렉터 오버라이드 우선 (기본 = 활성 탭/그룹 대표)
+  if (!routeKey) return false;
   const ch = wsState.channels.get(routeKey);
   const route = (ch && ch.routeId) || routeKey;   // §4: 채널 키가 channelId 여도 라우팅은 routeId(agentId)
   const extra = {};
@@ -2568,8 +2616,8 @@ function wsSend(obj) {
 }
 function wsLocalRow(kind, label, body, extra) {
   const a = wsState.active; if (!a || wsIsMon(a)) return;
-  let pushKey = a;
-  if (wsIsGroup(a)) { const rep = wsGroupRep(a); if (!rep) return; pushKey = rep; }   // 그룹 = 대표에 push (그룹 뷰가 대표 워커 행을 보여줌)
+  const pushKey = wsEffectiveTarget();   // v2.4.52 에코도 실제 전달 대상 채널에 — 셀렉터 오버라이드와 일치
+  if (!pushKey) return;
   wsPushRow(pushKey, { kind, label, body, dim: false, t: nowHM(), ...(extra || {}) });   // extra: promptId 등(ack 상관 — live 로컬 에코가 replay History 처럼 promptId 보유)
 }
 function wsSendPrompt() {
@@ -2613,11 +2661,12 @@ function setupWsKeyMgmt() {
     panel.textContent = '';
     const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '🔑 키 발행 (UI4)'; panel.appendChild(h);
     if (status === 'idle' || status === 'error') {
-      // v2.4.2 kind 선택 순서: 업스트림 (⬆) / 로컬워커 (🏠) / 외부협업 (🔗) + 기본값 local + 선택 시 label input 포커스
+      // v2.4.2 kind 선택 순서: 업스트림 (⬆) / 로컬워커 (🏠) / 피어메인 (🤝) / 외부협업 (🔗) + 기본값 local + 선택 시 label input 포커스
       const kindRow = document.createElement('div'); kindRow.className = 'ws-invite-kindrow';
       const KIND_DEFS = [
         { v: 'upstream', icon: '⬆', label: '업스트림' },
         { v: 'local',    icon: '🏠', label: '로컬워커' },
+        { v: 'peer',     icon: '🤝', label: '피어메인' },   // v2.4.52 — 타 프로젝트 main 의 피어 합류 (§13.9.3; 자율 upstream 과 구분)
         { v: 'collab',   icon: '🔗', label: '외부협업' },
       ];
       KIND_DEFS.forEach((kd) => {
@@ -2700,6 +2749,7 @@ function setupWsKeyMgmt() {
       { v: 'all',      label: '전체' },
       { v: 'upstream', label: '⬆ 업스트림' },
       { v: 'local',    label: '🏠 로컬워커' },
+      { v: 'peer',     label: '🤝 피어메인' },
       { v: 'collab',   label: '🔗 외부협업' },
     ];
     TAB_DEFS.forEach((td) => {
@@ -2726,8 +2776,8 @@ function setupWsKeyMgmt() {
       const top = document.createElement('div'); top.className = 'ws-key-rtop';
       const [dotCls, connTxt] = CONN_DOT[k.connectionStatus] || CONN_DOT.never;
       const dot = document.createElement('span'); dot.className = 'ws-key-dot ' + dotCls; dot.title = connTxt;
-      // v2.4.2 이모지 통일 — 발행 창 선택 항목과 동일 (⬆ 업스트림 / 🏠 로컬워커 / 🔗 외부협업)
-      const kindIcon = document.createElement('span'); kindIcon.className = 'ws-key-kind'; kindIcon.textContent = k.kind === 'collab' ? '🔗' : k.kind === 'local' ? '🏠' : '⬆'; kindIcon.title = k.kind === 'collab' ? '외부협업 키' : k.kind === 'local' ? '로컬워커 키 (파일 경로 등록)' : '업스트림 키';
+      // v2.4.2 이모지 통일 — 발행 창 선택 항목과 동일 (⬆ 업스트림 / 🏠 로컬워커 / 🤝 피어메인 / 🔗 외부협업)
+      const kindIcon = document.createElement('span'); kindIcon.className = 'ws-key-kind'; kindIcon.textContent = k.kind === 'collab' ? '🔗' : k.kind === 'local' ? '🏠' : k.kind === 'peer' ? '🤝' : '⬆'; kindIcon.title = k.kind === 'collab' ? '외부협업 키' : k.kind === 'local' ? '로컬워커 키 (파일 경로 등록)' : k.kind === 'peer' ? '피어메인 키 (§13.9.3 peer-main)' : '업스트림 키';
       const lab = document.createElement('span'); lab.className = 'ws-key-label'; lab.textContent = k.label || '(무라벨)';
       const st = document.createElement('span'); st.className = 'ws-key-state ' + (k.state || '').toLowerCase(); st.textContent = STATE_LABEL[k.state] || k.state;
       top.append(dot, kindIcon, lab, st);
