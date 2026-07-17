@@ -10,7 +10,7 @@
   --shadow: 0 1px 2px rgba(20,30,45,.08), 0 6px 20px rgba(20,30,45,.10);
   --enter: rgba(29,132,120,.18);
   /* WS 라이브보드 공통 팔레트 (테마 무관 — role·상태 색, 컴포넌트 @styles 가 var() 참조하는 SSoT) */
-  --ws-role-up: #e0913a; --ws-role-main: #7a4dff; --ws-role-bw: #39d353; --ws-role-local: #4a9ed8; --ws-role-collab: #2a9d8f;   /* board-worker=녹색(구 local 승계) · local=파랑(신규); SSoT 통일 v2.4.24 */
+  --ws-role-up: #e0913a; --ws-role-main: #7a4dff; --ws-role-bw: #39d353; --ws-role-local: #4a9ed8; --ws-role-collab: #2a9d8f; --ws-role-peer: #d84a9e;   /* board-worker=녹색(구 local 승계) · local=파랑(신규); SSoT 통일 v2.4.24 · peer=로즈(v2.4.52 peer-main) */
   --ws-danger: #e0455e; --ws-online: #5ad17a;
   --ws-st-running: #e0a93a; --ws-st-done: #34b39e; --ws-st-error: #e0455e;
 }
@@ -398,20 +398,21 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-tabs { display: flex; gap: 9px; padding: 9px 9px 0; background: var(--panel2); border-bottom: 1px solid var(--line); overflow-x: auto; flex: 0 0 auto; align-items: flex-end; }
 .ws-tabs:empty { display: none; }
 .grp { position: relative; display: flex; flex-direction: column; border: 1px solid var(--line); border-top-width: 2px; border-radius: 7px 7px 0 0; background: var(--panel2); overflow: hidden; flex: 0 0 auto; }
-.grp.up { border-top-color: #e0922e; } .grp.main { border-top-color: #7a4dff; } .grp.board-worker { border-top-color: var(--ws-role-bw, #39d353); } .grp.local { border-top-color: var(--ws-role-local, #4a9ed8); } .grp.collab { border-top-color: var(--ws-role-collab, #2a9d8f); }
+.grp.up { border-top-color: #e0922e; } .grp.main { border-top-color: #7a4dff; } .grp.board-worker { border-top-color: var(--ws-role-bw, #39d353); } .grp.local { border-top-color: var(--ws-role-local, #4a9ed8); } .grp.collab { border-top-color: var(--ws-role-collab, #2a9d8f); } .grp.peer { border-top-color: var(--ws-role-peer, #d84a9e); }
 .grp.sel { background: var(--bg); }
 .grp.up.sel { border-color: #e0922e; box-shadow: 0 0 0 1px #e0922e; }
 .grp.main.sel { border-color: #7a4dff; box-shadow: 0 0 0 1px #7a4dff; }
 .grp.board-worker.sel { border-color: #39d353; box-shadow: 0 0 0 1px #39d353; }
 .grp.local.sel { border-color: #4a9ed8; box-shadow: 0 0 0 1px #4a9ed8; }
 .grp.collab.sel { border-color: var(--ws-role-collab, #2a9d8f); box-shadow: 0 0 0 1px var(--ws-role-collab, #2a9d8f); }
+.grp.peer.sel { border-color: var(--ws-role-peer, #d84a9e); box-shadow: 0 0 0 1px var(--ws-role-peer, #d84a9e); }
 .ghead { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: .7rem; font-weight: 700; color: var(--muted); background: var(--panel); cursor: pointer; border-bottom: 1px solid var(--line); border-radius: 5px 5px 0 0; letter-spacing: .02em; white-space: nowrap; }
 .ghead:hover { color: var(--ink); }
 .ghead .gmerge { font-size: .82rem; opacity: .55; }
 .ghead .gcnt { font-weight: 600; font-size: .62rem; opacity: .6; padding: 0 5px; border: 1px solid var(--line); border-radius: 8px; }
-.grp.up .ghead { color: #e0922e; } .grp.main .ghead { color: #9a78ff; } .grp.board-worker .ghead { color: #4cc564; } .grp.local .ghead { color: #6fb6e8; } .grp.collab .ghead { color: #3bb89e; }
+.grp.up .ghead { color: #e0922e; } .grp.main .ghead { color: #9a78ff; } .grp.board-worker .ghead { color: #4cc564; } .grp.local .ghead { color: #6fb6e8; } .grp.collab .ghead { color: #3bb89e; } .grp.peer .ghead { color: #e879b8; }
 .ghead.sel { font-weight: 800; }
-.grp.up .ghead.sel { background: #b5701c; color: #15110a; } .grp.main .ghead.sel { background: #9a78ff; color: #15110a; } .grp.board-worker .ghead.sel { background: #2a9440; color: #15110a; } .grp.local .ghead.sel { background: #2d6a9e; color: #eaf4ff; } .grp.collab .ghead.sel { background: #1f7a6e; color: #eafff8; }
+.grp.up .ghead.sel { background: #b5701c; color: #15110a; } .grp.main .ghead.sel { background: #9a78ff; color: #15110a; } .grp.board-worker .ghead.sel { background: #2a9440; color: #15110a; } .grp.local .ghead.sel { background: #2d6a9e; color: #eaf4ff; } .grp.collab .ghead.sel { background: #1f7a6e; color: #eafff8; } .grp.peer .ghead.sel { background: #a83377; color: #ffeaf6; }
 .ghead.sel .gcnt { border-color: rgba(0,0,0,.4); color: #15110a; opacity: .9; background: rgba(255,255,255,.18); }
 .tabs { display: flex; }
 .ws-tab { position: relative; display: flex; align-items: center; gap: 6px; padding: 7px 12px; font-size: .8rem; color: var(--muted); border-right: 1px solid var(--line); cursor: pointer; white-space: nowrap; background: var(--panel2); }
@@ -419,12 +420,12 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-tab:hover { background: var(--panel); color: var(--ink); }
 .ws-tab.active { background: var(--bg); color: var(--ink); font-weight: 600; }
 .ws-tab.active::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 2px; background: #7a4dff; }
-.ws-tab.up.active::after { background: #e0922e; } .ws-tab.main.active::after { background: #7a4dff; } .ws-tab.board-worker.active::after { background: #39d353; } .ws-tab.local.active::after { background: #4a9ed8; }
+.ws-tab.up.active::after { background: #e0922e; } .ws-tab.main.active::after { background: #7a4dff; } .ws-tab.board-worker.active::after { background: #39d353; } .ws-tab.local.active::after { background: #4a9ed8; } .ws-tab.peer.active::after { background: var(--ws-role-peer, #d84a9e); }
 .ws-tab .tdot { width: 6px; height: 6px; border-radius: 50%; background: #39d353; flex: 0 0 auto; }
 .ws-tab .tdot.off { background: #4b5563; }
-.ws-tab .nm.up { color: #e0922e; } .ws-tab .nm.main { color: #9a78ff; } .ws-tab .nm.board-worker { color: var(--ws-role-bw, #39d353); } .ws-tab .nm.local { color: var(--ws-role-local, #4a9ed8); } .ws-tab .nm.collab { color: var(--ws-role-collab, #2a9d8f); }   /* 그룹 탭 선택 시 멤버 이름 그룹색상, 5 role incl board-worker (EstreUF UI2 parity) */
+.ws-tab .nm.up { color: #e0922e; } .ws-tab .nm.main { color: #9a78ff; } .ws-tab .nm.board-worker { color: var(--ws-role-bw, #39d353); } .ws-tab .nm.local { color: var(--ws-role-local, #4a9ed8); } .ws-tab .nm.collab { color: var(--ws-role-collab, #2a9d8f); } .ws-tab .nm.peer { color: var(--ws-role-peer, #d84a9e); }   /* 그룹 탭 선택 시 멤버 이름 그룹색상, 6 role incl peer (EstreUF UI2 parity) */
 .ws-tab .mbadge { font-size: .52rem; font-weight: 700; padding: 0 4px; height: 13px; border-radius: 7px; display: inline-flex; align-items: center; border: 1px solid var(--line); color: var(--muted); opacity: .85; letter-spacing: .02em; }   /* C1 role/model badge */
-.ws-tab .mbadge.board-worker { color: var(--ws-role-bw, #39d353); } .ws-tab .mbadge.main { color: #9a78ff; } .ws-tab .mbadge.local { color: var(--ws-role-local, #4a9ed8); } .ws-tab .mbadge.up { color: #e0922e; } .ws-tab .mbadge.collab { color: var(--ws-role-collab, #2a9d8f); }
+.ws-tab .mbadge.board-worker { color: var(--ws-role-bw, #39d353); } .ws-tab .mbadge.main { color: #9a78ff; } .ws-tab .mbadge.local { color: var(--ws-role-local, #4a9ed8); } .ws-tab .mbadge.up { color: #e0922e; } .ws-tab .mbadge.collab { color: var(--ws-role-collab, #2a9d8f); } .ws-tab .mbadge.peer { color: var(--ws-role-peer, #d84a9e); }
 .ws-tab .ubadge { min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: #8b6dff; color: #fff; font-size: .6rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .ws-tab .ubadge[hidden] { display: none; }
 .grp.sel .ws-tab .ubadge { background: #472a9e; }   /* 선택 그룹: 차분 / 비선택: 밝게(주목) */
@@ -455,12 +456,13 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-chan-filter .ws-cf-chk.on { color: var(--accent); border-color: var(--accent); }
 /* 그룹 병합 뷰 출처 라벨 */
 .ws-src { flex: 0 0 auto; font-size: .62rem; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--panel2); color: var(--muted); white-space: nowrap; }
-/* A2A 방향 뱃지 내 에이전트 이름 = role 색 (업스트림 주황 · 메인 보라 · 보드워커 녹색 · 로컬 파랑 · 협업 청록) */
+/* A2A 방향 뱃지 내 에이전트 이름 = role 색 (업스트림 주황 · 메인 보라 · 보드워커 녹색 · 로컬 파랑 · 협업 청록 · 피어 로즈) */
 .ws-src .r-upstream { color: #e0913a; }
 .ws-src .r-main { color: #9a78ff; }
 .ws-src .r-board-worker { color: var(--ws-role-bw, #39d353); }
 .ws-src .r-local { color: var(--ws-role-local, #4a9ed8); }
 .ws-src .r-collab { color: var(--ws-role-collab, #2a9d8f); }   /* delta seq 7 누락 정정 — collab 타겟 이름이 muted로 보이던 버그 fix */
+.ws-src .r-peer { color: var(--ws-role-peer, #d84a9e); }   /* v2.4.52 peer-main */
 .ws-src .r-monitor { color: var(--muted); }
 /* row 출처(channelId) 뱃지 — 에이전트 통합 채널 안에서 대화 출처 구분(맨 앞, 길면 ellipsis) */
 .ws-chan { flex: 0 0 auto; max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .6rem; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 16%, var(--panel2)); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); }
@@ -535,6 +537,14 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-dot2.on { background: #39d353; box-shadow: 0 0 6px #39d353; }
 .ws-meta { color: var(--muted); font-size: .78rem; }
 .ws-h { font-size: .78rem; color: var(--muted); margin: 0 1px 0; display: flex; align-items: center; gap: 6px; }   /* 상하 spacing 축소 — top 4→0 / bottom 7→0 */
+/* v2.4.52 프롬프트 타깃 셀렉터 — 주입 행 우측 끝: 전달 대상 그룹색 dot + 컴팩트 select (탭 선택 시 자동 타깃 즉시 인디케이팅) */
+.ws-h .grow { flex: 1; }   /* .grow 는 기존 .ws-pop-head 스코프라 주입 행에 별도 필요 */
+.ws-target-wrap { display: inline-flex; align-items: center; gap: 5px; max-width: 46%; }
+.ws-target-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
+.ws-target-dot.up { background: var(--ws-role-up, #e0913a); } .ws-target-dot.main { background: var(--ws-role-main, #7a4dff); } .ws-target-dot.board-worker { background: var(--ws-role-bw, #39d353); } .ws-target-dot.local { background: var(--ws-role-local, #4a9ed8); } .ws-target-dot.collab { background: var(--ws-role-collab, #2a9d8f); } .ws-target-dot.peer { background: var(--ws-role-peer, #d84a9e); }
+.ws-target-dot.ovr { box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 35%, transparent); outline: 1px dashed var(--muted); outline-offset: 1px; }   /* 오버라이드 중 표시 */
+#ws-target-sel { max-width: 100%; font-size: .68rem; padding: 1px 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); color: var(--ink); }
+#ws-target-sel:disabled { opacity: .45; }
 .ws-stream { flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); overflow: auto; padding: 0 5px 5px; }   /* top padding 0 — 날짜 변경선 sticky 가 stream 상단 딱 붙도록 */
 /* 모바일 그룹 페이저 (#3a B) — 데스크탑 기본 숨김, ≤560px 에서 #ws-stream 대신 노출 (아래 media query) */
 .ws-pager { display: none; }
@@ -730,7 +740,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
   .ws-page { flex: 0 0 100%; width: 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; min-height: 0; }
   .ws-page-ind { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 3px 6px 5px; font-size: .66rem; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
   .ws-page-ind .gmerge { opacity: .55; } .ws-page-ind .gcnt { font-weight: 600; font-size: .58rem; opacity: .6; padding: 0 5px; border: 1px solid var(--line); border-radius: 8px; }
-  .ws-page-ind.up { color: #e0922e; } .ws-page-ind.main { color: #9a78ff; } .ws-page-ind.board-worker { color: #4cc564; } .ws-page-ind.local { color: #6fb6e8; } .ws-page-ind.collab { color: #3bb89e; }
+  .ws-page-ind.up { color: #e0922e; } .ws-page-ind.main { color: #9a78ff; } .ws-page-ind.board-worker { color: #4cc564; } .ws-page-ind.local { color: #6fb6e8; } .ws-page-ind.collab { color: #3bb89e; } .ws-page-ind.peer { color: #e879b8; }
   .ws-page .ws-page-stream { flex: 1; min-height: 0; border-radius: 7px; }   /* .ws-stream 기본(border/bg/overflow/sticky dateline) 상속 */
   .ws-page-dots { display: flex; flex: 0 0 auto; justify-content: center; align-items: center; gap: 6px; padding: 6px 0 2px; }
   .ws-pd { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background .15s ease, width .15s ease; }

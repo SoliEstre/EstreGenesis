@@ -1,8 +1,14 @@
-# WS-PROTOCOL: Key Management (v0.3 — IMPLEMENTED)
+# WS-PROTOCOL: Key Management (v0.4 — IMPLEMENTED)
 
-**Status**: **v0.3 IMPLEMENTED** — Constellation v2.4.1 extends v0.2 with additive `kind` + `roleDescription` + local key file-path registration. Wire-compatible with v0.2 (existing callers default to `kind: 'upstream'` + `roleDescription: null`).
+**Status**: **v0.4 IMPLEMENTED** — Constellation v2.4.52 extends v0.3 with the additive `kind: 'peer'` (peer-main). Wire-compatible with v0.3/v0.2 (existing callers default to `kind: 'upstream'` + `roleDescription: null`).
 **Track**: WS-PROTOCOL extension (companion to §13.11 HELLO / §13.13 A2A ack)
 
+> **v0.4 changelog (Constellation v2.4.52)** — additive:
+> - **`KeyIssue.value.kind`** gains **`'peer'`** — peer-main key (§13.9.3): the main of another project attaching for cross-project coordination. Key prefix `pk-`; join via `ws://…/ws?peerKey=<pk-…>` (dedicated URL parameter — a peer key MUST NOT ride `upstreamKey`) or `/join/peer?key=<pk-…>` (dynamic onboarding md). Resolves to the **`peer` wire role** — a peer shape like collab/upstream (autonomous, no Delegate-wait, no SetMain), distinct from `upstream` whose intended occupant is an autonomous external agent. Before v0.4 a peer-main had to ride an upstream key, conflating the two in classification, key management, and dashboard grouping.
+> - **Dashboard** — UI4 kind radio gains 🤝 피어메인; UI5 manager gains a peer filter tab + 🤝 kind chip; the realtime window gains a peer tab group (로컬↔협업 사이) + `Main↔Peer` / `Peer↔Peer` / `Peer↔Collab` monitors (lazy — hidden until traffic) + a prompt-target selector (§13.23.4).
+> - **Role determination** — `wsAgentRole` returns `'peer'` for `pk-` keyed connections (precedence: collab > peer > upstream > main > local).
+> - **Back-compat**: v0.3 callers unaffected; unknown-kind coercion at the reference server still defaults to `upstream` for pre-v0.4 issuers.
+>
 > **v0.3 changelog (Constellation v2.4.1, EG v2.5.58)** — additive:
 > - **`KeyIssue.value.kind`** — `'upstream'` (default, back-compat) | `'collab'` | `'local'`.
 > - **`KeyIssue.value.roleDescription`** — optional string ≤256 chars (allows `\n\t`, no other control chars). 합류 에이전트에게 전달될 역할 설명.
@@ -363,17 +369,18 @@ The state-machine transitions above reference TTL expiry. The **canonical** dete
 | `KeyList` | main only | `isMain(conn)` |
 | `KeyRevoke` | main only | `isMain(conn)` |
 | `KeyLabel` | main only | `isMain(conn)` |
-| `AgentNameChanged` | **server only** (outbound) | n/a (server-initiated); recipients are live conns of any non-main role (`local` / `collab` / `upstream`) whose `meta.upstreamKey === key` |
+| `AgentNameChanged` | **server only** (outbound) | n/a (server-initiated); recipients are live conns of any non-main role (`local` / `collab` / `upstream` / `peer`) whose `meta.upstreamKey === key` |
 
-Non-main senders (`local` / `collab` / `upstream`) attempting any mutating `Key*` request receive `name:"KeyError", value:{ code:"PERMISSION_DENIED", re_msgId }` and the request is dropped. The error frame **does** carry `ackFor` so the sender's `_pendingAck` watermark advances (§13.13 invariant — error is still a relay-level "delivered"). Non-main roles remain eligible to **receive** `AgentNameChanged` broadcasts (§3.5) — they just cannot **mutate** keys.
+Non-main senders (`local` / `collab` / `upstream` / `peer`) attempting any mutating `Key*` request receive `name:"KeyError", value:{ code:"PERMISSION_DENIED", re_msgId }` and the request is dropped. The error frame **does** carry `ackFor` so the sender's `_pendingAck` watermark advances (§13.13 invariant — error is still a relay-level "delivered"). Non-main roles remain eligible to **receive** `AgentNameChanged` broadcasts (§3.5) — they just cannot **mutate** keys.
 
-**Role determination** (canonical — matches `server.cjs:167` `wsAgentRole(c)`):
-- `wsAgentRole(conn)` returns one of `'main' | 'local' | 'collab' | 'upstream'`:
+**Role determination** (canonical — matches `server.cjs` `wsAgentRole(c)`):
+- `wsAgentRole(conn)` returns one of `'main' | 'local' | 'collab' | 'upstream' | 'peer'` (v0.4):
   - `'collab'`  — HELLO carried a collab-tier key (`meta.collab === true`)
+  - `'peer'`    — HELLO carried a peer-main key (`meta.peer === true`, `pk-` prefix — v0.4)
   - `'upstream'` — HELLO carried an upstream key (`meta.upstream === true`)
   - `'main'`    — `agentId === WS_PRIMARY_AGENT` (the orchestrator hub; default `'main-agent'`, overridable via `WS_PRIMARY_AGENT` env)
   - `'local'`   — none of the above (default fallback; e.g., dashboard tabs, anonymous agents)
-- **`isMain(conn)`** = `wsAgentRole(conn) === 'main'` — the **only** role permitted to issue `KeyIssue` / `KeyList` / `KeyRevoke` / `KeyLabel`. All other roles (`local`, `collab`, `upstream`) fail the gate.
+- **`isMain(conn)`** = `wsAgentRole(conn) === 'main'` — the **only** role permitted to issue `KeyIssue` / `KeyList` / `KeyRevoke` / `KeyLabel`. All other roles (`local`, `collab`, `upstream`, `peer`) fail the gate.
 - Implementation note: when this draft lands, `server.cjs` adds a single `if (!isMain(conn)) return keyError(conn, msg, 'PERMISSION_DENIED')` gate at the top of the `Key*` dispatcher branch.
 
 ---
