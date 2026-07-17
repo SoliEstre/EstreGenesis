@@ -24,6 +24,9 @@
 //                  This is the hook the reverse-sync e2e uses to point the anchor at
 //                  a mutated/updated implementation and check that verdicts split.
 //   EUX_P4_RUNS  — fast-check numRuns per property (default 30).
+//   EUX_P4_SEED  — fast-check seed (default 20260711). Both sides of a reverse-sync
+//                  e2e must pass the same value for verdict reproducibility; the
+//                  default keeps historical runs comparable.
 //
 // Determinism: fixed fast-check seed so EG-side and hub-side runs of the same
 // (anchor, impl) pair produce identical verdicts.
@@ -42,7 +45,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const requireCjs = createRequire(import.meta.url);
 
-const SEED = 20260711;                                    // fixed — cross-side reproducibility
+const SEED = parseInt(process.env.EUX_P4_SEED || '20260711', 10) || 20260711; // fixed default — cross-side reproducibility
 const RUNS = Math.max(1, parseInt(process.env.EUX_P4_RUNS || '30', 10) || 30);
 
 // ---------------------------------------------------------------------------
