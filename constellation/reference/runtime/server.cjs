@@ -694,7 +694,7 @@ const HIST_CAP = 200;                                // 채널당 보관 이벤�
 const wsHistByChan = new Map();                      // 채널키 → events[]
 const wsBuf = new Map();                             // 채널키 → { msg:Map, tool:Map } 스트리밍 누적 버퍼
 const _histT = new Map();                            // 채널키 → debounce 타이머
-function wsMsgChan(m) { return String((m && (m.agentId || m.targetAgentId || m.channelId)) || '_'); }   // 채널 = 에이전트 단위(agentId 우선). channelId 는 출처 뱃지로만
+function wsMsgChan(m) { if (m && m.roomId) return 'room:' + String(m.roomId); return String((m && (m.agentId || m.targetAgentId || m.channelId)) || '_'); }   // 채널 = 에이전트 단위(agentId 우선). §13.30 room 메시지는 room:<id> 자체 채널. channelId 는 출처 뱃지로만
 function wsHistFile(ck) { return path.join(HISTDIR, ck.replace(/[^a-zA-Z0-9_.@:-]/g, '_').slice(0, 80) + '.jsonl'); }
 function wsBufFor(ck) { let b = wsBuf.get(ck); if (!b) { b = { msg: new Map(), tool: new Map() }; wsBuf.set(ck, b); } return b; }
 function wsSaveChan(ck) {
@@ -826,6 +826,119 @@ function wsDeadlockScan() {
   for (const key of [..._deadlockSeen]) { const [x, y] = key.split('::'); const rx = _a2aPending.get(x), ry = _a2aPending.get(y); if (!(rx && ry && rx.from === y && ry.from === x)) _deadlockSeen.delete(key); }   // cycle 해소 → key 정리 (재발 시 재emit 허용)
 }
 if (WS_DEADLOCK_DETECT) { setInterval(wsDeadlockScan, Math.min(WS_DEADLOCK_PROBE_MS, 30000)).unref(); console.log(`[server] WS_DEADLOCK_DETECT on — board-adapter strict 2-cycle detector (probe ≥${WS_DEADLOCK_PROBE_MS}ms, §13.19.10 Q3 opt-in; quasi-deadlock 은 에이전트측 SLA 규율 담당)`); }
+// ── §13.30 roundtable — multi-party topic rooms (v2.4.53, R2 server core) ─────────────────
+// 이층 분리의 서버층: 결정론 floor 만 여기서 강제(fan-out·autoHop 파킹·rate/연속 상한·stall·human soft-yield·
+// notice 표면화·advisory floor queue). 발화 판단·요약은 에이전트 규율(/roundtable 스킬) 소관 — 서버는 절대 대신 말하지 않음.
+const WS_ROOMS_FILE = path.join(DIR, 'rooms.json');
+let wsRooms = new Map();                                     // roomId → room object (§13.30.2)
+try { for (const r of JSON.parse(fs.readFileSync(WS_ROOMS_FILE, 'utf8'))) if (r && r.roomId && !r.closedAt) wsRooms.set(r.roomId, r); } catch {}
+function wsRoomsSave() { try { const tmp = WS_ROOMS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify([...wsRooms.values()], null, 2)); fs.renameSync(tmp, WS_ROOMS_FILE); } catch (e) { console.warn('[room] persist fail:', e.message); } }
+const WS_ROOM_BUDGET_DEFAULTS = { maxConsecutive: 2, ratePerMin: 10, maxAutoHop: 4, stallRounds: 3 };
+function wsRoomEvent(name, value) { const ev = wscore.event('CUSTOM', { name, value }); ev.source = 'server'; return ev; }
+function wsRoomBroadcast(room, ev) {                         // room 이벤트 → 참여 에이전트 전원 + board 전체 (기록 포함)
+  ev.roomId = room.roomId;
+  for (const pid of room.participants.map((p) => p.agentId)) { const c = wsAgents.get(pid); if (c && c.alive) c.send(ev); }
+  wsToBoards(ev); wsRecord(ev);
+}
+function wsRoomFind(id) { const r = wsRooms.get(String(id || '')); return r && !r.closedAt ? r : null; }
+function wsRoomGuardNotify(conn, room, rule, msg, action) {  // 가드 발동 통보 — silent drop 금지 (§13.30.4-2)
+  const ev = wsRoomEvent('RoomGuard', { roomId: room.roomId, rule, action, msgId: msg && (msg.msgId || msg.messageId), agentId: conn.meta.agentId });
+  if (conn.meta.role === 'agent') { ev.targetAgentId = conn.meta.agentId; conn.send(ev); }
+  wsToBoards(ev); wsRecord(ev);
+}
+function wsRoomOp(conn, msg) {                               // RoomCreate/RoomJoin/RoomLeave/RoomClose — agent·board 양쪽 허용(v1 관대, 가드가 방을 지킴)
+  if (!msg || msg.type !== 'CUSTOM') return false;
+  const v = msg.value || {};
+  if (msg.name === 'RoomCreate') {
+    const roomId = 'rt-' + crypto.randomBytes(6).toString('hex');
+    const ids = [...new Set((Array.isArray(v.participants) ? v.participants : []).filter((x) => typeof x === 'string' && x.trim()))];
+    const room = {
+      roomId, topic: String(v.topic || '(no topic)').slice(0, 200), mode: v.mode === 'persistent' ? 'persistent' : 'temporary',
+      moderated: !!v.moderated,
+      participants: ids.map((id) => ({ agentId: id, role: id === v.moderator ? 'moderator' : 'participant', voice: true, speakerClass: 'agent' })),
+      floor: { holder: null, queue: [] },
+      budgets: Object.assign({}, WS_ROOM_BUDGET_DEFAULTS, (typeof v.budgets === 'object' && v.budgets) || {}),
+      artifacts: { header: v.header || null, decisions: [], summary: null },
+      parked: [], _autoHop: 0, _lastSpeaker: null, _consec: 0, _noProgress: 0, _rate: {}, _notices: [],
+      createdBy: conn.meta.agentId || 'board', createdAt: new Date().toISOString(), closedAt: null,
+    };
+    wsRooms.set(roomId, room); wsRoomsSave();
+    wsRoomBroadcast(room, wsRoomEvent('RoomCreated', { roomId, topic: room.topic, mode: room.mode, participants: ids, createdBy: room.createdBy }));
+    console.log('[room] created %s "%s" participants=%s by=%s', roomId, room.topic.slice(0, 40), ids.join(','), room.createdBy);
+    return true;
+  }
+  const room = wsRoomFind(v.roomId); if (!room && ['RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name)) { if (['RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name)) wsRoomGuardNotify(conn, { roomId: String(v.roomId || '?'), participants: [] }, 'no-such-room', msg, 'ignored'); return ['RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name); }
+  if (msg.name === 'RoomJoin') {
+    const id = String(v.agentId || conn.meta.agentId || ''); if (!id) return true;
+    if (!room.participants.some((p) => p.agentId === id)) { room.participants.push({ agentId: id, role: 'participant', voice: !room.moderated, speakerClass: 'agent' }); wsRoomsSave(); }
+    wsRoomBroadcast(room, wsRoomEvent('RoomJoined', { roomId: room.roomId, agentId: id })); return true;
+  }
+  if (msg.name === 'RoomLeave') {
+    const id = String(v.agentId || conn.meta.agentId || '');
+    room.participants = room.participants.filter((p) => p.agentId !== id); wsRoomsSave();
+    wsRoomBroadcast(room, wsRoomEvent('RoomLeft', { roomId: room.roomId, agentId: id })); return true;
+  }
+  if (msg.name === 'RoomClose') {
+    room.closedAt = new Date().toISOString(); wsRoomsSave();
+    wsRoomBroadcast(room, wsRoomEvent('RoomClosed', { roomId: room.roomId, reason: String(v.reason || 'closed').slice(0, 200) })); return true;
+  }
+  return false;
+}
+function wsRoomMessage(conn, msg) {                          // roomId 실린 CUSTOM — 가드 통과 시 참여자 fan-out (§13.30.4)
+  const room = wsRoomFind(msg.roomId);
+  if (!room) { wsRoomGuardNotify(conn, { roomId: String(msg.roomId), participants: [] }, 'no-such-room', msg, 'dropped'); return; }
+  const fromBoard = conn.meta.role !== 'agent';
+  const sender = fromBoard ? 'board' : conn.meta.agentId;
+  msg.speakerClass = fromBoard ? 'human-operator' : 'agent'; // 서버가 스탬프 — 클라 주장 불신 (§13.30.4-5 authority 전제)
+  if (!fromBoard && !room.participants.some((p) => p.agentId === sender)) { wsRoomGuardNotify(conn, room, 'not-participant', msg, 'parked'); room.parked.push({ msgId: msg.msgId, from: sender, at: Date.now(), rule: 'not-participant' }); if (room.parked.length > 20) room.parked.shift(); return; }
+  if (fromBoard) {                                           // human soft-yield — autoHop 리셋 + yield 이벤트 (§13.30.4-5)
+    room._autoHop = 0; room._noProgress = 0;
+    wsRoomBroadcast(room, wsRoomEvent('RoomYield', { roomId: room.roomId, msgId: msg.msgId || null }));
+  } else {
+    // 가드 1: rate (per-agent per-room, 60s 창)
+    const now = Date.now(); const rl = room._rate[sender] = (room._rate[sender] || []).filter((t) => now - t < 60000);
+    if (rl.length >= room.budgets.ratePerMin) { wsRoomGuardNotify(conn, room, 'rate', msg, 'parked'); room.parked.push({ msgId: msg.msgId, from: sender, at: now, rule: 'rate' }); if (room.parked.length > 20) room.parked.shift(); return; }
+    rl.push(now);
+    // 가드 2: 연속 발화 상한 (allow_repeat_speaker 일반화)
+    if (room._lastSpeaker === sender) { room._consec++; } else { room._lastSpeaker = sender; room._consec = 1; }
+    if (room._consec > room.budgets.maxConsecutive) { wsRoomGuardNotify(conn, room, 'consecutive', msg, 'parked'); room.parked.push({ msgId: msg.msgId, from: sender, at: now, rule: 'consecutive' }); if (room.parked.length > 20) room.parked.shift(); room._consec = room.budgets.maxConsecutive; return; }
+    // floor intent 는 파킹 여부와 무관하게 먼저 등재 — "체인이 막혀도 손은 들 수 있다" (§13.30.4-6; autoHop 파킹이 request 를 삼키면 재개 신호가 사라짐)
+    const _fi = msg.floorIntent; const _fiIntent = _fi && (typeof _fi === 'string' ? _fi : _fi.intent);
+    if (_fiIntent === 'request') { room.floor.queue = room.floor.queue.filter((q) => q.agentId !== sender); room.floor.queue.push({ agentId: sender, bid: Number((typeof _fi === 'object' && _fi.bid) || 0) || 0, at: now }); room.floor.queue.sort((a, b) => (b.bid - a.bid) || (a.at - b.at)); wsRoomBroadcast(room, wsRoomEvent('RoomFloor', { roomId: room.roomId, queue: room.floor.queue })); }
+    else if (_fiIntent === 'release' || _fiIntent === 'yield') { room.floor.queue = room.floor.queue.filter((q) => q.agentId !== sender); }
+    // 가드 3: autoHop — 인간 개입 없는 agent 체인 깊이. 상한 도달 시 파킹 + RoomStall (silent drop 금지)
+    room._autoHop++; msg.autoHop = room._autoHop;
+    if (room._autoHop > room.budgets.maxAutoHop) {
+      room.parked.push({ msgId: msg.msgId, from: sender, at: now, rule: 'autoHop' }); if (room.parked.length > 20) room.parked.shift();
+      wsRoomBroadcast(room, wsRoomEvent('RoomStall', { roomId: room.roomId, reason: 'autoHop-cap', parkedMsgId: msg.msgId || null, from: sender, hint: 'human/moderator 입력이 체인을 리셋해요' }));
+      room._autoHop = room.budgets.maxAutoHop; return;
+    }
+    // 가드 4: stall — addressee 없는 agent 발화 연속 (무진전 신호)
+    if (Array.isArray(msg.addressee) && msg.addressee.length) room._noProgress = 0; else room._noProgress++;
+    if (room._noProgress >= room.budgets.stallRounds) { room._noProgress = 0; wsRoomBroadcast(room, wsRoomEvent('RoomStall', { roomId: room.roomId, reason: 'no-addressee-progress', hint: '지목 없는 발화가 연속 — 규율 D2/D3 점검' })); }
+    // notice 클래스 위반 표면화 (§13.30.4-7) — notice 메시지에 대한 agent reply
+    if (msg.replyTo && room._notices.includes(msg.replyTo)) wsRoomGuardNotify(conn, room, 'notice-reply', msg, 'warned');
+    if (!_fiIntent) room.floor.queue = room.floor.queue.filter((q) => q.agentId !== sender);   // 통과한 일반 발화 = floor 소비 (request 등재는 위에서 선처리)
+  }
+  if (msg.notice === true && msg.msgId) { room._notices.push(msg.msgId); if (room._notices.length > 50) room._notices.shift(); }
+  if (msg.agentId == null && !fromBoard) msg.agentId = sender;
+  if (msg.source == null) msg.source = fromBoard ? 'board' : 'agent';
+  // fan-out: 참여자 전원(발신자 제외) — 기존 1:1 relay 기계(pending/재전달/AckProcessed) 계승 (§13.30.4-1)
+  let delivered = 0, offline = [];
+  for (const p of room.participants) {
+    if (p.agentId === sender) continue;
+    const d = wsAgents.get(p.agentId);
+    if (d && d.alive) { const copy = Object.assign({}, msg, { targetAgentId: p.agentId }); d.send(copy); if (wsIsAckable(copy)) _relayPendingAdd(p.agentId, copy); delivered++; }
+    else offline.push(p.agentId);
+  }
+  if (!fromBoard && wsIsAckable(msg) && conn.alive) {         // 발신자에게 단일 요약 delivered ack (수신자별 N 개 소음 대신)
+    const ackEv = wsRoomEvent('Ack', { ackFor: msg.msgId || msg.messageId, kind: 'delivered', from: 'room:' + room.roomId, recipients: delivered, offline });
+    ackEv.targetAgentId = sender; conn.send(ackEv);
+  }
+  wsToBoards(msg); wsRecord(msg);                             // 대시보드 관찰 + room:<id> 채널 영속 (wsMsgChan roomId 분기)
+  try { push.maybePush(msg); } catch {}
+}
+// ──────────────────────────────────────────────────────────────────────────────────────────
 server.on('upgrade', (req, socket) => {
   if (req.url.split('?')[0] !== '/ws') { socket.destroy(); return; }
   // #5a-3 upgrade 사전검사 — 노출 환경에서 agent·MCP 둘 다 차단된 IP 는 handshake 전 거부 (접속 직후 보내는 History/AgentList 누수 차단).
@@ -887,6 +1000,8 @@ server.on('upgrade', (req, socket) => {
       if (msg && msg.agentId == null) msg.agentId = conn.meta.agentId;
       if (msg && msg.source == null) msg.source = 'agent';        // v2.2.4 source_stamp_truth (server.eux derive) — client-set 우선, server 폴백(backward compat)
       if (msg && msg.type === 'CUSTOM' && msg.name === 'ServerNotice') { wsToAll(msg); wsRecord(msg); return; }   // 재시작/오프라인/온라인 공지 → 모든 연결(에이전트+board) broadcast
+      if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }   // §13.30 room lifecycle (agent 측)
+      if (msg && msg.type === 'CUSTOM' && msg.roomId) { wsRoomMessage(conn, msg); return; }                        // §13.30 room 메시지 — 가드 + fan-out
       // v2.2.4 targetFallback + WARN (silent-disable 원칙 정합): top-level 누락 시 value.targetAgentId 폴백, 발견 통보
       if (msg && msg.targetAgentId == null && msg.value && msg.value.targetAgentId) {
         msg.targetAgentId = msg.value.targetAgentId;
@@ -933,6 +1048,9 @@ server.on('upgrade', (req, socket) => {
     }
     // 오케스트레이션 (board/사용자발 SetMain·RegisterUpstreamKey 등)
     if (wsHandleOrch(conn, msg)) return;
+    // §13.30 room lifecycle + room 메시지 (board/사용자 측 — human soft-yield 경로)
+    if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }
+    if (msg && msg.type === 'CUSTOM' && msg.roomId) { wsRoomMessage(conn, msg); return; }
     // ✕ 닫기 → 해당 채널 기록 삭제 + 모든 board 갱신
     if (msg && msg.type === 'CUSTOM' && msg.name === 'CloseChannel') { wsCloseChannelHist(msg.value && msg.value.agentId); wsToBoards(msg); return; }
     if (msg && msg.type === 'CUSTOM' && msg.name === 'DeleteChannelHistory') { wsCloseChannelHist(msg.value && msg.value.agentId); wsToBoards(msg); return; }   // 🗑 영구삭제 — history 파일 제거(persist) + 다른 board 동기 (EstreUF parity)
