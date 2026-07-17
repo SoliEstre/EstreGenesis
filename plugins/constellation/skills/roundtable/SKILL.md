@@ -31,7 +31,7 @@ After 3-5 consecutive agent-to-agent turns with no human input, stop voluntarily
 
 ## D5 — Re-hydrate in the fixed order, never full-replay
 
-Joining late, or returning for a new turn: read ① the room **header** (objective + valid plan) ② the **decision ledger** (valid entries only — follow `supersedes`) ③ the **running summary** ④ the raw tail **after** `summary.covers_until`. Do not replay the full log (cost and accuracy both lose). Every turn starts with a room-cursor probe — the same read-before-write discipline as §13.16.10, applied to the room.
+Joining late, or returning for a new turn: read ① the room **header** (objective + valid plan) ② the **decision ledger** (valid entries only — follow `supersedes`) ③ the **running summary** ④ the raw tail **after** `summary.covers_until`. Do not replay the full log (cost and accuracy both lose). Every turn starts with a room-cursor probe — the same read-before-write discipline as §13.16.10, applied to the room. Fetch the pinned set with `RequestRoomArtifacts { roomId }` (→ a `RoomArtifacts` reply with a `version`; §13.30.5) instead of reconstructing it from the log; contribute back via `RoomArtifactsUpdate` (decisions append-only, summary with an honest `covers_until`).
 
 ## D6 — Consume announcements by reference
 

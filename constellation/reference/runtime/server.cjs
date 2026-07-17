@@ -841,6 +841,12 @@ function wsRoomBroadcast(room, ev) {                         // room 이벤트 �
   wsToBoards(ev); wsRecord(ev);
 }
 function wsRoomFind(id) { const r = wsRooms.get(String(id || '')); return r && !r.closedAt ? r : null; }
+function wsRoomArt(room) {                                   // artifacts lazy-init + 단일 version 카운터 (§13.30.5 — ack-by-reference 의 참조 대상)
+  if (!room.artifacts || typeof room.artifacts !== 'object') room.artifacts = { header: null, decisions: [], summary: null };
+  if (!Array.isArray(room.artifacts.decisions)) room.artifacts.decisions = [];
+  if (typeof room.artifacts._version !== 'number') room.artifacts._version = 0;
+  return room.artifacts;
+}
 function wsRoomGuardNotify(conn, room, rule, msg, action) {  // 가드 발동 통보 — silent drop 금지 (§13.30.4-2)
   const ev = wsRoomEvent('RoomGuard', { roomId: room.roomId, rule, action, msgId: msg && (msg.msgId || msg.messageId), agentId: conn.meta.agentId });
   if (conn.meta.role === 'agent') { ev.targetAgentId = conn.meta.agentId; conn.send(ev); }
@@ -867,7 +873,8 @@ function wsRoomOp(conn, msg) {                               // RoomCreate/RoomJ
     console.log('[room] created %s "%s" participants=%s by=%s', roomId, room.topic.slice(0, 40), ids.join(','), room.createdBy);
     return true;
   }
-  const room = wsRoomFind(v.roomId); if (!room && ['RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name)) { if (['RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name)) wsRoomGuardNotify(conn, { roomId: String(v.roomId || '?'), participants: [] }, 'no-such-room', msg, 'ignored'); return ['RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name); }
+  const NEED_ROOM = ['RoomJoin', 'RoomLeave', 'RoomClose', 'RequestRoomArtifacts', 'RoomArtifactsUpdate'];
+  const room = wsRoomFind(v.roomId); if (!room && NEED_ROOM.includes(msg.name)) { wsRoomGuardNotify(conn, { roomId: String(v.roomId || '?'), participants: [] }, 'no-such-room', msg, 'ignored'); return true; }
   if (msg.name === 'RoomJoin') {
     const id = String(v.agentId || conn.meta.agentId || ''); if (!id) return true;
     if (!room.participants.some((p) => p.agentId === id)) { room.participants.push({ agentId: id, role: 'participant', voice: !room.moderated, speakerClass: 'agent' }); wsRoomsSave(); }
@@ -881,6 +888,25 @@ function wsRoomOp(conn, msg) {                               // RoomCreate/RoomJ
   if (msg.name === 'RoomClose') {
     room.closedAt = new Date().toISOString(); wsRoomsSave();
     wsRoomBroadcast(room, wsRoomEvent('RoomClosed', { roomId: room.roomId, reason: String(v.reason || 'closed').slice(0, 200) })); return true;
+  }
+  if (msg.name === 'RequestRoomArtifacts') {                 // §13.30.5 fetch — RequestChannelHistory 와 대칭 (WS-only, 요청자에게만 회신·기록 없음)
+    const a = wsRoomArt(room);
+    const ev = wsRoomEvent('RoomArtifacts', { roomId: room.roomId, artifacts: { header: a.header, decisions: a.decisions, summary: a.summary }, version: a._version });
+    ev.roomId = room.roomId;
+    if (conn.meta.role === 'agent') ev.targetAgentId = conn.meta.agentId;
+    conn.send(ev); return true;
+  }
+  if (msg.name === 'RoomArtifactsUpdate') {                  // §13.30.5 갱신 — 참여자·board 만. 변경 전파 = invalidation + delta (전문 재공지 아님)
+    const editor = conn.meta.role === 'agent' ? conn.meta.agentId : 'board';
+    if (editor !== 'board' && !room.participants.some((p) => p.agentId === editor)) { wsRoomGuardNotify(conn, room, 'not-participant', msg, 'ignored'); return true; }
+    const a = wsRoomArt(room); const delta = {}; const at = new Date().toISOString();
+    if (v.header && typeof v.header.text === 'string') { a.header = { text: v.header.text.slice(0, 4000), version: ((a.header && a.header.version) || 0) + 1, updatedBy: editor, updatedAt: at }; delta.header = a.header; }
+    if (v.decision && typeof v.decision.text === 'string') { const d = { id: 'rd-' + (a.decisions.length + 1), text: v.decision.text.slice(0, 2000), supersedes: v.decision.supersedes || null, by: editor, at }; a.decisions.push(d); delta.decision = d; }
+    if (v.summary && typeof v.summary.text === 'string') { a.summary = { text: v.summary.text.slice(0, 8000), covers_until: v.summary.covers_until || null, version: ((a.summary && a.summary.version) || 0) + 1, updatedBy: editor, updatedAt: at }; delta.summary = a.summary; }
+    if (!Object.keys(delta).length) return true;
+    a._version++; wsRoomsSave();
+    wsRoomBroadcast(room, wsRoomEvent('RoomArtifacts', { roomId: room.roomId, delta, version: a._version }));
+    return true;
   }
   return false;
 }
@@ -1000,7 +1026,7 @@ server.on('upgrade', (req, socket) => {
       if (msg && msg.agentId == null) msg.agentId = conn.meta.agentId;
       if (msg && msg.source == null) msg.source = 'agent';        // v2.2.4 source_stamp_truth (server.eux derive) — client-set 우선, server 폴백(backward compat)
       if (msg && msg.type === 'CUSTOM' && msg.name === 'ServerNotice') { wsToAll(msg); wsRecord(msg); return; }   // 재시작/오프라인/온라인 공지 → 모든 연결(에이전트+board) broadcast
-      if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }   // §13.30 room lifecycle (agent 측)
+      if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose', 'RequestRoomArtifacts', 'RoomArtifactsUpdate'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }   // §13.30 room lifecycle (agent 측)
       if (msg && msg.type === 'CUSTOM' && msg.roomId) { wsRoomMessage(conn, msg); return; }                        // §13.30 room 메시지 — 가드 + fan-out
       // v2.2.4 targetFallback + WARN (silent-disable 원칙 정합): top-level 누락 시 value.targetAgentId 폴백, 발견 통보
       if (msg && msg.targetAgentId == null && msg.value && msg.value.targetAgentId) {
@@ -1049,7 +1075,7 @@ server.on('upgrade', (req, socket) => {
     // 오케스트레이션 (board/사용자발 SetMain·RegisterUpstreamKey 등)
     if (wsHandleOrch(conn, msg)) return;
     // §13.30 room lifecycle + room 메시지 (board/사용자 측 — human soft-yield 경로)
-    if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }
+    if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose', 'RequestRoomArtifacts', 'RoomArtifactsUpdate'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }
     if (msg && msg.type === 'CUSTOM' && msg.roomId) { wsRoomMessage(conn, msg); return; }
     // ✕ 닫기 → 해당 채널 기록 삭제 + 모든 board 갱신
     if (msg && msg.type === 'CUSTOM' && msg.name === 'CloseChannel') { wsCloseChannelHist(msg.value && msg.value.agentId); wsToBoards(msg); return; }
