@@ -2,29 +2,29 @@
 
 Use the EstreGenesis modules from **OpenAI Codex** (CLI / IDE), not just Claude Code.
 
-EstreGenesis ships its six modules as Claude Code plugins (`plugins/<module>/`). Codex in 2026 converged on the same three customization surfaces EG already speaks — **Agent Skills** (`SKILL.md`), **MCP servers**, and **`AGENTS.md`** — so the modules port with almost no transformation. This directory is the Codex adapter: a **projection**, not a fork.
+EstreGenesis ships its seven plugins — the kit + six modules — as Claude Code plugins (`plugins/<name>/`). Codex in 2026 converged on the same three customization surfaces EG already speaks — **Agent Skills** (`SKILL.md`), **MCP servers**, and **`AGENTS.md`** — so the modules port with almost no transformation. This directory is the Codex adapter: a **projection**, not a fork.
 
-> **Why a projection and not a copy.** The 22 canonical `SKILL.md` files under `plugins/*/skills/*/` are *already* valid Codex skills (Codex reads the same `name` + `description` frontmatter). Duplicating them here would be exactly the drift-prone surface the [Migration-B dogfood](../reports/) warned against. Instead, `gen-codex-adapter.cjs` materializes the skills on demand into a Codex discovery path and regenerates only the Codex-specific derived surfaces (`config.toml.example` + the inventory below). A `verify-nway` axis gates that inventory against the live plugin set. This *is* the north-star bet — the **discipline/vocabulary** travels across hosts even when the host-specific automation (Claude Code's lifecycle hooks) does not.
+> **Why a projection and not a copy.** The canonical `SKILL.md` files under `plugins/*/skills/*/` are *already* valid Codex skills (Codex reads the same `name` + `description` frontmatter). Duplicating them here would be exactly the drift-prone surface the [Migration-B dogfood](../reports/) warned against. Instead, `gen-codex-adapter.cjs` materializes the skills on demand into a Codex discovery path and regenerates only the Codex-specific derived surfaces (`config.toml.example` + the inventory below). A `verify-nway` axis gates that inventory against the live plugin set. This *is* the north-star bet — the **discipline/vocabulary** travels across hosts even when the host-specific automation (Claude Code's lifecycle hooks) does not.
 
 ## What ports, and how
 
 | EG surface | Codex surface | Fidelity |
 | --- | --- | --- |
-| `SKILL.md` (22) | Agent Skills (`.agents/skills/`) | **Full** — same frontmatter, same procedure |
+| `SKILL.md` (full set — exact count in the inventory below) | Agent Skills (`.agents/skills/`) | **Full** — same frontmatter, same procedure |
 | MCP servers (4) | `config.toml` `[mcp_servers.*]` | **Full** — MCP is cross-vendor; deps-0 stdio servers |
 | `AGENTS.md` | `AGENTS.md` | **Native** — Codex's own durable-guidance file |
 | Lifecycle hooks (6) | *(no Codex equivalent)* | **Manual** — invoke the paired skill at the documented moment; see [`AGENTS.md`](AGENTS.md) |
 
 ## Install
 
-**1. Skills** — materialize the 22 skills into a Codex discovery path (`$HOME/.agents/skills` by default):
+**1. Skills** — materialize the plugin skills into a Codex discovery path (`$HOME/.agents/skills` by default):
 
 ```sh
 node codex/gen-codex-adapter.cjs --install          # symlinks (POSIX) / copies (Windows)
 node codex/gen-codex-adapter.cjs --install --dest ./.agents/skills --copy   # project-local copies
 ```
 
-Codex loads a skill's full `SKILL.md` only when it decides to use it (progressive disclosure), so installing all 22 costs almost no context.
+Codex loads a skill's full `SKILL.md` only when it decides to use it (progressive disclosure), so installing the full set costs almost no context.
 
 **2. MCP servers** — three of the four servers need their dependency installed first:
 
