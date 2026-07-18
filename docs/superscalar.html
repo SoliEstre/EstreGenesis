@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Superscalar — execution-scheduling discipline · EstreGenesis</title>
-  <meta name="description" content="Superscalar v0.5.0 — issue_width formula + cost-benefit gate + in-order retire + consistency gate + §1.5 topology pattern catalog (divergence/reconvergence + 4 patterns) + §3.1 Hyperbrief decision-delegation interlock. Entry 06 A/B: +118% grounding, −40% speculation vs naïve parallel. Plugin v0.1.2.">
+  <meta name="description" content="Superscalar v0.6.0 — §5.1 tiered model composition (/subscaler toggle: frontier main delegates execution-shaped work to the strongest execution-tier subagent, Fable→Opus / Sol→Terra at effort high; delegation rubric + per-harness surfaces; default OFF, ON for fan-outs) + issue_width formula + cost-benefit gate + in-order retire + §1.5 topology catalog + §3.1 Hyperbrief interlock. Entry 06 A/B: +118% grounding, −40% speculation vs naïve parallel. Plugin v0.2.0.">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="shared/shared.css">
   <link rel="stylesheet" href="shared/themes.css">
@@ -66,7 +66,7 @@
       <p class="tagline" data-aud="dev" data-en="An execution-scheduling discipline for parallel sub-agent dispatch — covering both Agent-tool fan-outs and Workflow.parallel calls — that keeps cross-lane work consistent without sacrificing the parallelism budget." data-ko="Agent 도구의 fan-out과 Workflow.parallel 호출을 포함하는 병렬 sub-agent dispatch를 위한 실행 스케줄링 규율로서, 병렬 예산을 희생하지 않으면서도 lane 사이의 작업이 일관성을 유지하도록 보장합니다.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
       <p class="tagline" data-aud="expert" data-en="An execution-scheduling discipline for parallel sub-agent dispatch, comprising an analytically derived issue_width formula, a worktree-isolated reorder buffer, a cost-benefit admission gate, and an in-order retire stage with a consistency gate over cross-lane outputs." data-ko="해석적으로 도출된 issue_width 공식, worktree에 의해 격리된 reorder buffer, cost-benefit 인입 게이트, 그리고 lane 간 산출물에 대한 consistency gate를 갖춘 in-order retire 단계로 구성된, 병렬 sub-agent dispatch를 위한 실행 스케줄링 규율이다.">Execution-scheduling discipline for parallel sub-agent dispatch.</p>
       <div class="badges">
-        <span class="badge">v0.5.0</span>
+        <span class="badge">v0.6.0</span>
         <span class="badge">§11 Entry 01-06 (n=8)</span>
         <span class="badge">§3.1 Hyperbrief interlock</span>
         <span class="badge">Apache-2.0</span>
@@ -280,6 +280,7 @@
           <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
         </div>
       </div>
+      <p data-en="Installing brings 2 skills: /superscalar (the dispatch discipline the agent consults before fan-outs) and /subscaler (the tiered-model-composition toggle — frontier main, execution-tier subagents)." data-ko="설치하면 스킬 2종이 와요: /superscalar (fan-out 전에 에이전트가 참조하는 dispatch 규율) + /subscaler (티어 모델 조합 토글 — frontier 메인, 실행-티어 서브에이전트).">Installing brings 2 skills: /superscalar (the dispatch discipline the agent consults before fan-outs) and /subscaler (the tiered-model-composition toggle — frontier main, execution-tier subagents).</p>
     </section>
 
     <section id="example-prompts">

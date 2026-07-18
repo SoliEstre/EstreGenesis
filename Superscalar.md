@@ -1,4 +1,4 @@
-<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-07, Entry 07 = resume-cache incident n=1) + resume-cache discipline (v0.4.3 §3.2 — journal-backed re-issue, determinism + idempotent-artifact preconditions) + (§11 Entry 01-06 with Entry 05 n=7→n=8 absorption sync to bundle 005) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1) + Hyperbrief decision-delegation interlock (v0.4.1 §3.1 — orthogonal gate, serial evaluation: write/deploy/send lanes pass through cost-benefit gate AND hyperbrief-trigger-check, read-only exempt) + topology pattern catalog (v0.5.0 §1.5 — divergence/reconvergence shape vocabulary + 4 named patterns Pipeline/Fan-out·Fan-in/Expert-Pool/Producer-Reviewer, netwaif/multi-agent-starter MIT attribution); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-13; version: v0.5.0; depends-on: none (optional synergy: Constellation §13.16.9 A2A intents, Hyperbrief §2 trigger rubric — both orthogonal); license: Apache-2.0 -->
+<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-07, Entry 07 = resume-cache incident n=1) + resume-cache discipline (v0.4.3 §3.2 — journal-backed re-issue, determinism + idempotent-artifact preconditions) + (§11 Entry 01-06 with Entry 05 n=7→n=8 absorption sync to bundle 005) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1) + Hyperbrief decision-delegation interlock (v0.4.1 §3.1 — orthogonal gate, serial evaluation: write/deploy/send lanes pass through cost-benefit gate AND hyperbrief-trigger-check, read-only exempt) + topology pattern catalog (v0.5.0 §1.5 — divergence/reconvergence shape vocabulary + 4 named patterns Pipeline/Fan-out·Fan-in/Expert-Pool/Producer-Reviewer, netwaif/multi-agent-starter MIT attribution); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-06-13; version: v0.6.0; depends-on: none (optional synergy: Constellation §13.16.9 A2A intents, Hyperbrief §2 trigger rubric — both orthogonal); license: Apache-2.0 -->
 
 # Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.3)
 
@@ -232,6 +232,36 @@ Reference implementation: Claude Code `Workflow` resume (`resumeFromRunId` — s
 - **Pace-mode link (v1.6.0):** issue-width band + speculation appetite scale with Cautious → Sprint (one input to the §2 formula, not the sole one).
 - **Token-budget caps** — see §3. Treat as hard ceilings, not soft hints.
 - Recorded in `AGENTS.md` core rules alongside language / tone / pace.
+
+### 5.1 Tiered model composition — the `/subscaler` toggle (v0.6.0)
+
+Dispatch discipline (§2) decides *what* fans out; **subscaler decides which model tier it fans out to**. When the main agent runs on a frontier reasoning model, the toggle makes execution-shaped work — code writing and editing above all — run on the strongest *execution*-tier model as subagents (one tier below the main, reasoning effort raised), instead of burning frontier tokens on well-specified emission. The name is the CPU lineage's own counterpart to superscalar: deliberately running work *sub-scale* — one tier down — because the orchestration layer above it is what carries the quality.
+
+**Evidence base (distilled from a 5-axis verified research pass; key public anchors cited inline):**
+- The two-model split has a measured ancestor: aider's architect/editor mode, where a reasoning model proposes and a cheaper editor applies, beat a stronger solo model on both quality and cost (the R1-architect + Sonnet-editor pairing scored above o1 solo at ~14× lower cost). The mechanism is **spec-completion then execution offload, not intelligence stacking** — the same model paired with itself also gains, and the split is documented as a remedy for edit-format failures. Spec completeness is the quality moderator.
+- Vendor guidance itself endorses tier composition (execution-tier teammates, frontier reserved for architectural judgment) while explicitly cautioning that *shared-context coding fits multi-agent decomposition poorly* — the toggle therefore targets fan-out contexts, not everything.
+- Prompt caches do not survive a model switch: a delegated subagent on a different model starts cache-cold. Small, cache-hot, deep-context work loses money on delegation; parallel fan-outs have already forfeited the shared cache, making them the natural application point.
+- Frontier→execution-tier price gaps (roughly 2×–10× per token across current vendor ladders) make the delta economically material at fan-out scale — but routing-savings evidence is workload-dependent, so no fixed saving is promised.
+
+**Toggle contract:** default **OFF**. Recommended ON for Workflow / parallel-dispatch fan-outs (3+ lanes, or any lane whose prompt is self-contained). State lives in **one marker file read at invocation time** (`.agent/subscaler.json` — `{"on": true, "pair": "<family>"}`); per-role model binding duplicated across settings surfaces has shipped state-convergence bugs in the wild, so one source of truth, no mirrors.
+
+**Delegation rubric** (the discipline the toggle switches on):
+- **Delegate**: spec-complete implementation · boilerplate · migrations · test scaffolding · mechanical multi-file edits · read-only exploration · summarization.
+- **Retain on the main model**: architecture decisions · ambiguous-requirement interpretation · cross-cutting design · complex debugging · final review · deep shared-context coding.
+- Every delegated lane carries **explicit acceptance criteria and a test gate** written by the orchestrator — the spec-completeness moderator made procedural. The §2 cost-benefit gate still runs first (is spawning worth it at all?); subscaler only chooses the tier of lanes that pass it.
+
+**Model pair mapping** (adjust as ladders move; the *shape* is the contract — main = frontier reasoner, sub = strongest execution tier, effort raised):
+
+| Family | Main (orchestrator) | Sub (executor) | Effort default |
+|---|---|---|---|
+| Claude | Fable-class | Opus-class | `high` (raise to `xhigh` selectively — effort→quality is non-monotonic and task-set-dependent, so blanket-max is not evidence-backed) |
+| GPT | Sol-class | Terra-class | `high` (same caveat) |
+
+Executor selection weighs **edit-format compliance** as an independent axis — it is a published, model-differentiating metric, and a split pair lives or dies on the editor emitting well-formed edits.
+
+**Application surfaces** (exact mechanisms verified per harness): Claude Code — the Agent tool's per-invocation `model` parameter and Workflow `opts.model`/`opts.effort` (the global `CLAUDE_CODE_SUBAGENT_MODEL` env pin is discouraged: it overrides even per-invocation choices, and excluded values fall back *silently* to the inherited model, so observe actual application rather than assuming it). Codex CLI — per-agent TOML under `.codex/agents/` with `model=` and `model_reasoning_effort=`. Kimi Code — the Agent tool's per-invocation `model` parameter (no agent-file field documented). Procedure lives in the **`/subscaler` skill**.
+
+**Boundary:** Constellation §13.27.4 (loop-contract tier routing) governs *resident unattended loops*; subscaler governs *in-session delegation by a conversing orchestrator*. Cross-linked, deliberately separate jurisdictions.
 
 **Adoption thresholds — switch behavior dynamically when these fire.** The threshold values are unchanged from prior versions; what is new is which **lane class** each one binds (see §2 for the read/write split):
 
