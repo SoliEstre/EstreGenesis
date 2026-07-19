@@ -2065,10 +2065,20 @@ function wsWfIntake(v) {
   if (!v || !v.runId) return;
   wsWfRuns[v.runId] = v;
   if (wsWfPopState) wsWfPopRender();
+  wsWfBtnSync();
 }
 function wsWfSubsIntake(v) {   // v2.4.63 — 단독 서브에이전트 모니터 스냅샷
   wsWfSubs = v || null;
   if (wsWfPopState) wsWfPopRender();
+  wsWfBtnSync();
+}
+function wsWfBtnSync() {   // v2.4.64 — 입력줄 인디케이터 토글 "Wn/n Sn" (최근 런 done/started + 활동 서브에이전트 수)
+  const btn = document.getElementById('ws-wf-inbtn'); if (!btn) return;
+  const ids = Object.keys(wsWfRuns).sort((a, b) => ((wsWfRuns[b].updatedAt || 0) - (wsWfRuns[a].updatedAt || 0)));
+  const r = ids.length ? wsWfRuns[ids[0]] : null;
+  const sc = (wsWfSubs && wsWfSubs.count) || 0;
+  btn.textContent = `W${r ? (r.done != null ? r.done : 0) : 0}/${r ? (r.started != null ? r.started : 0) : 0} S${sc}`;
+  btn.title = '에이전트 활동 모니터 토글' + (r ? ` — 최근: ${String(r.name || r.runId)} (${r.status || 'running'})` : '') + ` · 서브에이전트 ${sc}`;
 }
 function wsWfPopToggle() { if (wsWfPopState) { wsWfPopState.el.remove(); wsWfPopState = null; } else wsWfPopOpen(null); }   // v2.4.63 고정 fab 용
 function wsWfFabInit() {   // v2.4.63 — 플로팅 레이어 토글 고정 버튼
@@ -3524,6 +3534,7 @@ function setupWS() {
   // 첨부: 드롭·버튼은 공통(채널별 textarea 의 paste 첨부는 wsTextareaFor 가 연결)
   attachable({ dropEl: pop, textarea: null, fileBtn: $('#ws-attach'), fileInput: $('#ws-file'), listEl: $('#ws-atts'), atts: wsAtts, persist: () => {} });
   const send = $('#ws-send'); if (send) send.onclick = wsSendPrompt;
+  const wfb = $('#ws-wf-inbtn'); if (wfb) { wfb.onclick = wsWfPopToggle; wsWfBtnSync(); }   // v2.4.64 입력줄 활동 모니터 토글
   const pause = $('#ws-pause'); if (pause) pause.onclick = () => wsSendCommand('pause');
   const resume = $('#ws-resume'); if (resume) resume.onclick = () => wsSendCommand('resume');
   const cancel = $('#ws-cancel'); if (cancel) cancel.onclick = wsSendCancel;
