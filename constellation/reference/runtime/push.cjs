@@ -141,6 +141,7 @@ const NOISE = new Set([
   'ConnectionRestored', 'CloseChannel', 'DeleteChannelHistory', 'RequestChannelHistory', 'ChannelHistory',
   'ArchiveChannel', 'History', 'KeyRevokePending',
   'EchoModeState', 'WorkflowStatus', 'SubagentStatus',   // v2.4.64 — 활동 모니터/에코 스냅샷 (15s 하트비트급 — PWA 알림 과빈발 사용자 보고로 제외)
+  'CommandManifest', 'OpsState',   // v2.4.71 — 선언-갱신 이벤트 (변경-트리거·기계 소비 전용 — 사람 알림 가치 0)
 ]);
 
 function maybePush(msg) {

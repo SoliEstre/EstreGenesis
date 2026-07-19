@@ -723,6 +723,7 @@ function wsRecord(msg) {
   if (!msg || !msg.type || msg.type === 'HELLO' || msg.type === 'SERVER_HELLO') return;
   if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // 제어/transient 제외
   if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
+  if (msg.type === 'CUSTOM' && msg.name === 'OpsState') wsOpsStateNote(msg.agentId, msg.value);   // v2.4.71 상태 스트립 선언 캡처
   const ck = wsMsgChan(msg), buf = wsBufFor(ck), t = msg.type;
   // 저장 압축: 스트리밍 델타/조각은 버퍼 누적, 완성 시점에 1건만 저장 (런타임 relay 는 불변)
   if (t === 'TEXT_MESSAGE_START') { buf.msg.set(msg.messageId || '_', { type: 'TEXT_MESSAGE', messageId: msg.messageId, role: msg.role, text: '', agentId: msg.agentId, channelId: msg.channelId, threadId: msg.threadId, targetAgentId: msg.targetAgentId, source: msg.source, seq: msg.seq, timestamp: msg.timestamp }); return; }
@@ -772,6 +773,28 @@ function wsCmdManifestNote(agentId, v) {
   if (_cmdManT) return;
   _cmdManT = setTimeout(() => { _cmdManT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(CMDMANIFESTS, JSON.stringify(Object.fromEntries(wsCmdManifests), null, 1)); } catch {} }, 1000);
 }
+// v2.4.71 — 에이전트별 운용 상태 선언 영속 (입력줄 상태 스트립 데이터): OpsState CUSTOM.
+// CommandManifest 와 같은 클래스 — 변경-트리거 선언(주기 스냅샷 아님)·latest-wins·History 동봉.
+// 선언 규율: 실측 가능한 값만 (model/effort/fast/subscaler), controls[] = 이 에이전트가
+// 프롬프트 텍스트로 이행 가능한 제어 항목(예: 'subscaler').
+const OPSSTATES = path.join(HISTDIR, '.ops-states.json');
+const wsOpsStates = new Map();
+try { const _os = JSON.parse(fs.readFileSync(OPSSTATES, 'utf8')); for (const k of Object.keys(_os)) wsOpsStates.set(k, _os[k]); } catch {}
+let _opsT = null;
+function wsOpsStateNote(agentId, v) {
+  if (!agentId || !v || typeof v !== 'object') return;
+  const o = {};
+  if (typeof v.model === 'string' && v.model) o.model = v.model.slice(0, 64);
+  if (typeof v.effort === 'string' && v.effort) o.effort = v.effort.slice(0, 16);
+  if (typeof v.fast === 'boolean') o.fast = v.fast;
+  if (v.subscaler && typeof v.subscaler === 'object') o.subscaler = { on: !!v.subscaler.on, pair: String(v.subscaler.pair || '').slice(0, 32), effort: String(v.subscaler.effort || '').slice(0, 16) };
+  if (Array.isArray(v.controls)) o.controls = v.controls.slice(0, 8).map((c) => String(c).slice(0, 24));
+  if (!Object.keys(o).length) return;
+  o.updatedAt = Date.now();
+  wsOpsStates.set(String(agentId), o);
+  if (_opsT) return;
+  _opsT = setTimeout(() => { _opsT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(OPSSTATES, JSON.stringify(Object.fromEntries(wsOpsStates), null, 1)); } catch {} }, 1000);
+}
 
 const ARCHDIR = path.join(HISTDIR, 'archived');   // D: 닫은(아카이브) 채널 cold 보관(active 스캔 제외)
 function wsArchFile(ck) { return path.join(ARCHDIR, ck.replace(/[^a-zA-Z0-9_.@:-]/g, '_').slice(0, 80) + '.jsonl'); }
@@ -794,7 +817,7 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 events full + col
     else cold.push({ key: ck, count: a.length, lastTs: a[a.length - 1].timestamp || 0, role: wsChanRoleOf(ck) });   // v2.4.59 role 동봉 — 그룹 오분류 fix
   }
   events.sort((x, y) => (x.timestamp || 0) - (y.timestamp || 0));
-  return { events, cold, archived: wsArchivedList(), manifests: Object.fromEntries(wsCmdManifests) };   // v2.4.67 자동완성 매니페스트 동봉
+  return { events, cold, archived: wsArchivedList(), manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 동봉
 }
 function wsLoadChannel(ck) {   // RequestChannelHistory 응답용 — 메모리(active) 우선, 없으면 archived(cold)에서 로드 + active 복귀
   let a = wsHistByChan.get(ck);
