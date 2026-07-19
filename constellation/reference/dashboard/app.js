@@ -1756,6 +1756,7 @@ function wsRowEl(row, showChan = true) {   // showChan: 출처 뱃지 표시 여
   { const _atts = wsAttachments(row.full); if (_atts.length) { const ab = el('div', 'ws-att-row'); for (const a of _atts) ab.appendChild(wsAttChipEl(a)); e.append(ab); } }   // 일반 A2A row 첨부 칩
   row._b = b; row._md = md;
   if (row.full) wsRowHover(e, row);   // 요약 가능한 A2A 메시지(WorkerReport·Delegate 등): hover 시 커서 4분면 팝업에 전체 렌더
+  if (row.wfRunId) { e.classList.add('ws-wfstep'); e.title = 'workflow 종합 상태 열기 (' + row.wfRunId + ')'; e.onclick = () => wsWfPopOpen(row.wfRunId); }   // v2.4.61 🧵 STEP 클릭 → 인스펙터
   row._el = e; if (row.ackedBy) e.appendChild(wsAckBadgeEl(row.ackedBy));
   return e;
 }
@@ -2053,6 +2054,57 @@ const WS_MON_PEER_PEER = '__mon_peer_peer__';      // 🔀 피어 ↔ 피어 (�
 const WS_MON_PEER_COLLAB = '__mon_peer_collab__';  // 🔀 피어 ↔ 협업 (피어 그룹에 취합)
 let wsBackends = {};   // C1 backend registry overlay (backends.json): agentId → {role, model, connection, board}. 부재 시 {} → graceful (board-worker 는 local 로 접힘, badge 없음)
 const wsEchoState = {};   // v2.4.58 §13.26.4 EchoModeState: agentId → {level, provenance}. off/부재 = 배지 없음
+
+// ---- v2.4.61 §13.26.6 Workflow-run 플로팅 인스펙터 ----
+// 미러 워처가 발신하는 WorkflowStatus CUSTOM(runId·name·status·phases·agents[{id,label?,state,preview?}]·done/started·totalTokens·durationMs·logsTail)
+// 을 구독해, 🧵 STEP 행 클릭 시 종합 상태를 실시간 플로팅 창으로 표시 (이동·폭조절·세로 자동·접기·닫기).
+const wsWfRuns = {};        // runId → 최신 WorkflowStatus value
+let wsWfPopState = null;    // { runId, el, body, ttl, colBtn, collapsed }
+function wsWfIntake(v) {
+  if (!v || !v.runId) return;
+  wsWfRuns[v.runId] = v;
+  if (wsWfPopState && wsWfPopState.runId === v.runId) wsWfPopRender();
+}
+function wsWfPopOpen(runId) {
+  if (wsWfPopState) { const same = wsWfPopState.runId === runId; wsWfPopState.el.remove(); wsWfPopState = null; if (same) return; }   // 같은 행 재클릭 = 토글 닫기
+  const pop = el('div', 'ws-wf-pop');
+  let pos = null; try { pos = JSON.parse(localStorage.getItem('constellation-wf-pop') || 'null'); } catch {}
+  if (pos && pos.l != null) { pop.style.left = pos.l + 'px'; pop.style.top = pos.t + 'px'; if (pos.w) pop.style.width = pos.w + 'px'; }
+  const head = el('div', 'ws-wf-pop-head');
+  const ttl = el('span', 'ws-wf-pop-title');
+  const colBtn = el('button', 'ws-wf-pop-btn', '▾'); colBtn.title = '접기/펼치기';
+  const x = el('button', 'ws-wf-pop-btn', '✕'); x.title = '닫기';
+  head.append(ttl, colBtn, x);
+  const body = el('div', 'ws-wf-pop-body');
+  pop.append(head, body);
+  document.body.appendChild(pop);
+  wsWfPopState = { runId, el: pop, body, ttl, colBtn, collapsed: false };
+  colBtn.onclick = (ev) => { ev.stopPropagation(); const s = wsWfPopState; s.collapsed = !s.collapsed; s.body.hidden = s.collapsed; s.colBtn.textContent = s.collapsed ? '▸' : '▾'; };
+  x.onclick = (ev) => { ev.stopPropagation(); pop.remove(); wsWfPopState = null; };
+  let drag = null;   // 헤더 드래그 이동 (pointer capture) — 놓을 때 위치·폭 영속
+  head.onpointerdown = (ev) => { if (ev.target === colBtn || ev.target === x) return; drag = { x: ev.clientX - pop.offsetLeft, y: ev.clientY - pop.offsetTop }; try { head.setPointerCapture(ev.pointerId); } catch {} };
+  head.onpointermove = (ev) => { if (!drag) return; pop.style.left = Math.max(0, ev.clientX - drag.x) + 'px'; pop.style.top = Math.max(0, ev.clientY - drag.y) + 'px'; };
+  head.onpointerup = () => { if (!drag) return; drag = null; try { localStorage.setItem('constellation-wf-pop', JSON.stringify({ l: pop.offsetLeft, t: pop.offsetTop, w: pop.offsetWidth })); } catch {} };
+  wsWfPopRender();
+}
+function wsWfPopRender() {
+  const s = wsWfPopState; if (!s) return;
+  const v = wsWfRuns[s.runId];
+  s.ttl.textContent = '🧵 ' + ((v && (v.name || v.runId)) || s.runId);
+  const b = s.body; b.textContent = '';
+  if (!v) { b.append(el('div', 'ws-wf-empty', '실시간 상태 대기 중 — 미러 다음 주기에 채워져요 (종결된 과거 런이면 상태 없음)')); return; }
+  const line = el('div', 'ws-wf-status ' + (v.status || 'running'));
+  line.textContent = (v.status === 'completed' ? '✓ 완료' : v.status === 'failed' ? '⚠ 실패' : '▶ 진행 중')
+    + ` · agents ${v.done != null ? v.done : 0}/${v.started != null ? v.started : 0}`
+    + (v.totalTokens ? ` · ${Math.round(v.totalTokens / 1000)}k tok` : '')
+    + (v.durationMs ? ` · ${Math.round(v.durationMs / 1000)}s` : '');
+  b.append(line);
+  if (Array.isArray(v.phases) && v.phases.length) b.append(el('div', 'ws-wf-phases', '단계: ' + v.phases.join(' → ')));
+  for (const a of (v.agents || [])) {
+    b.append(el('div', 'ws-wf-agent ' + (a.state || ''), (a.state === 'done' ? '✓ ' : '⏳ ') + (a.label || a.id || '?') + (a.preview ? ' — ' + a.preview : '')));
+  }
+  if (Array.isArray(v.logsTail) && v.logsTail.length) { const lg = el('div', 'ws-wf-logs'); for (const l of v.logsTail) lg.append(el('div', 'ws-wf-log', '· ' + String(l))); b.append(lg); }
+}
 function wsLoadBackends() {
   fetch('backends.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(reg => {
     if (!reg) return;
@@ -2200,6 +2252,10 @@ function onWsEvent(m) {
     if (v.agentId) { wsEchoState[v.agentId] = { level: v.level || 'off', provenance: v.provenance }; wsRenderTabs(); }
     return;
   }
+  if (t === 'CUSTOM' && m.name === 'WorkflowStatus') {   // v2.4.61 — workflow 종합 상태 스냅샷 → 플로팅 인스펙터 (스트림 카드 미생성)
+    wsWfIntake(m.value || {});
+    return;
+  }
   if (t === 'CUSTOM' && m.name === 'CollabKeyIssued') {   // v2.4.2 통합: RegisterCollabKey transitional alias 응답 → wsKeyMgmt 로 통합 (kind=collab 명시 fallback)
     if (wsKeyMgmt) { const v = m.value || {}; if (!v.kind) v.kind = 'collab'; wsKeyMgmt.setIssued(v); }
     return;
@@ -2245,7 +2301,7 @@ function onWsEvent(m) {
   if (m.runId) ch.runId = m.runId;
   const _chan = a2a ? '' : wsChanLabel(m), _chanFull = a2a ? '' : wsChanFull(m);   // 출처 뱃지(에이전트 통합 채널 내 대화 구분). 모니터(a2a)는 _src 뱃지
   // 발신 시각(_t/_ts)은 onWsEvent 최상단에서 wsMsgEpoch/wsRowTime 로 도출 (m.timestamp → m.at ISO → fallback). replay 후에도 원본 고정.
-  const push = (kind, label, body, dim, full) => wsPushRow(chId, { kind, label, body: body || '', dim, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull, src: _src, msgId: m.msgId || m.id, full: (full && typeof full === 'object') ? full : null });
+  const push = (kind, label, body, dim, full) => wsPushRow(chId, { kind, label, body: body || '', dim, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull, src: _src, msgId: m.msgId || m.id, wfRunId: m.wfRunId || undefined, full: (full && typeof full === 'object') ? full : null });   // wfRunId: v2.4.61 워크플로 미러 STEP → 인스펙터 링크
   switch (t) {
     case 'RUN_STARTED': push('run', '▶ RUN_STARTED', m.runId || '', true); break;
     case 'RUN_FINISHED': push('ok', '✓ RUN_FINISHED', wsOutcome(m.outcome), true); break;
