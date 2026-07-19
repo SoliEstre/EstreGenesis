@@ -1252,6 +1252,7 @@ function nowHM() { return new Date().toTimeString().slice(0, 8); }
 // 발신 시각 보존 (EstreUF parity) — 새로고침·History replay 후에도 원본 발신 시각 고정. 우선순위: m.timestamp(epoch ms) → m.at(ISO) → null.
 function wsMsgEpoch(m) {
   if (m && typeof m.timestamp === 'number' && isFinite(m.timestamp)) return m.timestamp;
+  if (m && typeof m.timestamp === 'string') { const e = Date.parse(m.timestamp); if (!isNaN(e)) return e; }   // v2.4.60 — 일부 발신 경로가 ISO 문자열로 스탬프 → 숫자-전제 파싱이 null 로 떨어져 매 새로고침 현재시간 표시되던 버그
   if (m && m.at) { const e = Date.parse(m.at); if (!isNaN(e)) return e; }
   return null;
 }
