@@ -651,7 +651,7 @@ A `v1.0.0` cut SHOULD require **both** means at ≥ 8.0 on Lens A. A marketplace
 |---|---|---|
 | Spec completeness | 8 | SSoT 350+ lines, 21 MUST + 8 SHOULD + 26 anti-patterns + §8.5/§11.3/§11.4 adopter sections shipped; v0.6 candidate patches enumerated |
 | Schema stability | 5 | Last major: v0.6 (today, additive 4-slot cut — `recommended_methodology[]` + `evaluation_lenses[]` + `maturity_anchor` + `term_pairing`, back-compat preserved); 3 v0.7+ candidates pending (`surface_profile_estimate` technical-domain heuristic refinement + Hook post-response tone-evaluation layer + §11.4 host self-config gate guidance automation) |
-| External adopter validation | 3 | n=1 external (MangoClass / bundle 008 + 002); EstreUF planned but not deployed |
+| External adopter validation | 3 | n=1 external (a sidecar adopter / bundle 008 + 002); EstreUF planned but not deployed |
 | Emergency-fix cadence settled | 2 | Two blocker-class fixes today (v2.5.32 H1 ajv import + v2.5.38 H7 strip-then-validate ordering) within ~6 hours |
 | Cross-host portability | 4 | SSoT-tier vs plugin-tier separation drawn (§11.4) but no Codex / Cursor adopter |
 | Docs maturity | 7 | README + spec + promo + 4 dogfood archives; no one-page quick-start; no troubleshooting catalogue beyond AF-1..26 |
@@ -677,7 +677,7 @@ Simple mean: **5.5 / 10**. Weighted mean: **5.1 / 10**. Neither at the ≥ 7.5 m
 The Lens-A and Lens-B gaps converge on the same two load-bearing dimensions:
 
 - **Emergency-fix cadence (currently 2)** needs to reach at least 5 (two weeks no-fix) to bring weighted mean over Lens B's 7.5 threshold by itself. The two-blocker day captured in v2.5.32 / v2.5.38 is the empirical anchor — the next 14 days are the first non-trivial test of fix-cadence stability.
-- **External adopter validation (currently 3)** needs to reach at least 6 (n=2-3 with at least one non-EG-owner adopter beyond MangoClass). EstreUF activation is the canonical next step; one additional unrelated adopter would close most of the gap.
+- **External adopter validation (currently 3)** needs to reach at least 6 (n=2-3 with at least one non-EG-owner adopter beyond the bundle-008 sidecar). EstreUF activation is the canonical next step; one additional unrelated adopter would close most of the gap.
 
 The other dimensions (schema stability, docs maturity, determinism, spec completeness) move forward incrementally with each cut and are not the binding constraint at present.
 

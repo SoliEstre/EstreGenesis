@@ -1,6 +1,6 @@
 # 006 · 2026-06-03 · constellation-dogfood
 
-> 다운스트림 어댑터(MangoClass 사이드카, `c:\Dev\vibe works\MangoClass`)가 EstreGenesis 문서(SSoT)만 보고 **Constellation 라이브보드를 활성화**하고, 같은 날 EG가 또 업데이트되자 **릴리스 sync 마이그레이션**까지 따라간 dogfooding 기록. "문서를 처음 따라가는 어댑터" 관점에서 문서↔코드↔NOTES drift 와 가이드 명료성을 실시간 채집.
+> 다운스트림 어댑터(사이드카 워크스페이스)가 EstreGenesis 문서(SSoT)만 보고 **Constellation 라이브보드를 활성화**하고, 같은 날 EG가 또 업데이트되자 **릴리스 sync 마이그레이션**까지 따라간 dogfooding 기록. "문서를 처음 따라가는 어댑터" 관점에서 문서↔코드↔NOTES drift 와 가이드 명료성을 실시간 채집.
 >
 > **Staging note**: 어댑터 에이전트가 중립 staging 폴더(`E:\WorkBase\temp`)에 작성. EstreGenesis 제출 시 `_proposals/007_2026-06-03_constellation-dogfood/` (시번은 maintainer tail 기준 재조정) 로 이동. 시번 006 은 `_proposals/006_2026-06-03_hyperbrief` 다음 가정.
 

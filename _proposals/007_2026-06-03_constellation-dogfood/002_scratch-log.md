@@ -1,11 +1,11 @@
 # Constellation 활성화 dogfooding — 스크래치 로그 (2026-06-03)
 
-> 목적: MangoClass 사이드카(`c:\Dev\vibe works\MangoClass`)에서 PM/003 Constellation 활성화를 EstreGenesis 문서(SSoT)만 보고 따라가며, 문서·런타임·brew·플러그인의 마찰점을 실시간 기록. 최종 리포트는 `E:\WorkBase\temp\`에 별도 생성.
+> 목적: 사이드카 어댑터 워크스페이스에서 PM/003 Constellation 활성화를 EstreGenesis 문서(SSoT)만 보고 따라가며, 문서·런타임·brew·플러그인의 마찰점을 실시간 기록. 최종 리포트는 `E:\WorkBase\temp\`에 별도 생성.
 > 어댑터(adopter) 관점: "문서를 처음 따라가는 다운스트림"을 시뮬레이션. 이미 아는 것도 문서에 없으면 마찰로 기록.
 
 ## 환경
 - Node v24.14.0 / npm 11.9.0 / git 2.53.0.windows.2 / Windows 11 / PowerShell + Bash(git-bash) 병행
-- 사이드카: `c:\Dev\vibe works\MangoClass` (git, origin SoliEstre/MangoClass)
+- 사이드카: 별도 워크스페이스 (git, 비공개 origin)
 - EstreGenesis SSoT 로컬: `E:\WorkBase\EstreGenesis`
 - 목표 포트: 17878 (AGENTS.md §3.12 박제)
 
