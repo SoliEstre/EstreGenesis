@@ -900,23 +900,31 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-src .r-roundtable { color: var(--ws-role-rt, #35c0d0); }
 .ws-target-dot.roundtable { background: var(--ws-role-rt, #35c0d0); }
 .ws-rt-pin { margin: 4px 6px 8px; border: 1px solid color-mix(in srgb, var(--ws-role-rt, #35c0d0) 45%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--ws-role-rt, #35c0d0) 7%, transparent); font-size: 12px; }
-/* v2.4.61 §13.26.6 — Workflow-run 플로팅 인스펙터 (이동·폭조절·세로 자동·접기·닫기) */
+/* v2.4.61-63 §13.26.6 — 에이전트 활동 모니터(워크플로 인스펙터 + 서브에이전트 섹션).
+   v2.4.63 테마 정합: 실토큰(--panel/--ink/--line/--muted/--accent/--shadow) 사용 — 라이트/다크 자동 대응
+   (v2.4.61 은 미존재 변수(--card 등)의 다크 폴백에 고정돼 라이트 모드에서도 다크로 보이던 버그). */
 .ws-ev.ws-wfstep { cursor: pointer; }
-.ws-ev.ws-wfstep:hover { background: color-mix(in srgb, var(--acc, #8b6dff) 8%, transparent); border-radius: 4px; }
-.ws-wf-pop { position: fixed; left: 60px; top: 80px; z-index: 260; width: 380px; min-width: 260px; max-width: 92vw; resize: horizontal; overflow: hidden; background: var(--card, #161a22); border: 1px solid var(--line, #2a3140); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.45); font-size: 12px; }
-.ws-wf-pop-head { display: flex; align-items: center; gap: 6px; padding: 7px 9px; cursor: move; user-select: none; touch-action: none; border-bottom: 1px solid var(--line, #2a3140); background: color-mix(in srgb, var(--acc, #8b6dff) 9%, transparent); border-radius: 10px 10px 0 0; }
+.ws-ev.ws-wfstep:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 4px; }
+.ws-wf-pop { position: fixed; left: 60px; top: 80px; z-index: 260; width: 380px; min-width: 260px; max-width: 92vw; resize: horizontal; overflow: hidden; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); font-size: 12px; }
+.ws-wf-pop-head { display: flex; align-items: center; gap: 6px; padding: 7px 9px; cursor: move; user-select: none; touch-action: none; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 10px 10px 0 0; }
 .ws-wf-pop-title { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ws-wf-pop-btn { background: none; border: none; color: var(--muted, #8a93a5); cursor: pointer; font-size: 13px; padding: 0 3px; }
-.ws-wf-pop-btn:hover { color: var(--fg, #dbe2ee); }
+.ws-wf-pop-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 3px; }
+.ws-wf-pop-btn:hover { color: var(--ink); }
 .ws-wf-pop-body { padding: 8px 10px; max-height: 62vh; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.ws-wf-sec { font-weight: 700; color: var(--muted); margin-top: 4px; border-bottom: 1px dashed var(--line); padding-bottom: 2px; }
+.ws-wf-runrow { padding: 2px 4px; cursor: pointer; border-radius: 4px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-wf-runrow:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--ink); }
 .ws-wf-status { font-weight: 700; }
-.ws-wf-status.completed { color: #39d353; } .ws-wf-status.failed { color: #e85d5d; } .ws-wf-status.running { color: var(--acc, #8b6dff); }
-.ws-wf-phases { color: var(--muted, #8a93a5); }
-.ws-wf-agent { padding: 2px 4px; border-left: 2px solid var(--line, #2a3140); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ws-wf-agent.done { border-left-color: #39d353; }
-.ws-wf-agent.running { border-left-color: var(--acc, #8b6dff); }
-.ws-wf-logs { border-top: 1px dashed var(--line, #2a3140); padding-top: 4px; color: var(--muted, #8a93a5); }
-.ws-wf-empty { color: var(--muted, #8a93a5); font-style: italic; }
+.ws-wf-status.completed { color: var(--ws-st-done); } .ws-wf-status.failed { color: var(--ws-st-error); } .ws-wf-status.running { color: var(--ws-st-running); }
+.ws-wf-phases { color: var(--muted); }
+.ws-wf-agent { padding: 2px 4px; border-left: 2px solid var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-wf-agent.done { border-left-color: var(--ws-st-done); }
+.ws-wf-agent.running { border-left-color: var(--ws-st-running); }
+.ws-wf-logs { border-top: 1px dashed var(--line); padding-top: 4px; color: var(--muted); }
+.ws-wf-empty { color: var(--muted); font-style: italic; }
+#ws-wf-fab { position: fixed; right: 22px; bottom: 88px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--ink); box-shadow: var(--shadow); font-size: 19px; cursor: pointer; z-index: 255; }
+#ws-wf-fab:hover { filter: brightness(1.08); transform: scale(1.04); }
+@media (max-width: 560px) { #ws-wf-fab { bottom: 132px; } .ws-wf-pop { left: 4vw; max-width: 92vw; } }
 .ws-rt-pin > summary { cursor: pointer; padding: 5px 9px; color: var(--ws-role-rt, #35c0d0); user-select: none; }
 .ws-rt-pin-refresh { background: none; border: none; cursor: pointer; font-size: 11px; padding: 0 2px; opacity: .7; }
 .ws-rt-pin-refresh:hover { opacity: 1; }
