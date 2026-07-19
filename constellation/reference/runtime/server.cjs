@@ -729,11 +729,26 @@ function wsCloseChannelHist(agentId) {   // 영구 삭제 — 채널 파일·메
   wsHistByChan.delete(ck); wsBuf.delete(ck);
   try { fs.unlinkSync(wsHistFile(ck)); } catch {}
 }
+// v2.4.59 — 채널별 role 영속 (그룹 오분류 fix): cold/archived 스텁엔 role 이 없어 대시보드가
+// 키-형태 기반 기본값(local)으로 추락 — upstream/collab/peer 가 끊기면 로컬 그룹에 표시되던 버그.
+// HELLO 시점의 판정 role 을 채널키별로 기록·영속해 스텁에 동봉한다 (room:* 은 고정 roundtable).
+const CHANROLES = path.join(HISTDIR, '.chan-roles.json');
+const wsChanRoles = new Map();
+try { const _cr = JSON.parse(fs.readFileSync(CHANROLES, 'utf8')); for (const k of Object.keys(_cr)) wsChanRoles.set(k, _cr[k]); } catch {}
+let _chanRolesT = null;
+function wsChanRoleNote(ck, role) {
+  if (!ck || !role || wsChanRoles.get(ck) === role) return;
+  wsChanRoles.set(ck, role);
+  if (_chanRolesT) return;
+  _chanRolesT = setTimeout(() => { _chanRolesT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(CHANROLES, JSON.stringify(Object.fromEntries(wsChanRoles), null, 1)); } catch {} }, 1000);
+}
+function wsChanRoleOf(ck) { return ck && String(ck).startsWith('room:') ? 'roundtable' : (wsChanRoles.get(ck) || null); }
+
 const ARCHDIR = path.join(HISTDIR, 'archived');   // D: 닫은(아카이브) 채널 cold 보관(active 스캔 제외)
 function wsArchFile(ck) { return path.join(ARCHDIR, ck.replace(/[^a-zA-Z0-9_.@:-]/g, '_').slice(0, 80) + '.jsonl'); }
 function wsArchivedList() {   // archived/ 채널 stub 메타(키·건수·마지막 ts) — 내용은 복원 시 lazy
   const out = [];
-  try { fs.mkdirSync(ARCHDIR, { recursive: true }); for (const f of fs.readdirSync(ARCHDIR)) { if (!f.endsWith('.jsonl')) continue; try { const evs = fs.readFileSync(path.join(ARCHDIR, f), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)); if (!evs.length) continue; out.push({ key: wsMsgChan(evs[0]), count: evs.length, lastTs: evs[evs.length - 1].timestamp || 0 }); } catch {} } } catch {}
+  try { fs.mkdirSync(ARCHDIR, { recursive: true }); for (const f of fs.readdirSync(ARCHDIR)) { if (!f.endsWith('.jsonl')) continue; try { const evs = fs.readFileSync(path.join(ARCHDIR, f), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)); if (!evs.length) continue; const _k = wsMsgChan(evs[0]); out.push({ key: _k, count: evs.length, lastTs: evs[evs.length - 1].timestamp || 0, role: wsChanRoleOf(_k) }); } catch {} } } catch {}
   return out;
 }
 function wsPresentIds() { const s = new Set(); for (const [id, c] of wsAgents) if (c && c.alive) s.add(id); return s; }
@@ -747,7 +762,7 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 events full + col
   for (const [ck, a] of wsHistByChan) {
     if (!a.length) continue;
     if (wsChanActive(ck, present)) { for (const e of a) events.push(e); }
-    else cold.push({ key: ck, count: a.length, lastTs: a[a.length - 1].timestamp || 0 });
+    else cold.push({ key: ck, count: a.length, lastTs: a[a.length - 1].timestamp || 0, role: wsChanRoleOf(ck) });   // v2.4.59 role 동봉 — 그룹 오분류 fix
   }
   events.sort((x, y) => (x.timestamp || 0) - (y.timestamp || 0));
   return { events, cold, archived: wsArchivedList() };
@@ -1015,6 +1030,7 @@ server.on('upgrade', (req, socket) => {
       const prev = wsAgents.get(conn.meta.agentId);
       if (prev && prev !== conn) { try { prev.close(); } catch {} }
       wsAgents.set(conn.meta.agentId, conn);
+      wsChanRoleNote(conn.meta.agentId, wsAgentRole(conn));   // v2.4.59 — 채널 role 영속 (끊긴 뒤에도 스텁이 그룹 유지)
       wsPushAgentList();
       if (conn.meta.upstreamKey) keyObserveHello(conn.meta.upstreamKey, conn.meta.agentId);   // v2.4.0 §3.2/§4 lastAgent·lastSeenAt + ISSUED→ACTIVE
       return;

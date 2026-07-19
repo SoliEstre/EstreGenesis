@@ -36,3 +36,12 @@ The complement of `/roundnext` on the time axis: roundnext is **forward-looking*
 - Report the sweep delta in a few lines: done corrected/added N · planned migrated/corrected N · decisions closed N · current fixed N · registry pruned N · tone-normalized N. A sweep that changes nothing should say **why** nothing changed — that is a healthy board, and it is signal.
 - If the sweep exposed anything actionable (an item now unblocked, priorities visibly wrong), recommend or chain into `/roundnext` — scheduling belongs there.
 - Standing gates unchanged: a sweep never pushes/deploys/sends/deletes on its own authority, and mode/policy changes route to the decisions panel.
+
+## 4. When to sweep (cadence — §13.31.4 ⑥)
+
+Sweeps are **work-denominated, not wall-clock** — drift accumulates with off-board work, not with time. Four triggers, by strength of evidence:
+
+- **Session resume (strongest).** After a context compaction or workspace restart, before new board-relevant work. The post-compaction window is the highest-misregistration window on record — a measured resume-time sweep surfaced 12 record corrections, including identifier ghosts that had survived 40+ release cuts. Quick scope suffices here: recent `done[]` + everything open on `current`/`planned`/`decisions`; escalate to full only if the quick pass surfaces anomalies.
+- **Every ~5 release cuts or 7 days, whichever first.** Full scope — resolve every recorded identifier against the repository. Only the full pass catches slow corruption classes (lost tags, commits rewritten away).
+- **The idle signature (resident/peer-run boards).** Board-update traffic silent for a window (suggest 24h) *while* work signals — commits, A2A traffic — continue. Silence plus ongoing work is the drift signature; silence with no work needs no sweep. For a resident loop (a headless hub-main, §13.27), the idle tick is the natural executor: sweep instead of sleeping.
+- **After history-shape operations.** Tag moves, history rewrites, force pushes — run immediately; this is the class that mints unresolvable identifiers.
