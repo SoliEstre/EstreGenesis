@@ -1,6 +1,6 @@
 {
   "generated": "compendium/lint.cjs --reindex",
-  "count": 26,
+  "count": 27,
   "entries": [
     {
       "id": "a2a-intent-family",
@@ -13,7 +13,8 @@
       "links": [
         "ack-tier",
         "pre-send-probe",
-        "xss-boundary"
+        "xss-boundary",
+        "asterism"
       ],
       "definition": "The classification of agent-to-agent CUSTOM messages by named intent (Report, Delegate, BlockerManifest, ULTRASAFE_*, etc.) on an allowlist, splitting board-directed from a2a-intent so the dashboard + watcher treat each correctly. See owner_spec.",
       "glosses": [
@@ -45,6 +46,30 @@
         {
           "register": "plain",
           "text": "a 'delivered' signal does not mean the other side actually read it"
+        }
+      ]
+    },
+    {
+      "id": "asterism",
+      "title": "Asterism",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Constellation.md#20-asterism--the-name-of-the-wire-contract",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "a2a-intent-family",
+        "ack-tier"
+      ],
+      "definition": "The name of the agent-to-agent wire contract the Constellation module speaks (CUSTOM envelope + routing/ack/declaration/selection/room surfaces, §2–§13). Mark: ⁂. The module is the deployment; Asterism is the pattern agents form on the wire. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "the A2A live-board wire contract (formerly the descriptive 'live-board protocol' label) — the harness-implementable surface, named distinctly from the Constellation deployment"
+        },
+        {
+          "register": "plain",
+          "text": "우리 에이전트들이 보드 위에서 서로 대화할 때 쓰는 통신 규약의 이름이에요 — 별자리(Constellation) 안에서 별들이 이루는 무리(asterism)처럼, 에이전트들이 만드는 연결 패턴이라는 뜻이에요"
         }
       ]
     },

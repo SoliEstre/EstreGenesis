@@ -16,7 +16,7 @@ glosses:
 terms:
   - { text: a2a intent family, register: expert, role: preferred,
       provenance: { source: spec, first_seen: 2026-06, occurrence_count: 8, distinct_sources: 2 } }
-links: [ack-tier, pre-send-probe, xss-boundary]
+links: [ack-tier, pre-send-probe, xss-boundary, asterism]
 audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 ---
 
@@ -25,6 +25,6 @@ audit: { created: 2026-06-19, updated: 2026-06-19, last_reviewed: 2026-06-19 }
 에이전트 간 메시지를 의도(intent) 이름으로 분류하는 allowlist. 전체 정의는 owner_spec (`Constellation.md`) 가 SSoT.
 
 <!-- compendium:obsidian:start (auto — lint.cjs --reindex; do not hand-edit) -->
-**관련 / Related:** [[ack-tier]] · [[pre-send-probe]] · [[xss-boundary]]  
+**관련 / Related:** [[ack-tier]] · [[pre-send-probe]] · [[xss-boundary]] · [[asterism]]  
 **정의 원본 / Source:** [Constellation.md#13169-message-classification-by-intent-board-directed-vs-a2a-intent](../../Constellation.md#13169-message-classification-by-intent-board-directed-vs-a2a-intent)
 <!-- compendium:obsidian:end -->
