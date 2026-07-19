@@ -1308,6 +1308,77 @@ function wsCmdAcKeydown(e) {
   if (e.key === 'ArrowUp') { e.preventDefault(); wsCmdAc.sel = (wsCmdAc.sel - 1 + wsCmdAc.items.length) % wsCmdAc.items.length; wsCmdAcRender(); return; }
   if ((e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.shiftKey) || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); wsCmdAcApply(); return; }
 }
+// ---- v2.4.71 입력줄 상태 스트립 (OpsState) ----
+// 유효 타깃의 운용 상태(model·effort·fast·subscaler)를 입력줄 왼쪽 끝에 표시 + 클릭 드랍다운.
+// 데이터 = OpsState 선언 우선, backends.json 폴백. actionable 항목은 대상이 CommandManifest 로
+// 선언한 명령(예: /subscaler)을 UserPrompt 텍스트로 보내는 경로만 — 미선언 제어는 읽기 전용
+// (보드가 하네스 제어를 지어내지 않음). §8.1 esc-only: 전부 textContent.
+function wsOpsShort(m) { return String(m || '').replace(/^claude-/, ''); }
+function wsOpsTargetInfo() {
+  const eff = wsEffectiveTarget();
+  if (!eff || eff.indexOf('room:') === 0) return null;
+  const ch = wsState.channels.get(eff);
+  const route = (ch && ch.routeId) || eff;
+  return { route, ops: wsOpsStates.get(route) || null, bk: wsBackends[route] || null };
+}
+function wsOpsStripSync() {
+  const b = $('#ws-ops-strip'); if (!b) return;
+  const t = wsOpsTargetInfo();
+  if (!t || (!t.ops && !t.bk)) { b.hidden = true; if (wsOpsMenuOpen) wsOpsMenuClose(); return; }
+  b.hidden = false;
+  let txt = '⚙ ' + wsOpsShort((t.ops && t.ops.model) || (t.bk && t.bk.model) || '?');
+  if (t.ops && t.ops.effort) txt += '·' + t.ops.effort;
+  if (t.ops && t.ops.fast) txt += '·fast';
+  if (t.ops && t.ops.subscaler) txt += ' · sub:' + (t.ops.subscaler.on ? 'on' : 'off');
+  b.textContent = txt;
+}
+let wsOpsMenuOpen = false;
+function wsOpsMenuClose() { const m = $('#ws-ops-menu'); if (m) m.remove(); wsOpsMenuOpen = false; document.removeEventListener('keydown', wsOpsMenuKey, true); document.removeEventListener('click', wsOpsMenuDoc, true); }
+function wsOpsMenuKey(e) { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); wsOpsMenuClose(); } }
+function wsOpsMenuDoc(e) { if (!e.target.closest('#ws-ops-menu') && !e.target.closest('#ws-ops-strip')) wsOpsMenuClose(); }
+function wsOpsMenuToggle() {
+  if (wsOpsMenuOpen) { wsOpsMenuClose(); return; }
+  const t = wsOpsTargetInfo(); if (!t) return;
+  const man = wsCmdManifests.get(t.route);
+  const hasSubCmd = !!(man && Array.isArray(man.commands) && man.commands.some((c) => c && c.name === '/subscaler'));
+  const menu = el('div', 'ws-ops-menu'); menu.id = 'ws-ops-menu';
+  const row = (label, val, action) => {
+    const r = el('div', 'ws-ops-row' + (action ? ' act' : ''));
+    const l = el('span', 'ws-ops-k'); l.textContent = label;
+    const v = el('span', 'ws-ops-v'); v.textContent = val;
+    r.append(l, v);
+    if (action) r.addEventListener('mousedown', (e) => { e.preventDefault(); action(); });
+    menu.appendChild(r);
+  };
+  row('model', wsOpsShort((t.ops && t.ops.model) || (t.bk && t.bk.model) || '(미선언)'), null);
+  row('effort', (t.ops && t.ops.effort) || '(미선언)', null);
+  if (t.ops && typeof t.ops.fast === 'boolean') row('fast', t.ops.fast ? 'on' : 'off', null);
+  const sub = t.ops && t.ops.subscaler;
+  if (sub) {
+    const next = sub.on ? 'off' : 'on';
+    row('subscaler', (sub.on ? 'on' : 'off') + (sub.pair ? ' (' + sub.pair + (sub.effort ? '·' + sub.effort : '') + ')' : ''), hasSubCmd ? () => {
+      const promptId = 'p-' + Date.now().toString(36);
+      if (wsSend({ type: 'CUSTOM', name: 'UserPrompt', value: { promptId, text: '/subscaler ' + next, atts: [] } })) wsLocalRow('user', '🙋 UserPrompt', '/subscaler ' + next, { promptId });
+      wsOpsMenuClose();
+    } : null);
+    if (hasSubCmd) { const h = el('div', 'ws-ops-hint'); h.textContent = 'subscaler 클릭 = /subscaler ' + next + ' 전송 (대상이 선언한 명령)'; menu.appendChild(h); }
+  }
+  const src = el('div', 'ws-ops-hint');
+  src.textContent = t.ops ? 'OpsState 선언 기준 · ' + (t.ops.updatedAt ? new Date(t.ops.updatedAt).toLocaleTimeString() : '') : 'backends 선언 폴백 (에이전트 미선언)';
+  menu.appendChild(src);
+  const wrap = document.querySelector('.ws-input'); (wrap || document.body).appendChild(menu);
+  wsOpsMenuOpen = true;
+  document.addEventListener('keydown', wsOpsMenuKey, true);
+  document.addEventListener('click', wsOpsMenuDoc, true);
+}
+function wsOpsStripInit() {
+  const acts = document.querySelector('.ws-actions'); if (!acts || $('#ws-ops-strip')) return;
+  const b = el('button', 'ws-ops-strip'); b.id = 'ws-ops-strip'; b.type = 'button'; b.hidden = true;
+  b.title = '대상 에이전트 운용 상태 (model·effort·subscaler) — 클릭 = 상세/제어';
+  b.onclick = (e) => { e.stopPropagation(); wsOpsMenuToggle(); };
+  acts.appendChild(b);   // .ws-actions 는 row-reverse — 마지막 append = 왼쪽 끝
+  wsOpsStripSync();
+}
 function wsURL() { return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`; }
 function connectWS() {
   try { if (wsState.ws) { wsState.ws.onclose = null; wsState.ws.close(); } } catch {}
@@ -2135,6 +2206,9 @@ const wsEchoState = {};   // v2.4.58 §13.26.4 EchoModeState: agentId → {level
 // 소스 = ① 대상 에이전트가 선언한 CommandManifest(최우선 — 하네스가 자기 명령을 스스로 선언하므로
 // Claude Code/Codex/Hermes/OpenClaw 무관 호환) ② 미선언 시 보수적 공통 후보(해석은 대상 하네스 몫).
 const wsCmdManifests = new Map();
+// v2.4.71 — 입력줄 상태 스트립: agentId → OpsState 선언 {model?, effort?, fast?, subscaler?, controls?, updatedAt}.
+// CommandManifest 와 같은 클래스(변경-트리거 선언·latest-wins·History 동봉). 미선언 시 backends 폴백.
+const wsOpsStates = new Map();
 const WS_CMD_COMMON = [
   { name: '/help', desc: '도움말 — 대상 하네스가 해석' },
   { name: '/status', desc: '상태 확인 — 대상 하네스가 해석' },
@@ -2332,6 +2406,7 @@ function onWsEvent(m) {
       }
     } else { events = []; }
     if (v.manifests && typeof v.manifests === 'object') { for (const k of Object.keys(v.manifests)) wsCmdManifests.set(k, v.manifests[k]); }   // v2.4.67 자동완성 매니페스트 동봉분
+    if (v.opsStates && typeof v.opsStates === 'object') { for (const k of Object.keys(v.opsStates)) wsOpsStates.set(k, v.opsStates[k]); }   // v2.4.71 운용상태 동봉분
     wsReplayHistory(events, v.cold, v.archived); return;
   }
   if (t === 'ChannelHistory' || (t === 'CUSTOM' && m.name === 'ChannelHistory')) {
@@ -2399,6 +2474,11 @@ function onWsEvent(m) {
   if (t === 'CUSTOM' && m.name === 'CommandManifest') {   // v2.4.67 — 슬래시 자동완성 매니페스트 (스트림 카드 미생성, live 갱신)
     const v = m.value || {};
     if (m.agentId && Array.isArray(v.commands)) wsCmdManifests.set(m.agentId, v);
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'OpsState') {   // v2.4.71 — 입력줄 상태 스트립 선언 (스트림 카드 미생성, live 갱신)
+    const v = m.value || {};
+    if (m.agentId && v && typeof v === 'object') { wsOpsStates.set(m.agentId, v); try { wsOpsStripSync(); } catch {} }
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CollabKeyIssued') {   // v2.4.2 통합: RegisterCollabKey transitional alias 응답 → wsKeyMgmt 로 통합 (kind=collab 명시 fallback)
@@ -2844,6 +2924,7 @@ function wsRenderTargetSel() {
   }
   { const o = document.createElement('option'); o.value = '__rt_new'; o.textContent = '➕ 라운드테이블…'; sel.appendChild(o); if (sel.disabled && !monView) sel.disabled = false; }   // §13.30 방 생성 진입점 — 대상이 없어도 생성은 가능
   sel.onchange = () => { if (sel.value === '__rt_new') { wsRenderTargetSel(); wsRtCreateDialog(); return; } wsTargetOverride = sel.value || null; wsRenderTargetSel(); };
+  try { wsOpsStripSync(); } catch {}   // v2.4.71 — 유효 타깃 변경 시 상태 스트립 동기
 }
 // ---- §13.30 roundtable — room 채널 인테이크 + 생성 다이얼로그 (v2.4.55 R3) ----
 const wsRtRooms = new Map();                          // roomId → { topic, mode, participants[], closed }
@@ -3649,6 +3730,7 @@ function setupWS() {
   updateWsConn(); updateWsBadge(); wsRenderTabs();
   wsLoadBackends();                                   // C1 backend registry overlay (board-worker 분리 + model badge); 부재 시 graceful
   wsWfFabInit();                                      // v2.4.63 에이전트 활동 모니터 토글 fab
+  wsOpsStripInit();                                   // v2.4.71 입력줄 상태 스트립 (OpsState)
   wsLoadUI();                                         // 팝업 위치·크기·열림 상태 복원
   connectWS();
 }

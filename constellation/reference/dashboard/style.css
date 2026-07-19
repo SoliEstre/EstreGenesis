@@ -706,6 +706,16 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-ac-desc { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .ws-ac-src { font-size: .65rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; white-space: nowrap; }
 .ws-ac-src.man { color: var(--accent); border-color: var(--accent); }
+/* v2.4.71 입력줄 상태 스트립 — 유효 타깃 운용 상태 (왼쪽 끝) + 클릭 드랍다운 */
+#ws-ops-strip { font-size: .72rem; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; color: var(--muted); white-space: nowrap; max-width: 230px; overflow: hidden; text-overflow: ellipsis; padding: 6px 8px; }
+#ws-ops-strip:hover { color: var(--ink); border-color: var(--accent); }
+.ws-ops-menu { position: absolute; left: 0; bottom: calc(100% + 4px); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 28px #0006, 0 2px 8px #0003; z-index: 62; padding: 8px 10px; min-width: 230px; }
+.ws-ops-row { display: flex; gap: 12px; justify-content: space-between; font-size: .78rem; padding: 3px 4px; }
+.ws-ops-row.act { cursor: pointer; border-radius: 6px; }
+.ws-ops-row.act:hover { background: var(--panel2); }
+.ws-ops-k { color: var(--muted); }
+.ws-ops-v { color: var(--ink); font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; }
+.ws-ops-hint { font-size: .68rem; color: var(--muted); margin-top: 4px; }
 /* 채널 탭별 별도 textarea 스택 — 활성만 표시, 높이는 전 탭 최대값으로 일괄 통일(탭 전환 시 위치 불변) */
 .ws-input .ws-text-stack { width: 100%; }
 .ws-input .ws-text-stack textarea { width: 100%; min-height: 54px; display: none; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: .85rem; resize: none; overflow-y: hidden; box-sizing: border-box; }
