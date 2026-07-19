@@ -34,6 +34,22 @@ const OUTBOX = process.env.LOCAL_OUTBOX || path.join(DIR, 'local-' + AGENT_ID + 
 const OUT_CURSOR = path.join(DIR, '.local-' + AGENT_ID + '-outbox-cursor');
 
 const ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);   // §13.13 ack/ping류 — commitment-ack 대상 아님 (서버 pending 도 비추적)
+
+// v2.4.58 — §13.26.3 provenance default: join-local 은 agent-spawned 합류 경로이므로,
+// .echo-mode 마커에 이 agentId 항목이 없으면 { level:'on', provenance:'agent-spawned' } 로 시딩.
+// 이미 있는 항목(인간 명시 토글 포함)은 절대 덮지 않음 — 명시 설정이 provenance 기본값에 항상 우선.
+const ECHO_FILE = process.env.ECHO_MODE_FILE || path.join(DIR, '.echo-mode');
+function echoEntry() {
+  let m = {};
+  try { m = JSON.parse(fs.readFileSync(ECHO_FILE, 'utf8')) || {}; } catch {}
+  if (m[AGENT_ID] === undefined) {
+    m[AGENT_ID] = { level: 'on', provenance: 'agent-spawned' };
+    try { fs.writeFileSync(ECHO_FILE, JSON.stringify(m, null, 2)); log({ ev: 'echo-default-seeded', level: 'on' }); }
+    catch (e) { log({ ev: 'echo-seed-fail', e: String(e.message || e) }); }
+  }
+  const e = m[AGENT_ID];
+  return typeof e === 'string' ? { level: e } : { level: e.level || (e.on ? 'on' : 'off'), provenance: e.provenance };
+}
 let ws = null, connected = false, seq = 0, backoff = 500;
 function log(obj) { try { fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(), ...obj }) + '\n'); } catch {} }
 function send(type, extra) {
@@ -66,6 +82,9 @@ function connect() {
     console.log(`[join-local] connected; HELLO sent (role=local). 메인(${MAIN}) Delegate 대기.`);
     log({ ev: 'connected' });
     setTimeout(() => { send('CUSTOM', { name: 'AgentHello', targetAgentId: MAIN, value: { agentId: AGENT_ID, env: 'local worker @ ' + DIR, role: 'local', idle: true, note: 'Local worker 합류 — Delegate 대기 standby.' } }); log({ ev: 'agenthello-sent', to: MAIN }); }, 600);
+    // v2.4.58 — §13.26.4 EchoModeState 공지: (재)접속마다 멱등 재공지 (무타깃 브로드캐스트 —
+    // commitment-ack 비대상). 대시보드가 에코 배지 + 채널 대화 승격에 사용.
+    setTimeout(() => { const e = echoEntry(); send('CUSTOM', { name: 'EchoModeState', value: { agentId: AGENT_ID, level: e.level, provenance: e.provenance || 'agent-spawned' } }); log({ ev: 'echomodestate-sent', level: e.level }); }, 900);
   };
   ws.onmessage = (e) => {   // v2.4.7: CUSTOM/A2A 는 full msg 로깅 (워커가 Delegate value 등 본문 read 가능), History/AgentList 노이즈는 요약
     let m; try { m = JSON.parse(e.data); } catch { return; }
