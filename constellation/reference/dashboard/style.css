@@ -905,7 +905,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
    (v2.4.61 은 미존재 변수(--card 등)의 다크 폴백에 고정돼 라이트 모드에서도 다크로 보이던 버그). */
 .ws-ev.ws-wfstep { cursor: pointer; }
 .ws-ev.ws-wfstep:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 4px; }
-.ws-wf-pop { position: fixed; left: 60px; top: 80px; z-index: 260; width: 380px; min-width: 260px; max-width: 92vw; resize: horizontal; overflow: hidden; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); font-size: 12px; }
+.ws-wf-pop { position: fixed; left: 60px; top: 80px; z-index: 260; width: 380px; min-width: 260px; max-width: 92vw; resize: horizontal; overflow: hidden; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 44px #0009, 0 2px 10px #0004; font-size: 12px; }   /* v2.4.66 — 카드용 --shadow 대신 실시간 창급 승격 그림자 (주변 구분 사용자 보고) */
 .ws-wf-pop-head { display: flex; align-items: center; gap: 6px; padding: 7px 9px; cursor: move; user-select: none; touch-action: none; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 10px 10px 0 0; }
 .ws-wf-pop-title { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-wf-pop-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 3px; }
