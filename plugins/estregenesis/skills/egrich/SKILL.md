@@ -7,7 +7,7 @@ description: "Arm a project with everything EstreGenesis offers — the seed cha
 
 The seed alone is deliberately lean: `AGENTS.md` SSoT + bridges + `.agent/`, file-based coordination, no modules. `/egrich` is the opposite end — everything EG ships, wired and checked.
 
-**Say the cost out loud before you start.** The full stack adds always-on hooks, background processes (a live board server + bridges), and MCP servers. That is the right trade for a project running several agents in parallel; it is overkill for a solo repo. If the user has not clearly asked for "everything", name the cheap subset (§5) and let them choose.
+**Say the cost out loud before you start.** The full stack adds always-on hooks, background processes (a live board server + bridges), and MCP servers. That is the right trade for a project running several agents in parallel; it is overkill for a solo repo. If the user has not clearly asked for "everything", name the cheap subset (§5) and let them choose — presented per Hyperbrief's setup-flow choice default (§5.6.9: plain floor band, costs/benefits + recommendation, "explain more simply" fallback).
 
 ## 1. Ensure the charter exists
 

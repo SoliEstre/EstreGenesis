@@ -21,7 +21,7 @@ Say which route you took in one line. Do not scaffold before the mode is settled
 
 ## 1. Pick the tier + language
 
-Default to **Lite** in the user's prevailing language. Ask (one question, `AskUserQuestion`) only if the choice is genuinely open:
+Default to **Lite** in the user's prevailing language. Ask (one question, `AskUserQuestion`) only if the choice is genuinely open. Present the choice per Hyperbrief's **setup-flow choice default** (§5.6.9): plain floor band L1.1.1–L1.2.2, per-option costs/benefits + a recommendation, and an "explain more simply" fallback — the reader at bootstrap time has not adopted EG vocabulary yet.
 
 | Tier | Pick it when |
 |---|---|

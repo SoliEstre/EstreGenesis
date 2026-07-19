@@ -35,7 +35,7 @@ If the seed marker did not move, say that plainly: the project's charter is alre
 
 ## 2. Present the delta as a numbered menu (additive only)
 
-Run the seed's **Migration B**: present the changes as a numbered menu and let the human pick. The discipline that makes this safe:
+Run the seed's **Migration B**: present the changes as a numbered menu and let the human pick. Menu prose follows Hyperbrief's setup-flow choice default (§5.6.9 — plain floor band, per-item cost/benefit, "explain more simply" fallback). The discipline that makes this safe:
 
 - **Additive only.** Nothing the project already wrote is overwritten by the upgrade. Deltas add sections, add registry rows, add rules.
 - **Per-item choice.** The user takes items individually — a delta menu is not an all-or-nothing patch.
