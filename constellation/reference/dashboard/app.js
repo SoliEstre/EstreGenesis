@@ -2077,7 +2077,7 @@ function wsWfBtnSync() {   // v2.4.64 — 입력줄 인디케이터 토글 "Wn/n
   const ids = Object.keys(wsWfRuns).sort((a, b) => ((wsWfRuns[b].updatedAt || 0) - (wsWfRuns[a].updatedAt || 0)));
   const r = ids.length ? wsWfRuns[ids[0]] : null;
   const sc = (wsWfSubs && wsWfSubs.count) || 0;
-  btn.textContent = `W${r ? (r.done != null ? r.done : 0) : 0}/${r ? (r.started != null ? r.started : 0) : 0} S${sc}`;
+  btn.textContent = `🧵 W${r ? (r.done != null ? r.done : 0) : 0}/${r ? (r.started != null ? r.started : 0) : 0} S${sc}`;
   btn.title = '에이전트 활동 모니터 토글' + (r ? ` — 최근: ${String(r.name || r.runId)} (${r.status || 'running'})` : '') + ` · 서브에이전트 ${sc}`;
 }
 function wsWfPopToggle() { if (wsWfPopState) { wsWfPopState.el.remove(); wsWfPopState = null; } else wsWfPopOpen(null); }   // v2.4.63 고정 fab 용
