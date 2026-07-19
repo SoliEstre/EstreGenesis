@@ -1,6 +1,6 @@
-<!-- part-of: EstreGenesis 2.5.x; kind: kit-level contract (not a module); version: v0.2; date: 2026-07-19; license: Apache-2.0 -->
+<!-- part-of: EstreGenesis 2.5.x; kind: kit-level contract (not a module); version: v0.3; date: 2026-07-19; license: Apache-2.0 -->
 
-# Harness Adapter Contract v0.2
+# Harness Adapter Contract v0.3
 
 > **What this is.** EstreGenesis ships one set of disciplines — skills, hooks, MCP servers — authored once against a canonical source format, and *projected* onto AI coding hosts through **adapters**. The Codex adapter (`codex/gen-codex-adapter.cjs`, Stage 1) proved the shape in practice; this document promotes that practice to a contract, so the next host (a self-hosted personal-AI environment with a local-LLM loop, a future provider-native runtime, anything that can read markdown) implements a written agreement instead of reverse-engineering a generator script. Per the project's north star, the longest-lived layer here is the *decomposition* — source-of-truth, projection surfaces, degradation, verification — not any generator's code.
 
@@ -60,7 +60,7 @@ Additionally, an adapted host that joins a Constellation board SHOULD declare a 
 | Claude Code | reference host (no adapter needed) | `plugins/*` load natively |
 | Codex | Stage 1 | `codex/gen-codex-adapter.cjs` · `codex/config.toml.example` · `codex/README.md` inventory · verify axis `codex-adapter` |
 | [Estrelle](https://github.com/SoliEstre/Estrelle) (personal-AI OS, local-LLM loop) | planned — target Stage 3 | contract-first: this document + §13.27.4 precede any code; mutual entry-point links (Estrelle vision ↔ this repo) |
-| Hermes agent (resident gateway; hub-main candidate) | candidate — target Stage 2 | surface map §8; measurement gate (§8.2) pending. Intended duty: Constellation hub-main (§13.9.3) with per-boundary profiles, joining boards as peer-main |
+| Hermes agent (resident gateway; hub-main candidate) | candidate — target Stage 2; **§8 surface map fully measured (2026-07-19)** | measurement gate passed on all Hermes rows (remote-measured, archived); a persistent Live Board connector joined a live board with zero core patches and passed a wire-compatibility round-trip the same day. Remaining Stage-2 substance is distribution/registration, not capability. Intended duty: Constellation hub-main (§13.9.3) with per-boundary profiles, joining boards as peer-main |
 | OpenClaw (messaging-gateway daemon; local-worker candidate) | candidate — target Stage 2 | surface map §8; measurement gate (§8.2) pending. Intended duty: Constellation local worker (§13.23) + messaging-group roundtable projection (§13.30) |
 
 ## 8. Candidate-host surface maps (research-verified drafts)
@@ -69,17 +69,19 @@ Both candidate rows in §7 come from a 2026-07-19 five-axis research pass (96 so
 
 | Contract element | Hermes agent (observed) | OpenClaw (observed) | Verdict |
 |---|---|---|---|
-| instruction file | auto-loads project instruction docs into the session | injects workspace instruction/identity docs into the session | deferred |
+| instruction file | cwd `AGENTS.md` auto-injected (marker round-trip measured) | injects workspace instruction/identity docs into the session | **Hermes verified** · OpenClaw deferred |
 | skills | AgentSkills `SKILL.md`; self-generation from conversation; hub scan | AgentSkills `SKILL.md`; materializes Claude Code plugins when driving a claude-cli backend | **verified** |
-| hooks | shell-hook layer, stdio-based protocol, pre-call gating | skill gating + backend hook surface | deferred |
-| MCP | arbitrary MCP connect / reload | MCP registry validates namespace ownership only | mixed (deferred) |
-| headless turn | ACP server / API entry point | single-shot channel-less exec subcommand | mixed (deferred) |
-| profile / boundary | per-profile home-dir isolation (shared OS account — not process isolation) | pairing + node tokens + loopback bind | mixed (deferred) |
+| hooks | shell hooks, stdin JSON in / stdout JSON out, `pre_tool_call` gate with `{action:"block"}` measured | skill gating + backend hook surface | **Hermes verified** · OpenClaw deferred |
+| MCP | stdio MCP connect + in-process hot reload (`/reload-mcp`) measured | MCP registry validates namespace ownership only | **Hermes verified** · OpenClaw deferred |
+| headless turn | ACP check + OpenAI-compatible HTTP one-shot turn (marker round-trip) measured | single-shot channel-less exec subcommand | **Hermes verified** · OpenClaw deferred |
+| profile / boundary | per-profile home-dir isolation measured (inode-distinct config/state/sessions per profile) — **not process/sandbox isolation**, same OS account | pairing + node tokens + loopback bind | **Hermes verified (with stated limit)** · OpenClaw deferred |
 | timeout policy | clarifying-question 3600 s → sentinel → self-proceed; risk approval 60 s → fail-closed deny | resident daemon; group mention-gating silent default | **Hermes verified** |
 | model / effort / fast | fast-priority toggle; 8-level reasoning effort (default medium) | 60+ providers incl. local low-tier models | **verified** |
 
-Two rows are contract-ready today: **skills** (both hosts share the `SKILL.md` standard → §5.4 distribution path applies as-is) and **timeout policy** (the loose-clarification / strict-risk polarity is the reference asymmetry for EG's timeout vocabulary — speculative pre-execution composition is specified on the Superscalar side, not here).
+**The Hermes column is now fully measured** (v0.3): every formerly-deferred Hermes cell passed the §8.2 gate on 2026-07-19 against an operator-owned dedicated instance (Hermes v0.18.2, Python 3.11.15), self-measured and relayed over live A2A, archived verbatim in the maintenance workspace's adapter-evidence ledger. The profile row's promotion carries its honest limit forward: isolation is home-directory-level, not a sandbox. The OpenClaw column remains deferred pending its own install + measurements.
 
 ### 8.2 Measurement gate
 
 A `deferred`/`mixed` row is promoted to `verified` only by an **on-host measurement**: a recorded triplet of *command · input · observed output* against a real installation, kept with the adapter artifacts. Until promotion, host-facing projections (README inventories, onboarding text) MUST phrase the capability as unconfirmed or omit it — a candidate map row is a research citation, not a capability claim. A failed measurement stays in the map as a counterexample (same anti-fabrication rule the module specs follow).
+
+Remote measurement is admissible: the measured host's **own agent** may run the triplets and relay them over A2A, provided the record is archived verbatim with provenance (who measured, on what instance/version, over which channel) — the 2026-07-19 Hermes pass is the exemplar (five axes, four-tuple records including the harness version, plus a cleanup manifest restoring the instance's prior state).
