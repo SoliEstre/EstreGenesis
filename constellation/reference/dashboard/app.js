@@ -2059,11 +2059,23 @@ const wsEchoState = {};   // v2.4.58 §13.26.4 EchoModeState: agentId → {level
 // 미러 워처가 발신하는 WorkflowStatus CUSTOM(runId·name·status·phases·agents[{id,label?,state,preview?}]·done/started·totalTokens·durationMs·logsTail)
 // 을 구독해, 🧵 STEP 행 클릭 시 종합 상태를 실시간 플로팅 창으로 표시 (이동·폭조절·세로 자동·접기·닫기).
 const wsWfRuns = {};        // runId → 최신 WorkflowStatus value
-let wsWfPopState = null;    // { runId, el, body, ttl, colBtn, collapsed }
+let wsWfSubs = null;        // v2.4.63 — 최신 SubagentStatus 스냅샷 {agents[], count, updatedAt}
+let wsWfPopState = null;    // { runId(focus, null=오버뷰), el, body, ttl, colBtn, collapsed }
 function wsWfIntake(v) {
   if (!v || !v.runId) return;
   wsWfRuns[v.runId] = v;
-  if (wsWfPopState && wsWfPopState.runId === v.runId) wsWfPopRender();
+  if (wsWfPopState) wsWfPopRender();
+}
+function wsWfSubsIntake(v) {   // v2.4.63 — 단독 서브에이전트 모니터 스냅샷
+  wsWfSubs = v || null;
+  if (wsWfPopState) wsWfPopRender();
+}
+function wsWfPopToggle() { if (wsWfPopState) { wsWfPopState.el.remove(); wsWfPopState = null; } else wsWfPopOpen(null); }   // v2.4.63 고정 fab 용
+function wsWfFabInit() {   // v2.4.63 — 플로팅 레이어 토글 고정 버튼
+  if (document.getElementById('ws-wf-fab')) return;
+  const f = el('button', 'ws-wf-fab'); f.id = 'ws-wf-fab'; f.textContent = '🧵'; f.title = '에이전트 활동 모니터 (workflow + 서브에이전트)';
+  f.onclick = wsWfPopToggle;
+  document.body.appendChild(f);
 }
 function wsWfPopOpen(runId) {
   if (wsWfPopState) { const same = wsWfPopState.runId === runId; wsWfPopState.el.remove(); wsWfPopState = null; if (same) return; }   // 같은 행 재클릭 = 토글 닫기
@@ -2089,26 +2101,45 @@ function wsWfPopOpen(runId) {
 }
 function wsWfPopRender() {
   const s = wsWfPopState; if (!s) return;
-  const v = wsWfRuns[s.runId];
-  s.ttl.textContent = '🧵 ' + ((v && (v.name || v.runId)) || s.runId);
-  const b = s.body; b.textContent = '';
-  // §8.1 esc-only — WorkflowStatus 값은 와이어-유래(임의 접속 에이전트 발신 가능) 신뢰불가 입력.
+  // §8.1 esc-only — WorkflowStatus/SubagentStatus 값은 와이어-유래(임의 접속 에이전트 발신 가능) 신뢰불가 입력.
   // el() 3번째 인자는 innerHTML 이므로 절대 사용 금지, 전부 textContent 로만 주입. state 는 화이트리스트.
   const txt = (cls, text) => { const d = el('div', cls); d.textContent = text; return d; };
-  if (!v) { b.append(txt('ws-wf-empty', '실시간 상태 대기 중 — 미러 다음 주기에 채워져요 (종결된 과거 런이면 상태 없음)')); return; }
-  const stCls = v.status === 'completed' ? 'completed' : v.status === 'failed' ? 'failed' : 'running';
-  const line = txt('ws-wf-status ' + stCls,
-    (stCls === 'completed' ? '✓ 완료' : stCls === 'failed' ? '⚠ 실패' : '▶ 진행 중')
-    + ` · agents ${v.done != null ? v.done : 0}/${v.started != null ? v.started : 0}`
-    + (v.totalTokens ? ` · ${Math.round(v.totalTokens / 1000)}k tok` : '')
-    + (v.durationMs ? ` · ${Math.round(v.durationMs / 1000)}s` : ''));
-  b.append(line);
-  if (Array.isArray(v.phases) && v.phases.length) b.append(txt('ws-wf-phases', '단계: ' + v.phases.map(String).join(' → ')));
-  for (const a of (v.agents || [])) {
-    const aCls = a.state === 'done' ? 'done' : a.state === 'running' ? 'running' : '';
-    b.append(txt('ws-wf-agent ' + aCls, (a.state === 'done' ? '✓ ' : '⏳ ') + String(a.label || a.id || '?') + (a.preview ? ' — ' + String(a.preview) : '')));
+  const runIds = Object.keys(wsWfRuns).sort((a, b2) => ((wsWfRuns[b2].updatedAt || 0) - (wsWfRuns[a].updatedAt || 0)));
+  const focus = s.runId || runIds[0] || null;   // fab 오버뷰(runId=null)면 최신 런에 포커스
+  const v = focus ? wsWfRuns[focus] : null;
+  s.ttl.textContent = '🧵 ' + (v ? (v.name || focus) : '에이전트 활동 모니터');
+  const b = s.body; b.textContent = '';
+  // ── 워크플로 섹션 ──
+  b.append(txt('ws-wf-sec', `워크플로 (${runIds.length})`));
+  if (!runIds.length) b.append(txt('ws-wf-empty', '알려진 워크플로 런 없음 — 런이 돌면 미러가 채워요'));
+  for (const rid of runIds.slice(0, 6)) {
+    if (rid === focus) continue;   // 포커스 런은 아래 상세로
+    const rv = wsWfRuns[rid];
+    const row = txt('ws-wf-runrow', `${rv.status === 'completed' ? '✓' : rv.status === 'failed' ? '⚠' : '▶'} ${String(rv.name || rid)} · ${rv.done != null ? rv.done : 0}/${rv.started != null ? rv.started : 0}`);
+    row.onclick = () => { s.runId = rid; wsWfPopRender(); };
+    b.append(row);
   }
-  if (Array.isArray(v.logsTail) && v.logsTail.length) { const lg = el('div', 'ws-wf-logs'); for (const l of v.logsTail) lg.append(txt('ws-wf-log', '· ' + String(l))); b.append(lg); }
+  if (v) {
+    const stCls = v.status === 'completed' ? 'completed' : v.status === 'failed' ? 'failed' : 'running';
+    b.append(txt('ws-wf-status ' + stCls,
+      (stCls === 'completed' ? '✓ 완료' : stCls === 'failed' ? '⚠ 실패' : '▶ 진행 중')
+      + ` · agents ${v.done != null ? v.done : 0}/${v.started != null ? v.started : 0}`
+      + (v.totalTokens ? ` · ${Math.round(v.totalTokens / 1000)}k tok` : '')
+      + (v.durationMs ? ` · ${Math.round(v.durationMs / 1000)}s` : '')));
+    if (Array.isArray(v.phases) && v.phases.length) b.append(txt('ws-wf-phases', '단계: ' + v.phases.map(String).join(' → ')));
+    for (const a of (v.agents || [])) {
+      const aCls = a.state === 'done' ? 'done' : a.state === 'running' ? 'running' : '';
+      b.append(txt('ws-wf-agent ' + aCls, (a.state === 'done' ? '✓ ' : '⏳ ') + String(a.label || a.id || '?') + (a.preview ? ' — ' + String(a.preview) : '')));
+    }
+    if (Array.isArray(v.logsTail) && v.logsTail.length) { const lg = el('div', 'ws-wf-logs'); for (const l of v.logsTail) lg.append(txt('ws-wf-log', '· ' + String(l))); b.append(lg); }
+  }
+  // ── 서브에이전트 섹션 (v2.4.63 — 단독 Agent 태스크 모니터) ──
+  const subs = (wsWfSubs && Array.isArray(wsWfSubs.agents)) ? wsWfSubs.agents : [];
+  b.append(txt('ws-wf-sec', `서브에이전트 (${subs.length})`));
+  if (!subs.length) b.append(txt('ws-wf-empty', '활동 중인 단독 서브에이전트 없음'));
+  for (const a of subs.slice(0, 12)) {
+    b.append(txt('ws-wf-agent running', `⏳ ${String(a.id || '?')}${a.hint ? ' · ' + String(a.hint) : ''}${a.lastActivityS != null ? ' · ' + a.lastActivityS + 's 전 활동' : ''}${a.sizeKB != null ? ' · ' + a.sizeKB + 'KB' : ''}`));
+  }
 }
 function wsLoadBackends() {
   fetch('backends.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(reg => {
@@ -2259,6 +2290,10 @@ function onWsEvent(m) {
   }
   if (t === 'CUSTOM' && m.name === 'WorkflowStatus') {   // v2.4.61 — workflow 종합 상태 스냅샷 → 플로팅 인스펙터 (스트림 카드 미생성)
     wsWfIntake(m.value || {});
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'SubagentStatus') {   // v2.4.63 — 단독 서브에이전트 모니터 스냅샷 → 인스펙터 섹션 (스트림 카드 미생성)
+    wsWfSubsIntake(m.value || {});
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CollabKeyIssued') {   // v2.4.2 통합: RegisterCollabKey transitional alias 응답 → wsKeyMgmt 로 통합 (kind=collab 명시 fallback)
@@ -3506,6 +3541,7 @@ function setupWS() {
   setupWsContextMenu();                               // 🌐 fab 우클릭 → 화면 가운데로 / 키 관리 / 설정
   updateWsConn(); updateWsBadge(); wsRenderTabs();
   wsLoadBackends();                                   // C1 backend registry overlay (board-worker 분리 + model badge); 부재 시 graceful
+  wsWfFabInit();                                      // v2.4.63 에이전트 활동 모니터 토글 fab
   wsLoadUI();                                         // 팝업 위치·크기·열림 상태 복원
   connectWS();
 }
