@@ -846,8 +846,11 @@ function wsSelPendNote(msg) {
   wsSelPend.set(String(v.promptId), { agentId: msg.agentId, kind, expiresAt });
   wsSelPersist(); wsSelArm(String(v.promptId));
 }
+const wsSelDone = new Map();   // v2.4.77 — promptId→agentId tombstone (post-clear late answer 의 §13.16.12 스티어링 라우팅용; 메모리-only, cap 200)
+function wsSelTomb(promptId, agentId) { if (!agentId) return; wsSelDone.set(promptId, agentId); if (wsSelDone.size > 200) wsSelDone.delete(wsSelDone.keys().next().value); }
 function wsSelPendClear(promptId) {
   if (!promptId || !wsSelPend.has(String(promptId))) return;
+  const _e = wsSelPend.get(String(promptId)); if (_e) wsSelTomb(String(promptId), _e.agentId);
   wsSelPend.delete(String(promptId)); wsSelPersist();
   const t = _selTimers.get(String(promptId)); if (t) { clearTimeout(t); _selTimers.delete(String(promptId)); }
 }
@@ -1164,6 +1167,17 @@ server.on('upgrade', (req, socket) => {
       if (msg && msg.type === 'CUSTOM' && (msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // liveness/transient — relay·board·기록 안 함
       if (msg && msg.agentId == null) msg.agentId = conn.meta.agentId;
       if (msg && msg.source == null) msg.source = 'agent';        // v2.2.4 source_stamp_truth (server.eux derive) — client-set 우선, server 폴백(backward compat)
+      // v2.4.77 — Selection reserved-name 가드 (§13.16.12, 어댑터 리뷰 지적): Expired/Resolved = 서버
+      // 전용 발신, Answer = 사람(board) 전용 → agent 발신은 전부 위조로 drop. Cancel 은 인증된
+      // 발신자 자신의 pending 프롬프트에 한해 허용 (남의 선택지 철회/응답 위조 차단).
+      if (msg && msg.type === 'CUSTOM' && ['SelectionExpired', 'SelectionResolved', 'SelectionAnswer'].includes(msg.name)) { console.warn('[ws sel] reserved-name %s from agent %s — drop', msg.name, conn.meta.agentId); return; }
+      if (msg && msg.type === 'CUSTOM' && msg.name === 'SelectionCancel') {
+        const _pid = msg.value && String(msg.value.promptId || '');
+        const _iss = _pid && ((wsSelPend.get(_pid) || {}).agentId || wsSelDone.get(_pid));
+        if (_iss !== conn.meta.agentId) { console.warn('[ws sel] SelectionCancel from %s (issuer 아님) — drop', conn.meta.agentId); return; }
+      }
+      // v2.4.77 — SelectionPrompt issuer 는 인증된 connection identity 로 기록 (envelope agentId 신뢰 금지 — 만료 타깃 하이재킹 차단)
+      if (msg && msg.type === 'CUSTOM' && msg.name === 'SelectionPrompt' && msg.agentId !== conn.meta.agentId) { console.warn('[ws sel] SelectionPrompt agentId %s → authenticated %s 로 정정', msg.agentId, conn.meta.agentId); msg.agentId = conn.meta.agentId; }
       if (msg && msg.type === 'CUSTOM' && msg.name === 'ServerNotice') { wsToAll(msg); wsRecord(msg); return; }   // 재시작/오프라인/온라인 공지 → 모든 연결(에이전트+board) broadcast
       if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose', 'RequestRoomArtifacts', 'RoomArtifactsUpdate'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }   // §13.30 room lifecycle (agent 측)
       if (msg && msg.type === 'CUSTOM' && msg.roomId) { wsRoomMessage(conn, msg); return; }                        // §13.30 room 메시지 — 가드 + fan-out
@@ -1232,10 +1246,19 @@ server.on('upgrade', (req, socket) => {
       msg.targetAgentId = msg.value.targetAgentId;
       console.warn('[ws] WARN: targetAgentId fallback from value.targetAgentId (board inbound) — client envelope shape mismatch');
     }
+    // v2.4.77 — target-less SelectionAnswer/Cancel 은 pending(또는 tombstone) issuer 로 라우팅
+    // (§13.16.12, 어댑터 리뷰 지적: 이전엔 wsPrimaryAgent() 로 흘러 비-main 발신자의 선택지 답 미도달).
+    // msgId 스탬프 = §13.13.2 at-least-once — 턴-기반 발신자도 확실히 기상.
+    if (msg && msg.type === 'CUSTOM' && (msg.name === 'SelectionAnswer' || msg.name === 'SelectionCancel') && !msg.targetAgentId && msg.value && msg.value.promptId) {
+      const _pid = String(msg.value.promptId);
+      const _iss = (wsSelPend.get(_pid) || {}).agentId || wsSelDone.get(_pid);
+      if (_iss) { msg.targetAgentId = _iss; if (!msg.msgId) msg.msgId = 'sel-ans-' + _pid + '-' + Date.now(); }
+    }
     // 대시보드/사용자 inbound → targetAgentId 라우팅 (없으면 에이전트 1개일 때 그쪽)
     const target = msg && msg.targetAgentId;
     const dst = target ? wsAgents.get(target) : wsPrimaryAgent();   // 대상 미지정 → 메인 에이전트 우선
     if (dst && dst.alive) dst.send(msg);
+    if (msg && msg.type === 'CUSTOM' && (msg.name === 'SelectionAnswer' || msg.name === 'SelectionCancel') && msg.targetAgentId && msg.msgId) _relayPendingAdd(msg.targetAgentId, msg);   // v2.4.77 at-least-once — 브릿지 delivered-persist ack 가 clear
     for (const c of wsConns) if (c !== conn && c.meta.role !== 'agent' && c.alive) c.send(msg);   // 다른 board 에도 표시(멀티 board·외부 발신 입력 동기) — 보낸 board 는 로컬 표시라 제외
     wsRecord(msg);                                               // 사용자 입력도 기록 영속
   };
