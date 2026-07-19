@@ -724,6 +724,8 @@ function wsRecord(msg) {
   if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // 제어/transient 제외
   if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
   if (msg.type === 'CUSTOM' && msg.name === 'OpsState') wsOpsStateNote(msg.agentId, msg.value);   // v2.4.71 상태 스트립 선언 캡처
+  if (msg.type === 'CUSTOM' && msg.name === 'SelectionPrompt') wsSelPendNote(msg);   // v2.4.74 선택지 타임아웃 추적
+  if (msg.type === 'CUSTOM' && (msg.name === 'SelectionAnswer' || msg.name === 'SelectionCancel') && msg.value) wsSelPendClear(msg.value.promptId);   // v2.4.74 응답/취소 = pending 해제
   const ck = wsMsgChan(msg), buf = wsBufFor(ck), t = msg.type;
   // 저장 압축: 스트리밍 델타/조각은 버퍼 누적, 완성 시점에 1건만 저장 (런타임 relay 는 불변)
   if (t === 'TEXT_MESSAGE_START') { buf.msg.set(msg.messageId || '_', { type: 'TEXT_MESSAGE', messageId: msg.messageId, role: msg.role, text: '', agentId: msg.agentId, channelId: msg.channelId, threadId: msg.threadId, targetAgentId: msg.targetAgentId, source: msg.source, seq: msg.seq, timestamp: msg.timestamp }); return; }
@@ -795,6 +797,51 @@ function wsOpsStateNote(agentId, v) {
   if (_opsT) return;
   _opsT = setTimeout(() => { _opsT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(OPSSTATES, JSON.stringify(Object.fromEntries(wsOpsStates), null, 1)); } catch {} }, 1000);
 }
+// v2.4.74 — SelectionPrompt 타임아웃 (§13.16.12 확장, Superscalar §4.1 극성 채택).
+// 발신 에이전트가 value.timeout{kind:'clarify'|'approval', seconds?} (+선택 expiresAt) 를 스탬프하면
+// 서버가 pending 을 영속 추적하고, 만료 시 SelectionExpired 를 보드 브로드캐스트 + 발신자에게 msgId 부여
+// 타깃 발신(§13.13.2 at-least-once — 턴-기반 에이전트도 인바운드로 기상). 기본: clarify=3600s(만료=발신자
+// 자체진행 sentinel, 늦은 답=steering) / approval=60s(만료=fail-closed 거부). timeout 미선언 = 종전 무기한.
+const PENDSEL = path.join(HISTDIR, '.pending-selections.json');
+const wsSelPend = new Map();
+const _selTimers = new Map();
+try { const _sp = JSON.parse(fs.readFileSync(PENDSEL, 'utf8')); for (const k of Object.keys(_sp)) wsSelPend.set(k, _sp[k]); } catch {}
+let _selPersistT = null;
+function wsSelPersist() { if (_selPersistT) return; _selPersistT = setTimeout(() => { _selPersistT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(PENDSEL, JSON.stringify(Object.fromEntries(wsSelPend), null, 1)); } catch {} }, 500); }
+function wsSelArm(promptId) {
+  const e = wsSelPend.get(promptId); if (!e) return;
+  if (_selTimers.has(promptId)) clearTimeout(_selTimers.get(promptId));
+  _selTimers.set(promptId, setTimeout(() => wsSelExpire(promptId), Math.max(0, e.expiresAt - Date.now())));
+}
+function wsSelPendNote(msg) {
+  const v = (msg && msg.value) || {};
+  if (!v.promptId || !v.timeout || !v.timeout.kind) return;
+  const kind = v.timeout.kind === 'approval' ? 'approval' : 'clarify';
+  const secs = Number(v.timeout.seconds) > 0 ? Number(v.timeout.seconds) : (kind === 'approval' ? 60 : 3600);
+  const expiresAt = Number(v.expiresAt) > 0 ? Number(v.expiresAt) : (Date.now() + secs * 1000);
+  wsSelPend.set(String(v.promptId), { agentId: msg.agentId, kind, expiresAt });
+  wsSelPersist(); wsSelArm(String(v.promptId));
+}
+function wsSelPendClear(promptId) {
+  if (!promptId || !wsSelPend.has(String(promptId))) return;
+  wsSelPend.delete(String(promptId)); wsSelPersist();
+  const t = _selTimers.get(String(promptId)); if (t) { clearTimeout(t); _selTimers.delete(String(promptId)); }
+}
+function wsSelExpire(promptId) {
+  const e = wsSelPend.get(promptId); if (!e) return;
+  wsSelPendClear(promptId);
+  const resolution = e.kind === 'approval' ? 'denied-fail-closed' : 'proceed-default';
+  const ev = wscore.event('CUSTOM', { name: 'SelectionExpired', value: { promptId, kind: e.kind, resolution, expiredAt: Date.now() } });
+  ev.source = 'server';
+  wsToBoards(ev); wsRecord(ev);
+  if (e.agentId) {
+    const tv = Object.assign({}, ev, { targetAgentId: e.agentId, msgId: 'sel-exp-' + promptId });
+    const conn = wsAgents.get(e.agentId);
+    if (conn && conn.alive) conn.send(tv);
+    _relayPendingAdd(e.agentId, tv);   // at-least-once — 브릿지 delivered-persist ack 가 clear
+  }
+}
+setTimeout(() => { for (const k of [...wsSelPend.keys()]) wsSelArm(k); }, 3000);   // 재기동 재무장 (기한 경과분 즉시 만료; 3s 지연 = 브릿지 재접속 여유)
 
 const ARCHDIR = path.join(HISTDIR, 'archived');   // D: 닫은(아카이브) 채널 cold 보관(active 스캔 제외)
 function wsArchFile(ck) { return path.join(ARCHDIR, ck.replace(/[^a-zA-Z0-9_.@:-]/g, '_').slice(0, 80) + '.jsonl'); }
