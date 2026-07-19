@@ -701,7 +701,17 @@ function wsSaveChan(ck) {
   if (_histT.has(ck)) return;
   _histT.set(ck, setTimeout(() => { _histT.delete(ck); try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(wsHistFile(ck), (wsHistByChan.get(ck) || []).map((e) => JSON.stringify(e)).join('\n') + '\n'); } catch {} }, 1000));
 }
+// v2.4.60 — timestamp 정규화: 일부 발신 경로가 ISO 문자열로 스탬프(또는 누락) → 숫자-전제 소비자
+// (대시보드 wsMsgEpoch·부팅 sort 의 `timestamp || 0`)가 오동작해 매 새로고침 현재시간 표시되던 버그.
+// 저장·적재 경계에서 epoch 숫자로 통일 (문자열→Date.parse, 누락→서버 수신시각).
+function wsNormTs(ev) {
+  if (!ev || typeof ev !== 'object') return ev;
+  if (typeof ev.timestamp === 'string') { const e = Date.parse(ev.timestamp); if (!isNaN(e)) ev.timestamp = e; }
+  if (ev.timestamp == null) ev.timestamp = Date.now();
+  return ev;
+}
 function wsStore(ck, ev) {
+  wsNormTs(ev);
   if (ev && typeof ev === 'object') {   // 저장 용량 절감: 큰 result/content/text 는 truncate (실시간 relay 는 full)
     if (typeof ev.result === 'string' && ev.result.length > 2000) ev = Object.assign({}, ev, { result: ev.result.slice(0, 2000) + '…(truncated)' });
     if (typeof ev.content === 'string' && ev.content.length > 2000) ev = Object.assign({}, ev, { content: ev.content.slice(0, 2000) + '…(truncated)' });
@@ -770,7 +780,7 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 events full + col
 function wsLoadChannel(ck) {   // RequestChannelHistory 응답용 — 메모리(active) 우선, 없으면 archived(cold)에서 로드 + active 복귀
   let a = wsHistByChan.get(ck);
   if (a && a.length) return a;
-  try { const af = wsArchFile(ck); if (fs.existsSync(af)) { const evs = fs.readFileSync(af, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)); wsHistByChan.set(ck, evs); try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(wsHistFile(ck), evs.map((e) => JSON.stringify(e)).join('\n') + '\n'); fs.unlinkSync(af); } catch {} return evs; } } catch {}   // D: cold → active 복귀
+  try { const af = wsArchFile(ck); if (fs.existsSync(af)) { const evs = fs.readFileSync(af, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)); evs.forEach(wsNormTs); wsHistByChan.set(ck, evs); try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(wsHistFile(ck), evs.map((e) => JSON.stringify(e)).join('\n') + '\n'); fs.unlinkSync(af); } catch {} return evs; } } catch {}   // D: cold → active 복귀 (v2.4.60 ts 정규화 포함)
   return a || [];
 }
 function wsArchiveChannel(ck) {   // D: active → archived(cold) 이동 — 메모리 제거 + 파일 이동(active cap 제외, 복원 가능)
@@ -788,7 +798,7 @@ function wsLoadAll() {   // 부팅: ws-history/ 채널 파일 → 메모리(내�
   try {
     fs.mkdirSync(HISTDIR, { recursive: true });
     const files = fs.readdirSync(HISTDIR).filter((f) => f.endsWith('.jsonl'));
-    for (const f of files) { try { const evs = fs.readFileSync(path.join(HISTDIR, f), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)); for (const ev of evs) { const ck = wsMsgChan(ev); let a = wsHistByChan.get(ck); if (!a) { a = []; wsHistByChan.set(ck, a); } a.push(ev); } } catch {} }
+    for (const f of files) { try { const evs = fs.readFileSync(path.join(HISTDIR, f), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)); for (const ev of evs) { wsNormTs(ev); const ck = wsMsgChan(ev); let a = wsHistByChan.get(ck); if (!a) { a = []; wsHistByChan.set(ck, a); } a.push(ev); } } catch {} }   // v2.4.60 적재 시 ts 정규화 → 아래 재저장에서 영구 반영
     const valid = new Set();   // 채널키별 1파일로 재저장(통합 결과) + 옛 channelId 파일(orphan) 제거 — agentId 우선 전환 1회 정규화
     for (const [ck, a] of wsHistByChan) {
       a.sort((x, y) => (x.timestamp || 0) - (y.timestamp || 0));
