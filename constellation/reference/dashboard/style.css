@@ -923,7 +923,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-wf-logs { border-top: 1px dashed var(--line); padding-top: 4px; color: var(--muted); }
 .ws-wf-empty { color: var(--muted); font-style: italic; }
 #ws-wf-fab { position: fixed; right: 84px; bottom: 22px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--ink); box-shadow: var(--shadow); font-size: 19px; cursor: pointer; z-index: 58; }   /* v2.4.64 — ws-fab 과 같은 레이어(58, popup 59 아래) + 같은 줄 좌측 배치 (실시간 창 위로 안 뜸) */
-#ws-wf-inbtn { width: 92px; min-width: 92px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }   /* v2.4.64 — 입력줄 인디케이터 토글, 고정 폭 */
+#ws-wf-inbtn { width: 112px; min-width: 112px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }   /* v2.4.64-65 — 입력줄 인디케이터 토글(🧵 프리픽스), 고정 폭 */
 #ws-wf-fab:hover { filter: brightness(1.08); transform: scale(1.04); }
 @media (max-width: 560px) { #ws-wf-fab { bottom: 132px; } .ws-wf-pop { left: 4vw; max-width: 92vw; } }
 .ws-rt-pin > summary { cursor: pointer; padding: 5px 9px; color: var(--ws-role-rt, #35c0d0); user-select: none; }
