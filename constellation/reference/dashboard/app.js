@@ -1972,14 +1972,33 @@ function wsAttPreview(name, data, kind) {
 // ---- #406 UI6 SelectionPrompt chip 카드 (에이전트 발 선택지 → 사용자 답/취소 → board→server) ----
 function wsSelectionCardEl(row) {
   const s = row.sel || {};
-  const answered = s.state === 'ANSWERED', cancelled = s.state === 'CANCELLED';
-  const done = answered || cancelled;
-  const card = el('div', 'ws-sel ' + (done ? (answered ? 'answered' : 'cancelled') : 'issued'));
+  const answered = s.state === 'ANSWERED', cancelled = s.state === 'CANCELLED', expired = s.state === 'EXPIRED';
+  const expiredLocked = expired && s.timeout && s.timeout.kind === 'approval';   // v2.4.74 승인 만료 = fail-closed 잠금; 분기 만료 = 늦은 스티어링 허용(칩 유지)
+  const done = answered || cancelled || expiredLocked;
+  const card = el('div', 'ws-sel ' + (answered ? 'answered' : cancelled ? 'cancelled' : expired ? 'expired' : 'issued'));
   const head = el('div', 'ws-sel-h');
-  const ic = el('span', 'ws-sel-ic'); ic.textContent = answered ? '✅' : cancelled ? '✖️' : '❔';
+  const ic = el('span', 'ws-sel-ic'); ic.textContent = answered ? '✅' : cancelled ? '✖️' : expired ? '⏱' : '❔';
   const txt = el('span', 'ws-sel-text'); txt.textContent = s.text || '선택해 주세요';
-  head.append(ic, txt); card.append(head);
+  head.append(ic, txt);
+  if (s.timeout && s.timeout.kind) {   // v2.4.74 극성 배지 + 만료 시각
+    const b = el('span', 'ws-sel-kind ' + s.timeout.kind);
+    b.textContent = s.timeout.kind === 'approval' ? '🔒 승인' : '⏳ 분기';
+    b.title = s.timeout.kind === 'approval' ? '위험 승인 게이트 — 시한 내 무응답이면 자동 거부(fail-closed)돼요' : '분기 질문 — 시한이 지나면 발신자가 기본값으로 스스로 진행하고, 늦은 선택은 방향 수정으로 반영돼요';
+    head.append(b);
+    if (s.expiresAt && !answered && !cancelled) {
+      const ex = el('span', 'ws-sel-exp');
+      ex.textContent = expired ? '만료됨' : ('~' + new Date(s.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      head.append(ex);
+    }
+  }
+  card.append(head);
   if (cancelled) { const note = el('div', 'ws-sel-note'); note.textContent = '취소됨' + (s.reason ? ' · ' + s.reason : ''); card.append(note); return card; }
+  if (expired) {
+    const note = el('div', 'ws-sel-note');
+    note.textContent = expiredLocked ? '시한 만료 — 자동 거부됐어요 (fail-closed). 이 액션은 실행되지 않아요.' : '시한 만료 — 발신자가 기본값으로 진행 중이에요. 지금 선택하면 방향 수정으로 전달돼요.';
+    card.append(note);
+    if (expiredLocked) return card;
+  }
   const picked = new Set(s.picked || []);
   const chips = el('div', 'ws-sel-chips');
   for (const o of s.options) {
@@ -2033,6 +2052,18 @@ function wsResolveSelection(promptId, resolution, reason) {   // SelectionResolv
       if (row.kind === 'selection' && row.sel && row.sel.promptId === promptId && row.sel.state === 'ISSUED') {
         row.sel.state = (resolution === 'answered') ? 'ANSWERED' : 'CANCELLED';
         if (reason) row.sel.reason = reason;
+        wsRefreshSelectionCard(row);
+      }
+    }
+  }
+}
+function wsExpireSelection(promptId, kind) {   // v2.4.74 SelectionExpired(서버 발) → EXPIRED 전이 (승인=잠금·분기=늦은 스티어링 유지)
+  if (!promptId) return;
+  for (const ch of wsState.channels.values()) {
+    for (const row of ch.rows) {
+      if (row.kind === 'selection' && row.sel && row.sel.promptId === promptId && row.sel.state === 'ISSUED') {
+        row.sel.state = 'EXPIRED';
+        if (kind && !row.sel.timeout) row.sel.timeout = { kind, seconds: 0 };
         wsRefreshSelectionCard(row);
       }
     }
@@ -2487,6 +2518,7 @@ function onWsEvent(m) {
   }
   // #406 UI6 SelectionResolved — 다른 board 가 답/취소 → 이 board 의 해당 chip dim. agentId 없는 라우팅-무관 서버 직접 reply 로 와도 처리(EstreUF parity — agent-outbound 가드 앞에서 조기 처리)
   if (t === 'CUSTOM' && m.name === 'SelectionResolved') { const v = m.value || {}; wsResolveSelection(v.promptId, v.resolution, v.reason); return; }
+  if (t === 'CUSTOM' && m.name === 'SelectionExpired') { const v = m.value || {}; wsExpireSelection(v.promptId, v.kind); return; }   // v2.4.74 — 서버 만료 통지(라우팅-무관 조기 처리)
   // §13.30 roundtable — room 트래픽(서버 이벤트·인간 발화·에이전트 발화 공통)은 room:<id> 채널로 조기 처리 (agentId 가드 앞 — 서버 room 이벤트는 agentId 가 없음)
   if (t === 'CUSTOM' && m.roomId) { wsRtIntake(m, _t, _ts); return; }
   // board/사용자 입력(에코 또는 History 재생) → 해당 채널에 user row (대화기록 복원)
@@ -2621,7 +2653,7 @@ function onWsEvent(m) {
       else if (m.name === 'Attachment') { wsPushRow(chId, { kind: 'attach', src: _src, att: m.value || {}, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull }); }   // §6 첨부 카드(image/audio/video/file)
       else if (m.name === 'SelectionPrompt') {   // #406 UI6 — 에이전트 발 선택지 → 인라인 chip 카드(답/취소 시 board→server)
         const v = m.value || {};
-        wsPushRow(chId, { kind: 'selection', sel: { promptId: v.promptId, text: v.text || '', options: Array.isArray(v.options) ? v.options : [], allowFreeText: !!v.allowFreeText, multiSelect: !!v.multiSelect, state: 'ISSUED', routeId: agentId }, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull });
+        wsPushRow(chId, { kind: 'selection', sel: { promptId: v.promptId, text: v.text || '', options: Array.isArray(v.options) ? v.options : [], allowFreeText: !!v.allowFreeText, multiSelect: !!v.multiSelect, timeout: (v.timeout && v.timeout.kind) ? { kind: v.timeout.kind === 'approval' ? 'approval' : 'clarify', seconds: Number(v.timeout.seconds) || 0 } : null, expiresAt: Number(v.expiresAt) || 0, state: 'ISSUED', routeId: agentId }, t: _t, ts: _ts, chan: _chan, chanFull: _chanFull });   // v2.4.74 timeout 동반
       }
       // SelectionResolved 는 onWsEvent 상단에서 라우팅-무관 조기 처리 (agent-outbound 가드 앞) — 여기 중복 분기 제거
       else if (WS_A2A_INTENT[m.name]) {   // §13.16.9 A2A-intent allowlist(Report·BlockerManifest·ReviewSLAAck·PR* / Deadlock* family) → 카드 form(아이콘+요약+펼침 details), NOT raw/TEXT fallback

@@ -716,6 +716,13 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-ops-k { color: var(--muted); }
 .ws-ops-v { color: var(--ink); font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; }
 .ws-ops-hint { font-size: .68rem; color: var(--muted); margin-top: 4px; }
+/* v2.4.74 선택지 타임아웃 — 극성 배지·만료 시각·EXPIRED 상태 */
+.ws-sel-kind { font-size: .68rem; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; white-space: nowrap; color: var(--muted); }
+.ws-sel-kind.approval { color: var(--blocked); border-color: var(--blocked); }
+.ws-sel-kind.clarify { color: var(--active); border-color: var(--active); }
+.ws-sel-exp { font-size: .68rem; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+.ws-sel.expired { opacity: .85; border-style: dashed; }
+.ws-sel.expired .ws-sel-note { color: var(--muted); }
 /* 채널 탭별 별도 textarea 스택 — 활성만 표시, 높이는 전 탭 최대값으로 일괄 통일(탭 전환 시 위치 불변) */
 .ws-input .ws-text-stack { width: 100%; }
 .ws-input .ws-text-stack textarea { width: 100%; min-height: 54px; display: none; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: .85rem; resize: none; overflow-y: hidden; box-sizing: border-box; }
