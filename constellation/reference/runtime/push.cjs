@@ -140,6 +140,7 @@ const NOISE = new Set([
   'RegisterCollabKey', 'RegisterUpstreamKey', 'RevokeUpstreamKey', 'SetMain', 'HandoffReady', 'DeadlockProbe',
   'ConnectionRestored', 'CloseChannel', 'DeleteChannelHistory', 'RequestChannelHistory', 'ChannelHistory',
   'ArchiveChannel', 'History', 'KeyRevokePending',
+  'EchoModeState', 'WorkflowStatus', 'SubagentStatus',   // v2.4.64 — 활동 모니터/에코 스냅샷 (15s 하트비트급 — PWA 알림 과빈발 사용자 보고로 제외)
 ]);
 
 function maybePush(msg) {
