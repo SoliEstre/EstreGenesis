@@ -1260,12 +1260,17 @@ function wsCmdAcCandidates(prefix) {
   return merged.filter((c) => c.name && c.name.toLowerCase().indexOf(p) === 0).slice(0, 24);
 }
 function wsCmdAcEval(ta) {
+  // v2.4.69 토큰 기반 트리거: 커서 앞 마지막 공백/줄바꿈 이후 토큰이 '/'+명령문자([A-Za-z0-9_-])
+  // 형태일 때만 오픈 — 문장 중간에서도 뜨고, 두 번째 '/'·'.'·':' 등 path 신호가 나오면 자동 닫힘
+  // (예: src/foo·./x·c:/…·/README.md 는 후보 아님).
   const cur = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
   const pre = ta.value.slice(0, cur);
-  if (!/^\/[^\s]*$/.test(pre)) { wsCmdAcClose(); return; }
-  const items = wsCmdAcCandidates(pre);
+  const wsIdx = Math.max(pre.lastIndexOf(' '), pre.lastIndexOf('\n'), pre.lastIndexOf('\t'));
+  const token = pre.slice(wsIdx + 1);
+  if (!/^\/[A-Za-z0-9_-]*$/.test(token)) { wsCmdAcClose(); return; }
+  const items = wsCmdAcCandidates(token);
   if (!items.length) { wsCmdAcClose(); return; }
-  wsCmdAc = { items, sel: 0, ta };
+  wsCmdAc = { items, sel: 0, ta, tokenStart: wsIdx + 1 };
   wsCmdAcRender();
 }
 function wsCmdAcRender() {
@@ -1288,9 +1293,10 @@ function wsCmdAcApply() {
   const { ta, items, sel } = wsCmdAc, c = items[sel];
   if (!c) { wsCmdAcClose(); return; }
   const cur = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
+  const start = wsCmdAc.tokenStart || 0;   // v2.4.69 토큰만 치환 (문장 중간 트리거 대응)
   const rest = ta.value.slice(cur).replace(/^[^\S\n]+/, '');
-  ta.value = c.name + ' ' + rest;
-  const p = c.name.length + 1;
+  ta.value = ta.value.slice(0, start) + c.name + ' ' + rest;
+  const p = start + c.name.length + 1;
   wsCmdAcClose();
   try { ta.setSelectionRange(p, p); } catch {}
   wsRecalcTaH(); wsSaveDrafts(); ta.focus();
