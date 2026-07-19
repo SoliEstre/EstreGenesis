@@ -2050,6 +2050,7 @@ const WS_MON_PEER = '__mon_peer__';    // 🔀 메인 ↔ 피어 (peer-main A2A 
 const WS_MON_PEER_PEER = '__mon_peer_peer__';      // 🔀 피어 ↔ 피어 (피어 그룹에 취합)
 const WS_MON_PEER_COLLAB = '__mon_peer_collab__';  // 🔀 피어 ↔ 협업 (피어 그룹에 취합)
 let wsBackends = {};   // C1 backend registry overlay (backends.json): agentId → {role, model, connection, board}. 부재 시 {} → graceful (board-worker 는 local 로 접힘, badge 없음)
+const wsEchoState = {};   // v2.4.58 §13.26.4 EchoModeState: agentId → {level, provenance}. off/부재 = 배지 없음
 function wsLoadBackends() {
   fetch('backends.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(reg => {
     if (!reg) return;
@@ -2190,6 +2191,11 @@ function onWsEvent(m) {
     return;
   }
   if (t === 'CUSTOM' && m.name === 'AgentNameChanged') {   // v2.4.0 §3.5 라벨 변경 broadcast
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'EchoModeState') {   // v2.4.58 §13.26.4 — 에코 상태 공지 → 탭 배지 (멱등 재공지 수용, 스트림 카드 미생성)
+    const v = m.value || {};
+    if (v.agentId) { wsEchoState[v.agentId] = { level: v.level || 'off', provenance: v.provenance }; wsRenderTabs(); }
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CollabKeyIssued') {   // v2.4.2 통합: RegisterCollabKey transitional alias 응답 → wsKeyMgmt 로 통합 (kind=collab 명시 fallback)
@@ -2472,6 +2478,7 @@ function wsRenderTabs() {
       const bg = el('span', 'ubadge'); bg.textContent = ch.unseen > 99 ? '99+' : String(ch.unseen); bg.hidden = !ch.unseen || id === wsState.active;
       tab.append(dot, nm);
       const bk = wsBackends[id]; if (bk && bk.model && !mon) { const mb = el('span', 'mbadge ' + g.cls); mb.textContent = bk.model; mb.title = '선언 모델 · backends.json (C1)'; tab.append(mb); }   // C1 role/model badge
+      const ec = wsEchoState[ch.routeId || id]; if (ec && ec.level && ec.level !== 'off' && !mon) { const eb = el('span', 'ebadge' + (ec.level === 'mirror' ? ' mirror' : '')); eb.textContent = '📡'; eb.title = '에코 모드 ' + ec.level + (ec.provenance ? ' · ' + ec.provenance : '') + ' — 로컬 대화가 이 채널에 미러됨 (§13.26)'; tab.append(eb); }   // v2.4.58 echo badge
       tab.append(bg);
       if (!mon && !wsTabEdit) { const x = el('span', 'ws-tab-x', '✕'); x.title = '탭 닫기'; x.onclick = (e) => { e.stopPropagation(); wsCloseChannel(id); }; tab.append(x); }
       if (wsTabEdit) wsMakeDraggable(tab, 'tab', id, g.key); else tab.onclick = () => wsSetActive(id);

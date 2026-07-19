@@ -426,6 +426,8 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-tab .nm.up { color: #e0922e; } .ws-tab .nm.main { color: #9a78ff; } .ws-tab .nm.board-worker { color: var(--ws-role-bw, #39d353); } .ws-tab .nm.local { color: var(--ws-role-local, #4a9ed8); } .ws-tab .nm.collab { color: var(--ws-role-collab, #2a9d8f); } .ws-tab .nm.peer { color: var(--ws-role-peer, #d84a9e); }   /* 그룹 탭 선택 시 멤버 이름 그룹색상, 6 role incl peer (EstreUF UI2 parity) */
 .ws-tab .mbadge { font-size: .52rem; font-weight: 700; padding: 0 4px; height: 13px; border-radius: 7px; display: inline-flex; align-items: center; border: 1px solid var(--line); color: var(--muted); opacity: .85; letter-spacing: .02em; }   /* C1 role/model badge */
 .ws-tab .mbadge.board-worker { color: var(--ws-role-bw, #39d353); } .ws-tab .mbadge.main { color: #9a78ff; } .ws-tab .mbadge.local { color: var(--ws-role-local, #4a9ed8); } .ws-tab .mbadge.up { color: #e0922e; } .ws-tab .mbadge.collab { color: var(--ws-role-collab, #2a9d8f); } .ws-tab .mbadge.peer { color: var(--ws-role-peer, #d84a9e); }
+.ws-tab .ebadge { font-size: .55rem; display: inline-flex; align-items: center; opacity: .8; }   /* v2.4.58 §13.26.4 echo-mode badge (on) */
+.ws-tab .ebadge.mirror { opacity: 1; filter: drop-shadow(0 0 2px var(--ws-role-rt, #35c0d0)); }   /* mirror = 라이브 진행 스트림 강조 */
 .ws-tab .ubadge { min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: #8b6dff; color: #fff; font-size: .6rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .ws-tab .ubadge[hidden] { display: none; }
 .grp.sel .ws-tab .ubadge { background: #472a9e; }   /* 선택 그룹: 차분 / 비선택: 밝게(주목) */
