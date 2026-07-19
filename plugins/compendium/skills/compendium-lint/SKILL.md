@@ -1,12 +1,12 @@
 ---
 name: compendium-lint
-version: 0.2.4
-description: "Use to gardening-check a Compendium-style controlled-vocabulary store before committing or publishing it — verifying pointer integrity, register discipline, and store health. Invoke after adding/editing entries, on a cadence, or before a release that touches the vocabulary store. Runs the deterministic `lint.cjs` if the runtime is present (`node plugins/compendium/lint.cjs [--reindex]`); otherwise applies the same six checks by inspection. Portable: the checks are defined over plain markdown+frontmatter, so they hold for any vault (a dashboard store, an Obsidian vault, a provider memory directory). Pairs with `compendium-curate` (curate first, then lint)."
+version: 0.2.5
+description: "Use to gardening-check a Compendium-style controlled-vocabulary store before committing or publishing it — verifying pointer integrity, register discipline, and store health. Invoke after adding/editing entries, on a cadence, or before a release that touches the vocabulary store. Runs the deterministic `lint.cjs` if the runtime is present (`node plugins/compendium/lint.cjs [--reindex]`); otherwise applies the same seven checks by inspection. Portable: the checks are defined over plain markdown+frontmatter, so they hold for any vault (a dashboard store, an Obsidian vault, a provider memory directory). Pairs with `compendium-curate` (curate first, then lint)."
 ---
 
 # Compendium Lint — gardening checks for the vocabulary store
 
-A controlled-vocabulary store degrades silently: a renamed heading orphans a pointer, a copied definition drifts, a superseded term keeps getting cited. These checks make that degradation **computable**, like a build's verify pass. Two **hard** (build-failing) + four **soft** (gardening signal).
+A controlled-vocabulary store degrades silently: a renamed heading orphans a pointer, a copied definition drifts, a superseded term keeps getting cited. These checks make that degradation **computable**, like a build's verify pass. **Four hard** (build-failing) + **three soft** (gardening signal) — seven checks total. This is the runtime's severity view of the spec's §9 grouping: the four gardening lints (broken-link · orphan · duplicate-concept · stale) plus the pointer-resolution check (slug resolution · no-competing-full-def · redaction) — same seven, sliced by severity instead of by family.
 
 ## If the runtime is present (preferred)
 
