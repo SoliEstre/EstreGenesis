@@ -6,7 +6,7 @@
 
 ## 1. Definitions
 
-- **Harness core** — the host-independent substance: skill procedure bodies (`SKILL.md`), module specs (`*.md`), MCP server implementations (stdio JSON-RPC), and the wire protocols (Constellation §2-§13). The core never imports host-specific APIs.
+- **Harness core** — the host-independent substance: skill procedure bodies (`SKILL.md`), module specs (`*.md`), MCP server implementations (stdio JSON-RPC), and the **Asterism** wire contract (⁂ — Constellation §2-§13; named 2026-07-20). The core never imports host-specific APIs.
 - **Host** — a runtime that executes an agent loop and offers extension surfaces (skill/command registration, lifecycle hooks, tool servers). Claude Code is the reference host; Codex is the first adapted host.
 - **Adapter** — the projection from core to one host: a mapping definition plus (optionally) a deterministic generator that materializes host-side configuration. An adapter owns *no substance* — if an adapter contains procedure text that does not exist in the core, that is a contract violation (drift by copy).
 
