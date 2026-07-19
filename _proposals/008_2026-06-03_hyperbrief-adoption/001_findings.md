@@ -1,6 +1,6 @@
 # Hyperbrief 전면 채택 dogfooding — findings (2026-06-03)
 
-> 다운스트림 어댑터(MangoClass 사이드카)가 EG `plugins/hyperbrief` 를 `.hyperbrief/` 로 배치하고
+> 다운스트림 어댑터(사이드카)가 EG `plugins/hyperbrief` 를 `.hyperbrief/` 로 배치하고
 > 렌더 파이프라인을 end-to-end 검증한 dogfood. **clean `npm install` 환경**(ajv 8.x)에서 재현.
 > 환경: Node v24.14.0 / npm 11.9.0 / Windows.
 

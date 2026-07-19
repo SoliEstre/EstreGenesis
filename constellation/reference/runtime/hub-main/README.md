@@ -1,6 +1,6 @@
 # hub-main/ — 헤드리스 hub-main 자율 추론 루프 (§13.27 레퍼런스 구현)
 
-사람 세션이 전혀 없는 board main(조율계 — `Constellation.md` §13.9.3 `hub-main` duty profile)을 상주시키는 supervisor 루프. **MangoEdu hub-peer dogfood 실배치 검증본**(2026-07-09, §13.14 redaction 적용, 스모크: routine 턴 ~17s · escalation 턴 ~23s · board 자동 백업 push)을 업스트림한 것이에요. 스펙: `Constellation.md` **§13.27** (invariants) · **§13.28** (백업 계약) · **§13.9.3** (duty profile).
+사람 세션이 전혀 없는 board main(조율계 — `Constellation.md` §13.9.3 `hub-main` duty profile)을 상주시키는 supervisor 루프. **hub-peer dogfood 실배치 검증본**(다운스트림 어댑터, 2026-07-09, §13.14 redaction 적용, 스모크: routine 턴 ~17s · escalation 턴 ~23s · board 자동 백업 push)을 업스트림한 것이에요. 스펙: `Constellation.md` **§13.27** (invariants) · **§13.28** (백업 계약) · **§13.9.3** (duty profile).
 
 ## 구성
 

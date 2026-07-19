@@ -1,8 +1,8 @@
 # Constellation 활성화 dogfooding 리포트 (2026-06-03)
 
 > **대상**: EstreGenesis 저자 (SoliEstre)
-> **수행자**: Claude Code (Opus 4.8) — MangoClass 사이드카 세션
-> **시나리오**: `c:\Dev\vibe works\MangoClass` 사이드카에서 PM/003 Constellation 활성화를, EstreGenesis 문서(SSoT)만 보고 따라가는 **다운스트림 어댑터** 관점으로 수행.
+> **수행자**: Claude Code (Opus 4.8) — 사이드카 어댑터 세션
+> **시나리오**: 사이드카 워크스페이스에서 PM/003 Constellation 활성화를, EstreGenesis 문서(SSoT)만 보고 따라가는 **다운스트림 어댑터** 관점으로 수행.
 > **결과**: 로컬 보드 **LIVE @ `http://localhost:17878/`** (server + dashboard + bridge 핸드셰이크 통과). 문서·런타임·NOTES drift **7건** + 긍정 검증 **5건** 기록.
 > 원시 로그: [`constellation-dogfood-20260603-scratch.md`](constellation-dogfood-20260603-scratch.md) (OBS-1~12).
 

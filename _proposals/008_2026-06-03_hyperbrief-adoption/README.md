@@ -1,6 +1,6 @@
 # 007 · 2026-06-03 · hyperbrief-adoption
 
-> 다운스트림 어댑터(MangoClass 사이드카)가 EG Hyperbrief 모듈을 **전면 채택**(툴체인 `.hyperbrief/` 배치 + AGENTS.md §3.13 결정-위임 게이트 박제)하며 렌더 파이프라인을 clean-install 환경에서 end-to-end dogfood. 1 blocker(H1) + 4 정련(H2/H3/H5/H6) + positive(H4).
+> 다운스트림 어댑터(사이드카)가 EG Hyperbrief 모듈을 **전면 채택**(툴체인 `.hyperbrief/` 배치 + AGENTS.md §3.13 결정-위임 게이트 박제)하며 렌더 파이프라인을 clean-install 환경에서 end-to-end dogfood. 1 blocker(H1) + 4 정련(H2/H3/H5/H6) + positive(H4).
 >
 > **Staging note**: 어댑터가 staging(`E:\WorkBase\temp`)에 작성. EG 제출 시 기존 `_proposals/006_2026-06-03_hyperbrief/` 의 dogfood-ledger 에 Entry 로 합치거나 별도 bundle 로 이동.
 
