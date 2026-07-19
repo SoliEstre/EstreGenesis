@@ -697,7 +697,15 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-att-link:hover { text-decoration: underline; }
 .ws-att-safe { padding: 6px 8px; color: var(--muted); font-size: .8rem; }
 .ws-att-cap { padding: 4px 8px 7px; color: var(--ink); font-size: .82rem; }
-.ws-input { margin-top: 12px; }
+.ws-input { margin-top: 12px; position: relative; }
+/* v2.4.67 주입행 슬래시 명령 자동완성 — 입력 블록 위로 뜨는 후보 리스트 (ESC 닫힘) */
+.ws-cmd-ac { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); max-height: 220px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 28px #0006, 0 2px 8px #0003; z-index: 61; padding: 4px; }
+.ws-ac-it { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: .8rem; }
+.ws-ac-it.on, .ws-ac-it:hover { background: var(--panel2); }
+.ws-ac-name { font-weight: 600; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; color: var(--ink); white-space: nowrap; }
+.ws-ac-desc { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ws-ac-src { font-size: .65rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; white-space: nowrap; }
+.ws-ac-src.man { color: var(--accent); border-color: var(--accent); }
 /* 채널 탭별 별도 textarea 스택 — 활성만 표시, 높이는 전 탭 최대값으로 일괄 통일(탭 전환 시 위치 불변) */
 .ws-input .ws-text-stack { width: 100%; }
 .ws-input .ws-text-stack textarea { width: 100%; min-height: 54px; display: none; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: .85rem; resize: none; overflow-y: hidden; box-sizing: border-box; }

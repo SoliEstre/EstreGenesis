@@ -722,6 +722,7 @@ function wsStore(ck, ev) {
 function wsRecord(msg) {
   if (!msg || !msg.type || msg.type === 'HELLO' || msg.type === 'SERVER_HELLO') return;
   if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // 제어/transient 제외
+  if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
   const ck = wsMsgChan(msg), buf = wsBufFor(ck), t = msg.type;
   // 저장 압축: 스트리밍 델타/조각은 버퍼 누적, 완성 시점에 1건만 저장 (런타임 relay 는 불변)
   if (t === 'TEXT_MESSAGE_START') { buf.msg.set(msg.messageId || '_', { type: 'TEXT_MESSAGE', messageId: msg.messageId, role: msg.role, text: '', agentId: msg.agentId, channelId: msg.channelId, threadId: msg.threadId, targetAgentId: msg.targetAgentId, source: msg.source, seq: msg.seq, timestamp: msg.timestamp }); return; }
@@ -753,6 +754,24 @@ function wsChanRoleNote(ck, role) {
   _chanRolesT = setTimeout(() => { _chanRolesT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(CHANROLES, JSON.stringify(Object.fromEntries(wsChanRoles), null, 1)); } catch {} }, 1000);
 }
 function wsChanRoleOf(ck) { return ck && String(ck).startsWith('room:') ? 'roundtable' : (wsChanRoles.get(ck) || null); }
+// v2.4.67 — 에이전트별 슬래시 명령 매니페스트 영속 (주입행 자동완성 데이터): CommandManifest CUSTOM
+// (value.commands[{name,desc}]) 를 agentId 별 latest-wins 로 기록·영속, History payload 에 동봉.
+// 하네스 무관 data-plane 이벤트 — 어댑터가 자기 호스트의 명령을 스스로 선언하므로 Claude Code/Codex/
+// Hermes/OpenClaw 어디서든 같은 경로로 호환. 값 검증: name 은 '/' 시작 필수, 개수·길이 캡.
+const CMDMANIFESTS = path.join(HISTDIR, '.cmd-manifests.json');
+const wsCmdManifests = new Map();
+try { const _cm = JSON.parse(fs.readFileSync(CMDMANIFESTS, 'utf8')); for (const k of Object.keys(_cm)) wsCmdManifests.set(k, _cm[k]); } catch {}
+let _cmdManT = null;
+function wsCmdManifestNote(agentId, v) {
+  if (!agentId || !v || !Array.isArray(v.commands)) return;
+  const cmds = v.commands.slice(0, 200)
+    .map((c) => ({ name: String((c && c.name) || '').slice(0, 64), desc: String((c && c.desc) || '').slice(0, 160) }))
+    .filter((c) => c.name.startsWith('/') && c.name.length > 1);
+  if (!cmds.length) return;
+  wsCmdManifests.set(String(agentId), { commands: cmds, updatedAt: Date.now() });
+  if (_cmdManT) return;
+  _cmdManT = setTimeout(() => { _cmdManT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(CMDMANIFESTS, JSON.stringify(Object.fromEntries(wsCmdManifests), null, 1)); } catch {} }, 1000);
+}
 
 const ARCHDIR = path.join(HISTDIR, 'archived');   // D: 닫은(아카이브) 채널 cold 보관(active 스캔 제외)
 function wsArchFile(ck) { return path.join(ARCHDIR, ck.replace(/[^a-zA-Z0-9_.@:-]/g, '_').slice(0, 80) + '.jsonl'); }
@@ -775,7 +794,7 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 events full + col
     else cold.push({ key: ck, count: a.length, lastTs: a[a.length - 1].timestamp || 0, role: wsChanRoleOf(ck) });   // v2.4.59 role 동봉 — 그룹 오분류 fix
   }
   events.sort((x, y) => (x.timestamp || 0) - (y.timestamp || 0));
-  return { events, cold, archived: wsArchivedList() };
+  return { events, cold, archived: wsArchivedList(), manifests: Object.fromEntries(wsCmdManifests) };   // v2.4.67 자동완성 매니페스트 동봉
 }
 function wsLoadChannel(ck) {   // RequestChannelHistory 응답용 — 메모리(active) 우선, 없으면 archived(cold)에서 로드 + active 복귀
   let a = wsHistByChan.get(ck);
@@ -1004,7 +1023,7 @@ server.on('upgrade', (req, socket) => {
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
   conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
-  { const _h = wsHistoryPayload(); if (_h.events.length || _h.cold.length || _h.archived.length) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand)
+  { const _h = wsHistoryPayload(); if (_h.events.length || _h.cold.length || _h.archived.length || Object.keys(_h.manifests).length) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand)
   conn.onclose = () => {
     wsConns.delete(conn);
     keyOnConnClose(conn);                                       // v2.4.0 §4 REVOKED_PENDING 마지막 conn 종료 시 REVOKED 확정
