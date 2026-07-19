@@ -1881,7 +1881,7 @@ Multiple boards on one device collide on fixed default ports — resident daemon
 Onboarding order is part of the security model: the board comes up **loopback-only first** (§13.25 secure-by-default bind), and exposure beyond loopback happens only *after* the access controls it depends on are configured — keys required on the agent surface, allowlists on UI/MCP, then the explicit expose opt-in (§13.25's toggle + restart path). Publicly documented incident classes of internet-exposed agent gateways (unauthenticated daemons discovered at internet scale, remote-compromise CVEs) are the standing justification: the failure mode is not exotic, it is *default-on exposure*. Remote access for distributed teams routes through a private overlay network or an authenticating proxy rather than a raw public bind. Setup tooling and onboarding guides MUST present exposure as a separate, later step — never as part of first-run.
 
 #### 13.32.5 Cross-links
-§13.1 (roles at HELLO) · §13.9.3/§13.9.4 (duty profiles, ephemeral peers) · §13.16.11 (key kinds) · §13.23 (worker projection) · §13.25 (access control mechanism — this section is its *ordering*) · `plugins/HARNESS-ADAPTER-CONTRACT.md` §7-§8 (candidate hosts whose onboarding these flows serve).
+§13.1 (roles at HELLO) · §13.9.3/§13.9.4 (duty profiles, ephemeral peers) · §13.16.11 (key kinds) · §13.23 (worker projection) · §13.25 (access control mechanism — this section is its *ordering*) · `plugins/HARNESS-ADAPTER-CONTRACT.md` §7-§8 (candidate hosts whose onboarding these flows serve) · `constellation/BOOTSTRAP.md` (the start-to-finish operational guide that walks these flows end to end).
 
 <!-- graph-nav -->
 
