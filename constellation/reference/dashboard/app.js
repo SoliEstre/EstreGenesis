@@ -2092,18 +2092,23 @@ function wsWfPopRender() {
   const v = wsWfRuns[s.runId];
   s.ttl.textContent = '🧵 ' + ((v && (v.name || v.runId)) || s.runId);
   const b = s.body; b.textContent = '';
-  if (!v) { b.append(el('div', 'ws-wf-empty', '실시간 상태 대기 중 — 미러 다음 주기에 채워져요 (종결된 과거 런이면 상태 없음)')); return; }
-  const line = el('div', 'ws-wf-status ' + (v.status || 'running'));
-  line.textContent = (v.status === 'completed' ? '✓ 완료' : v.status === 'failed' ? '⚠ 실패' : '▶ 진행 중')
+  // §8.1 esc-only — WorkflowStatus 값은 와이어-유래(임의 접속 에이전트 발신 가능) 신뢰불가 입력.
+  // el() 3번째 인자는 innerHTML 이므로 절대 사용 금지, 전부 textContent 로만 주입. state 는 화이트리스트.
+  const txt = (cls, text) => { const d = el('div', cls); d.textContent = text; return d; };
+  if (!v) { b.append(txt('ws-wf-empty', '실시간 상태 대기 중 — 미러 다음 주기에 채워져요 (종결된 과거 런이면 상태 없음)')); return; }
+  const stCls = v.status === 'completed' ? 'completed' : v.status === 'failed' ? 'failed' : 'running';
+  const line = txt('ws-wf-status ' + stCls,
+    (stCls === 'completed' ? '✓ 완료' : stCls === 'failed' ? '⚠ 실패' : '▶ 진행 중')
     + ` · agents ${v.done != null ? v.done : 0}/${v.started != null ? v.started : 0}`
     + (v.totalTokens ? ` · ${Math.round(v.totalTokens / 1000)}k tok` : '')
-    + (v.durationMs ? ` · ${Math.round(v.durationMs / 1000)}s` : '');
+    + (v.durationMs ? ` · ${Math.round(v.durationMs / 1000)}s` : ''));
   b.append(line);
-  if (Array.isArray(v.phases) && v.phases.length) b.append(el('div', 'ws-wf-phases', '단계: ' + v.phases.join(' → ')));
+  if (Array.isArray(v.phases) && v.phases.length) b.append(txt('ws-wf-phases', '단계: ' + v.phases.map(String).join(' → ')));
   for (const a of (v.agents || [])) {
-    b.append(el('div', 'ws-wf-agent ' + (a.state || ''), (a.state === 'done' ? '✓ ' : '⏳ ') + (a.label || a.id || '?') + (a.preview ? ' — ' + a.preview : '')));
+    const aCls = a.state === 'done' ? 'done' : a.state === 'running' ? 'running' : '';
+    b.append(txt('ws-wf-agent ' + aCls, (a.state === 'done' ? '✓ ' : '⏳ ') + String(a.label || a.id || '?') + (a.preview ? ' — ' + String(a.preview) : '')));
   }
-  if (Array.isArray(v.logsTail) && v.logsTail.length) { const lg = el('div', 'ws-wf-logs'); for (const l of v.logsTail) lg.append(el('div', 'ws-wf-log', '· ' + String(l))); b.append(lg); }
+  if (Array.isArray(v.logsTail) && v.logsTail.length) { const lg = el('div', 'ws-wf-logs'); for (const l of v.logsTail) lg.append(txt('ws-wf-log', '· ' + String(l))); b.append(lg); }
 }
 function wsLoadBackends() {
   fetch('backends.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(reg => {
