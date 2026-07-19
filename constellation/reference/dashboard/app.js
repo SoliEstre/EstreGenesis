@@ -1351,9 +1351,10 @@ function wsReplayHistory(events, cold, archived) {
   for (const [id, mt] of keep) { const c = wsChannel(id, mt.name); if (mt.role) c.role = mt.role; }   // 선복원 → 재생 중 wsRoleOf 정확(모니터 Up↔Main/Main↔Local 분류)
   for (const ev of (events || [])) { try { onWsEvent(ev); } catch {} }
   // C(lazy): cold(끊긴)·archived(닫은) 채널은 stub 만 생성 — 탭/드롭다운 표시, 내용은 탭 클릭·복원 시 on-demand
-  // role 부여(탭 그룹 byRole 분류용) — server 는 끊긴 채널 role 미보유 → 채널키 기반 기본(local-ide=main, 그 외 local)
-  for (const c of (cold || [])) { const ch = wsChannel(c.key); ch._cold = true; ch._loaded = false; ch._count = c.count; if (!ch.role) ch.role = wsRoleOf(c.key); }
-  for (const c of (archived || [])) { const ch = wsChannel(c.key); ch._cold = true; ch._loaded = false; ch._count = c.count; ch.hidden = true; if (!ch.role) ch.role = wsRoleOf(c.key); }
+  // role 부여(탭 그룹 byRole 분류용) — v2.4.59: 서버가 HELLO 시점 role 을 영속해 stub 에 동봉 (upstream/collab/peer
+  // 가 끊겨도 그룹 유지). stub role 부재(구 서버) 시에만 채널키 기반 기본(local-ide=main, 그 외 local) 폴백.
+  for (const c of (cold || [])) { const ch = wsChannel(c.key); ch._cold = true; ch._loaded = false; ch._count = c.count; if (!ch.role) ch.role = c.role || wsRoleOf(c.key); }
+  for (const c of (archived || [])) { const ch = wsChannel(c.key); ch._cold = true; ch._loaded = false; ch._count = c.count; ch.hidden = true; if (!ch.role) ch.role = c.role || wsRoleOf(c.key); }
   wsState.replaying = false;
   if (archived && archived.length) wsSaveHidden();
   if (wsState.channels.size) {
