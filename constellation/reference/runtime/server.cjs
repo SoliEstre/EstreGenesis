@@ -724,6 +724,7 @@ function wsRecord(msg) {
   if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // 제어/transient 제외
   if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
   if (msg.type === 'CUSTOM' && msg.name === 'OpsState') wsOpsStateNote(msg.agentId, msg.value);   // v2.4.71 상태 스트립 선언 캡처
+  if (msg.type === 'CUSTOM' && msg.name === 'CapabilityManifest') wsCapManifestNote(msg.agentId, msg.value);   // v2.4.76 계약-표면 능력 선언 캡처
   if (msg.type === 'CUSTOM' && msg.name === 'SelectionPrompt') wsSelPendNote(msg);   // v2.4.74 선택지 타임아웃 추적
   if (msg.type === 'CUSTOM' && (msg.name === 'SelectionAnswer' || msg.name === 'SelectionCancel') && msg.value) wsSelPendClear(msg.value.promptId);   // v2.4.74 응답/취소 = pending 해제
   const ck = wsMsgChan(msg), buf = wsBufFor(ck), t = msg.type;
@@ -797,6 +798,29 @@ function wsOpsStateNote(agentId, v) {
   if (_opsT) return;
   _opsT = setTimeout(() => { _opsT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(OPSSTATES, JSON.stringify(Object.fromEntries(wsOpsStates), null, 1)); } catch {} }, 1000);
 }
+// v2.4.76 — 에이전트별 계약-표면 능력 선언 영속: CapabilityManifest CUSTOM. CommandManifest/OpsState 와
+// 같은 클래스 — 변경-트리거 선언·latest-wins·History 동봉. 슬래시 명령(무엇을 이행하나)·운용 상태(어떤
+// 설정인가)와 달리 이건 "어느 계약 표면을 구현했나" (예: selection §13.16.12, roundtable §13.30) —
+// 이종 하네스 어댑터가 opt-in 전에 지원 여부를 기계-판독 가능하게 광고하는 경로.
+const CAPMANIFESTS = path.join(HISTDIR, '.capability-manifests.json');
+const wsCapManifests = new Map();
+try { const _cp = JSON.parse(fs.readFileSync(CAPMANIFESTS, 'utf8')); for (const k of Object.keys(_cp)) wsCapManifests.set(k, _cp[k]); } catch {}
+let _capManT = null;
+function wsCapManifestNote(agentId, v) {
+  if (!agentId || !v || !Array.isArray(v.capabilities)) return;
+  const caps = v.capabilities.slice(0, 64).map((c) => {
+    if (!c || typeof c !== 'object' || !c.name) return null;
+    const o = { name: String(c.name).slice(0, 64) };
+    if (typeof c.version === 'string' && c.version) o.version = c.version.slice(0, 32);
+    if (typeof c.enabled === 'boolean') o.enabled = c.enabled;
+    if (c.params && typeof c.params === 'object') { try { const s = JSON.stringify(c.params); if (s.length <= 512) o.params = c.params; } catch {} }
+    return o;
+  }).filter(Boolean);
+  if (!caps.length) return;
+  wsCapManifests.set(String(agentId), { capabilities: caps, updatedAt: Date.now() });
+  if (_capManT) return;
+  _capManT = setTimeout(() => { _capManT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(CAPMANIFESTS, JSON.stringify(Object.fromEntries(wsCapManifests), null, 1)); } catch {} }, 1000);
+}
 // v2.4.74 — SelectionPrompt 타임아웃 (§13.16.12 확장, Superscalar §4.1 극성 채택).
 // 발신 에이전트가 value.timeout{kind:'clarify'|'approval', seconds?} (+선택 expiresAt) 를 스탬프하면
 // 서버가 pending 을 영속 추적하고, 만료 시 SelectionExpired 를 보드 브로드캐스트 + 발신자에게 msgId 부여
@@ -864,7 +888,7 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 events full + col
     else cold.push({ key: ck, count: a.length, lastTs: a[a.length - 1].timestamp || 0, role: wsChanRoleOf(ck) });   // v2.4.59 role 동봉 — 그룹 오분류 fix
   }
   events.sort((x, y) => (x.timestamp || 0) - (y.timestamp || 0));
-  return { events, cold, archived: wsArchivedList(), manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 동봉
+  return { events, cold, archived: wsArchivedList(), manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 동봉
 }
 function wsLoadChannel(ck) {   // RequestChannelHistory 응답용 — 메모리(active) 우선, 없으면 archived(cold)에서 로드 + active 복귀
   let a = wsHistByChan.get(ck);
