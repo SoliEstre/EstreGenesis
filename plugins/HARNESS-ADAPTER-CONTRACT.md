@@ -1,4 +1,4 @@
-<!-- part-of: EstreGenesis 2.5.x; kind: kit-level contract (not a module); version: v0.3; date: 2026-07-19; license: Apache-2.0 -->
+<!-- part-of: EstreGenesis 2.5.x; kind: kit-level contract (not a module); version: v0.3.1; date: 2026-07-20; license: Apache-2.0 -->
 
 # Harness Adapter Contract v0.3
 
@@ -46,6 +46,7 @@ Additionally, an adapted host that joins a Constellation board SHOULD emit the *
 2. Every adapter registers a **verification axis** in the repo's N-way version check (the `codex-adapter` axis is the reference: projected inventory ↔ live plugin set, machine-compared per cut). An adapter without a check axis is decorative.
 3. Generation is **pure remap** — the generator MUST NOT commit copies of skill bodies into the projection (pointer or path reference only), keeping single-source truth (§1 "drift by copy").
 4. **Distribution path** — where a host consumes the AgentSkills `SKILL.md` ecosystem, skills MAY be delivered through a multi-target skill installer (one canonical source, per-host target flags) instead of a bespoke generator; the canonical source remains this repo (§2), and the installer is a *transport*, not a second authority. Installer ecosystems observed so far carry no version pinning — an adapter relying on one MUST record the installed revision itself (lockfile or commit reference) to keep §5.2's drift check meaningful.
+5. **Pristine-copy adopters are a reference↔live drift sensor.** A reference implementation can silently *lag its own live deployment*: operational pressure hardens the live copy first, while the reference, being named "canonical," attracts less verification pressure. An adopter that runs the reference **unmodified** (byte-identical, no local patches) is the sensor that reveals this lag — it hits the reference's un-exercised paths that the live copy already fixed. Repeatedly evidenced (a single-day series surfaced a pristine-boot `MODULE_NOT_FOUND`, a reconnect-only-on-close defect, and a disconnect-window silent drop — the last two already guarded in the live bridge, unfixed in the reference). Corollary for the maintainer: when an unmodified-copy adopter reports a runtime defect, check the live deployment for the same class **and the reverse** — the live copy may already carry the fix the reference lacks, and that gap is itself a finding.
 
 ## 6. Conformance levels
 
