@@ -203,6 +203,7 @@ function onInbound(m) {
 function initOutboxCursor() { try { return fs.statSync(OUTBOX).size; } catch { return 0; } }
 let outboxCursor = initOutboxCursor();
 function pollOutbox() {
+  if (!connected) return;   // v2.4.84 — 미연결이면 outbox 를 아예 소비하지 않음 (커서 hold). 종전엔 미연결에도 읽어 커서를 EOF 로 전진시킨 뒤 emit 이 조용히 폐기 → 그 라인 영구 미발신·무증상(adopter 실측). 파일=durable 큐라 재연결 후 같은 커서부터 재개 = 유실 0, replay/중복 0 (in-memory 버퍼 아님 — hold-and-flush 의 순서/중복 위험 없음).
   let stat; try { stat = fs.statSync(OUTBOX); } catch { return; }   // 파일 없으면 대기
   if (stat.size < outboxCursor) outboxCursor = 0;                   // 파일 교체/축소 → 리셋
   if (stat.size <= outboxCursor) return;
@@ -213,7 +214,7 @@ function pollOutbox() {
   for (const line of chunk.split('\n')) { const s = line.trim(); if (s) emit(s); }
 }
 function emit(line) {
-  if (!connected) return;
+  if (!connected) { console.warn('[bridge] emit while disconnected — dropped (pollOutbox 가드가 정상 경로를 막으므로 도달 불가여야 함):', String(line).slice(0, 80)); return; }   // v2.4.84 방어층 — 무증상 폐기 제거 (adopter 관측성 갭)
   let o; try { o = JSON.parse(line); } catch { o = { say: line }; }
   if (o.say != null) {
     const mid = 'm' + now().toString(36);
