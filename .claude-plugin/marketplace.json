@@ -45,7 +45,7 @@
       "name": "superscalar",
       "source": "./plugins/superscalar",
       "description": "Execution-scheduling discipline for parallel sub-agent dispatch. v0.2.0 adds /subscaler (Superscalar v0.6.0 §5.1 tiered model composition): frontier main delegates execution-shaped work to the strongest execution-tier subagent (Fable-class→Opus-class / Sol-class→Terra-class, effort high) — delegation rubric + per-harness surfaces + single-marker toggle, default OFF (ON for fan-outs). Wraps Superscalar.md as model-invoked skills: issue_width formula (effort_band + pace_mode + Little's Law + Kanban WIP + autonomy_available_workers) + worktree-isolated reorder buffer + cost-benefit gate (~30-60k token-horizon crossover) + opt-in speculation + adoption thresholds + n=8 dogfood ledger (Entry 05 + Entry 06 controlled A/B showing 'parallelism is not sufficient; orchestration discipline produces consistency') + v0.4.1 §3.1 Hyperbrief decision-delegation interlock (write/deploy/send lanes pass through both cost-benefit gate AND hyperbrief-trigger-check; read-only lanes exempt). 0 npm deps / 0 env.",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "scheduling",
       "tags": [
         "parallelism",

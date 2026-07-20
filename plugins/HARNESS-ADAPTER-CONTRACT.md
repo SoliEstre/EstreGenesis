@@ -32,7 +32,7 @@ An adapter declares, per surface, one of: **native** (host has an equivalent sur
 
 The agent-loop row is deliberately out of adapter scope: loops conform to the **loop contract** (Constellation §13.27.4) instead. An adapter for a host that *owns its loop* (a local-LLM environment, a headless worker runtime) composes both contracts: the loop contract governs when the agent runs; this contract governs what disciplines it runs with.
 
-Additionally, an adapted host that joins a Constellation board SHOULD declare a **`CommandManifest`** (Constellation §13.23.4, v2.4.67) — the slash commands the agent can *actually honor when they arrive as prompt text*. The declaration rule mirrors §4's honesty principle: declare only what executes on receipt; generic verbs the host cannot honor stay in the board's labeled fallback.
+Additionally, an adapted host that joins a Constellation board SHOULD emit the **declaration-event triple** (Constellation §13.23.4): **`CommandManifest`** (v2.4.67 — the slash commands the agent can *actually honor when they arrive as prompt text*), **`OpsState`** (v2.4.71 — measured operational state: model, subscaler, fast; omit what the host cannot measure), and **`CapabilityManifest`** (v2.4.76 — which wire-contract surfaces the host implements, the opt-in negotiation channel a live adapter exercised for the selection facility). The declaration rule mirrors §4's honesty principle across all three: declare only what executes / what is measured / what is implemented; re-emit on every covered state transition and on every (re)connect (latest-wins makes the reconnect announce idempotent). Generic verbs the host cannot honor stay in the board's labeled fallback.
 
 ## 4. Degradation rules (absent surfaces)
 

@@ -1330,6 +1330,7 @@ function wsOpsStripSync() {
   if (t.ops && t.ops.effort) txt += '·' + t.ops.effort;
   if (t.ops && t.ops.fast) txt += '·fast';
   if (t.ops && t.ops.subscaler) txt += ' · sub:' + (t.ops.subscaler.on ? 'on' : 'off');
+  const _ec = wsEchoState[t.route]; if (_ec && _ec.level && _ec.level !== 'off') txt += ' · 📡' + _ec.level;   // v2.4.81 — 에코 모드 (EchoModeState 공지 기준; off/미공지 = 요약 생략)
   b.textContent = txt;
 }
 let wsOpsMenuOpen = false;
@@ -1363,6 +1364,20 @@ function wsOpsMenuToggle() {
     } : null);
     if (hasSubCmd) { const h = el('div', 'ws-ops-hint'); h.textContent = 'subscaler 클릭 = /subscaler ' + next + ' 전송 (대상이 선언한 명령)'; menu.appendChild(h); }
   }
+  // v2.4.81 — 에코 모드 행 (데이터 = §13.26.4 EchoModeState 공지, OpsState 아님 — 표시는 소스 무관 정직 표시).
+  // 컨트롤 규율 동일: 타깃 CommandManifest 가 /echo-mode 를 선언한 경우만 actionable (순환 off→on→mirror→off).
+  {
+    const ec = wsEchoState[t.route];
+    const ecLv = ec && ec.level ? ec.level : null;
+    const hasEchoCmd = !!(man && Array.isArray(man.commands) && man.commands.some((c) => c && c.name === '/echo-mode'));
+    const nextE = ecLv === 'on' ? 'mirror' : (ecLv === 'mirror' ? 'off' : 'on');
+    row('echo', ecLv ? ecLv + (ec.provenance ? ' (' + ec.provenance + ')' : '') : '(미공지)', hasEchoCmd ? () => {
+      const promptId = 'p-' + Date.now().toString(36);
+      if (wsSend({ type: 'CUSTOM', name: 'UserPrompt', value: { promptId, text: '/echo-mode ' + nextE, atts: [] } })) wsLocalRow('user', '🙋 UserPrompt', '/echo-mode ' + nextE, { promptId });
+      wsOpsMenuClose();
+    } : null);
+    if (hasEchoCmd) { const h = el('div', 'ws-ops-hint'); h.textContent = 'echo 클릭 = /echo-mode ' + nextE + ' 전송 (대상이 선언한 명령)'; menu.appendChild(h); }
+  }
   const src = el('div', 'ws-ops-hint');
   src.textContent = t.ops ? 'OpsState 선언 기준 · ' + (t.ops.updatedAt ? new Date(t.ops.updatedAt).toLocaleTimeString() : '') : 'backends 선언 폴백 (에이전트 미선언)';
   menu.appendChild(src);
@@ -1374,7 +1389,7 @@ function wsOpsMenuToggle() {
 function wsOpsStripInit() {
   const acts = document.querySelector('.ws-actions'); if (!acts || $('#ws-ops-strip')) return;
   const b = el('button', 'ws-ops-strip'); b.id = 'ws-ops-strip'; b.type = 'button'; b.hidden = true;
-  b.title = '대상 에이전트 운용 상태 (model·effort·subscaler) — 클릭 = 상세/제어';
+  b.title = '대상 에이전트 운용 상태 (model·effort·subscaler·echo) — 클릭 = 상세/제어';
   b.onclick = (e) => { e.stopPropagation(); wsOpsMenuToggle(); };
   const left = document.getElementById('ws-act-left');   // v2.4.80 좌측 그룹 — ⚙ 이 그룹 맨 왼쪽, 🧵 이 그 오른쪽
   if (left) left.prepend(b); else acts.appendChild(b);   // 폴백: 구 마크업이면 종전 위치(.ws-actions 는 row-reverse — 마지막 append = 왼쪽 끝)
@@ -2492,7 +2507,7 @@ function onWsEvent(m) {
   }
   if (t === 'CUSTOM' && m.name === 'EchoModeState') {   // v2.4.58 §13.26.4 — 에코 상태 공지 → 탭 배지 (멱등 재공지 수용, 스트림 카드 미생성)
     const v = m.value || {};
-    if (v.agentId) { wsEchoState[v.agentId] = { level: v.level || 'off', provenance: v.provenance }; wsRenderTabs(); }
+    if (v.agentId) { wsEchoState[v.agentId] = { level: v.level || 'off', provenance: v.provenance }; wsRenderTabs(); try { wsOpsStripSync(); } catch {} }   // v2.4.81 — 스트립 echo 항목 동기
     return;
   }
   if (t === 'CUSTOM' && m.name === 'WorkflowStatus') {   // v2.4.61 — workflow 종합 상태 스냅샷 → 플로팅 인스펙터 (스트림 카드 미생성)
