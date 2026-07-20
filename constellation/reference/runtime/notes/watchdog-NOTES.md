@@ -54,3 +54,15 @@ upstream-특수 어휘는 더 이상 코드/주석에 없음. `local-ide-agent` 
    "조용한 워치독" 이 원칙 — 트래픽 0, 폴링 0, 살아있으면 로그만 (15초마다 1줄).
 
 부팅 자동시작(작업 스케줄러 `ConstellationWatchdog`) 까지 등록하면 머신 재부팅도 흡수해 *완전 무인 상시연결* 이 된다 — 헤더 docblock 참조.
+
+
+## Env-name migration map — brew-era scripts → this watchdog (v2.4.82)
+
+Adopters arriving from the brew-era stack: the variables renamed. One-line map:
+
+| brew-era | this watchdog |
+|---|---|
+| `WS_SERVER_PATH` | `SERVER_PATH` |
+| `WS_BRIDGE_PATH` | `BRIDGE_PATH` |
+| `WS_PRIMARY_AGENT` | `MAIN_ID` (server.cjs itself still reads `WS_PRIMARY_AGENT` — only the watchdog spawner renamed) |
+| `WS_WATCHDOG_LOG` | `LOG_PATH` |

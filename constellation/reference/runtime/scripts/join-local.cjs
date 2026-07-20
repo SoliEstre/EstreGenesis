@@ -20,7 +20,7 @@ if (!KEY_FILE) { console.error('[join-local] LOCAL_KEY_FILE env required'); proc
 if (!AGENT_ID) { console.error('[join-local] WS_AGENT_ID env required'); process.exit(1); }
 
 // single-instance 가드 (2026-06-07 incident 후속): 같은 agentId 로 중복 spawn 차단.
-require('../single-instance').acquire(path.join(DIR, `.join-local.${AGENT_ID}.pid`), 'join-local');
+require('../single-instance.cjs').acquire(path.join(DIR, `.join-local.${AGENT_ID}.pid`), 'join-local');   // v2.4.82 — 확장자 명시 (watchdog 과 동일 클래스 — 리포트는 1곳이라 했으나 전수 grep 이 2곳째 검출)
 
 const resolvedKeyFile = path.isAbsolute(KEY_FILE) ? KEY_FILE : path.join(DIR, KEY_FILE);
 let key;

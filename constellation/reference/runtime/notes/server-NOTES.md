@@ -188,3 +188,8 @@ RFC6455 의 `0x9` PING / `0xA` PONG 컨트롤 프레임은 transport keepalive (
 | `_pendingAck` / dedup 영속화 | 메인 bridge `_seenMsgIds` in-memory Set + (v0.5) 서버측 pending queue | **표준 = in-memory 1차** (deps0 정합·경량) + (v0.5 reflected) 서버 pending queue. FS 영속(`.msgid-watermark`)은 별도 Stage 2 후속 — 재시작 중복폭증 방지, 현 둘 다 미구현. | **정합 (v0.5 server-side reflected v2.5.15+)** |
 | auto-pong | (미반영, 의도적) | NOTES §4-bis #3 — "auto-pong 안 함" 명시 invariant | 정합 |
 | ping/pong 의미 | 현 server.cjs 의 `: ping\n\n` 은 SSE keepalive — application-level §13.13 Ping/Pong 과 별개 | NOTES §4-bis "Ping/Pong 의미 정정" 절에서 명시 분리 | 정합 |
+
+
+## Deployment layout contract (v2.4.82 — adopter-surfaced discoverability gap)
+
+server.cjs resolves **all** of its data surfaces relative to `__dirname` (the directory the script itself lives in): `state.json` · `feedback.jsonl` · `public/` (dashboard) · `access.json` · `ws-keys.json` · `ws-history/` · `rooms.json`. There is no data-directory env override — a deployment that kept its board data elsewhere migrates that data **into the runtime directory** (an adopter did exactly this with a fail-loud backup and reported the contract was only discoverable by reading the code — hence this note). If a future need for a split layout materializes, the right shape is a single `BOARD_DIR`-style env consumed at the same resolution points; until a second adopter needs it, the __dirname contract stays (simplest-thing discipline).
