@@ -71,6 +71,19 @@ function releaseLock() { try { if (parseInt(String(fs.readFileSync(LOCK, 'utf8')
 process.on('exit', releaseLock);
 
 let ws = null, connected = false, backoff = 500, seq = 0, runId = null;
+let _reconnectArmed = false;   // v2.4.83 — 세대 latch (error+close 양발 런타임의 이중 재연결 방지)
+// v2.4.83 — 재연결 스케줄을 error/close 양 경로에서 진입 가능하게 단일화 (adopter C10 교차검증: 일부
+// 런타임[Node 22/undici 6.27.0]은 error 후 close 를 발화하지 않아, onclose 전용 스케줄이면 재연결 체인이
+// 영구 종료됨[실측 2회·193s 무증상]. Node 24 는 close 발화로 미발현이나 배포처 버전은 제각각이라 양런타임
+// 안전이 요건). latch 로 close 발화 런타임의 중복 예약을 흡수 — 회귀 위험 0.
+function scheduleReconnect(why) {
+  if (_reconnectArmed) return;
+  _reconnectArmed = true;
+  connected = false; ws = null;
+  console.log('[bridge] disconnected (' + why + '); reconnect in', backoff, 'ms');
+  setTimeout(() => { _reconnectArmed = false; connect(); }, backoff);
+  backoff = Math.min(backoff * 2, 8000);
+}
 const now = () => Date.now();
 // §13.13 A2A ack 계층 (client 측): 발신 msgId 부여(서버 delivered ack 대상·dedup 키) + 수신 dedup.
 //   ping/pong·AckProcessed(이행) 는 에이전트 레벨 — bridge auto-pong 은 '연결 생존 ≠ turn 생존' false-alive 라 하지 않음.
@@ -234,8 +247,12 @@ function connect() {
     send('CUSTOM', { name: 'ServerNotice', value: { kind: 'online', target: 'bridge', agentId: AGENT_ID, text: AGENT_ID + ' 브릿지 온라인(재연결)' } });   // 재연결 공지 → 모든 연결 broadcast (§재시작 공지)
   };
   ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } onInbound(m); };
-  ws.onerror = () => { try { ws && ws.close(); } catch {} };   // v2.4.78 — 에러를 onclose(재연결)로 수렴 (adopter C7: 빈 핸들러 → onclose 미도달 에러에서 재시도 0, 43h 무증상 좀비 실측)
-  ws.onclose = () => { connected = false; ws = null; console.log('[bridge] closed; reconnect in', backoff, 'ms'); setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 8000); };
+  ws.onerror = () => {   // v2.4.83 — error 경로 자체가 재연결을 스케줄 (close 미발화 런타임 대비); close() 는 OPEN 일 때만(CONNECTING 재진입 회피, adopter C10 (b))
+    console.warn('[bridge] ws error (readyState=' + (ws && ws.readyState) + ') — scheduling reconnect');   // 무증상이 최악 성질이라 관측 1줄 필수
+    try { if (ws && ws.readyState === 1) ws.close(); } catch {}
+    scheduleReconnect('error');
+  };
+  ws.onclose = () => { scheduleReconnect('close'); };
 }
 
 try { if (fs.existsSync(OUTBOX)) outboxCursor = fs.statSync(OUTBOX).size; } catch {}   // 기존 outbox 는 이미 처리분으로 간주
