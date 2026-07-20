@@ -1376,7 +1376,8 @@ function wsOpsStripInit() {
   const b = el('button', 'ws-ops-strip'); b.id = 'ws-ops-strip'; b.type = 'button'; b.hidden = true;
   b.title = '대상 에이전트 운용 상태 (model·effort·subscaler) — 클릭 = 상세/제어';
   b.onclick = (e) => { e.stopPropagation(); wsOpsMenuToggle(); };
-  acts.appendChild(b);   // .ws-actions 는 row-reverse — 마지막 append = 왼쪽 끝
+  const left = document.getElementById('ws-act-left');   // v2.4.80 좌측 그룹 — ⚙ 이 그룹 맨 왼쪽, 🧵 이 그 오른쪽
+  if (left) left.prepend(b); else acts.appendChild(b);   // 폴백: 구 마크업이면 종전 위치(.ws-actions 는 row-reverse — 마지막 append = 왼쪽 끝)
   wsOpsStripSync();
 }
 function wsURL() { return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`; }
