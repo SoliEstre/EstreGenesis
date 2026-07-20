@@ -728,6 +728,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-input .ws-text-stack textarea { width: 100%; min-height: 54px; display: none; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: .85rem; resize: none; overflow-y: hidden; box-sizing: border-box; }
 .ws-input .ws-text-stack textarea.active { display: block; }
 .ws-actions { display: flex; flex-direction: row-reverse; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+.ws-act-left { display: flex; flex-direction: row; gap: 6px; margin-right: auto; }   /* v2.4.80 좌측 그룹 — row-reverse 부모에서 오른쪽 auto 마진 = 시각 왼쪽 끝 밀착 + 우측 버튼군과 분리 */
 .ws-actions button { padding: 6px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--ink); cursor: pointer; font: inherit; font-size: .8rem; }
 .ws-actions button:hover { border-color: var(--accent); }
 .ws-actions .send { background: var(--accent); border-color: var(--accent); color: #fff; }
