@@ -47,8 +47,13 @@ Blanket-`xhigh` is not evidence-backed — effort→quality is non-monotonic and
 - Latency-sensitive interactive work.
 - Executor output shows style/convention drift the review pass keeps correcting — the correction cost is the signal.
 
+## After every toggle: re-declare
+
+If this workspace is joined to a Constellation board, the toggle is not finished until the board knows: emit an updated `OpsState` declaration (Constellation §13.23.4 — change-triggered, latest-wins) carrying the new `subscaler {on, pair, effort}` alongside the measured model. The toggle and the announcement are one unit — a toggle without the announce leaves the board's status strip showing stale state. (EG-ops reference helper: `node scripts/emit-ops-state.cjs`; any equivalent single-line CUSTOM emit satisfies the contract.) Not board-joined → skip this step.
+
 ## Composition
 
 - Superscalar §5.1 — normative spec (evidence base + boundary).
 - Superscalar §2 cost-benefit gate · §3 budgets · §3.1 Hyperbrief interlock — all upstream of this toggle.
+- Constellation §13.23.4 declaration events — the OpsState re-declaration duty above.
 - Constellation §13.27.4 tier routing — resident unattended loops; separate jurisdiction, cross-linked.
