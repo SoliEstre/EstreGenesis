@@ -121,3 +121,8 @@ L2(watchdog) / L3(server.cjs) 영역 hit 들은 본 lane 침범 금지 대상이
 | application Ping/Pong | bridge 본문 미반영(자연 충족: relay 만) | NOTES §3-bis #4 relay-not-generate invariant | 정합 (책임 위임) |
 
 > **다음 단계 (메인 retire 시):** 본 NOTES + watchdog-NOTES.md + (L3 server NOTES, 작성 시) → 통합 `runtime/README.md` 머지 → EG batch commit. ack 계층 실코드 패치 PR 도착 시 §3-bis 와 §5 차이표 동기 갱신.
+
+
+## Standby toggle rides the feedback channel — watcher compatibility (v2.4.82)
+
+The dashboard's `⏸ 대기 종료` (end-standby) button deliberately does **not** edit `state.json`: it emits `postFeedback({kind:'mode', standby:false})`. This keeps `state.json`'s standby field **agent-owned**, which is what makes the turn-based self-wake watcher contract safe: the legacy failure ("arm while standby≠true → immediate wake → infinite loop") is structurally impossible because the board never flips the agent's own arming field out from under it — the agent reads the feedback line on its next turn and flips its own state. Adopters wiring a watcher: treat `state.json` standby as yours, and board-side standby intent as an inbound feedback event. (Adopter-verified interaction, recorded here so the next integration does not rediscover it.)
