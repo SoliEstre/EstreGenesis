@@ -13,8 +13,8 @@
 //   - Chunked transfer support (ArtifactManifest / ArtifactChunk /
 //     ArtifactComplete reassembly on receive side)
 //   - Idempotent receiver dedup per §13.13.2 (seen-msgId LRU, 1024/1h)
-//   - Auth via env: CONSTELLATION_TOKEN / CONSTELLATION_UPSTREAM_KEY /
-//     CONSTELLATION_COLLAB_KEY (NEVER tool args per §13.14)
+//   - Auth via env: CONSTELLATION_TOKEN / CONSTELLATION_PEER_KEY /
+//     CONSTELLATION_UPSTREAM_KEY / CONSTELLATION_COLLAB_KEY (NEVER tool args per §13.14)
 //
 // Deps: ws (npm install — see package.json). Plugin install will resolve.
 
@@ -37,6 +37,7 @@ function getBoardEndpoint() {
 }
 
 function getAuth() {
+  if (process.env.CONSTELLATION_PEER_KEY) return { kind: 'peer', key: process.env.CONSTELLATION_PEER_KEY };   // v0.3.31 — §13.16.11: peer key 는 전용 파라미터로 (upstreamKey 편승 금지, adopter 리포트)
   if (process.env.CONSTELLATION_UPSTREAM_KEY) return { kind: 'upstream', key: process.env.CONSTELLATION_UPSTREAM_KEY };
   if (process.env.CONSTELLATION_COLLAB_KEY) return { kind: 'collab', key: process.env.CONSTELLATION_COLLAB_KEY };
   if (process.env.CONSTELLATION_TOKEN) return { kind: 'token', key: process.env.CONSTELLATION_TOKEN };
@@ -108,7 +109,8 @@ async function connectWS() {
   const agentId = getAgentIdentity();
 
   let url = baseUrl;
-  if (auth.kind === 'upstream') url += (url.includes('?') ? '&' : '?') + 'upstreamKey=' + encodeURIComponent(auth.key);
+  if (auth.kind === 'peer') url += (url.includes('?') ? '&' : '?') + 'peerKey=' + encodeURIComponent(auth.key);
+  else if (auth.kind === 'upstream') url += (url.includes('?') ? '&' : '?') + 'upstreamKey=' + encodeURIComponent(auth.key);
   else if (auth.kind === 'collab') url += (url.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(auth.key);
   else if (auth.kind === 'token') url += (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(auth.key);
 
@@ -130,7 +132,7 @@ async function connectWS() {
       if (msg.type === 'SERVER_HELLO') {
         serverHelloReceived = true;
         // Send HELLO + AgentHello (peer-coordination mode per §13.9)
-        const hello = { type: 'HELLO', agentId, agentName: 'MCP Session ' + agentId, role: auth.kind === 'collab' ? 'collab' : (auth.kind === 'upstream' ? 'upstream' : 'local'), capabilities: ['a2a', 'mcp-proxy', 'ack-layer'] };
+        const hello = { type: 'HELLO', agentId, agentName: 'MCP Session ' + agentId, role: auth.kind === 'collab' ? 'collab' : (auth.kind === 'upstream' ? 'upstream' : (auth.kind === 'peer' ? 'peer' : 'local')), capabilities: ['a2a', 'mcp-proxy', 'ack-layer'] };
         ws.send(JSON.stringify(hello));
         const agentHello = { type: 'CUSTOM', name: 'AgentHello', agentId, value: { agentId, agentName: hello.agentName, role: hello.role, env: 'mcp-server', capabilities: hello.capabilities, idle: true } };
         ws.send(JSON.stringify(agentHello));

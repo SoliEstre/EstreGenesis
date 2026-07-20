@@ -118,8 +118,19 @@ const INTEGRATION_DOCS = {
 };
 const sseClients = new Set();
 
+// v2.4.78 — LLM 이 직접 쓰는 파일엔 기계 게이트 (adopter C6 실장애: trailing comma 하나 → /api/state 가
+// 깨진 텍스트를 200 으로 서빙 → 대시보드 전 패널 blank → 백업이 깨진 SSoT commit. 파싱 검증 + last-good 폴백.)
+let _lastGoodState = null;
 function readState() {
-  try { return fs.readFileSync(STATE, 'utf8'); } catch { return '{"error":"no state.json yet"}'; }
+  try {
+    const raw = fs.readFileSync(STATE, 'utf8');
+    JSON.parse(raw);   // 검증만 — 서빙은 원문 그대로
+    _lastGoodState = raw;
+    return raw;
+  } catch (e) {
+    if (_lastGoodState) { console.warn('[state] state.json 손상/부재 — last-good 폴백 서빙 (%s)', (e && e.message) || e); return _lastGoodState; }
+    return '{"error":"no state.json yet"}';
+  }
 }
 function broadcastState() {
   const data = readState();
