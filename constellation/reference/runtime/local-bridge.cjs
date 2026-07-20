@@ -234,7 +234,7 @@ function connect() {
     send('CUSTOM', { name: 'ServerNotice', value: { kind: 'online', target: 'bridge', agentId: AGENT_ID, text: AGENT_ID + ' 브릿지 온라인(재연결)' } });   // 재연결 공지 → 모든 연결 broadcast (§재시작 공지)
   };
   ws.onmessage = (e) => { let m; try { m = JSON.parse(e.data); } catch { return; } onInbound(m); };
-  ws.onerror = () => {};
+  ws.onerror = () => { try { ws && ws.close(); } catch {} };   // v2.4.78 — 에러를 onclose(재연결)로 수렴 (adopter C7: 빈 핸들러 → onclose 미도달 에러에서 재시도 0, 43h 무증상 좀비 실측)
   ws.onclose = () => { connected = false; ws = null; console.log('[bridge] closed; reconnect in', backoff, 'ms'); setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 8000); };
 }
 
