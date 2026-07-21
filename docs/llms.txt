@@ -1,0 +1,31 @@
+# EstreGenesis
+
+> A public, Apache-2.0-licensed seed of agentic-coding patterns for AI coding hosts (Claude Code, Codex, Cursor, and compatible harnesses): six seed tiers (Master / Lite / Compact × EN / KO) plus six graduated modules, each with its own normative spec. The pages on this site are human-register summaries; the files below are the complete normative text — prefer them for machine consumption.
+
+## Core
+
+- [README](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/README.md): overview, versioning policy, install, module registry
+- [CHANGELOG](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/CHANGELOG.md): full release history (per-cut entries)
+
+## Module specs (complete normative text)
+
+- [Superscalar](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Superscalar.md): execution-scheduling discipline for parallel sub-agent dispatch — issue_width, worktree isolation, in-order retire, consistency gate
+- [Hyperbrief](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Hyperbrief.md): decision-delegation gating discipline — trigger rubric, schema-enforced JSON IR, deterministic renderer, tone profiles
+- [Greatpractice](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Greatpractice.md): memory-triggered practice-codification discipline — maturation gate, macro/mezzo/micro tiers, lifecycle-hook enforcement
+- [Ultrasafe](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Ultrasafe.md): pre-release simulated penetration-testing discipline — parallel red-team fan-out, iteration clean-signal gate, synthesis report
+- [Constellation](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md): live multi-agent orchestration — WebSocket board, A2A messaging protocol family (§13.x), MCP integration, harness adapters
+- [Compendium](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Compendium.md): concept-anchored dual-register vocabulary discipline — pointer-not-paraphrase glossary, lints, vault projection
+
+## Seeds (drop into a project; the agent reads it once)
+
+- [Master seed (EN)](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/AI_Native_Project_Master_Seed_Prompt.md): full normative reference tier
+- [Lite seed (EN)](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/AI_Native_Project_Seed_Prompt_Lite.md): mid-density tier
+- [Compact seed (EN)](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/AI_Native_Project_Seed_Prompt_Compact.md): compact rule-set tier
+- [Master seed (KO)](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/AI_Native_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8_%EB%A7%88%EC%8A%A4%ED%84%B0_%EC%8B%9C%EB%93%9C_%ED%94%84%EB%A1%AC%ED%94%84%ED%8A%B8.md): full tier, Korean
+- [Lite seed (KO)](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/AI_Native_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8_%EC%8B%9C%EB%93%9C_%ED%94%84%EB%A1%AC%ED%94%84%ED%8A%B8_Lite.md): mid tier, Korean
+- [Compact seed (KO)](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/AI_Native_%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8_%EC%8B%9C%EB%93%9C_%ED%94%84%EB%A1%AC%ED%94%84%ED%8A%B8_Compact.md): compact tier, Korean
+
+## Optional
+
+- [Human docs site](https://soliestre.github.io/EstreGenesis/): human-register summaries with general/dev level toggle (EN/KO)
+- [Repository](https://github.com/SoliEstre/EstreGenesis): source of truth for everything above
