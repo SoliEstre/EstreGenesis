@@ -1,4 +1,4 @@
-<!-- part-of: EstreGenesis 2.5.x; kind: kit-level contract (not a module); version: v0.3.1; date: 2026-07-20; license: Apache-2.0 -->
+<!-- part-of: EstreGenesis 2.5.x; kind: kit-level contract (not a module); version: v0.4; date: 2026-07-21; license: Apache-2.0 -->
 
 # Harness Adapter Contract v0.3
 
@@ -62,7 +62,7 @@ Additionally, an adapted host that joins a Constellation board SHOULD emit the *
 | Codex | Stage 1 | `codex/gen-codex-adapter.cjs` · `codex/config.toml.example` · `codex/README.md` inventory · verify axis `codex-adapter` |
 | [Estrelle](https://github.com/SoliEstre/Estrelle) (personal-AI OS, local-LLM loop) | planned — target Stage 3 | contract-first: this document + §13.27.4 precede any code; mutual entry-point links (Estrelle vision ↔ this repo) |
 | Hermes agent (resident gateway; hub-main candidate) | candidate — target Stage 2; **§8 surface map fully measured (2026-07-19)** | measurement gate passed on all Hermes rows (remote-measured, archived); a persistent Live Board connector joined a live board with zero core patches and passed a wire-compatibility round-trip the same day. Remaining Stage-2 substance is distribution/registration, not capability. Intended duty: Constellation hub-main (§13.9.3) with per-boundary profiles, joining boards as peer-main |
-| OpenClaw (messaging-gateway daemon; local-worker candidate) | candidate — target Stage 2 | surface map §8; measurement gate (§8.2) pending. Intended duty: Constellation local worker (§13.23) + messaging-group roundtable projection (§13.30) |
+| OpenClaw (messaging-gateway daemon; local-worker candidate) | candidate — target Stage 2; **§8 partially measured (2026-07-21, isolated dogfood)** | four-axis delegated measurement on a containerized instance (loopback-only, resource-capped, sandboxed, zero Hermes credential/workspace sharing): skill/hook gating and pairing-token boundary **passed**; instruction-file and headless-turn axes **blocked at the provider boundary** (HTTP 401 — no independently provisioned OpenClaw credential; the block itself evidences the credential-isolation boundary held). Promotion boundary declared by the measuring side: no board join, no messaging channel, no Stage-2 conformance claim. Remaining gate: an independently provisioned provider credential (operator action) unblocks the two axes + the gateway-dogfood delegation |
 
 ## 8. Candidate-host surface maps (research-verified drafts)
 
@@ -70,16 +70,18 @@ Both candidate rows in §7 come from a 2026-07-19 five-axis research pass (96 so
 
 | Contract element | Hermes agent (observed) | OpenClaw (observed) | Verdict |
 |---|---|---|---|
-| instruction file | cwd `AGENTS.md` auto-injected (marker round-trip measured) | injects workspace instruction/identity docs into the session | **Hermes verified** · OpenClaw deferred |
+| instruction file | cwd `AGENTS.md` auto-injected (marker round-trip measured) | injects workspace instruction/identity docs into the session — **measurement blocked at provider boundary** (HTTP 401, no independent credential; 2026-07-21) | **Hermes verified** · OpenClaw deferred (blocked, not failed) |
 | skills | AgentSkills `SKILL.md`; self-generation from conversation; hub scan | AgentSkills `SKILL.md`; materializes Claude Code plugins when driving a claude-cli backend | **verified** |
-| hooks | shell hooks, stdin JSON in / stdout JSON out, `pre_tool_call` gate with `{action:"block"}` measured | skill gating + backend hook surface | **Hermes verified** · OpenClaw deferred |
+| hooks | shell hooks, stdin JSON in / stdout JSON out, `pre_tool_call` gate with `{action:"block"}` measured | skill/hook gate **measured** (2026-07-21): closed→open eligibility 15→16, model/command visibility toggled 0→1, five bundled hooks confirmed disabled/non-loadable | **verified** |
 | MCP | stdio MCP connect + in-process hot reload (`/reload-mcp`) measured | MCP registry validates namespace ownership only | **Hermes verified** · OpenClaw deferred |
-| headless turn | ACP check + OpenAI-compatible HTTP one-shot turn (marker round-trip) measured | single-shot channel-less exec subcommand | **Hermes verified** · OpenClaw deferred |
-| profile / boundary | per-profile home-dir isolation measured (inode-distinct config/state/sessions per profile) — **not process/sandbox isolation**, same OS account | pairing + node tokens + loopback bind | **Hermes verified (with stated limit)** · OpenClaw deferred |
+| headless turn | ACP check + OpenAI-compatible HTTP one-shot turn (marker round-trip) measured | single-shot channel-less exec subcommand — **measurement blocked at provider boundary** (HTTP 401, no independent credential; sandbox stayed active; 2026-07-21) | **Hermes verified** · OpenClaw deferred (blocked, not failed) |
+| profile / boundary | per-profile home-dir isolation measured (inode-distinct config/state/sessions per profile) — **not process/sandbox isolation**, same OS account | pairing + token boundary **measured** (2026-07-21): wrong token rejected, plaintext private WS denied by default, bounded break-glass still pairing-required (final pending=0 paired=0); containment observed loopback-only + resource-capped + sandbox network-none | **verified** |
 | timeout policy | clarifying-question 3600 s → sentinel → self-proceed; risk approval 60 s → fail-closed deny | resident daemon; group mention-gating silent default | **Hermes verified** |
 | model / effort / fast | fast-priority toggle; 8-level reasoning effort (default medium) | 60+ providers incl. local low-tier models | **verified** |
 
-**The Hermes column is now fully measured** (v0.3): every formerly-deferred Hermes cell passed the §8.2 gate on 2026-07-19 against an operator-owned dedicated instance (Hermes v0.18.2, Python 3.11.15), self-measured and relayed over live A2A, archived verbatim in the maintenance workspace's adapter-evidence ledger. The profile row's promotion carries its honest limit forward: isolation is home-directory-level, not a sandbox. The OpenClaw column remains deferred pending its own install + measurements.
+**The Hermes column is now fully measured** (v0.3): every formerly-deferred Hermes cell passed the §8.2 gate on 2026-07-19 against an operator-owned dedicated instance (Hermes v0.18.2, Python 3.11.15), self-measured and relayed over live A2A, archived verbatim in the maintenance workspace's adapter-evidence ledger. The profile row's promotion carries its honest limit forward: isolation is home-directory-level, not a sandbox.
+
+**The OpenClaw column is partially measured** (v0.4, 2026-07-21): a four-axis delegated dogfood ran against a containerized instance (OpenClaw 2026.7.1, image-digest-pinned, loopback-only, resource-capped, sandbox network-none, zero credential/workspace sharing with the measuring host) under operator approval with a declared promotion boundary (no board join, no messaging channel, no Stage-2 claim). The **hooks** and **profile/boundary** rows promoted to `verified`; **containment** itself was measured as an extra axis (healthy under caps, no host exposure beyond 127.0.0.1). The **instruction-file** and **headless-turn** rows stay `deferred` with an honest cause recorded per §8.2's counterexample rule: both requests reached the provider boundary and stopped at HTTP 401 because no *independently provisioned* OpenClaw credential exists — a **blocked measurement, not a failed one**, and the 401 itself evidences that the credential-isolation boundary held (no borrowed credential in the container). Unblocking is an operator action (provision an independent provider credential), which is also the gate on the remaining gateway-dogfood delegation.
 
 ### 8.2 Measurement gate
 
