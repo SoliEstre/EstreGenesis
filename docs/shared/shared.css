@@ -26,10 +26,9 @@ p { margin: 0.6rem 0; }
 .brand:hover { text-decoration: none; }
 .brand img.logo { height: 32px; width: auto; }
 @media (max-width: 720px) { .brand img.logo { height: 26px; } }
-/* Nav wraps to its own row below brand + controls — keeps top row uncluttered when
-   module count grows (5+ items + brand + 3 controls overflows a single row at most viewports).
-   `order: 99` keeps nav visually last; `flex-basis: 100%` forces a full-width second row. */
-.nav { display: flex; gap: 1.2rem; align-items: center; justify-content: center; flex-basis: 100%; order: 99; padding-top: 0.5rem; margin-top: 0.2rem; border-top: 1px solid var(--color-border); flex-wrap: wrap; }
+/* Single-row nav between brand and controls — the four-item IA (Home/Docs/Modules/GitHub)
+   fits inline at all desktop viewports; the old own-row layout was for the 5+ module-name era. */
+.nav { display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap; }
 .nav a { color: var(--color-text-muted); font-size: 0.92rem; }
 .nav a:hover, .nav a.active { color: var(--color-link); }
 /* Sub-link: per-page Spec / detail link attached to the active page's nav entry.
