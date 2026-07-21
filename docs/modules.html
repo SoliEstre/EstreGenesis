@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EstreGenesis — Modules: the graduated lineup</title>
+  <meta name="description" content="The six graduated EstreGenesis modules — Superscalar, Hyperbrief, Greatpractice, Ultrasafe, Constellation, Compendium — plus the kit plugin and the full skill roster.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="shared/shared.css">
+  <link rel="stylesheet" href="shared/themes.css">
+  <script>
+    (function () {
+      var html = document.documentElement;
+      // Audience — set synchronously before body parsing so the CSS hide-non-matching
+      // rule applies from the first paint (no flash of all 3 tier variants).
+      var levels = ['general', 'dev', 'expert'];
+      var aud = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(aud) === -1) aud = 'general';
+      html.setAttribute('data-audience', aud);
+      // Language — set <html lang="..."> early so Chrome/Edge/Safari see the
+      // correct page language from the start and do NOT offer to machine-translate
+      // a page that is already in the user's language. Mirrors i18n.js's
+      // detectBrowserLang() + getLang() logic.
+      var langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages
+        : [navigator.language || navigator.userLanguage || ''];
+      var detected = 'en';
+      for (var i = 0; i < langs.length; i++) {
+        if (typeof langs[i] === 'string' && langs[i].toLowerCase().indexOf('ko') === 0) { detected = 'ko'; break; }
+      }
+      var lang = localStorage.getItem('eg-promo-lang') || detected;
+      html.setAttribute('lang', lang);
+    })();
+  </script>
+  <script src="shared/copy.js" defer></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
+      <nav class="nav">
+        <a href="index.html" data-en="Home" data-ko="홈">Home</a>
+        <a href="docs.html" data-en="Docs" data-ko="문서">Docs</a>
+        <a href="modules.html" class="active" data-en="Modules" data-ko="모듈">Modules</a>
+        <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <div class="controls">
+        <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
+        <div class="control-group"><span class="control-label" data-en="Level" data-ko="레벨">Level</span><div class="aud-toggle"><button data-aud-btn="general" data-en="general" data-ko="일반">general</button><button data-aud-btn="dev" data-en="dev" data-ko="개발">dev</button></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1 data-en="Modules" data-ko="모듈">Modules</h1>
+      <p class="tagline" data-aud="general" data-en="Six optional modules, each grown out of daily use and graduated into its own spec. Install any subset — they are independent." data-ko="매일 쓰면서 자라나 각자 스펙으로 졸업한 선택 모듈 여섯 개예요. 서로 독립적이라 원하는 것만 골라 설치하면 돼요.">Six optional modules, each graduated into its own spec. Install any subset.</p>
+      <p class="tagline" data-aud="dev" data-en="Six graduated modules + the estregenesis kit plugin, published through one marketplace. Zero inter-plugin dependencies — every card below links to the human-register page and the normative spec." data-ko="6개 졸업 모듈 + estregenesis 킷 플러그인이 단일 마켓플레이스로 게시돼요. 플러그인 간 의존성 0 — 아래 각 카드가 사람용 페이지와 규범 스펙으로 링크돼요.">Six graduated modules + the kit plugin. Zero inter-plugin dependencies.</p>
+    </section>
+
+    <section>
+      <h2 data-en="Modules" data-ko="모듈">Modules</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="module-tag">SEED</div>
+          <h3 data-en="Project Seed" data-ko="프로젝트 시드">Project Seed</h3>
+          <p data-aud="general" data-en="A one-page starter that tells your AI assistant how to behave on your project. Works with whatever AI tool you use." data-ko="AI 보조에게 「이 프로젝트에서는 이렇게 일해줘」라고 알려주는 한 페이지 출발점이에요. 어떤 AI 도구를 쓰든 같이 씁니다.">A one-page starter that tells your AI assistant how to behave on your project.</p>
+          <p data-aud="dev" data-en="A six-tier bootstrap (Master, Lite, and Compact, each in English and Korean) that bundles Phase 0 environment setup, AGENTS.md scaffolding, and the core coordination patterns needed for multi-agent work. The seed itself is host-agnostic and is currently used with Claude Code, Codex, and Cursor without modification." data-ko="Master · Lite · Compact 3단계를 영문과 국문으로 제공하는 6-tier 부트스트랩이며, Phase 0 환경 설정과 AGENTS.md 스캐폴드, 그리고 다중 에이전트 작업에 필요한 핵심 조정 패턴을 함께 묶어 제공합니다. 시드 자체는 특정 호스트에 종속되지 않으며, Claude Code · Codex · Cursor 등에서 별도 수정 없이 그대로 사용하고 있습니다.">Six-tier bootstrap. Phase 0 setup + AGENTS.md scaffold + coordination patterns.</p>
+          <a class="card-link" href="https://github.com/SoliEstre/EstreGenesis#readme" target="_blank" data-en="README →" data-ko="README →">README →</a>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">MODULE · v0.7</div>
+          <h3>Superscalar</h3>
+          <p data-aud="general" data-en="When you let AI agents work in parallel, raw speed isn't the same as good work. Superscalar is the rulebook for parallel AI work that stays consistent. Measured result: 2.2× more grounded, 40% less guesswork." data-ko="AI 에이전트를 여러 개 동시에 돌리면 빠르긴 한데, 결과가 항상 좋은 건 아닙니다. Superscalar는 병렬로 일하면서도 일관성을 잃지 않게 해주는 규칙집이에요. 실측 결과: 근거가 2.2배 더 많아지고, 추측은 40% 줄어듭니다.">Parallel AI work that stays consistent. Measured: 2.2× more grounded · 40% less guesswork.</p>
+          <p data-aud="dev" data-en="An execution discipline for parallel sub-agent dispatch — both Agent-tool fan-outs and Workflow.parallel calls — built around four primitives: an issue_width formula that bounds in-flight parallelism, worktree isolation for write-disjoint work, in-order retire for deterministic merge, and a consistency gate that reconciles cross-lane contradictions. In a real payment-backend A/B (Entry 06), it delivered a 118 percent increase in grounded cross-references and a 40 percent reduction in speculative claims relative to a naïve max-parallel baseline." data-ko="병렬 sub-agent dispatch — Agent 도구의 fan-out과 Workflow.parallel 호출 모두 — 를 위한 실행 규율로, 네 가지 기본 요소로 구성됩니다. 동시 실행 가능한 작업 수를 제한하는 issue_width 공식, 쓰기가 분리된 작업을 위한 worktree 격리, 결정적 머지를 위한 in-order retire, 그리고 lane 간 모순을 조정하는 consistency gate가 그것입니다. 실제 payment-backend 도메인에서 수행한 A/B(Entry 06)에서는 naïve max-parallel 기준선 대비 grounded cross-reference가 118% 증가하고 추측성 진술이 40% 감소하는 결과를 얻었습니다.">Discipline for parallel sub-agent dispatch. issue_width + worktree isolation + retire + consistency gate.</p>
+          <a class="card-link" href="superscalar.html" data-en="Read the A/B report →" data-ko="A/B 리포트 보기 →">Read the A/B report →</a>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">MODULE · v0.7.2</div>
+          <h3>Hyperbrief</h3>
+          <p data-aud="general" data-en="When AI agents force you to make a decision but don't give you enough info to actually decide — that's the gap Hyperbrief fills. Every decision-asking moment must come with a structured brief: what, how, why, consequences, decision tree, recommendation. You can also ask the brief to be re-written in plain language you can parse with a single click — the button reads &quot;What? Just say it plainly.&quot; in English, &quot;뭔 소리야? 한국어로 번역해줘&quot; in Korean (follows the user's language)." data-ko="AI 에이전트가 결정을 떠넘기면서 정작 판단에 필요한 정보는 충분히 주지 않는 — 그 빈틈을 Hyperbrief가 메웁니다. 결정 요청 시점마다 정해진 양식의 구조화된 브리핑(무엇을 · 어떻게 · 왜 · 결과 예상 · 결정 트리 · 권장)을 의무적으로 제공하게 만듭니다. 한 번의 버튼 클릭으로 브리핑 전체를 평이한 언어로 다시 풀어쓰게 할 수도 있어요 — 버튼 문구는 한국어 「뭔 소리야? 한국어로 번역해줘」, 영어 「What? Just say it plainly.」 (사용자 언어에 따름).">A structured brief on every AI-to-user decision request: what / how / why / consequences / decision tree / recommendation. One-click re-render in the reader's plain language (button auto-localizes to user's language).</p>
+          <p data-aud="dev" data-en="A decision-delegation gating discipline. Every user-facing decision question first passes a trigger rubric (4-score escalation + 5 MUST-trigger conditions); if it escalates, the LLM emits a single JSON IR that a deterministic Node renderer turns into MD + interactive HTML — 9-section structure including escalation header, blast-radius surface, framing matrix, MCDA, pre-mortem, Toulmin predictions, decision tree (meta-branch + Cynefin-adaptive), and reversible-fallback recommendation. Tone profile is 3-axis × 5-level (audience / abbreviation / jargon, default L2/L2/L2). Same IR + same options → byte-identical render output (verified by smoke test). v0.4.2+ ships Phase 2 deterministic Node renderer + MCP server exposing 4 tools; integrated with Constellation §13.16.9 (5 A2A intent names + ack_tier='decided') and Superscalar §3.1 (orthogonal gate at write/deploy/send lane retire)." data-ko="결정 위임 게이팅 규율입니다. 모든 user-facing 결정 질문은 먼저 트리거 rubric(4-score escalation + 5 MUST-trigger 조건)을 통과해야 하며, 에스컬레이션 시 LLM은 단일 JSON IR을 emit하고 결정론적 Node renderer가 이를 MD + interactive HTML로 변환합니다. 9-섹션 구조: escalation 헤더, blast-radius 표면, framing matrix, MCDA, pre-mortem, Toulmin 예측, 결정 트리(meta-branch + Cynefin 적응형), reversible-fallback 권장. 톤 프로파일은 3축 × 5단계(audience / abbreviation / jargon, 기본 L2/L2/L2). 같은 IR + 같은 옵션 → byte 일치 출력 (smoke test 검증). v0.4.2+에서 Phase 2 결정론적 Node renderer + 4-tool MCP server ship; Constellation §13.16.9(5 A2A intent name + ack_tier='decided')와 Superscalar §3.1(write/deploy/send lane retire 시점의 orthogonal gate)에 통합.">Decision-delegation gating discipline. 4-score escalation + JSON IR + deterministic renderer + 3-axis × 5-level tone profile. Byte-identical output verified. Integrated with Constellation + Superscalar.</p>
+          <a class="card-link" href="hyperbrief.html" data-en="Read the discipline →" data-ko="규율 보기 →">Read the discipline →</a>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">MODULE · v0.3.4 · 🐶 도그푸딩 진행</div>
+          <h3>Greatpractice</h3>
+          <p data-aud="general" data-en="Working with AI, certain small obligations keep slipping through — &quot;always update the docs with the code,&quot; &quot;always check before sending,&quot; &quot;when X changes, also change Y.&quot; They usually start as memory notes (&quot;heads up — remember this&quot;). Greatpractice watches that memory layer; when a pattern shows up enough times with enough cost-of-missing, it promotes the obligation from &quot;something to remember&quot; into &quot;something the system enforces automatically&quot; — only loading what's needed, when it's needed." data-ko="AI 와 일하다 보면 자잘한 약속들이 자꾸 누락돼요 — 「코드 수정 시 docs 도」, 「보내기 전 확인」, 「X 가 바뀌면 Y 도」. 보통 메모리 메모 (「잊지 말 것」) 로 시작하죠. Greatpractice 는 그 메모리 레이어를 지켜보다가, 같은 패턴이 충분히 자주 + 누락 비용이 충분히 크게 나타나면, 그 약속을 「기억해야 할 것」 에서 「체계가 자동 강제하는 것」 으로 격상해요 — 필요한 것만, 필요한 때만 로드.">Memory notes are the trigger; recurring patterns get promoted into auto-enforced practices. Backed by 9-axis cross-domain research.</p>
+          <p data-aud="dev" data-en="A memory-triggered practice-codification discipline. memory/feedback_*.md entries (or equivalent agent-workspace signals) are the input trigger; a 5-axis multi-criteria maturation gate (frequency + depth + recency + cost + predictability, weighted sum threshold ≥ 18 OR 3-criterion notability gate) decides which raw signals graduate. Ratified entries land in a 3-tier macro/mezzo/micro hierarchy (macro = always-on telos, mezzo = procedure, micro = atom command/check/decision) and are enforced via 7-event lifecycle hooks (SessionStart blocking / UserPromptSubmit path-scoped inject / PreToolUse 3-subtype poka-yoke contact/fixed-value/motion-step / PostToolUse SSoT propagation / Stop cycle-end probe / PostCompact working-set restore). Explicit `phronesis_boundary` field carves out judgement-heavy work that should NOT be codified. v0.1.0 shipped the spec + the first ratified entries (outbox-json-validation mezzo, promoted from memory/feedback_outbox_json_validation.md, + 1 micro atom + contact-type PreToolUse hook); the module now stands at v0.3.2 — the ratified mezzo 8-batch landed at v0.2.0 and the P0b research reinforcements (§B.5–§B.6) at v0.3.x." data-ko="메모리 기반 관행 codification 규율입니다. memory/feedback_*.md entry (또는 동등 agent-workspace 신호) 가 입력 트리거; 5-axis multi-criteria maturation gate (frequency + depth + recency + cost + predictability weighted sum threshold ≥ 18 OR 3-criterion notability gate) 가 raw 신호 중 어느 것이 졸업할지 결정. ratified entry 는 3-tier macro/mezzo/micro 계층 (macro = 항상-on telos, mezzo = 절차, micro = atom command/check/decision) 에 자리잡고 7-event lifecycle hook (SessionStart blocking / UserPromptSubmit path-scoped inject / PreToolUse 3-subtype poka-yoke contact/fixed-value/motion-step / PostToolUse SSoT propagation / Stop cycle-end probe / PostCompact working-set 복구) 으로 강제. 명시적 `phronesis_boundary` field 가 judgement-heavy work 의 codify-금지 영역 carve out. v0.1.0 첫 cut 은 spec + 첫 ratified entry (outbox-json-validation mezzo, memory/feedback_outbox_json_validation.md 로부터 promote, + 1 micro atom + contact-type PreToolUse hook) ship; 현재 v0.3.2 — v0.2.0 에서 ratified mezzo 8-batch, v0.3.x 에서 P0b 연구 보강 (§B.5–§B.6) 반영.">Memory feedback → 5-axis maturation gate → ratified entry in 3-tier tree, enforced by 7-event lifecycle hooks. phronesis_boundary protects un-codifiable work.</p>
+          <a class="card-link" href="greatpractice.html" data-en="Read the discipline →" data-ko="규율 보기 →">Read the discipline →</a>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">MODULE · v0.2.4 · 🐶 도그푸딩 진행 (advisory mode)</div>
+          <h3>Ultrasafe</h3>
+          <p data-aud="general" data-en="Before you release a new version, several AI helpers act like attackers and try to find weak spots — at the same time, from different angles. Found weak spots get fixed, the AI helpers try again. This repeats at least three rounds until they can't find anything new. The AI does the testing for you, before real attackers get a chance." data-ko="새 버전을 내보내기 전, 여러 AI 도우미가 공격자 입장에서 프로젝트의 약한 부분을 동시에 다양한 각도에서 찾아봐요. 발견된 약한 부분 고치고, AI 도우미가 다시 찾아봐요. 새 약한 부분 못 찾을 때까지 최소 세 번 반복. 진짜 공격자 도착 전에 AI 가 검사 대신.">Several AI helpers find weak spots before release, fix-and-retry at least three rounds until clean.</p>
+          <p data-aud="dev" data-en="A pre-release / pre-update simulated penetration testing module. 8-agent v0.1.0 minimum parallel red-team fan-out (AI/LLM · Web/API · Supply · Crypto · Social · Method/Comp · TM/Lifecycle · Synthesizer) + GTA/DSP cross-cutting. ≥3 iteration loop with 4-condition AND clean-signal gate (regression-free + monotonic + coverage + 2 iter consecutive). 3-layer synthesis report (OSCAL + Hyperbrief IR + Greatpractice candidate). Dual pre-release trigger (PreToolUse hook + /ultrasafe skill). 5 new Constellation A2A intents. v0.2.x advisory mode (live, self-dogfooding) → v0.3+ blocking." data-ko="출시 직전 / 갱신 직전 모의 침투 시험 모듈. 8-agent v0.1.0 최소 fan-out + GTA/DSP cross-cutting. ≥3 iteration loop + 4-condition AND clean-signal gate. 3-layer 합성 보고서 (OSCAL + Hyperbrief IR + Greatpractice candidate). Dual pre-release trigger. 5 신규 Constellation A2A intent. v0.2.x advisory 모드 (라이브·자가 도그푸딩) → v0.3+ blocking.">Pre-release simulated penetration testing. 8-agent fan-out + ≥3 iteration AND-gate + 3-layer synthesis. Advisory→blocking.</p>
+          <a class="card-link" href="ultrasafe.html" data-en="Read the discipline →" data-ko="규율 보기 →">Read the discipline →</a>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">MODULE · v2.4.84</div>
+          <h3>Constellation</h3>
+          <p data-aud="general" data-en="Lets multiple AI agents talk to each other in real time, see each other's progress on a shared dashboard, and hand off work safely. Five real Pull Requests went through the system in 24 hours with zero mistakes." data-ko="여러 AI 에이전트가 실시간으로 서로 대화하고, 공유 대시보드로 서로의 진행 상황을 보고, 작업을 안전하게 주고받게 해줍니다. 실제 Pull Request 5건이 24시간 동안 무오류로 통과했어요.">Multiple AI agents talking in real time + shared dashboard + safe handoffs. Five real PRs in 24h, zero mistakes.</p>
+          <p data-aud="dev" data-en="A live multi-agent orchestration layer built on a WebSocket server, agent-to-agent (A2A) messaging, a shared live dashboard, and an MCP integration that lets Claude Code sessions join as first-class participants. A continuous 24-hour dogfood run completed five end-to-end A2A pull requests (totalling 415 hub-mirror insertions) with zero redaction violations and zero merge failures, validating two distinct merge paths — the canonical PR_LIVE chain and the Manual fast-path. v2.3.20+ ships the Hyperbrief decision-delegation A2A-intent family (§13.16.9: DECISION_REQUEST / DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING / HyperbriefCard, 5 names + ack_tier='decided' application-tier extension). The v2.4.24–46 wave added a backends.json backend registry + board-worker projection, an installable PWA with two-tier notifications (Web Push, dependency-free VAPID), per-surface access control (IP allowlists + CIDR + exposure toggle), a wiki cross-link side panel, ack ✓ annotations on origin lines, and echo-mode (§13.26) — a three-level local↔board chat mirror that turns the board into a remote-control surface." data-ko="WebSocket 서버, agent-to-agent(A2A) 메시징, 공유 라이브 대시보드, 그리고 Claude Code 세션을 정식 참여자로 합류시키는 MCP 통합으로 구성된 실시간 multi-agent 오케스트레이션 계층입니다. 24시간 연속 dogfood에서는 5건의 종단 간 A2A pull request(총 415건의 hub mirror insertion)가 redaction 위반 0건 · 머지 실패 0건으로 통과되었으며, 이를 통해 canonical PR_LIVE chain과 Manual fast-path의 두 개 머지 경로가 검증되었습니다. v2.3.20+에서 Hyperbrief 결정 위임 A2A-intent family(§13.16.9: DECISION_REQUEST/RESPONSE/DEFER/REJECT_FRAMING + HyperbriefCard 5 name + ack_tier='decided' application-tier 확장) ship. 이후 v2.4.24–46 파동에서 backends.json 백엔드 레지스트리 + board-worker projection, 설치형 PWA + 2-tier 알림(Web Push, deps-0 VAPID), 표면별 접속 제어(IP allowlist + CIDR + 노출 토글), 위키 cross-link 사이드 패널, 원 요청 줄 ack ✓ 표시, echo-mode(§13.26 — 로컬↔보드 3-레벨 대화 미러) 가 추가됐습니다.">Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP. 24h dogfood: 5 e2e PRs, 0 violations. + v2.4.24–46: PWA/Web Push, access control, wiki side panel, ack ✓, echo-mode.</p>
+          <a class="card-link" href="constellation.html" data-en="Read the protocol →" data-ko="프로토콜 보기 →">Read the protocol →</a>
+        </div>
+
+        <div class="card">
+          <div class="module-tag">MODULE · v0.2.7</div>
+          <h3>Compendium</h3>
+          <p data-aud="general" data-en="A portable vocabulary discipline for the whole seed — it works on top of any note vault (Obsidian, a plain markdown folder, or the built-in wiki page, which is just one optional viewer). Every term shows up in two registers at once — the internal name the modules use, and a plain-language equivalent — and any term is click-to-define with cross-links to wherever it's actually specified. It owns no rules of its own; it just points at the module specs that do." data-ko="시드 전체의 용어를 돌보는, 들고 다닐 수 있는 규율이에요 — 어떤 노트 보관함(옵시디언, 일반 마크다운 폴더, 내장 위키 페이지) 위에서든 동작하고, 내장 위키는 여러 뷰어 중 하나일 뿐이에요. 모든 용어가 두 가지 표기로 동시에 보여요 — 모듈이 쓰는 내부 이름과, 평이한 일반 용어 — 그리고 어떤 용어든 클릭하면 정의가 뜨고, 그 용어가 실제로 정의된 곳으로 교차 링크돼요. 자체 규칙은 없어요; 규칙을 가진 모듈 스펙을 가리킬 뿐이에요.">A portable vocabulary discipline over any vault + dual-register glossary (internal ↔ general term) with click-to-define cross-links. Owns nothing normative — it points into the module specs.</p>
+          <p data-aud="dev" data-en="A concept-anchored dual-register vocabulary substrate: a wiki + glossary that maps every internal term to a general-register equivalent, with cross-link / click-to-define navigation across the seed. It owns nothing normative — entries are pointers into the authoritative module specs rather than restatements. The north-star axis-2 (concept-survival > code-survival) vocabulary-substrate module: the layer most likely to outlive any single runtime implementation." data-ko="개념 앵커 dual-register 어휘 substrate: 모든 내부 용어를 일반 표기 등가물에 매핑하는 위키 + 용어집으로, 시드 전반에 cross-link / click-to-define 네비게이션 제공. 자체 normative 소유 없음 — entry 는 권위 있는 모듈 스펙의 재진술이 아니라 그 스펙으로의 포인터. north-star axis-2 (개념 생존 > 코드 생존) vocabulary-substrate 모듈: 어느 단일 런타임 구현보다도 오래 남을 가능성이 가장 큰 레이어.">Concept-anchored dual-register vocabulary substrate: wiki + glossary mapping internal ↔ general term, cross-link / click-to-define. Owns nothing normative (pointers into module specs). The north-star axis-2 vocabulary-substrate module.</p>
+          <a class="card-link" href="compendium.html" data-en="Read the module →" data-ko="모듈 보기 →">Read the module →</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="skills">
+      <h2 data-aud="general" data-en="The skills — what you can actually call" data-ko="스킬 — 실제로 부를 수 있는 것들">The skills — what you can actually call</h2>
+      <h2 data-aud="dev" data-en="Agent Skills — the full roster (33)" data-ko="Agent Skills — 전체 로스터 (33)">Agent Skills — the full roster (33)</h2>
+      <p data-aud="general" data-en="A skill is a small procedure document the agent reads and follows. Some you call yourself by typing a slash command (like /egboot); others the agent invokes on its own when the situation calls for it; the security ones are dispatched in parallel by a coordinator. Below is everything the seven plugins bring — grouped by plugin." data-ko="스킬은 에이전트가 읽고 따르는 작은 절차 문서예요. 어떤 건 슬래시 명령(/egboot 처럼)으로 직접 부르고, 어떤 건 에이전트가 상황을 보고 스스로 부르고, 보안 스킬들은 코디네이터가 병렬로 배치해요. 아래는 일곱 플러그인이 싣고 오는 전부예요 — 플러그인별로 묶었어요.">A skill is a small procedure document the agent reads and follows. Below is everything the seven plugins bring, grouped by plugin.</p>
+      <p data-aud="dev" data-en="36 SKILL.md files across the 7 plugins, three invocation kinds: user slash commands (/egboot, /boardsweep, /routinize…), model-invoked (the agent triggers them on its own — hyperbrief-trigger-check before any decision-ask, superscalar before any fan-out), and orchestrator-dispatched (the 8 Ultrasafe attacker roles). The kit's five short names are pointer aliases, not copies — each reads its canonical sibling, so two names cannot drift. The same files project onto Codex via the adapter." data-ko="7개 plugin 에 걸친 36개 SKILL.md, 호출 방식 3종: 사용자 슬래시 명령 (/egboot, /boardsweep, /routinize…), model-invoked (에이전트가 스스로 트리거 — 결정 질문 전 hyperbrief-trigger-check, fan-out 전 superscalar), orchestrator-dispatched (Ultrasafe 공격자 role 8종). 킷의 짧은 이름 5종은 복사본이 아닌 pointer alias — 각자 canonical 형제를 읽으므로 두 이름이 drift 할 수 없음. 같은 파일이 어댑터로 Codex 에도 project 됨.">36 SKILL.md files across the 7 plugins, three invocation kinds: user slash commands, model-invoked, and orchestrator-dispatched. The same files project onto Codex via the adapter.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3>estregenesis <span class="module-tag" data-en="6 procedures + 5 aliases" data-ko="절차 6종 + 별칭 5종">6 procedures + 5 aliases</span></h3>
+          <ul>
+            <li data-en-html="&lt;code&gt;/eg-bootstrap&lt;/code&gt; (alias &lt;code&gt;/egboot&lt;/code&gt;) — set a new project up on the EG standard: pick the seed tier, install it as the charter, run bootstrap." data-ko-html="&lt;code&gt;/eg-bootstrap&lt;/code&gt; (별칭 &lt;code&gt;/egboot&lt;/code&gt;) — 새 프로젝트를 EG 표준에: 시드 티어 선택, 헌장으로 설치, 부트스트랩 실행."><code>/eg-bootstrap</code> (alias <code>/egboot</code>) — set a new project up on the EG standard.</li>
+            <li data-en-html="&lt;code&gt;/eg-migration&lt;/code&gt; (alias &lt;code&gt;/egmig&lt;/code&gt;) — move a project that already has its own rule files: every rule promoted or dropped with its reason recorded." data-ko-html="&lt;code&gt;/eg-migration&lt;/code&gt; (별칭 &lt;code&gt;/egmig&lt;/code&gt;) — 자기 룰 파일이 있는 기존 프로젝트 이식: 모든 룰을 승격하거나 사유와 함께 폐기."><code>/eg-migration</code> (alias <code>/egmig</code>) — move a project that already has its own rule files.</li>
+            <li data-en-html="&lt;code&gt;/eg-upgrade&lt;/code&gt; (alias &lt;code&gt;/egup&lt;/code&gt;) — bring a seeded project to the current release: additive numbered delta menu, local edits win, plugins refreshed." data-ko-html="&lt;code&gt;/eg-upgrade&lt;/code&gt; (별칭 &lt;code&gt;/egup&lt;/code&gt;) — 시드 적용 프로젝트를 현행 릴리스로: 가산형 번호 델타 메뉴, 로컬 편집 우선, 플러그인 갱신."><code>/eg-upgrade</code> (alias <code>/egup</code>) — bring a seeded project to the current release.</li>
+            <li data-en-html="&lt;code&gt;/eg-memsync&lt;/code&gt; (alias &lt;code&gt;/egmem&lt;/code&gt;) — reconcile agent memory with the governance docs: fix whichever side went stale, promote durable policy into the docs." data-ko-html="&lt;code&gt;/eg-memsync&lt;/code&gt; (별칭 &lt;code&gt;/egmem&lt;/code&gt;) — 에이전트 메모리 ↔ 거버넌스 문서 정합: 낡은 쪽을 고치고, 영구 규칙은 문서로 승격."><code>/eg-memsync</code> (alias <code>/egmem</code>) — reconcile agent memory with the governance docs.</li>
+            <li data-en-html="&lt;code&gt;/egrich&lt;/code&gt; — full arm: the seed plus all six modules, plugins, hooks and MCP servers, wired and verified — cost stated up front." data-ko-html="&lt;code&gt;/egrich&lt;/code&gt; — 풀 무장: 시드 + 6개 모듈 전부 (플러그인·훅·MCP 서버) 배선·검증 — 비용 선고지."><code>/egrich</code> — full arm: the seed plus all six modules, wired and verified.</li>
+            <li data-en-html="&lt;code&gt;/eg-interview&lt;/code&gt; (alias &lt;code&gt;/eggrill&lt;/code&gt;) — interview a vague or high-stakes request into a delegable brief: purpose, constraints, success criteria, assumptions — before decomposing or delegating." data-ko-html="&lt;code&gt;/eg-interview&lt;/code&gt; (별칭 &lt;code&gt;/eggrill&lt;/code&gt;) — 모호하거나 판이 큰 요청을 캐물어 위임 가능한 브리프로: 취지·제약·성공 기준·가정 — 분해·위임 전에."><code>/eg-interview</code> (alias <code>/eggrill</code>) — interview a request into a delegable brief.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>constellation <span class="module-tag" data-en="9 skills" data-ko="스킬 9종">9 skills</span></h3>
+          <ul>
+            <li data-en-html="&lt;code&gt;/roundtable&lt;/code&gt; — conduct discipline for multi-party topic rooms: silence-as-default gating, response obligations, floor bids, fixed catch-up order." data-ko-html="&lt;code&gt;/roundtable&lt;/code&gt; — 다자간 topic room 대화 규율: 침묵 기본값 게이팅·지목 응답 의무·발언권 bid·고정 catch-up 순서."><code>/roundtable</code> — conduct discipline for multi-party topic rooms.</li>
+            <li data-en-html="&lt;code&gt;/boardsweep&lt;/code&gt; — true-up every agent-authored board entry against real repo history; retrospective accuracy only." data-ko-html="&lt;code&gt;/boardsweep&lt;/code&gt; — 에이전트가 작성한 모든 보드 항목을 저장소 실재와 대조해 정합; 회고 방향 전담."><code>/boardsweep</code> — true-up every agent-authored board entry against real repo history.</li>
+            <li data-en-html="&lt;code&gt;/roundnext&lt;/code&gt; — one what-next round: start ripe items, re-verify blockers, scan for new work, route human calls to the decisions panel." data-ko-html="&lt;code&gt;/roundnext&lt;/code&gt; — '다음에 뭘 하나' 1라운드: 익은 항목 시작, 블로커 재검증, 신규 작업 스캔, 사람 판단은 결정 패널로."><code>/roundnext</code> — one what-next round over the live board.</li>
+            <li data-en-html="&lt;code&gt;/drillnow&lt;/code&gt; — attack the top blocker right now; depth counterpart to /roundnext." data-ko-html="&lt;code&gt;/drillnow&lt;/code&gt; — 최상위 블로커를 지금 공략; /roundnext 의 깊이 방향 짝."><code>/drillnow</code> — attack the top blocker right now.</li>
+            <li data-en-html="&lt;code&gt;/before-compact&lt;/code&gt; — materialize volatile session details into a handoff file before context compaction." data-ko-html="&lt;code&gt;/before-compact&lt;/code&gt; — 컨텍스트 압축 전 휘발 디테일을 핸드오프 파일로 물질화."><code>/before-compact</code> — materialize volatile session details before compaction.</li>
+            <li data-en-html="&lt;code&gt;/echo-mode&lt;/code&gt; — mirror an agent's local chat onto its board channel so a human at the board can watch and drive it." data-ko-html="&lt;code&gt;/echo-mode&lt;/code&gt; — 로컬 대화를 보드 채널로 미러링 — 보드에서 지켜보고 조종까지."><code>/echo-mode</code> — mirror local chat onto the board channel.</li>
+            <li data-en-html="&lt;code&gt;/constellation-start&lt;/code&gt; — start the live board: WebSocket server + local bridge (user command, never model-invoked)." data-ko-html="&lt;code&gt;/constellation-start&lt;/code&gt; — 라이브보드 기동: WebSocket 서버 + 로컬 브릿지 (사용자 명령 전용)."><code>/constellation-start</code> — start the live board (user command).</li>
+            <li data-en-html="&lt;code&gt;constellation-board&lt;/code&gt; (model-invoked) — read live board state: channels, agents, tracks, decisions, history." data-ko-html="&lt;code&gt;constellation-board&lt;/code&gt; (model-invoked) — 보드 상태 읽기: 채널·에이전트·트랙·결정·이력."><code>constellation-board</code> (model-invoked) — read live board state.</li>
+            <li data-en-html="&lt;code&gt;constellation-a2a-emit&lt;/code&gt; (model-invoked) — send a targeted agent-to-agent message with pre-send probe and ack-tier handling." data-ko-html="&lt;code&gt;constellation-a2a-emit&lt;/code&gt; (model-invoked) — 대상 지정 A2A 발신 — pre-send probe 와 ack 티어 준수."><code>constellation-a2a-emit</code> (model-invoked) — send a targeted A2A message.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>hyperbrief <span class="module-tag" data-en="3 skills, model-invoked" data-ko="스킬 3종, model-invoked">3 skills, model-invoked</span></h3>
+          <ul>
+            <li data-en-html="&lt;code&gt;hyperbrief-trigger-check&lt;/code&gt; — cheap rubric run before asking the user any decision: decide-alone / full brief / minimal brief / block." data-ko-html="&lt;code&gt;hyperbrief-trigger-check&lt;/code&gt; — 사용자에게 결정을 묻기 전 저비용 rubric: 자율 결정 / 풀 브리프 / 미니 브리프 / 차단."><code>hyperbrief-trigger-check</code> — cheap rubric before any decision-ask.</li>
+            <li data-en-html="&lt;code&gt;hyperbrief&lt;/code&gt; — generate the structured decision-delegation brief (9-section JSON IR + deterministic render) and emit it to the board." data-ko-html="&lt;code&gt;hyperbrief&lt;/code&gt; — 구조화 결정 위임 브리프 (9-section JSON IR + 결정론 렌더) 생성 + 보드 발행."><code>hyperbrief</code> — generate the decision-delegation brief.</li>
+            <li data-en-html="&lt;code&gt;hyperbrief-revisit&lt;/code&gt; — revisit a stored decision when its review date or a violated assumption fires; record the actual outcome." data-ko-html="&lt;code&gt;hyperbrief-revisit&lt;/code&gt; — 재검토일 도래·가정 붕괴 시 저장된 결정 회고; 실제 결과 기록."><code>hyperbrief-revisit</code> — revisit a stored decision and record the outcome.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>superscalar <span class="module-tag" data-en="2 skills" data-ko="스킬 2종">2 skills</span></h3>
+          <ul>
+            <li data-en-html="&lt;code&gt;superscalar&lt;/code&gt; — consulted before any parallel sub-agent dispatch: bound concurrency, gate spawns by cost-benefit, retire-gate risky writes." data-ko-html="&lt;code&gt;superscalar&lt;/code&gt; — 병렬 sub-agent 디스패치 전 상담: 동시성 상한, 비용-편익 spawn 게이트, 위험 쓰기 retire 게이트."><code>superscalar</code> — consulted before any parallel sub-agent dispatch.</li>
+            <li data-en-html="&lt;code&gt;/subscaler&lt;/code&gt; — toggle tiered model composition: a frontier main delegates execution-shaped work to a cheaper tier (§5.1), marker-file single source of truth." data-ko-html="&lt;code&gt;/subscaler&lt;/code&gt; — 티어 모델 조합 토글: frontier main 이 실행-형 작업을 저렴한 티어에 위임(§5.1), 마커 파일 단일 SSoT."><code>/subscaler</code> — toggle tiered model composition.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>greatpractice <span class="module-tag" data-en="1 skill" data-ko="스킬 1종">1 skill</span></h3>
+          <ul>
+            <li data-en-html="&lt;code&gt;/routinize&lt;/code&gt; — capture a recurring work pattern into durable practice memory; promotion to an enforced rule stays user-gated." data-ko-html="&lt;code&gt;/routinize&lt;/code&gt; — 반복 작업 패턴을 durable 관행 메모리로 포착; 강제 규칙 승격은 사용자 게이트."><code>/routinize</code> — capture a recurring work pattern into durable practice.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>ultrasafe <span class="module-tag" data-en="8 skills, orchestrator-dispatched" data-ko="스킬 8종, orchestrator-dispatched">8 skills, orchestrator-dispatched</span></h3>
+          <p data-aud="general" data-en="Seven attacker perspectives that probe a release in parallel, plus one synthesizer that merges their findings — you don't call these directly; the pre-release fan-out dispatches them." data-ko="릴리스를 병렬로 찔러보는 공격자 관점 일곱에, 발견을 합치는 synthesizer 하나 — 직접 부르는 게 아니라 출시 전 fan-out 이 배치해요.">Seven attacker perspectives probing a release in parallel, plus one synthesizer merging their findings.</p>
+          <ul>
+            <li data-en-html="&lt;code&gt;ai-llm-redteam&lt;/code&gt; · &lt;code&gt;web-api-attacker&lt;/code&gt; · &lt;code&gt;supply-chain-auditor&lt;/code&gt; · &lt;code&gt;crypto-reviewer&lt;/code&gt; — prompt injection/jailbreaks · OWASP/auth/injection · SBOM/CVE/provenance · keys/randomness/TLS." data-ko-html="&lt;code&gt;ai-llm-redteam&lt;/code&gt; · &lt;code&gt;web-api-attacker&lt;/code&gt; · &lt;code&gt;supply-chain-auditor&lt;/code&gt; · &lt;code&gt;crypto-reviewer&lt;/code&gt; — 프롬프트 주입/탈옥 · OWASP/인증/인젝션 · SBOM/CVE/출처 · 키/난수/TLS."><code>ai-llm-redteam</code> · <code>web-api-attacker</code> · <code>supply-chain-auditor</code> · <code>crypto-reviewer</code></li>
+            <li data-en-html="&lt;code&gt;social-engineer&lt;/code&gt; · &lt;code&gt;methodology-compliance&lt;/code&gt; · &lt;code&gt;threat-model-lifecycle&lt;/code&gt; — human-factor risk · coverage vs six compliance catalogs · threat modeling + disclosure timing." data-ko-html="&lt;code&gt;social-engineer&lt;/code&gt; · &lt;code&gt;methodology-compliance&lt;/code&gt; · &lt;code&gt;threat-model-lifecycle&lt;/code&gt; — 인적 요인 리스크 · 6개 컴플라이언스 카탈로그 대비 커버리지 · 위협 모델링 + 공개 타이밍."><code>social-engineer</code> · <code>methodology-compliance</code> · <code>threat-model-lifecycle</code></li>
+            <li data-en-html="&lt;code&gt;synthesizer&lt;/code&gt; — aggregates all seven attackers' findings with quorum checks into one synthesis report at fan-out end. Advisory in v0.2.x — never blocks a publish." data-ko-html="&lt;code&gt;synthesizer&lt;/code&gt; — fan-out 종료 시 일곱 공격자의 발견을 quorum 검증과 함께 하나의 합성 보고서로. v0.2.x 는 advisory — 출시를 막지 않음."><code>synthesizer</code> — aggregates all seven attackers' findings. Advisory in v0.2.x.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>compendium <span class="module-tag" data-en="2 skills, cross-tool" data-ko="스킬 2종, cross-tool">2 skills, cross-tool</span></h3>
+          <ul>
+            <li data-en-html="&lt;code&gt;compendium-curate&lt;/code&gt; — add or maintain a vocabulary entry: one definition, dual-register glosses, a pointer to the owning spec instead of a copy." data-ko-html="&lt;code&gt;compendium-curate&lt;/code&gt; — 어휘 항목 작성/유지: 정의 하나, 이중 눈높이 gloss, 복사 대신 owning spec 포인터."><code>compendium-curate</code> — add or maintain a vocabulary entry.</li>
+            <li data-en-html="&lt;code&gt;compendium-lint&lt;/code&gt; — health-check the vocabulary store before commit or release: pointer integrity, register discipline, gardening checks." data-ko-html="&lt;code&gt;compendium-lint&lt;/code&gt; — 커밋·릴리스 전 어휘 store 건강검진: 포인터 무결성, register 규율, 가드닝 검사."><code>compendium-lint</code> — health-check the vocabulary store.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>EstreGenesis · Apache-2.0 · <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank">github.com/SoliEstre/EstreGenesis</a></p>
+    <div class="footer-style"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
+  </footer>
+
+  <script src="shared/data.js"></script>
+  <script src="shared/i18n.js"></script>
+  <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
+</body>
+</html>

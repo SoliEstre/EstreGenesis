@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EstreGenesis — Docs: intro · install · usage</title>
+  <meta name="description" content="Introduction, two-step plugin install, per-environment usage, and initial dogfood evidence for the EstreGenesis agentic-coding seed.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="shared/shared.css">
+  <link rel="stylesheet" href="shared/themes.css">
+  <script>
+    (function () {
+      var html = document.documentElement;
+      // Audience — set synchronously before body parsing so the CSS hide-non-matching
+      // rule applies from the first paint (no flash of all 3 tier variants).
+      var levels = ['general', 'dev', 'expert'];
+      var aud = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(aud) === -1) aud = 'general';
+      html.setAttribute('data-audience', aud);
+      // Language — set <html lang="..."> early so Chrome/Edge/Safari see the
+      // correct page language from the start and do NOT offer to machine-translate
+      // a page that is already in the user's language. Mirrors i18n.js's
+      // detectBrowserLang() + getLang() logic.
+      var langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages
+        : [navigator.language || navigator.userLanguage || ''];
+      var detected = 'en';
+      for (var i = 0; i < langs.length; i++) {
+        if (typeof langs[i] === 'string' && langs[i].toLowerCase().indexOf('ko') === 0) { detected = 'ko'; break; }
+      }
+      var lang = localStorage.getItem('eg-promo-lang') || detected;
+      html.setAttribute('lang', lang);
+    })();
+  </script>
+  <script src="shared/copy.js" defer></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
+      <nav class="nav">
+        <a href="index.html" data-en="Home" data-ko="홈">Home</a>
+        <a href="docs.html" class="active" data-en="Docs" data-ko="문서">Docs</a>
+        <a href="modules.html" data-en="Modules" data-ko="모듈">Modules</a>
+        <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <div class="controls">
+        <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
+        <div class="control-group"><span class="control-label" data-en="Level" data-ko="레벨">Level</span><div class="aud-toggle"><button data-aud-btn="general" data-en="general" data-ko="일반">general</button><button data-aud-btn="dev" data-en="dev" data-ko="개발">dev</button></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section>
+      <h2 data-en="What's in the seed" data-ko="시드 구성">What's in the seed</h2>
+      <p data-aud="general" data-en="Think of it as a battle-tested checklist for working with AI coding tools. When a team built two real products using AI assistants every day, certain patterns kept reappearing — what to set up first, how to keep multiple AI agents from stepping on each other, how to make sure work doesn't get lost. EstreGenesis packages those patterns so you don't have to rediscover them." data-ko="AI 코딩 도구로 일하는 팀을 위한, 실전 검증된 체크리스트라고 보시면 돼요. 두 개의 실제 프로덕트를 매일 AI 보조로 만들다 보니 같은 패턴이 반복적으로 나오더라고요 — 무엇을 먼저 설정해야 하는지, AI 에이전트 여럿이 서로 부딪히지 않으려면 어떻게 해야 하는지, 작업이 사라지지 않게 하려면 어떻게 해야 하는지. EstreGenesis는 그 패턴들을 모아둔 거예요. 같은 시행착오를 다시 겪지 않으셔도 됩니다.">Think of it as a battle-tested checklist for working with AI coding tools.</p>
+      <p data-aud="dev" data-en="EstreGenesis is a portable bootstrap for AI-assisted development. It ships as six seed tiers (Master, Lite, and Compact, each in English and Korean) covering Phase 0 environment setup, AGENTS.md scaffolding, multi-agent coordination patterns, and references to the six optional graduated modules — Constellation · Superscalar · Hyperbrief · Greatpractice · Ultrasafe · Compendium. The intended workflow is straightforward: drop the appropriate seed into a project, let the AI coding agent read it once, and the rest of the development workflow inherits the patterns without further configuration." data-ko="EstreGenesis는 AI 보조 개발을 위한 portable bootstrap입니다. Master · Lite · Compact 3단계 × 영문 · 국문 2개 언어로 구성된 6-tier 시드로 배포되며, Phase 0 환경 설정과 AGENTS.md 스캐폴드, 다중 에이전트 조정 패턴, 그리고 여섯 개의 선택 모듈(Constellation · Superscalar · Hyperbrief · Greatpractice · Ultrasafe · Compendium)에 대한 참조를 포함합니다. 사용 흐름은 단순합니다. 프로젝트에 적절한 tier의 시드를 배치하면, AI 코딩 에이전트가 이를 한 번 읽는 것만으로 이후의 개발 워크플로우가 별도 설정 없이 해당 패턴을 따르게 됩니다.">A portable bootstrap for AI-assisted development. Six seed tiers cover Phase 0 setup, AGENTS.md scaffolding, coordination patterns, references to six optional modules.</p>
+    </section>
+
+    <section id="install">
+      <h2 data-aud="general" data-en="Install — Register the marketplace, then install plugins" data-ko="설치 — 마켓플레이스를 등록하고 플러그인을 설치하세요">Install — Register the marketplace, then install plugins</h2>
+      <h2 data-aud="dev" data-en="Install — Marketplace registration + plugin install" data-ko="설치 — 마켓플레이스 등록 + 플러그인 설치">Install — Marketplace registration + plugin install</h2>
+      <p data-aud="general" data-en="EstreGenesis ships as seven Claude Code plugins — a kit plugin that installs EstreGenesis itself, plus six optional modules. Two steps:" data-ko="EstreGenesis 는 Claude Code 플러그인 일곱 개예요 — EstreGenesis 자체를 설치해주는 킷 하나 + 선택 모듈 여섯 개. 두 단계예요.">EstreGenesis ships as seven Claude Code plugins — a kit plugin that installs EstreGenesis itself, plus six optional modules. Two steps:</p>
+      <p data-aud="dev" data-en="EstreGenesis ships as seven independent Claude Code plugins published through a single marketplace: the `estregenesis` kit (bootstrap / migrate / upgrade / memory-docs sync / full-arm) + six optional modules. Two-step install:" data-ko="EstreGenesis 는 단일 마켓플레이스를 통해 게시되는 7개 독립 Claude Code 플러그인으로 ship됩니다: `estregenesis` 킷(부트스트랩 / 마이그레이션 / 업그레이드 / 메모리-문서 정합 / 풀무장) + 선택 모듈 6개. 2단계 install:">EstreGenesis ships as seven independent Claude Code plugins published through a single marketplace: the `estregenesis` kit + six optional modules. Two-step install:</p>
+      <p data-aud="general" data-en="(A) register the marketplace once, then (B) install the plugins you want from the cards below." data-ko="(A) 한 번만 마켓플레이스를 등록하고, (B) 아래 카드에서 원하는 플러그인을 설치하세요.">(A) register the marketplace once, then (B) install the plugins you want from the cards below.</p>
+      <p data-aud="dev" data-en="(A) one-time marketplace registration (idempotent — re-running is safe), then (B) per-plugin install commands from the cards below. Plugins are independent — install any subset." data-ko="(A) 1회성 마켓플레이스 등록 (idempotent — 재실행 안전), 그리고 (B) 아래 카드의 plugin별 install 명령. 플러그인은 독립적 — 임의 subset 설치 가능.">(A) one-time marketplace registration (idempotent — re-running is safe), then (B) per-plugin install commands. Plugins are independent — install any subset.</p>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">A</span>
+          <span class="step-title" data-en="Register the marketplace (one time)" data-ko="마켓플레이스 등록 (한 번만)">Register the marketplace (one time)</span>
+        </div>
+        <p class="step-desc" data-aud="general" data-en="Run this once in Claude Code to tell it where the EstreGenesis plugins live." data-ko="Claude Code 안에서 한 번만 실행하세요. EstreGenesis 플러그인이 어디 있는지 알려주는 명령이에요.">Run this once in Claude Code to tell it where the EstreGenesis plugins live.</p>
+        <p class="step-desc" data-aud="dev" data-en="Run once in Claude Code (CLI or VS Code extension chat) to register the marketplace source. The `SoliEstre/EstreGenesis` shorthand resolves to the GitHub repo's marketplace manifest." data-ko="Claude Code (CLI 또는 VS Code extension chat) 에서 한 번 실행해서 마켓플레이스 source 등록. `SoliEstre/EstreGenesis` shorthand 는 GitHub repo 의 마켓플레이스 매니페스트로 resolve.">Run once in Claude Code to register the marketplace source. The shorthand resolves to the repo's marketplace manifest.</p>
+        <div class="cmd-row">
+          <pre><code data-en="/plugin marketplace add SoliEstre/EstreGenesis" data-ko="/plugin marketplace add SoliEstre/EstreGenesis">/plugin marketplace add SoliEstre/EstreGenesis</code></pre>
+          <button class="copy-btn" type="button" data-en="Copy" data-ko="복사" data-copied-label="✓ Copied">Copy</button>
+        </div>
+      </div>
+
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">B</span>
+          <span class="step-title" data-en="Install the plugins you want" data-ko="원하는 플러그인 설치">Install the plugins you want</span>
+        </div>
+        <p class="step-desc" data-aud="general" data-en="Start with the first card (the kit) — it installs EstreGenesis itself and gives you the /egboot command. Then pick any of the module cards. You can install just one, all of them, or any mix." data-ko="첫 카드(킷)부터 시작하세요 — EstreGenesis 자체를 설치해서 /egboot 명령을 쓸 수 있게 해줘요. 그 다음 원하는 모듈 카드를 고르세요. 하나만, 전부, 또는 원하는 조합으로 설치할 수 있어요.">Start with the first card (the kit) — it installs EstreGenesis itself and gives you the /egboot command. Then pick any of the module cards.</p>
+        <p class="step-desc" data-aud="dev" data-en="Copy any install command from the seven plugin cards below. Each plugin is independent — no inter-plugin dependencies, so any subset is a valid install set. The `estregenesis` kit is the recommended first install: it ships /egboot · /egmig · /egup · /egmem · /egrich, which fetch and run the seed for you." data-ko="아래 7개 plugin 카드 중 install 명령 복사. 각 plugin 은 독립 — plugin 간 의존성 없음, 임의 subset 이 유효한 install set. `estregenesis` 킷을 먼저 설치하는 걸 권장: /egboot · /egmig · /egup · /egmem · /egrich 를 제공해 시드를 알아서 가져와 실행해줍니다.">Copy any install command from the seven cards below. Each plugin is independent. The `estregenesis` kit is the recommended first install: /egboot · /egmig · /egup · /egmem · /egrich fetch and run the seed for you.</p>
+      </div>
+
+      <h3 data-en="Available plugins" data-ko="사용 가능한 플러그인">Available plugins</h3>
+      <div class="plugin-cards">
+        <div class="plugin-card">
+          <h4>EstreGenesis (kit)</h4>
+          <p data-aud="general" data-en="EstreGenesis itself, as commands. Instead of finding a file on GitHub and copy-pasting it, you type /egboot and the agent fetches the right starter document and sets your project up." data-ko="EstreGenesis 자체를 명령으로. 깃허브에서 파일을 찾아 복사·붙여넣기 하는 대신, /egboot 만 치면 에이전트가 알맞은 출발 문서를 가져와 프로젝트를 세팅해줘요.">EstreGenesis itself, as commands. Type /egboot and the agent fetches the right starter document and sets your project up — no copy-pasting a URL.</p>
+          <p data-aud="dev" data-en="The kit plugin: 6 procedures — /egboot (new project: pick seed tier, install as .agent/seed_prompt.md, run Bootstrap mode) · /egmig (existing rule files: audit, classify M1/M3, run Migration A or C) · /egup (seeded: read the version marker, diff the upstream CHANGELOG, additive numbered delta menu, refresh plugins) · /egmem (reconcile agent memory with the governance docs: five drift kinds both ways, dated memory beats undated prose, memory-only durables promoted into the docs) · /eg-interview (interview-strategy intake: press a vague request into a delegable brief before delegating) · /egrich (full arm). Seed URLs are baked in; the seed is fetched and run, never restated." data-ko="킷 플러그인: 절차 6종 — /egboot (신규: 시드 티어 선택 → .agent/seed_prompt.md 설치 → Bootstrap 모드 실행) · /egmig (기존 룰 파일: 감사 → M1/M3 분류 → Migration A 또는 C) · /egup (시드 적용됨: 버전 마커 읽기 → 업스트림 CHANGELOG diff → 가산형 번호 델타 메뉴 → 플러그인 갱신) · /egmem (에이전트 메모리 ↔ 거버넌스 문서 정합: 드리프트 5종 양방향 검출, 날짜 있는 메모리가 날짜 없는 산문에 우선, 메모리에만 있는 영구 규칙은 문서로 승격) · /eg-interview (인터뷰-전략 인테이크: 모호한 요청을 위임 전에 브리프로 압착) · /egrich (풀 무장). 시드 URL 이 내장 — 시드를 가져와 실행하지, 재진술하지 않음.">6 procedures: /egboot (new) · /egmig (existing rule files) · /egup (seeded — seed + plugin delta) · /egmem (memory ↔ docs true-up) · /eg-interview (intake brief) · /egrich (full arm). Seed URLs baked in; the seed is fetched and run, never restated.</p>
+          <div class="plugin-cmd-row">
+            <code data-en="/plugin install estregenesis@estregenesis-plugins" data-ko="/plugin install estregenesis@estregenesis-plugins">/plugin install estregenesis@estregenesis-plugins</code>
+            <button class="copy-btn" type="button" data-en="Copy" data-ko="복사">Copy</button>
+          </div>
+          <p class="note" data-en="No extra libraries needed · Start here" data-ko="별도 라이브러리 필요 없음 · 여기서 시작">No extra libraries needed · Start here</p>
+        </div>
+
+        <div class="plugin-card">
+          <h4>Superscalar</h4>
+          <p data-aud="general" data-en="Rules for running many AI agents in parallel without losing consistency." data-ko="여러 AI 에이전트를 동시에 돌릴 때 일관성을 잃지 않게 해주는 규칙집이에요.">Rules for running many AI agents in parallel without losing consistency.</p>
+          <p data-aud="dev" data-en="Execution-scheduling discipline for parallel sub-agent dispatch: issue_width bound + worktree isolation + in-order retire + consistency gate." data-ko="병렬 sub-agent dispatch 를 위한 실행 스케줄링 규율: issue_width bound + worktree 격리 + in-order retire + consistency gate.">Execution-scheduling discipline for parallel sub-agent dispatch: issue_width bound + worktree isolation + in-order retire + consistency gate.</p>
+          <div class="plugin-cmd-row">
+            <code data-en="/plugin install superscalar@estregenesis-plugins" data-ko="/plugin install superscalar@estregenesis-plugins">/plugin install superscalar@estregenesis-plugins</code>
+            <button class="copy-btn" type="button" data-en="Copy" data-ko="복사">Copy</button>
+          </div>
+          <p class="note" data-en="No extra libraries needed" data-ko="별도 라이브러리 필요 없음">No extra libraries needed</p>
+        </div>
+
+        <div class="plugin-card">
+          <h4>Hyperbrief</h4>
+          <p data-aud="general" data-en="When an AI asks you to decide, it gives you a one-page summary in a fixed shape (what · why · options · recommendation)." data-ko="AI 가 결정해 달라고 할 때, 정해진 양식의 한 페이지 요약 (무엇 · 왜 · 옵션 · 권장) 을 함께 줘요.">When an AI asks you to decide, it gives you a one-page summary in a fixed shape (what · why · options · recommendation).</p>
+          <p data-aud="dev" data-en="Decision-delegation gating: 4-score trigger rubric + JSON IR + deterministic Node renderer producing MD + interactive HTML. 9-section structure, 3-axis × 5-level tone profile, byte-identical output." data-ko="결정 위임 게이팅: 4-score 트리거 rubric + JSON IR + 결정론적 Node renderer 가 MD + interactive HTML 생성. 9-섹션 구조, 3축 × 5단계 톤 프로파일, byte 일치 출력.">Decision-delegation gating: 4-score trigger rubric + JSON IR + deterministic Node renderer → MD + interactive HTML. 9-section structure, 3-axis × 5-level tone profile, byte-identical output.</p>
+          <div class="plugin-cmd-row">
+            <code data-en="/plugin install hyperbrief@estregenesis-plugins" data-ko="/plugin install hyperbrief@estregenesis-plugins">/plugin install hyperbrief@estregenesis-plugins</code>
+            <button class="copy-btn" type="button" data-en="Copy" data-ko="복사">Copy</button>
+          </div>
+          <p class="note" data-en="Needs: ajv library (one of the standard schema-checking libraries for Node)" data-ko="필요한 것: ajv 라이브러리 (Node 의 표준 데이터 형식 검증 라이브러리 중 하나)">Needs: ajv library (one of the standard schema-checking libraries for Node)</p>
+        </div>
+
+        <div class="plugin-card">
+          <h4>Greatpractice</h4>
+          <p data-aud="general" data-en="Small obligations you keep forgetting (update the docs · check before sending · sync paired files) get turned into auto-enforced rules." data-ko="자꾸 깜빡하는 자잘한 약속들 (문서도 함께 갱신 · 보내기 전 확인 · 짝꿍 파일 동기화) 을 자동 강제 규칙으로 바꿔줘요.">Small obligations you keep forgetting (update the docs · check before sending · sync paired files) get turned into auto-enforced rules.</p>
+          <p data-aud="dev" data-en="Memory-triggered practice codification. memory/feedback_*.md entries pass a 5-axis maturation gate (frequency + depth + recency + cost + predictability), graduate into a 3-tier macro/mezzo/micro hierarchy, and are enforced via 7-event lifecycle hooks (SessionStart / UserPromptSubmit / PreToolUse / PostToolUse / Stop / PostCompact)." data-ko="메모리 기반 관행 codification. memory/feedback_*.md entry 가 5축 maturation gate (frequency + depth + recency + cost + predictability) 통과, macro/mezzo/micro 3-tier 계층으로 graduate, 7-event lifecycle hook (SessionStart / UserPromptSubmit / PreToolUse / PostToolUse / Stop / PostCompact) 으로 강제.">Memory-triggered practice codification. feedback_*.md entries pass a 5-axis maturation gate, graduate into a 3-tier hierarchy, enforced via 7-event lifecycle hooks.</p>
+          <div class="plugin-cmd-row">
+            <code data-en="/plugin install greatpractice@estregenesis-plugins" data-ko="/plugin install greatpractice@estregenesis-plugins">/plugin install greatpractice@estregenesis-plugins</code>
+            <button class="copy-btn" type="button" data-en="Copy" data-ko="복사">Copy</button>
+          </div>
+          <p class="note" data-en="No extra libraries needed · 🐶 Early dogfooding" data-ko="별도 라이브러리 필요 없음 · 🐶 도그푸딩 시작 단계">No extra libraries needed · 🐶 Early dogfooding</p>
+        </div>
+
+        <div class="plugin-card">
+          <h4>Ultrasafe</h4>
+          <p data-aud="general" data-en="Before each release, several AI helpers act like attackers and look for weak spots — at the same time, from different angles." data-ko="새 버전을 내보내기 전, 여러 AI 도우미가 공격자 입장에서 약한 부분을 동시에 다양한 각도에서 찾아봐요.">Before each release, several AI helpers act like attackers and look for weak spots — at the same time, from different angles.</p>
+          <p data-aud="dev" data-en="Pre-release simulated penetration testing. 8-agent parallel red-team fan-out (AI/LLM · Web/API · Supply · Crypto · Social · Method/Comp · TM/Lifecycle · Synthesizer) + GTA/DSP cross-cutting. ≥3 iteration loop with 4-condition AND clean-signal gate. 3-layer synthesis report (OSCAL + Hyperbrief IR + Greatpractice candidate)." data-ko="출시 직전 모의 침투 시험. 8-agent 병렬 red-team fan-out (AI/LLM · Web/API · Supply · Crypto · Social · Method/Comp · TM/Lifecycle · Synthesizer) + GTA/DSP cross-cutting. ≥3 iteration loop + 4-condition AND clean-signal gate. 3-layer 합성 보고서 (OSCAL + Hyperbrief IR + Greatpractice candidate).">Pre-release simulated pentest. 8-agent parallel red-team fan-out + GTA/DSP cross-cutting. ≥3 iteration loop + 4-condition AND clean-signal gate. 3-layer synthesis (OSCAL + Hyperbrief IR + Greatpractice).</p>
+          <div class="plugin-cmd-row">
+            <code data-en="/plugin install ultrasafe@estregenesis-plugins" data-ko="/plugin install ultrasafe@estregenesis-plugins">/plugin install ultrasafe@estregenesis-plugins</code>
+            <button class="copy-btn" type="button" data-en="Copy" data-ko="복사">Copy</button>
+          </div>
+          <p class="note" data-en="No extra libraries needed · 🐶 Early dogfooding" data-ko="별도 라이브러리 필요 없음 · 🐶 도그푸딩 시작 단계">No extra libraries needed · 🐶 Early dogfooding</p>
+        </div>
+
+        <div class="plugin-card">
+          <h4 data-en="Constellation" data-ko="Constellation">Constellation</h4>
+          <p data-aud="general" data-en="Live workspace where multiple AI agents talk to each other in real time." data-ko="여러 AI 에이전트가 실시간으로 서로 이야기하는 공유 작업 공간이에요.">Live workspace where multiple AI agents talk to each other in real time.</p>
+          <p data-aud="dev" data-en="Live multi-agent orchestration: WebSocket server + agent-to-agent (A2A) messaging + shared live dashboard + MCP integration that admits Claude Code sessions as first-class agents. 24h dogfood: 5 e2e PRs, 0 redaction violations, 0 merge failures." data-ko="실시간 multi-agent 오케스트레이션: WebSocket 서버 + agent-to-agent (A2A) 메시징 + 공유 라이브 dashboard + Claude Code 세션을 정식 에이전트로 admit 하는 MCP 통합. 24h dogfood: 5건 e2e PR, redaction 위반 0건, 머지 실패 0건.">Live multi-agent orchestration: WebSocket + A2A + dashboard + MCP. 24h dogfood: 5 e2e PRs, 0 violations.</p>
+          <div class="plugin-cmd-row">
+            <code data-en="/plugin install constellation@estregenesis-plugins" data-ko="/plugin install constellation@estregenesis-plugins">/plugin install constellation@estregenesis-plugins</code>
+            <button class="copy-btn" type="button" data-en="Copy" data-ko="복사">Copy</button>
+          </div>
+          <p class="note" data-en="Needs: ws library (one of the standard WebSocket libraries for Node)" data-ko="필요한 것: ws 라이브러리 (Node 의 표준 WebSocket 라이브러리 중 하나)">Needs: ws library (one of the standard WebSocket libraries for Node)</p>
+        </div>
+
+        <div class="plugin-card">
+          <h4>Compendium</h4>
+          <p data-aud="general" data-en="A shared dictionary for your project: every term gets one definition, in both plain and expert language, that always points back to the document that owns it." data-ko="프로젝트의 공용 사전이에요: 모든 용어가 하나의 정의를 갖고, 평이한 말과 전문가 말 두 눈높이로, 그 용어를 정의하는 원본 문서를 항상 가리켜요.">A shared dictionary for your project: one definition per term, plain and expert registers, always pointing back to the owning document.</p>
+          <p data-aud="dev" data-en="Controlled-vocabulary layer over plain markdown+frontmatter: dual-register glossary (plain + expert gloss per term), pointer-not-paraphrase authority (entries link to the owning spec instead of duplicating it), 8-tool MCP server (wiki read/search/upsert, term define/promote, lint, backlinks), gardening lint with pointer-resolution checks, and two cross-tool curation skills." data-ko="Plain markdown+frontmatter 위의 controlled-vocabulary 레이어: dual-register 용어집 (용어당 평이 + 전문 gloss), pointer-not-paraphrase 권위 (항목이 정의를 복제하지 않고 owning spec 으로 링크), 8-tool MCP 서버 (wiki read/search/upsert · term define/promote · lint · backlinks), pointer-resolution 검사를 갖춘 가드닝 lint, cross-tool 큐레이션 스킬 2종.">Controlled-vocabulary layer over markdown+frontmatter: dual-register glossary, pointer-not-paraphrase authority, 8-tool MCP server, gardening lint, 2 cross-tool skills.</p>
+          <div class="plugin-cmd-row">
+            <code data-en="/plugin install compendium@estregenesis-plugins" data-ko="/plugin install compendium@estregenesis-plugins">/plugin install compendium@estregenesis-plugins</code>
+            <button class="copy-btn" type="button" data-en="Copy" data-ko="복사">Copy</button>
+          </div>
+          <p class="note" data-en="No extra libraries needed · 🐶 Early dogfooding" data-ko="별도 라이브러리 필요 없음 · 🐶 도그푸딩 시작 단계">No extra libraries needed · 🐶 Early dogfooding</p>
+        </div>
+      </div>
+
+      <p data-aud="general" data-en="All seven plugins work the same way in both Claude Code terminal (CLI) and Claude Code VS Code extension — and they also run on OpenAI Codex through a small included adapter. The environments section below shows where to start in each." data-ko="일곱 플러그인 모두 Claude Code 터미널 (CLI) 과 Claude Code VS Code 확장에서 똑같이 작동해요 — 그리고 동봉된 작은 어댑터로 OpenAI Codex 에서도 돌아가요. 아래 환경 section 이 각 환경에서 어디서 시작하는지 알려줘요.">All seven plugins work the same way in Claude Code CLI and VS Code extension — and also run on OpenAI Codex through a small included adapter. The environments section below shows where to start in each.</p>
+      <p data-aud="dev" data-en="All seven plugins behave identically across the Claude Code CLI and the VS Code extension — same slash commands, same skills, same hooks. The same skills + MCP servers also project onto OpenAI Codex via the bundled codex/ adapter (hooks become a documented manual discipline there). The environments section covers all three entry points." data-ko="일곱 plugin 모두 Claude Code CLI 와 VS Code extension 에서 동일하게 작동 — 동일 slash 명령, 동일 skill, 동일 hook. 같은 skill + MCP 서버는 동봉된 codex/ 어댑터로 OpenAI Codex 에도 project 됨 (hook 은 거기선 문서화된 수동 규율). 환경 section 이 세 진입점을 모두 다룸.">All seven plugins behave identically across Claude Code CLI and VS Code extension; the same skills + MCP servers also project onto OpenAI Codex via the bundled adapter. The environments section covers all three entry points.</p>
+    </section>
+
+    <section id="audience">
+      <h2 data-aud="general" data-en="How you'll use this" data-ko="어떻게 사용하나요">How you'll use this</h2>
+      <h2 data-aud="dev" data-en="How to use it — per environment" data-ko="환경별 사용 방법">How to use it — per environment</h2>
+      <p data-aud="general" data-en="You can use EstreGenesis in three places: the Claude Code terminal (CLI), the Claude Code panel inside VS Code, and — through a small included adapter — OpenAI Codex. In the two Claude Code environments everything works the same way; on Codex the same skills and tool servers work, and the automatic hooks become a short written routine instead." data-ko="EstreGenesis 는 세 곳에서 쓸 수 있어요: Claude Code 터미널(CLI), VS Code 안의 Claude Code 패널, 그리고 — 동봉된 작은 어댑터를 통해 — OpenAI Codex. Claude Code 두 환경에선 모든 것이 똑같이 작동하고, Codex 에선 같은 스킬과 도구 서버가 작동하되 자동 훅이 짧은 수동 루틴으로 대체돼요.">You can use EstreGenesis in three places: the Claude Code terminal (CLI), the Claude Code panel inside VS Code, and — through a small included adapter — OpenAI Codex.</p>
+      <p data-aud="dev" data-en="Three host environments. Claude Code ships two — terminal CLI and VS Code extension — with identical plugin behaviour (same slash commands, skills, hooks); only the session entry-point differs. OpenAI Codex is the third: it converged on the same three customization surfaces EG speaks (Agent Skills SKILL.md · MCP servers · AGENTS.md), so the bundled codex/ adapter projects the full skill set and the four MCP servers onto it — lifecycle hooks have no Codex equivalent and map to a documented paired-skill manual discipline." data-ko="3개 host 환경. Claude Code 가 2개 — 터미널 CLI 와 VS Code extension — 를 ship 하며 plugin 동작 동일 (동일 slash 명령 · skill · hook); 세션 진입점만 차이. OpenAI Codex 가 셋째: EG 가 쓰는 3개 customization surface (Agent Skills SKILL.md · MCP 서버 · AGENTS.md) 로 수렴했기 때문에, 동봉된 codex/ 어댑터가 전체 skill 집합과 4개 MCP 서버를 그대로 project — lifecycle hook 은 Codex 대응물이 없어 문서화된 paired-skill 수동 규율로 매핑.">Three host environments: Claude Code CLI + VS Code (identical plugin behaviour), and OpenAI Codex via the bundled adapter (skills + MCP project losslessly; hooks map to a documented manual discipline).</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="Claude Code CLI" data-ko="Claude Code CLI">Claude Code CLI</h3>
+          <p data-aud="general" data-en="Run Claude Code directly from the terminal." data-ko="터미널에서 Claude Code를 직접 실행합니다.">Run Claude Code directly from the terminal.</p>
+          <p data-aud="dev" data-en="Direct-from-terminal session. Best fit for headless workflows, CI integration, and tmux-based multi-agent setups." data-ko="터미널 직접 실행 세션. Headless 워크플로 · CI 통합 · tmux 기반 multi-agent 설정에 best fit.">Direct-from-terminal session. Best fit for headless workflows, CI integration, tmux-based multi-agent setups.</p>
+          <ol data-aud="general">
+            <li data-en-html="Start Claude Code in the terminal: &lt;code&gt;claude&lt;/code&gt; or &lt;code&gt;claude code&lt;/code&gt;" data-ko-html="터미널에서 Claude Code 시작: &lt;code&gt;claude&lt;/code&gt; 또는 &lt;code&gt;claude code&lt;/code&gt;">Start Claude Code in the terminal: <code>claude</code> or <code>claude code</code></li>
+            <li data-en-html="Register the marketplace: &lt;code&gt;/plugin marketplace add SoliEstre/EstreGenesis&lt;/code&gt;" data-ko-html="마켓플레이스 등록: &lt;code&gt;/plugin marketplace add SoliEstre/EstreGenesis&lt;/code&gt;">Register the marketplace: <code>/plugin marketplace add SoliEstre/EstreGenesis</code></li>
+            <li data-en-html="Install your chosen plugin: &lt;code&gt;/plugin install constellation@estregenesis-plugins&lt;/code&gt; (or any other module name)" data-ko-html="원하는 플러그인 설치: &lt;code&gt;/plugin install constellation@estregenesis-plugins&lt;/code&gt; (또는 다른 모듈명)">Install your chosen plugin: <code>/plugin install constellation@estregenesis-plugins</code> (or any other module name)</li>
+            <li data-en="Use slash commands, skills, and hooks in your session." data-ko="세션 내에서 슬래쉬 명령, 스킬, 훅을 사용합니다.">Use slash commands, skills, and hooks in your session.</li>
+          </ol>
+          <ol data-aud="dev">
+            <li data-en-html="Launch a CLI session: &lt;code&gt;claude&lt;/code&gt; (or &lt;code&gt;claude code&lt;/code&gt;) from your project root." data-ko-html="CLI 세션 launch: project root 에서 &lt;code&gt;claude&lt;/code&gt; (또는 &lt;code&gt;claude code&lt;/code&gt;).">Launch a CLI session: <code>claude</code> (or <code>claude code</code>) from your project root.</li>
+            <li data-en-html="Register the marketplace (one-time, idempotent): &lt;code&gt;/plugin marketplace add SoliEstre/EstreGenesis&lt;/code&gt;" data-ko-html="마켓플레이스 등록 (1회성, idempotent): &lt;code&gt;/plugin marketplace add SoliEstre/EstreGenesis&lt;/code&gt;">Register the marketplace (one-time, idempotent): <code>/plugin marketplace add SoliEstre/EstreGenesis</code></li>
+            <li data-en-html="Install per-plugin: &lt;code&gt;/plugin install &lt;name&gt;@estregenesis-plugins&lt;/code&gt; — any subset of the six modules." data-ko-html="Plugin별 설치: &lt;code&gt;/plugin install &lt;name&gt;@estregenesis-plugins&lt;/code&gt; — 6개 모듈 중 임의 subset.">Install per-plugin: <code>/plugin install &lt;name&gt;@estregenesis-plugins</code> — any subset of the six modules.</li>
+            <li data-en="Slash commands, skills, and hooks are now active in the session — plugin hooks fire on lifecycle events (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, PostCompact)." data-ko="Slash 명령 · skill · hook 이 세션 내에서 활성 — plugin hook 은 lifecycle 이벤트 (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, PostCompact) 에서 fire.">Slash commands, skills, and hooks are now active — plugin hooks fire on lifecycle events (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, PostCompact).</li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <h3 data-en="Claude Code VS Code Extension" data-ko="Claude Code VS Code 확장">Claude Code VS Code Extension</h3>
+          <p data-aud="general" data-en="Use Claude Code as a panel inside VS Code." data-ko="VS Code 안의 패널로 Claude Code를 사용합니다.">Use Claude Code as a panel inside VS Code.</p>
+          <p data-aud="dev" data-en="VS Code extension surface — sidebar chat panel + integrated editor diff view. Best fit for IDE-resident workflows where the agent operates alongside open editor buffers." data-ko="VS Code extension surface — 사이드바 chat 패널 + 통합 editor diff view. 열린 editor 버퍼와 나란히 작동하는 IDE-상주 워크플로에 best fit.">VS Code extension surface — sidebar chat panel + integrated editor diff view. Best fit for IDE-resident workflows where the agent operates alongside open editor buffers.</p>
+          <ol data-aud="general">
+            <li data-en="Install the Claude Code extension: search &quot;Claude Code&quot; in the VS Code extension marketplace (or visit https://claude.com/code)" data-ko="Claude Code 확장 설치: VS Code 확장 마켓에서 &quot;Claude Code&quot; 검색 (또는 https://claude.com/code 방문)">Install the Claude Code extension: search "Claude Code" in the VS Code extension marketplace (or visit https://claude.com/code)</li>
+            <li data-en-html="Open Claude Code: use the sidebar panel or press &lt;code&gt;Ctrl+Shift+P&lt;/code&gt; (Cmd+Shift+P on Mac) and search for &quot;Claude Code: Open Chat&quot;" data-ko-html="Claude Code 열기: 사이드바 패널 사용 또는 &lt;code&gt;Ctrl+Shift+P&lt;/code&gt; (Mac에서는 Cmd+Shift+P) 누르고 &quot;Claude Code: Open Chat&quot; 검색">Open Claude Code: use the sidebar panel or press <code>Ctrl+Shift+P</code> (Cmd+Shift+P on Mac) and search for "Claude Code: Open Chat"</li>
+            <li data-en-html="Register the marketplace: type &lt;code&gt;/plugin marketplace add SoliEstre/EstreGenesis&lt;/code&gt; in the chat window" data-ko-html="마켓플레이스 등록: 채팅창에 &lt;code&gt;/plugin marketplace add SoliEstre/EstreGenesis&lt;/code&gt; 입력">Register the marketplace: type <code>/plugin marketplace add SoliEstre/EstreGenesis</code> in the chat window</li>
+            <li data-en-html="Install plugins: use &lt;code&gt;/plugin install &lt;name&gt;@estregenesis-plugins&lt;/code&gt;, then access modules from the sidebar." data-ko-html="플러그인 설치: &lt;code&gt;/plugin install &lt;name&gt;@estregenesis-plugins&lt;/code&gt; 사용 후 사이드바에서 모듈 접근">Install plugins: use <code>/plugin install &lt;name&gt;@estregenesis-plugins</code>, then access modules from the sidebar.</li>
+          </ol>
+          <ol data-aud="dev">
+            <li data-en="Install the Claude Code extension from the VS Code marketplace (search &quot;Claude Code&quot;) or https://claude.com/code." data-ko="VS Code 마켓플레이스 (&quot;Claude Code&quot; 검색) 또는 https://claude.com/code 에서 Claude Code extension 설치.">Install the Claude Code extension from the VS Code marketplace (search "Claude Code") or https://claude.com/code.</li>
+            <li data-en-html="Open the chat surface: sidebar panel or &lt;code&gt;Ctrl+Shift+P&lt;/code&gt; (&lt;code&gt;Cmd+Shift+P&lt;/code&gt; on Mac) → &quot;Claude Code: Open Chat&quot;." data-ko-html="Chat surface 열기: 사이드바 패널 또는 &lt;code&gt;Ctrl+Shift+P&lt;/code&gt; (Mac 은 &lt;code&gt;Cmd+Shift+P&lt;/code&gt;) → &quot;Claude Code: Open Chat&quot;.">Open the chat surface: sidebar panel or <code>Ctrl+Shift+P</code> (<code>Cmd+Shift+P</code> on Mac) → "Claude Code: Open Chat".</li>
+            <li data-en-html="Register marketplace in the chat input: &lt;code&gt;/plugin marketplace add SoliEstre/EstreGenesis&lt;/code&gt; (one-time, idempotent)." data-ko-html="Chat input 에서 마켓플레이스 등록: &lt;code&gt;/plugin marketplace add SoliEstre/EstreGenesis&lt;/code&gt; (1회성, idempotent).">Register marketplace in the chat input: <code>/plugin marketplace add SoliEstre/EstreGenesis</code> (one-time, idempotent).</li>
+            <li data-en-html="Install per-plugin via &lt;code&gt;/plugin install &lt;name&gt;@estregenesis-plugins&lt;/code&gt;; skills and slash commands surface in the sidebar and accept the same lifecycle hooks as the CLI host." data-ko-html="&lt;code&gt;/plugin install &lt;name&gt;@estregenesis-plugins&lt;/code&gt; 를 통해 plugin별 설치; skill 과 slash 명령은 사이드바에 surface 되며 CLI host 와 동일한 lifecycle hook 를 accept.">Install per-plugin via <code>/plugin install &lt;name&gt;@estregenesis-plugins</code>; skills and slash commands surface in the sidebar and accept the same lifecycle hooks as the CLI host.</li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <h3 data-en="OpenAI Codex (adapter)" data-ko="OpenAI Codex (어댑터)">OpenAI Codex (adapter)</h3>
+          <p data-aud="general" data-en="Use the same EstreGenesis skills from OpenAI Codex. A small adapter that ships inside the repo sets everything up — you don't install Claude Code plugins here; the adapter places the same skill files where Codex looks for them." data-ko="같은 EstreGenesis 스킬을 OpenAI Codex 에서도 쓸 수 있어요. 저장소에 동봉된 작은 어댑터가 세팅을 대신해줘요 — 여기선 Claude Code 플러그인을 설치하는 게 아니라, 어댑터가 같은 스킬 파일을 Codex 가 찾는 위치에 놓아줘요.">Use the same EstreGenesis skills from OpenAI Codex — a small adapter that ships inside the repo sets everything up.</p>
+          <p data-aud="dev" data-en="Codex converged on the same three customization surfaces EG already speaks — Agent Skills (SKILL.md), MCP servers, AGENTS.md — so the codex/ adapter is a projection, not a fork: one script materializes all plugin skills into Codex's discovery path and generates the MCP config stanzas. No skill copies are committed; a verify axis gates the projection against the live plugin set." data-ko="Codex 는 EG 가 이미 쓰는 3개 customization surface — Agent Skills (SKILL.md) · MCP 서버 · AGENTS.md — 로 수렴했어요. 그래서 codex/ 어댑터는 fork 가 아닌 projection: 스크립트 하나가 모든 plugin skill 을 Codex discovery 경로에 materialize 하고 MCP config 스탠자를 생성. skill 복사본은 커밋되지 않고, verify 축이 projection 을 라이브 plugin 집합과 대조.">Codex converged on the same three customization surfaces EG speaks, so the codex/ adapter is a projection, not a fork: one script materializes the skills and generates the MCP config stanzas.</p>
+          <ol data-aud="general">
+            <li data-en-html="Get the repo once: &lt;code&gt;git clone https://github.com/SoliEstre/EstreGenesis&lt;/code&gt;" data-ko-html="저장소를 한 번 받아요: &lt;code&gt;git clone https://github.com/SoliEstre/EstreGenesis&lt;/code&gt;">Get the repo once: <code>git clone https://github.com/SoliEstre/EstreGenesis</code></li>
+            <li data-en-html="Let the adapter place the skills: &lt;code&gt;node codex/gen-codex-adapter.cjs --install&lt;/code&gt;" data-ko-html="어댑터가 스킬을 배치하게 해요: &lt;code&gt;node codex/gen-codex-adapter.cjs --install&lt;/code&gt;">Let the adapter place the skills: <code>node codex/gen-codex-adapter.cjs --install</code></li>
+            <li data-en-html="(Optional) copy the tool-server entries from &lt;code&gt;codex/config.toml.example&lt;/code&gt; into your Codex settings." data-ko-html="(선택) &lt;code&gt;codex/config.toml.example&lt;/code&gt; 의 도구 서버 항목을 Codex 설정으로 복사해요.">(Optional) copy the tool-server entries from <code>codex/config.toml.example</code> into your Codex settings.</li>
+            <li data-en-html="Read &lt;code&gt;codex/README.md&lt;/code&gt; for the full list of what got installed and the short manual routines that replace the automatic hooks." data-ko-html="&lt;code&gt;codex/README.md&lt;/code&gt; 에서 설치된 전체 목록과, 자동 훅을 대신하는 짧은 수동 루틴을 확인해요.">Read <code>codex/README.md</code> for the full list and the short manual routines that replace the automatic hooks.</li>
+          </ol>
+          <ol data-aud="dev">
+            <li data-en-html="Clone the repo (the adapter projects from the live plugin tree): &lt;code&gt;git clone https://github.com/SoliEstre/EstreGenesis&lt;/code&gt;" data-ko-html="저장소 clone (어댑터는 라이브 plugin 트리에서 project): &lt;code&gt;git clone https://github.com/SoliEstre/EstreGenesis&lt;/code&gt;">Clone the repo (the adapter projects from the live plugin tree): <code>git clone https://github.com/SoliEstre/EstreGenesis</code></li>
+            <li data-en-html="Materialize the skills into Codex's discovery path: &lt;code&gt;node codex/gen-codex-adapter.cjs --install&lt;/code&gt; (symlinks on POSIX / copies on Windows; &lt;code&gt;--dest ./.agents/skills --copy&lt;/code&gt; for project-local)." data-ko-html="Codex discovery 경로로 skill materialize: &lt;code&gt;node codex/gen-codex-adapter.cjs --install&lt;/code&gt; (POSIX 는 symlink / Windows 는 copy; project-local 은 &lt;code&gt;--dest ./.agents/skills --copy&lt;/code&gt;).">Materialize the skills into Codex's discovery path: <code>node codex/gen-codex-adapter.cjs --install</code></li>
+            <li data-en-html="Register the MCP servers: merge the four &lt;code&gt;[mcp_servers.*]&lt;/code&gt; stanzas from &lt;code&gt;codex/config.toml.example&lt;/code&gt; into &lt;code&gt;$CODEX_HOME/config.toml&lt;/code&gt; (three need their npm dep installed first — see the file's comments)." data-ko-html="MCP 서버 등록: &lt;code&gt;codex/config.toml.example&lt;/code&gt; 의 4개 &lt;code&gt;[mcp_servers.*]&lt;/code&gt; 스탠자를 &lt;code&gt;$CODEX_HOME/config.toml&lt;/code&gt; 에 병합 (3개는 npm dep 선행 설치 필요 — 파일 주석 참조).">Register the MCP servers: merge the four <code>[mcp_servers.*]</code> stanzas from <code>codex/config.toml.example</code> into <code>$CODEX_HOME/config.toml</code>.</li>
+            <li data-en-html="Hooks don't port — follow &lt;code&gt;codex/AGENTS.md&lt;/code&gt;: each Claude Code lifecycle hook maps to a paired-skill invocation at the documented moment (e.g. run the outbox validation skill before appending, the pre-send probe skill before emitting)." data-ko-html="Hook 은 port 안 됨 — &lt;code&gt;codex/AGENTS.md&lt;/code&gt; 를 따라요: 각 Claude Code lifecycle hook 이 문서화된 시점의 paired-skill 호출로 매핑 (예: append 전 outbox 검증 skill, emit 전 pre-send probe skill).">Hooks don't port — follow <code>codex/AGENTS.md</code>: each lifecycle hook maps to a paired-skill invocation at the documented moment.</li>
+          </ol>
+        </div>
+      </div>
+
+      <p data-aud="general" data-en="Across the two Claude Code environments everything behaves identically. On Codex, the same skills and tool servers work — only the automatic hooks become a short written routine you run yourself." data-ko="Claude Code 두 환경에선 모든 것이 동일하게 작동해요. Codex 에선 같은 스킬과 도구 서버가 작동하고 — 자동 훅만 직접 실행하는 짧은 수동 루틴으로 바뀌어요.">Across the two Claude Code environments everything behaves identically. On Codex, the same skills and tool servers work — only the automatic hooks become a short written routine.</p>
+      <p data-aud="dev" data-en="The two Claude Code entry paths land on the same plugin runtime — identical slash-command dispatch, skill registry, and lifecycle hook execution. The Codex path shares the skill set and MCP servers via the projection; hook parity is by discipline (codex/AGENTS.md), not by runtime." data-ko="Claude Code 의 두 진입 경로는 동일한 plugin runtime 에 land — 동일한 slash-command dispatch, skill registry, lifecycle hook 실행. Codex 경로는 projection 으로 skill 집합과 MCP 서버를 공유; hook parity 는 runtime 이 아니라 규율 (codex/AGENTS.md) 로 성립.">The two Claude Code entry paths land on the same plugin runtime. The Codex path shares the skill set and MCP servers via the projection; hook parity is by discipline, not by runtime.</p>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="What we made in the first 24 hours" data-ko="처음 24시간 동안 만든 것들">What we made in the first 24 hours</h2>
+      <h2 data-aud="dev" data-en="Initial 24h dogfood — what shipped" data-ko="초기 24h dogfood — ship된 것">Initial 24h dogfood — what shipped</h2>
+      <p data-aud="general" data-en="The first day after public release, before any of the modules below were folded in. The numbers since have grown — see the running total below — but this snapshot captures the original empirical pulse." data-ko="공개 직후 첫 하루, 아래 모듈들이 정착되기 전의 스냅샷입니다. 그 이후 누적 수치는 더 늘었지만(아래 「그 이후」 참고), 본 표는 원래의 실증 pulse를 박제합니다.">First day after public release, before the modules below were folded in. Numbers have grown since — see below.</p>
+      <p data-aud="dev" data-en="The numbers below are a historical snapshot from the first 24 hours after public release (around v2.5.15). They predate the Hyperbrief module ship (v2.5.23+) and the downstream-adopter bundles (bundle 005 / 007 / 008) absorbed since." data-ko="아래 수치는 공개 직후 첫 24시간(v2.5.15 시점) 의 historical 스냅샷입니다. Hyperbrief 모듈 ship(v2.5.23+)과 그 이후 흡수된 downstream-adopter bundle(005 / 007 / 008)을 predate합니다.">Historical snapshot from the first 24h (around v2.5.15). Predates the Hyperbrief module ship + adopter bundles absorbed since.</p>
+      <div class="metrics-grid">
+        <div class="metric"><span class="value">31</span><span class="label" data-en="Tagged releases (24h)" data-ko="태그 릴리스 (24h)">Tagged releases (24h)</span></div>
+        <div class="metric highlight"><span class="value">5</span><span class="label" data-en="e2e A2A PRs" data-ko="e2e A2A PR">e2e A2A PRs</span></div>
+        <div class="metric"><span class="value">415</span><span class="label" data-en="Hub mirror ins" data-ko="Hub mirror ins">Hub mirror ins</span></div>
+        <div class="metric"><span class="value">0</span><span class="label" data-en="Redaction violations" data-ko="Redaction 위반">Redaction violations</span></div>
+        <div class="metric"><span class="value">0</span><span class="label" data-en="Merge failures" data-ko="머지 실패">Merge failures</span></div>
+        <div class="metric"><span class="value">2</span><span class="label" data-en="Canonical promotions" data-ko="Canonical 승격">Canonical promotions</span></div>
+      </div>
+
+      <h3 data-aud="general" data-en="Since then" data-ko="그 이후" style="margin-top: 2.4rem;">Since then</h3>
+      <h3 data-aud="dev" data-en="Cumulative since the 24h baseline" data-ko="24h 기준 이후 누적" style="margin-top: 2.4rem;">Cumulative since the 24h baseline</h3>
+      <p data-aud="general" data-en="The pace settled but didn't stop. Four more optional modules joined the family (Hyperbrief — decision delegation, Greatpractice — practice codification, Ultrasafe — pre-release security checks, Compendium — the shared vocabulary layer), bringing the total to six, and downstream adopters keep submitting real-world dogfooding reports that get folded back into the seed." data-ko="속도는 안정됐지만 멈추진 않았습니다. 네 개의 옵션 모듈이 더 합류해(Hyperbrief — 결정 위임, Greatpractice — 관행 코드화, Ultrasafe — 출시 전 보안 점검, Compendium — 공용 어휘 레이어) 총 여섯 개가 됐고, downstream 어댑터들의 실사용 dogfooding 리포트가 계속 시드로 흡수되고 있습니다.">Pace settled but didn't stop. Four more modules joined (→6 total); adopter reports keep folding back in.</p>
+      <p data-aud="dev" data-en="The cumulative tag count is now in the v2.5.183 range. Post-v2.5.133 waves: echo-mode remote-control mirroring + the peer key kind (Constellation v2.4.45–52); roundtable topic rooms with a server-enforced floor + pinned room artifacts (v2.4.53–57 — first live three-agent room dogfooded to closure); the headless-worker transition distilled into the implementation-independent loop contract + turn-spawned worker profile (§13.27.4–.5); the Harness Adapter Contract (v0.1→v0.2) naming Estrelle as the Stage-3 target and Hermes agent / OpenClaw as research-mapped Stage-2 candidates behind a measurement gate; the gateway-status program's six-spec-cut day — onboarding flows §13.32, the 8-chapter bootstrap guide, the eg-interview intake skill, Hyperbrief's setup-flow choice default, Superscalar's timeout-composed speculation (v2.5.174–179); tiered model composition (/subscaler, Superscalar v0.6–0.7); and a board-UX wave — slash autocomplete + CommandManifest, the context-threshold handoff-guard, the agent-activity monitor and the ops status strip (v2.4.61–71). The dogfood-driven cadence held — thirteen cuts shipped on 2026-07-19 alone." data-ko="누적 태그 수는 이제 v2.5.183 범위. v2.5.133 이후 파동: echo-mode 원격제어 미러 + peer 키 kind (Constellation v2.4.45–52); 서버-강제 발언권 + 고정 산출물을 갖춘 roundtable 토픽 방 (v2.4.53–57 — 첫 3-에이전트 라이브 방을 종결까지 도그푸드); headless 워커 전환을 구현-독립 루프 계약 + 턴-스폰 워커 프로필로 증류 (§13.27.4–.5); Harness Adapter Contract (v0.1→v0.2) — Estrelle 을 Stage-3 목표로, Hermes agent / OpenClaw 를 실측 게이트 뒤의 Stage-2 후보로 등재; 게이트웨이 지위 프로그램의 6-스펙 컷 하루 — 온보딩 흐름 §13.32 · 8장 부트스트랩 가이드 · eg-interview 인테이크 스킬 · Hyperbrief 세팅-흐름 선택지 기본값 · Superscalar 타임아웃-합성 투기 (v2.5.174–179); 티어 모델 조합 (/subscaler, Superscalar v0.6–0.7); 그리고 보드 UX 파동 — 슬래시 자동완성 + CommandManifest · 컨텍스트 임계 handoff-guard · 활동 모니터 + 상태 스트립 (v2.4.61–71). dogfood-driven cadence 유지 — 2026-07-19 하루에만 13컷.">Cumulative tags now at v2.5.183. Post-133: roundtable rooms + peer kind, loop contract + worker profile, adapter contract v0.2 (Hermes/OpenClaw candidates), the gateway-program six-cut day, /subscaler, and the board-UX wave. Thirteen cuts on 2026-07-19 alone.</p>
+      <div class="metrics-grid">
+        <div class="metric"><span class="value">~118</span><span class="label" data-en="Post-baseline cuts" data-ko="Baseline 이후 cuts">Post-baseline cuts</span></div>
+        <div class="metric highlight"><span class="value">4</span><span class="label" data-en="Adopter bundles / reports absorbed" data-ko="흡수된 어댑터 bundle·리포트">Adopter bundles / reports absorbed</span></div>
+        <div class="metric"><span class="value">4</span><span class="label" data-en="New optional modules (→6 total)" data-ko="신규 옵션 모듈 (총 6종)">New optional modules (→6 total)</span></div>
+        <div class="metric"><span class="value">6+</span><span class="label" data-en="Cross-module integrations shipped" data-ko="Cross-module 통합 ship">Cross-module integrations</span></div>
+      </div>
+
+      <div class="callout">
+        <h4 data-en="The headline finding" data-ko="핵심 발견">The headline finding</h4>
+        <p data-aud="general" data-en="Running AI agents in parallel doesn't automatically give good results. When the same audit was run two ways — fast/parallel vs slow/disciplined — the slow one took 2.6× longer but caught a real bug both arms had spotted; the fast one saw both halves of the bug but never connected them. Speed without discipline ≠ quality." data-ko="AI 에이전트를 여러 개 동시에 돌린다고 해서 결과 품질이 같이 올라가진 않습니다. 같은 점검을 두 방식 — 빠르게/병렬 vs 천천히/규율 — 으로 해봤더니, 천천히 한 쪽이 2.6배 오래 걸렸지만 실제 버그를 잡아냈어요. 빠른 쪽은 그 버그의 양쪽 단서를 다 봤는데도 연결을 못했고요. 속도가 곧 품질은 아닙니다.">Running AI agents in parallel doesn't automatically give good results. Speed without discipline ≠ quality.</p>
+        <p data-aud="dev" data-en="Parallelism alone is not sufficient — what produces cross-lane consistency is orchestration discipline. In the Entry 06 A/B, naïve max-parallel was faster in wall-clock terms (8.9 minutes versus 23.6 minutes), but it gave up a 118 percent gain in grounded cross-references, a 40 percent reduction in speculative claims, cross-lane deduplication, and the resolution of a real contradiction surfaced during the run. The additional wall-clock cost of the disciplined arm reflects phase serialisation (design-freeze → consume → cross-cut → retire), not any loss of parallel efficiency: in-phase parallelism is identical in both arms." data-ko="병렬성만으로는 충분하지 않습니다. lane 사이의 정합성을 만들어내는 것은 결국 오케스트레이션 규율입니다. Entry 06 A/B에서 naïve max-parallel은 wall-clock 기준으로는 더 빨랐지만(8.9분 대 23.6분), grounded cross-reference의 118% 증가, 추측성 진술의 40% 감소, lane 간 중복 정리, 그리고 실행 중에 표면화된 실제 모순의 해소를 모두 잃었습니다. 규율이 적용된 arm에서 추가된 wall-clock 비용은 phase 직렬화(design-freeze → consume → cross-cut → retire) 비용이며, 병렬 효율의 손실에 기인하지 않습니다. phase 내부에서의 병렬성은 두 arm에서 동일하기 때문입니다.">Parallelism is not sufficient; orchestration discipline produces consistency. Wall-clock cost is phase serialisation, not parallel inefficiency.</p>
+      </div>
+    </section>
+  </main>
+
+    <section>
+      <h2 data-en="AI-readable full text" data-ko="AI가 읽는 전문(全文)">AI-readable full text</h2>
+      <p data-en="Everything on these pages is a human-register summary. The complete normative text lives in the spec .md files — hand those to an AI agent instead of this site. A machine-oriented index is published at llms.txt." data-ko="이 사이트의 내용은 사람용 요약이에요. 완전한 규범 전문은 스펙 .md 파일에 있어요 — AI 에이전트에게는 이 사이트 대신 스펙 원문을 주세요. 기계용 인덱스는 llms.txt 로 게시돼 있어요.">Everything on these pages is a human-register summary. The complete normative text lives in the spec .md files.</p>
+      <p><a href="llms.txt" data-en="llms.txt →" data-ko="llms.txt →">llms.txt →</a> · <a href="https://github.com/SoliEstre/EstreGenesis#readme" target="_blank" rel="noopener" data-en="README →" data-ko="README →">README →</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>EstreGenesis · Apache-2.0 · <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank">github.com/SoliEstre/EstreGenesis</a></p>
+    <div class="footer-style"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
+  </footer>
+
+  <script src="shared/data.js"></script>
+  <script src="shared/i18n.js"></script>
+  <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
+</body>
+</html>

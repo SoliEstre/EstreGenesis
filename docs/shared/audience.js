@@ -1,11 +1,12 @@
-// docs/shared/audience.js — audience-level switcher (general / dev / expert)
+// docs/shared/audience.js — audience-level switcher (general / dev)
 
 (function () {
   const KEY = 'eg-promo-audience';
   const DEFAULT = 'general';
-  const LEVELS = ['general', 'dev', 'expert'];
+  const LEVELS = ['general', 'dev'];
 
   function applyAudience(aud) {
+    if (aud === 'expert') aud = 'dev'; // legacy stored preference
     if (!LEVELS.includes(aud)) aud = DEFAULT;
     localStorage.setItem(KEY, aud);
     document.documentElement.setAttribute('data-audience', aud);
