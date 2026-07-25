@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.5.208" src="https://img.shields.io/badge/version-v2.5.208-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.0" src="https://img.shields.io/badge/version-v2.6.0-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -39,7 +39,7 @@ Copy one file into your new project. Paste it as the first message to any AI cod
 /egmig      # existing project (long name: /eg-migration)
 /egup       # already seeded — upgrade seed + plugins (long name: /eg-upgrade)
 /egmem      # reconcile agent memory ↔ project docs (long name: /eg-memsync)
-/egrich     # full arm: seed + all six modules, wired and verified
+/egrich     # full arm: seed + all seven modules, wired and verified
 ```
 
 The skill picks the tier, fetches the seed, installs it as `.agent/seed_prompt.md`, and runs it — no hunting for a raw URL, no copy-paste. Pick the wrong one and it routes you to the right one.
@@ -102,11 +102,11 @@ v1.x is the project seed — bootstrap a new AI-native project, or migrate an ex
 
 - **[Compendium](Compendium.md)** (v0.2.6) — a **portable discipline layer over whatever markdown vault you already use**: one definition per concept, carried in two registers (plain + expert), pointing at the spec that owns it instead of copying it. That last property is the wedge — a Compendium entry cannot drift from its source, because it never restates it. It reifies the north-star's second axis (concept/vocabulary survival over code survival — the layer most likely to outlive any single runtime implementation). Shipped: the content store, gardening lints (broken pointer / orphan / duplicate concept / stale), an 8-tool MCP server, two cross-tool skills (`compendium-curate` / `compendium-lint`) that any agent can read, and a vault projection so the store opens in Obsidian-class apps with its link graph intact.
 
-All six modules are **optional** and **referenced** (not bundled into the seed tiers, so the tier seeds stay lean). File-based coordination (Phase 5) remains the default and is enough for most projects.
+All seven modules are **optional** and **referenced** (not bundled into the seed tiers, so the tier seeds stay lean). File-based coordination (Phase 5) remains the default and is enough for most projects.
 
 ### Install as Claude Code plugins (self-hosted marketplace)
 
-The same six modules also ship as Claude Code plugins via a **self-hosted marketplace** in this repo. From any Claude Code session:
+The same seven modules also ship as Claude Code plugins via a **self-hosted marketplace** in this repo. From any Claude Code session:
 
 ```
 /plugin marketplace add SoliEstre/EstreGenesis
@@ -119,7 +119,7 @@ The same six modules also ship as Claude Code plugins via a **self-hosted market
 /plugin install compendium@estregenesis-plugins
 ```
 
-Seven plugins: the **estregenesis** kit (the seed itself, as `/egboot` · `/egmig` · `/egup` · `/egmem` · `/egrich`) plus the six modules. Each is independent — install one, some, or all of them. The marketplace metadata lives at [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json); each plugin's source is under [plugins/](plugins/). Apache-2.0. Current: estregenesis v0.2.1 (5 procedures + 4 pointer aliases, 0 deps); Constellation v0.3.26 (+ 5-tool MCP server, 8 skills incl. `/boardsweep`, Stop hook); Superscalar v0.1.2 (+ §3.1 Hyperbrief interlock); Hyperbrief v0.7.1 (+ 3 skills, 4-tool MCP server, PreToolUse/Stop hooks); Greatpractice v0.3.4 (+ `/routinize`, 3 JSON schemas, 1 contact hook); Ultrasafe v0.2.4 (+ 8-agent red-team fan-out, clean-signal gate — advisory, never blocks a publish); Compendium v0.2.6 (+ 8-tool MCP server, gardening lint, 2 cross-tool skills). Anthropic-side community-marketplace listing is deferred to v1.0 GA per [Hyperbrief.md §11.5](Hyperbrief.md) readiness rubric Lens B.
+Eight plugins: the **estregenesis** kit (the seed itself, as `/egboot` · `/egmig` · `/egup` · `/egmem` · `/egrich`) plus the seven modules. Each is independent — install one, some, or all of them. The marketplace metadata lives at [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json); each plugin's source is under [plugins/](plugins/). Apache-2.0. Current: estregenesis v0.2.1 (5 procedures + 4 pointer aliases, 0 deps); Constellation v0.3.26 (+ 5-tool MCP server, 8 skills incl. `/boardsweep`, Stop hook); Superscalar v0.1.2 (+ §3.1 Hyperbrief interlock); Hyperbrief v0.7.1 (+ 3 skills, 4-tool MCP server, PreToolUse/Stop hooks); Greatpractice v0.3.4 (+ `/routinize`, 3 JSON schemas, 1 contact hook); Ultrasafe v0.2.4 (+ 8-agent red-team fan-out, clean-signal gate — advisory, never blocks a publish); Compendium v0.2.6 (+ 8-tool MCP server, gardening lint, 2 cross-tool skills); Corporate v0.1.0 (+ 4 skills incl. `/corporate-sweep`, the single toggle resolver with an executable identity test, 0 deps). Anthropic-side community-marketplace listing is deferred to v1.0 GA per [Hyperbrief.md §11.5](Hyperbrief.md) readiness rubric Lens B.
 
 ---
 
@@ -127,9 +127,9 @@ Seven plugins: the **estregenesis** kit (the seed itself, as `/egboot` · `/egmi
 
 | Tier | Size | Primary use | Target reader |
 |---|---|---|---|
-| **Master** | ~2425 lines | New projects that need deep guidance, teams learning the pattern for the first time, edge cases where you need every inline template (full AGENTS.md + `.gitignore` per-stack rows + escape/HTML/PDF scripts + bridge templates) | First-time AI Native author; teams formalizing a process |
-| **Lite** | ~1105 lines | Quick new projects, migration sessions, onboarding new AI services into existing projects, when the master would eat too much context window. Self-contained — embeds inline templates for AGENTS.md, `.agent/rules.md`, `.gitignore`, scripts, and bridge stubs in compressed form | Returning author who remembers the pattern; most projects |
-| **Compact** | ~130 lines | Authors who already know the pattern and want the minimum viable seed; tightest context window; bullet triggers + algorithm-spec descriptions only (the agent generates the actual files following the specs) | Power user who just needs a checklist |
+| **Master** | ~2430 lines | New projects that need deep guidance, teams learning the pattern for the first time, edge cases where you need every inline template (full AGENTS.md + `.gitignore` per-stack rows + escape/HTML/PDF scripts + bridge templates) | First-time AI Native author; teams formalizing a process |
+| **Lite** | ~1110 lines | Quick new projects, migration sessions, onboarding new AI services into existing projects, when the master would eat too much context window. Self-contained — embeds inline templates for AGENTS.md, `.agent/rules.md`, `.gitignore`, scripts, and bridge stubs in compressed form | Returning author who remembers the pattern; most projects |
+| **Compact** | ~135 lines | Authors who already know the pattern and want the minimum viable seed; tightest context window; bullet triggers + algorithm-spec descriptions only (the agent generates the actual files following the specs) | Power user who just needs a checklist |
 
 You place **one tier** into your project. Not all three. Cross-referencing tiers that aren't present produces dead links and agent confusion, so each tier is **self-contained** — internally complete, no forward or backward references to other tiers.
 
@@ -140,9 +140,9 @@ When a project grows to need more detail, you don't upgrade tiers in-place. You 
 ## File list
 
 ```
-AI_Native_Project_Master_Seed_Prompt.md       ← English master (deepest, ~2425 lines)
-AI_Native_Project_Seed_Prompt_Lite.md         ← English lite (~1105 lines, self-contained)
-AI_Native_Project_Seed_Prompt_Compact.md      ← English compact (~130 lines, self-contained)
+AI_Native_Project_Master_Seed_Prompt.md       ← English master (deepest, ~2430 lines)
+AI_Native_Project_Seed_Prompt_Lite.md         ← English lite (~1110 lines, self-contained)
+AI_Native_Project_Seed_Prompt_Compact.md      ← English compact (~135 lines, self-contained)
 AI_Native_프로젝트_마스터_시드_프롬프트.md       ← Korean master
 AI_Native_프로젝트_시드_프롬프트_Lite.md          ← Korean lite
 AI_Native_프로젝트_시드_프롬프트_Compact.md       ← Korean compact
@@ -303,7 +303,7 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.5.208 (2026-07-25) — **Refusal is spoken, authority is visible, History states its scope (Constellation v2.4.89)** — a keyless remote connection to a requireKey board used to look like a success: the check closed the socket with no reason, so frames pipelined after HELLO died in transport and the adopter believed a report had been filed that the board never received. Now both HELLO-time refusals emit ConnectionRejected{reason,surface,hint} and close with code 4403 (WS core close() gained RFC6455 code/reason), a successful HELLO returns ConnectionInfo{role, mayManageKeys, keyed, …} so a client need not infer its own authority, and the History payload declares its active-channels+stubs scope instead of looking like a board that does not record A2A. verify-nway 22-axis PASS.
+**Current**: v2.6.0 (2026-07-25) — **Corporate — the third orchestration axis: who exists (module v0.1.0, Constellation v2.4.90)** — Superscalar decides how many lanes and at which tier; Constellation decides how agent processes talk. Neither expresses a *durable role* — a named seat that outlives any session or process and can therefore accumulate practice, be addressed across time, own units, and give a decision an addressee. Corporate is that seventh module, and it ships the durable half only: the two-space desk contract (a gitignored private desk that is the cwd the harness runs in, plus a tracked public locker shared by path rather than by message), multi-host organizations where a desk deliberately does not span hosts, four residency classes that default to the cheapest, a three-layer toggle chain (role > group > organization) read by exactly **one** resolver under an identity invariant that makes a project without a roster bit-identical to one where the module does not exist — checked by `resolve.cjs --selftest`, not asserted — and eviction specified at the same level as creation, whose automation becomes mandatory the moment the organization is dynamic. Constellation v2.4.90 adds the two declaration events (`CorporateChart` / `RoleState`) that let a board render an organization it hosts none of, reusing the existing declaration-class mechanics with no new plumbing; absence renders as *unknown*, never as idle. The perishable per-harness values live in a dated registry with a per-row source requirement, so the spec does not rot on harness release cadence. verify-nway 23-axis PASS.
 
 Previously: v2.5.207 (2026-07-25) — **AgentList reached only boards, so agent presence views were permanently stale (Constellation v2.4.88)** — the adopter ended its report with a question: agent_list_get works but our own agent is missing — intended? It was not: updates fanned out to boards only, and an agent gets its single AgentList at upgrade, before its own HELLO — so the cache can never hold itself and no later join lands. Presence is first-class for agents too (ephemeral-peer tri-state, redelivery recipient-present), so updates now reach agents as well. verify-nway 22-axis PASS.
 
@@ -567,11 +567,11 @@ v1.x 는 프로젝트 시드 — 신규 AI-Native 프로젝트 부트스트랩, 
 
 - **[Compendium](Compendium.md)** (v0.2.6) — **이미 쓰는 markdown vault 위에 얹는 이식 가능한 규율 레이어**: 한 개념에 정의 하나, 두 register(쉬운말 + 전문어)로 제공하되, 정의를 베끼지 않고 그 개념을 *소유한 스펙을 가리킴*. 마지막 성질이 wedge — 재진술하지 않으므로 원본으로부터 drift 할 수 없음. north-star 의 두 번째 축(코드 생존보다 개념/어휘 생존 — 어느 단일 런타임 구현보다 오래 남을 레이어)을 reify. 출시분: 콘텐츠 스토어, 가드닝 lint(포인터 깨짐 / 고아 / 개념 중복 / 낡음), 8-tool MCP 서버, 어떤 에이전트든 읽어서 쓰는 cross-tool 스킬 2종(`compendium-curate` / `compendium-lint`), 그리고 스토어를 옵시디언류 앱에서 링크 그래프 그대로 열 수 있게 하는 vault 투영.
 
-여섯 모듈 모두 **선택적** + **참조** (시드 티어 본문에 번들되지 않으므로 시드는 lean 유지). 파일 기반 코디네이션 (Phase 5) 이 기본이며 대부분 프로젝트에 충분.
+일곱 모듈 모두 **선택적** + **참조** (시드 티어 본문에 번들되지 않으므로 시드는 lean 유지). 파일 기반 코디네이션 (Phase 5) 이 기본이며 대부분 프로젝트에 충분.
 
 ### Claude Code 플러그인으로 설치 (repo 자체 마켓플레이스)
 
-여섯 모듈은 본 repo 의 **repo 자체 마켓플레이스** 를 통해 Claude Code 플러그인으로도 ship. Claude Code 세션에서:
+일곱 모듈은 본 repo 의 **repo 자체 마켓플레이스** 를 통해 Claude Code 플러그인으로도 ship. Claude Code 세션에서:
 
 ```
 /plugin marketplace add SoliEstre/EstreGenesis
@@ -590,9 +590,9 @@ v1.x 는 프로젝트 시드 — 신규 AI-Native 프로젝트 부트스트랩, 
 
 | Tier | 크기 | 주 용도 | 대상 독자 |
 |---|---|---|---|
-| **Master** | ~2425줄 | 깊이 있는 가이드 필요한 신규 프로젝트, 패턴 처음 배우는 팀, 모든 인라인 템플릿 필요한 엣지 케이스 | 첫 AI Native 저자; 프로세스 공식화하는 팀 |
-| **Lite** | ~1105줄 | 빠른 신규 프로젝트, 마이그레이션 세션, 기존 프로젝트에 새 AI 서비스 편입, 마스터가 컨텍스트 윈도우에 무거울 때 | 패턴 기억하는 복귀 저자; 대부분 프로젝트 |
-| **Compact** | ~130줄 | 이미 패턴 알고 최소 시드 원하는 저자; 가장 타이트한 컨텍스트 윈도우; bullet 트리거만 | 체크리스트만 필요한 파워 유저 |
+| **Master** | ~2430줄 | 깊이 있는 가이드 필요한 신규 프로젝트, 패턴 처음 배우는 팀, 모든 인라인 템플릿 필요한 엣지 케이스 | 첫 AI Native 저자; 프로세스 공식화하는 팀 |
+| **Lite** | ~1110줄 | 빠른 신규 프로젝트, 마이그레이션 세션, 기존 프로젝트에 새 AI 서비스 편입, 마스터가 컨텍스트 윈도우에 무거울 때 | 패턴 기억하는 복귀 저자; 대부분 프로젝트 |
+| **Compact** | ~135줄 | 이미 패턴 알고 최소 시드 원하는 저자; 가장 타이트한 컨텍스트 윈도우; bullet 트리거만 | 체크리스트만 필요한 파워 유저 |
 
 프로젝트에는 **tier 하나만** 배치. 세 개 다 넣지 않음. 존재하지 않는 tier 를 교차 참조하면 dead link 와 에이전트 혼란만 발생하므로, 각 tier 는 **self-contained** — 내부 완결, 다른 tier 로의 forward/backward 참조 없음.
 
@@ -601,9 +601,9 @@ v1.x 는 프로젝트 시드 — 신규 AI-Native 프로젝트 부트스트랩, 
 ## 파일 목록
 
 ```
-AI_Native_Project_Master_Seed_Prompt.md       ← 영문 마스터 (가장 깊음, ~2425줄)
-AI_Native_Project_Seed_Prompt_Lite.md         ← 영문 lite (~1105줄)
-AI_Native_Project_Seed_Prompt_Compact.md      ← 영문 compact (~130줄)
+AI_Native_Project_Master_Seed_Prompt.md       ← 영문 마스터 (가장 깊음, ~2430줄)
+AI_Native_Project_Seed_Prompt_Lite.md         ← 영문 lite (~1110줄)
+AI_Native_Project_Seed_Prompt_Compact.md      ← 영문 compact (~135줄)
 AI_Native_프로젝트_마스터_시드_프롬프트.md       ← 한국어 마스터
 AI_Native_프로젝트_시드_프롬프트_Lite.md          ← 한국어 lite
 AI_Native_프로젝트_시드_프롬프트_Compact.md       ← 한국어 compact
@@ -750,7 +750,7 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.5.208 (2026-07-25) — **거부를 말로, 권한을 가시화, History 가 자기 범위를 선언 (Constellation v2.4.89)** — requireKey 보드로의 무키 원격 연결이 성공처럼 보였어요: 검사가 사유 없이 소켓을 close 해서 HELLO 뒤 파이프라인된 프레임이 전송 계층에서 죽고, 어댑터는 보드가 받지 못한 리포트를 보냈다고 믿었어요. 이제 HELLO 시점 거부 2종이 ConnectionRejected{reason,surface,hint} 를 emit 하고 코드 4403 으로 close 하며(WS 코어 close() 가 RFC6455 code/reason 지원), HELLO 성공 시 ConnectionInfo{role, mayManageKeys, keyed, …} 를 회신해 자기 권한을 추측하지 않게 하고, History 페이로드가 active-channels+stubs 범위를 선언해요. verify-nway 22축 PASS.
+**현재**: v2.6.0 (2026-07-25) — **Corporate — 세 번째 오케스트레이션 축: 누가 존재하는가 (모듈 v0.1.0, Constellation v2.4.90)** — Superscalar 는 몇 레인·어느 티어인지를, Constellation 은 에이전트 프로세스가 어떻게 대화하는지를 결정해요. 둘 다 *durable role* — 세션·프로세스보다 오래 살아서 관행을 축적하고, 시간을 넘어 지목되고, 단위를 소유하고, 결정에 수신자를 부여할 수 있는 명명된 좌석 — 을 표현하지 못해요. Corporate 가 그 일곱 번째 모듈이고, durable 한 절반만 ship 해요: 책상 이원 계약(gitignored 개인 데스크 = 하네스가 실제로 도는 cwd, tracked 공용 locker = 메시지가 아니라 경로로 공유하는 읽기 표면), 데스크가 의도적으로 호스트를 넘지 않는 멀티호스트 조직, 가장 싼 쪽이 기본인 잔류 클래스 4종, 리졸버 **하나**만 읽는 3층 토글 체인(역할 > 그룹 > 조직) + 로스터 없는 프로젝트의 동작을 비트 단위로 동일하게 만드는 항등성 불변식(`resolve.cjs --selftest` 로 **검사**, 주장 아님), 그리고 생성과 같은 급으로 명세된 퇴출 — 조직이 동적이 되는 순간 그 자동화가 의무가 돼요. Constellation v2.4.90 은 보드가 호스팅하지 않는 조직을 렌더하게 하는 선언 이벤트 2종(`CorporateChart` / `RoleState`)을 추가해요. 기존 선언 클래스 기전 그대로라 새 배관이 없고, 부재는 유휴가 아니라 *unknown* 으로 렌더돼요. 휘발하는 하네스별 값은 행마다 출처를 요구하는 날짜 있는 레지스트리에 살아서, 스펙이 하네스 릴리스 cadence 로 썩지 않아요. verify-nway 23축 PASS.
 
 이전: v2.5.207 (2026-07-25) — **AgentList 가 board 로만 나가 에이전트의 프레즌스 뷰가 영구 stale 이었어요 (Constellation v2.4.88)** — 어댑터가 리포트를 질문으로 닫았어요: agent_list_get 은 되는데 자기 자신이 없다, 의도인가? 아니었어요 — 갱신이 board 로만 fan-out 되고, 에이전트는 자기 HELLO 이전인 upgrade 시점에 AgentList 를 한 번만 받으니 캐시가 자기를 담을 수 없고 이후 합류도 안 들어와요. 프레즌스는 에이전트에게도 1급(ephemeral-peer tri-state·재전달 recipient-present)이라 갱신을 에이전트에도 보내요. verify-nway 22축 PASS.
 
@@ -1079,11 +1079,11 @@ v1.x 는 프로젝트 시드 — 신규 AI-Native 프로젝트 부트스트랩, 
 
 - **[Compendium](Compendium.md)** (v0.2.6) — **이미 쓰는 markdown vault 위에 얹는 이식 가능한 규율 레이어**: 한 개념에 정의 하나, 두 register(쉬운말 + 전문어)로 제공하되, 정의를 베끼지 않고 그 개념을 *소유한 스펙을 가리킴*. 마지막 성질이 wedge — 재진술하지 않으므로 원본으로부터 drift 할 수 없음. north-star 의 두 번째 축(코드 생존보다 개념/어휘 생존 — 어느 단일 런타임 구현보다 오래 남을 레이어)을 reify. 출시분: 콘텐츠 스토어, 가드닝 lint(포인터 깨짐 / 고아 / 개념 중복 / 낡음), 8-tool MCP 서버, 어떤 에이전트든 읽어서 쓰는 cross-tool 스킬 2종(`compendium-curate` / `compendium-lint`), 그리고 스토어를 옵시디언류 앱에서 링크 그래프 그대로 열 수 있게 하는 vault 투영.
 
-여섯 모듈 모두 **선택적** + **참조** (시드 티어 본문에 번들되지 않으므로 시드는 lean 유지). 파일 기반 코디네이션 (Phase 5) 이 기본이며 대부분 프로젝트에 충분.
+일곱 모듈 모두 **선택적** + **참조** (시드 티어 본문에 번들되지 않으므로 시드는 lean 유지). 파일 기반 코디네이션 (Phase 5) 이 기본이며 대부분 프로젝트에 충분.
 
 ### Claude Code 플러그인으로 설치 (repo 자체 마켓플레이스)
 
-여섯 모듈은 본 repo 의 **repo 자체 마켓플레이스** 를 통해 Claude Code 플러그인으로도 ship. Claude Code 세션에서:
+일곱 모듈은 본 repo 의 **repo 자체 마켓플레이스** 를 통해 Claude Code 플러그인으로도 ship. Claude Code 세션에서:
 
 ```
 /plugin marketplace add SoliEstre/EstreGenesis
@@ -1262,7 +1262,7 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.5.208 (2026-07-25) — **거부를 말로, 권한을 가시화, History 가 자기 범위를 선언 (Constellation v2.4.89)** — requireKey 보드로의 무키 원격 연결이 성공처럼 보였어요: 검사가 사유 없이 소켓을 close 해서 HELLO 뒤 파이프라인된 프레임이 전송 계층에서 죽고, 어댑터는 보드가 받지 못한 리포트를 보냈다고 믿었어요. 이제 HELLO 시점 거부 2종이 ConnectionRejected{reason,surface,hint} 를 emit 하고 코드 4403 으로 close 하며(WS 코어 close() 가 RFC6455 code/reason 지원), HELLO 성공 시 ConnectionInfo{role, mayManageKeys, keyed, …} 를 회신해 자기 권한을 추측하지 않게 하고, History 페이로드가 active-channels+stubs 범위를 선언해요. verify-nway 22축 PASS.
+**현재**: v2.6.0 (2026-07-25) — **Corporate — 세 번째 오케스트레이션 축: 누가 존재하는가 (모듈 v0.1.0, Constellation v2.4.90)** — Superscalar 는 몇 레인·어느 티어인지를, Constellation 은 에이전트 프로세스가 어떻게 대화하는지를 결정해요. 둘 다 *durable role* — 세션·프로세스보다 오래 살아서 관행을 축적하고, 시간을 넘어 지목되고, 단위를 소유하고, 결정에 수신자를 부여할 수 있는 명명된 좌석 — 을 표현하지 못해요. Corporate 가 그 일곱 번째 모듈이고, durable 한 절반만 ship 해요: 책상 이원 계약(gitignored 개인 데스크 = 하네스가 실제로 도는 cwd, tracked 공용 locker = 메시지가 아니라 경로로 공유하는 읽기 표면), 데스크가 의도적으로 호스트를 넘지 않는 멀티호스트 조직, 가장 싼 쪽이 기본인 잔류 클래스 4종, 리졸버 **하나**만 읽는 3층 토글 체인(역할 > 그룹 > 조직) + 로스터 없는 프로젝트의 동작을 비트 단위로 동일하게 만드는 항등성 불변식(`resolve.cjs --selftest` 로 **검사**, 주장 아님), 그리고 생성과 같은 급으로 명세된 퇴출 — 조직이 동적이 되는 순간 그 자동화가 의무가 돼요. Constellation v2.4.90 은 보드가 호스팅하지 않는 조직을 렌더하게 하는 선언 이벤트 2종(`CorporateChart` / `RoleState`)을 추가해요. 기존 선언 클래스 기전 그대로라 새 배관이 없고, 부재는 유휴가 아니라 *unknown* 으로 렌더돼요. 휘발하는 하네스별 값은 행마다 출처를 요구하는 날짜 있는 레지스트리에 살아서, 스펙이 하네스 릴리스 cadence 로 썩지 않아요. verify-nway 23축 PASS.
 
 이전: v2.5.207 (2026-07-25) — **AgentList 가 board 로만 나가 에이전트의 프레즌스 뷰가 영구 stale 이었어요 (Constellation v2.4.88)** — 어댑터가 리포트를 질문으로 닫았어요: agent_list_get 은 되는데 자기 자신이 없다, 의도인가? 아니었어요 — 갱신이 board 로만 fan-out 되고, 에이전트는 자기 HELLO 이전인 upgrade 시점에 AgentList 를 한 번만 받으니 캐시가 자기를 담을 수 없고 이후 합류도 안 들어와요. 프레즌스는 에이전트에게도 1급(ephemeral-peer tri-state·재전달 recipient-present)이라 갱신을 에이전트에도 보내요. verify-nway 22축 PASS.
 
@@ -1652,11 +1652,11 @@ v1.x 는 프로젝트 시드 — 신규 AI-Native 프로젝트 부트스트랩, 
 
 - **[Compendium](Compendium.md)** (v0.2.6) — **이미 쓰는 markdown vault 위에 얹는 이식 가능한 규율 레이어**: 한 개념에 정의 하나, 두 register(쉬운말 + 전문어)로 제공하되, 정의를 베끼지 않고 그 개념을 *소유한 스펙을 가리킴*. 마지막 성질이 wedge — 재진술하지 않으므로 원본으로부터 drift 할 수 없음. north-star 의 두 번째 축(코드 생존보다 개념/어휘 생존 — 어느 단일 런타임 구현보다 오래 남을 레이어)을 reify. 출시분: 콘텐츠 스토어, 가드닝 lint(포인터 깨짐 / 고아 / 개념 중복 / 낡음), 8-tool MCP 서버, 어떤 에이전트든 읽어서 쓰는 cross-tool 스킬 2종(`compendium-curate` / `compendium-lint`), 그리고 스토어를 옵시디언류 앱에서 링크 그래프 그대로 열 수 있게 하는 vault 투영.
 
-여섯 모듈 모두 **선택적** + **참조** (시드 티어 본문에 번들되지 않으므로 시드는 lean 유지). 파일 기반 코디네이션 (Phase 5) 이 기본이며 대부분 프로젝트에 충분.
+일곱 모듈 모두 **선택적** + **참조** (시드 티어 본문에 번들되지 않으므로 시드는 lean 유지). 파일 기반 코디네이션 (Phase 5) 이 기본이며 대부분 프로젝트에 충분.
 
 ### Claude Code 플러그인으로 설치 (repo 자체 마켓플레이스)
 
-여섯 모듈은 본 repo 의 **repo 자체 마켓플레이스** 를 통해 Claude Code 플러그인으로도 ship. Claude Code 세션에서:
+일곱 모듈은 본 repo 의 **repo 자체 마켓플레이스** 를 통해 Claude Code 플러그인으로도 ship. Claude Code 세션에서:
 
 ```
 /plugin marketplace add SoliEstre/EstreGenesis
@@ -1835,7 +1835,7 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.5.208 (2026-07-25) — **거부를 말로, 권한을 가시화, History 가 자기 범위를 선언 (Constellation v2.4.89)** — requireKey 보드로의 무키 원격 연결이 성공처럼 보였어요: 검사가 사유 없이 소켓을 close 해서 HELLO 뒤 파이프라인된 프레임이 전송 계층에서 죽고, 어댑터는 보드가 받지 못한 리포트를 보냈다고 믿었어요. 이제 HELLO 시점 거부 2종이 ConnectionRejected{reason,surface,hint} 를 emit 하고 코드 4403 으로 close 하며(WS 코어 close() 가 RFC6455 code/reason 지원), HELLO 성공 시 ConnectionInfo{role, mayManageKeys, keyed, …} 를 회신해 자기 권한을 추측하지 않게 하고, History 페이로드가 active-channels+stubs 범위를 선언해요. verify-nway 22축 PASS.
+**현재**: v2.6.0 (2026-07-25) — **Corporate — 세 번째 오케스트레이션 축: 누가 존재하는가 (모듈 v0.1.0, Constellation v2.4.90)** — Superscalar 는 몇 레인·어느 티어인지를, Constellation 은 에이전트 프로세스가 어떻게 대화하는지를 결정해요. 둘 다 *durable role* — 세션·프로세스보다 오래 살아서 관행을 축적하고, 시간을 넘어 지목되고, 단위를 소유하고, 결정에 수신자를 부여할 수 있는 명명된 좌석 — 을 표현하지 못해요. Corporate 가 그 일곱 번째 모듈이고, durable 한 절반만 ship 해요: 책상 이원 계약(gitignored 개인 데스크 = 하네스가 실제로 도는 cwd, tracked 공용 locker = 메시지가 아니라 경로로 공유하는 읽기 표면), 데스크가 의도적으로 호스트를 넘지 않는 멀티호스트 조직, 가장 싼 쪽이 기본인 잔류 클래스 4종, 리졸버 **하나**만 읽는 3층 토글 체인(역할 > 그룹 > 조직) + 로스터 없는 프로젝트의 동작을 비트 단위로 동일하게 만드는 항등성 불변식(`resolve.cjs --selftest` 로 **검사**, 주장 아님), 그리고 생성과 같은 급으로 명세된 퇴출 — 조직이 동적이 되는 순간 그 자동화가 의무가 돼요. Constellation v2.4.90 은 보드가 호스팅하지 않는 조직을 렌더하게 하는 선언 이벤트 2종(`CorporateChart` / `RoleState`)을 추가해요. 기존 선언 클래스 기전 그대로라 새 배관이 없고, 부재는 유휴가 아니라 *unknown* 으로 렌더돼요. 휘발하는 하네스별 값은 행마다 출처를 요구하는 날짜 있는 레지스트리에 살아서, 스펙이 하네스 릴리스 cadence 로 썩지 않아요. verify-nway 23축 PASS.
 
 이전: v2.5.207 (2026-07-25) — **AgentList 가 board 로만 나가 에이전트의 프레즌스 뷰가 영구 stale 이었어요 (Constellation v2.4.88)** — 어댑터가 리포트를 질문으로 닫았어요: agent_list_get 은 되는데 자기 자신이 없다, 의도인가? 아니었어요 — 갱신이 board 로만 fan-out 되고, 에이전트는 자기 HELLO 이전인 upgrade 시점에 AgentList 를 한 번만 받으니 캐시가 자기를 담을 수 없고 이후 합류도 안 들어와요. 프레즌스는 에이전트에게도 1급(ephemeral-peer tri-state·재전달 recipient-present)이라 갱신을 에이전트에도 보내요. verify-nway 22축 PASS.
 

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corporate — durable-role agent organization · EstreGenesis</title>
+  <meta name="description" content="Corporate v0.1.0 — a durable-role agent organization, and the third orchestration axis. Superscalar decides how many lanes and at which tier (a lane is anonymous and lives for one fan-out), Constellation decides how agent processes talk, and Corporate decides who exists. Its unit is the durable role: a named seat that outlives any session or process, so it can accumulate practice, be addressed across time, own units, and give a decision an addressee — four properties an anonymous lane structurally cannot have. Ships the durable half only: the two-space desk contract (a gitignored private desk that is the cwd where the role's harness actually runs, holding its charter and its own memory, plus a tracked public locker that is the read surface for the organization and the user, with write-a-document-and-pass-the-path as the default sharing mechanism), a desk that does not span hosts and a locker that is the cross-host exchange, a reference roster whose main does not take direct work and whose reviewer must run on a different model family than its builder, four residency classes defaulting to the cheapest with an organization circuit breaker that demotes rather than stops, an eviction lifecycle specified at the same level as creation and mandatorily automated once the organization is dynamic (automating growth without automating shrinkage is a one-way ratchet), bidirectional practice-role derivation (a recorded practice is evidence a seat is warranted; a seat with no practice is an eviction candidate), and two declaration events that let a live board render an organization it hosts none of. A design draft: the supervisor, the toggle resolver, the bootstrap interview, the org-chart rendering and boot residency are named prunable units and deferred — nothing here is dogfooded or measured. Below the three adoption thresholds, a Superscalar fan-out plus a board is the cheaper answer to the same need.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="shared/shared.css">
+  <link rel="stylesheet" href="shared/themes.css">
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var levels = ['general', 'dev', 'expert'];
+      var aud = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(aud) === -1) aud = 'general';
+      html.setAttribute('data-audience', aud);
+      var langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages
+        : [navigator.language || navigator.userLanguage || ''];
+      var detected = 'en';
+      for (var i = 0; i < langs.length; i++) {
+        if (typeof langs[i] === 'string' && langs[i].toLowerCase().indexOf('ko') === 0) { detected = 'ko'; break; }
+      }
+      var lang = localStorage.getItem('eg-promo-lang') || detected;
+      html.setAttribute('lang', lang);
+    })();
+  </script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
+      <nav class="nav">
+        <a href="index.html" data-en="Home" data-ko="홈">Home</a>
+        <a href="docs.html" data-en="Docs" data-ko="문서">Docs</a>
+        <a href="modules.html" class="active" data-en="Modules" data-ko="모듈">Modules</a>
+        <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <div class="controls">
+        <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
+        <div class="control-group"><span class="control-label" data-en="Level" data-ko="레벨">Level</span><div class="aud-toggle"><button data-aud-btn="general" data-en="general" data-ko="일반">general</button><button data-aud-btn="dev" data-en="dev" data-ko="개발">dev</button></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-wide">
+    <section class="hero">
+      <h1>Corporate</h1>
+      <p class="spec-source"><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Corporate.md" target="_blank" rel="noopener" data-en="Full spec (AI-readable): Corporate.md →" data-ko="전문 스펙 원문 (AI-readable): Corporate.md →">Full spec (AI-readable): Corporate.md →</a></p>
+      <p class="tagline" data-aud="general" data-en="Not how many AI helpers run at once, but which named jobs exist and stay — a seat that keeps its own desk, its own notes and its own record from one session to the next." data-ko="AI 도우미를 몇 명 붙일지가 아니라, 어떤 이름 있는 자리가 있고 계속 남는지 — 자기 책상·자기 메모·자기 기록을 세션을 넘어 유지하는 자리예요.">Not how many helpers run at once, but which named jobs exist and stay — a seat with its own desk, notes and record.</p>
+      <p class="tagline" data-aud="dev" data-en="The third orchestration axis. Superscalar decides how many lanes and at which tier (anonymous, one fan-out); Constellation decides how agent processes talk; Corporate decides who exists. Its unit is the durable role — a named seat that outlives any session or process and owns a desk, a charter, a boundary, and an accumulating body of practice." data-ko="세 번째 오케스트레이션 축이에요. Superscalar 는 레인을 몇 개, 어느 티어로 띄울지(익명 · fan-out 1회) 정하고, Constellation 은 에이전트 프로세스끼리 어떻게 말할지 정하고, Corporate 는 누가 존재하는지를 정해요. 단위는 durable role — 세션이나 프로세스보다 오래 남으며 desk · charter · 경계 · 쌓이는 practice 를 소유하는 이름 있는 자리예요.">The third orchestration axis — Superscalar decides how many lanes, Constellation how processes talk, Corporate who exists. Its unit is the durable role.</p>
+      <div class="badges">
+        <span class="badge">v0.1.0</span>
+        <span class="badge" data-en="7th module" data-ko="7번째 모듈">7th module</span>
+        <span class="badge" data-en="design draft — runtime deferred" data-ko="설계 초안 — 런타임 유보">design draft — runtime deferred</span>
+        <span class="badge">durable role</span>
+        <span class="badge" data-en="third orchestration axis" data-ko="세 번째 오케스트레이션 축">third orchestration axis</span>
+        <span class="badge" data-en="eviction symmetric with creation" data-ko="생성과 대칭인 eviction">eviction symmetric with creation</span>
+        <span class="badge">Apache-2.0</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="What Corporate is" data-ko="Corporate란 무엇인가요?">What Corporate is</h2>
+      <h2 data-aud="dev" data-en="What Corporate is" data-ko="Corporate란 무엇인가">What Corporate is</h2>
+
+      <p data-aud="general" data-en="Most ways of running several AI helpers at once answer the question 「how many」. Corporate answers a different one — 「who」. Instead of anonymous helpers that appear for one job and vanish, it defines named jobs that stay: a reviewer, a builder, a note-keeper. Each named job has its own working folder, its own written job description, and its own record of what it has learned, and it is still there in the next session even though the program that ran it exited long ago." data-ko="여러 AI 도우미를 한꺼번에 돌리는 방식들은 대개 「몇 명이 붙을지」에 답해요. Corporate 가 답하는 질문은 달라요 — 「누가 있는지」예요. 한 번 일하고 사라지는 익명의 도우미 대신, 계속 남는 이름 있는 자리를 정해요: 검토자, 구현자, 기록자처럼요. 각 자리는 자기 작업 폴더, 자기 직무 설명서, 그리고 지금까지 배운 것의 기록을 갖고, 그 자리를 돌렸던 프로그램이 이미 끝난 뒤에도 다음 세션에 그대로 있어요.">Most ways of running several AI helpers answer 「how many」. This one answers 「who」 — named jobs that stay, each with its own folder, job description and record.</p>
+      <p data-aud="dev" data-en="Corporate is the third orchestration axis, and the three are orthogonal — a project may run any subset. Superscalar governs dispatch inside one agent: how many lanes, at which tier. A lane is anonymous and lives for one fan-out, so it cannot accumulate anything. Constellation governs communication between agent processes: the wire and the board. A process has an identity, but a process is not a job description — the protocol deliberately separates wire role from duty and then stops, leaving 「what is this agent for, across time」 to prose in a charter file. Corporate is that missing noun made first-class, and its unit is the durable role: a named seat that outlives any session or process and owns a desk, a charter, a boundary, and an accumulating body of practice." data-ko="Corporate 는 세 번째 오케스트레이션 축이고, 세 축은 서로 직교해요 — 프로젝트는 이 중 아무 부분집합만 돌려도 돼요. Superscalar 는 한 에이전트 안의 dispatch 를 다뤄요: 레인을 몇 개, 어느 티어로. 레인은 익명이고 fan-out 한 번만 살아 있으니 아무것도 축적하지 못해요. Constellation 은 에이전트 프로세스 사이의 통신을 다뤄요: wire 와 보드요. 프로세스에는 정체성이 있지만 프로세스가 직무 설명서는 아니에요 — 프로토콜은 wire role 과 duty 를 의도적으로 분리한 뒤 거기서 멈추고, 「이 에이전트는 시간을 걸쳐 무엇을 위한 존재인가」를 charter 파일의 산문에 남겨 둬요. Corporate 는 그 빠져 있던 명사를 1급으로 만든 것이고, 단위는 durable role 이에요: 세션이나 프로세스보다 오래 남으며 desk · charter · 경계 · 쌓이는 practice 를 소유하는 이름 있는 자리요.">The third axis, orthogonal to the other two. A lane is anonymous and cannot accumulate; a process has identity but is not a job description. Corporate makes the missing noun — the durable role — first-class.</p>
+
+      <p data-aud="general" data-en="Status: this is a v0.1.0 design draft. What is written down is the durable half — the words, the boundaries and the rules that stay true when the tools change. The machinery is deliberately not built yet: the part that starts and stops a seat's program, the interview that proposes an organization, the on-screen org chart and the start-up automation are all named as replaceable pieces and left for a later cut. Nothing on this page is a measurement, and none of it has been run in production." data-ko="상태: 이건 v0.1.0 설계 초안이에요. 적혀 있는 건 오래 남는 절반 — 어휘, 경계, 그리고 도구가 바뀌어도 유지되는 규칙이에요. 기계 장치는 의도적으로 아직 만들지 않았어요: 자리의 프로그램을 띄우고 내리는 부분, 조직을 제안하는 인터뷰, 화면에 그려지는 조직도, 시작 시 자동화 — 모두 교체 가능한 조각으로 이름 붙여 두고 다음 cut 으로 넘겼어요. 이 페이지에 측정값은 하나도 없고, 실사용 운영에 올린 것도 없어요.">Status: a v0.1.0 design draft. The durable half (words, boundaries, rules) is written; the machinery is deliberately deferred as replaceable pieces. No measurements, nothing running in production.</p>
+      <p data-aud="dev" data-en="Status: v0.1.0 ships the durable half only — the vocabulary, the boundaries, the invariants, the two wire declarations, and the contracts (desk, communication, residency and eviction, gate routing). Every runtime piece is named as a prunable unit and deferred: the supervisor that owns process lifecycle and the reclaim, the toggle resolver, the bootstrap skill, the org-chart rendering, boot/residency automation, and the harness registry contents. There is no dogfood evidence and there are no measurements. One property is worth stating up front because it is what makes adoption additive rather than a restructure: with no roster present, every toggle resolves exactly as the organization layer states it, so a project behaves bit-identically to one where this module does not exist — and the spec makes that an identity-test obligation rather than a claim." data-ko="상태: v0.1.0 은 오래 남는 절반만 ship 해요 — 어휘, 경계, 불변식, wire 선언 2종, 그리고 계약들(desk · 통신 · residency/eviction · 게이트 라우팅). 런타임 조각은 모두 prunable unit 으로 이름 붙이고 유보했어요: 프로세스 lifecycle 과 회수를 소유하는 supervisor, toggle resolver, bootstrap skill, 조직도 렌더링, boot/residency 자동화, harness 레지스트리 내용물. dogfood 근거도 없고 측정값도 없어요. 다만 한 가지 속성은 먼저 말해 둘 만해요 — 도입이 재구조화가 아니라 순수 추가가 되게 만드는 속성이라서요: roster 가 없으면 모든 토글이 organization 계층이 말하는 값 그대로 resolve 되어서, 프로젝트 동작이 이 모듈이 존재하지 않는 경우와 bit-identical 해요. 스펙은 이걸 주장이 아니라 identity 테스트 의무로 못 박아요.">Status: v0.1.0 ships the durable half only; every runtime piece is a named prunable unit, deferred. No dogfood, no measurements. With no roster present the resolver is bit-identical to a project without the module — an identity-test obligation, not a claim.</p>
+
+      <table class="data">
+        <thead>
+          <tr>
+            <th data-en="Layer" data-ko="계층">Layer</th>
+            <th data-en="Unit" data-ko="단위">Unit</th>
+            <th data-en="Lifetime" data-ko="수명">Lifetime</th>
+            <th data-en="Named?" data-ko="이름이 있나">Named?</th>
+            <th data-en="Decides" data-ko="무엇을 정하나">Decides</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Superscalar</td>
+            <td data-en="lane (sub-agent)" data-ko="레인 (서브에이전트)">lane (sub-agent)</td>
+            <td data-en="one fan-out" data-ko="fan-out 1회">one fan-out</td>
+            <td data-en="no" data-ko="아니요">no</td>
+            <td data-en="how wide, and at which tier" data-ko="얼마나 넓게, 어느 티어로">how wide, and at which tier</td>
+          </tr>
+          <tr>
+            <td>Constellation</td>
+            <td data-en="agent process + board" data-ko="에이전트 프로세스 + 보드">agent process + board</td>
+            <td data-en="the board's life" data-ko="보드가 사는 동안">the board's life</td>
+            <td data-en="yes (canonical id)" data-ko="예 (canonical id)">yes (canonical id)</td>
+            <td data-en="how processes talk" data-ko="프로세스끼리 어떻게 말하나">how processes talk</td>
+          </tr>
+          <tr>
+            <td>Corporate</td>
+            <td data-en="role (a seat)" data-ko="role (자리)">role (a seat)</td>
+            <td data-en="the organization's life" data-ko="조직이 사는 동안">the organization's life</td>
+            <td data-en="yes, plus a boundary and a practice record" data-ko="예 — 경계와 practice 기록까지">yes, plus a boundary and a practice record</td>
+            <td data-en="who exists" data-ko="누가 존재하나">who exists</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="The core idea" data-ko="핵심 아이디어">The core idea</h4>
+        <h4 data-aud="dev" data-en="Central thesis" data-ko="핵심 명제">Central thesis</h4>
+        <p data-aud="general" data-en="A helper is for right now; a seat is still there tomorrow. Corporate is only about the second kind — and it says as clearly how a seat leaves as how one arrives." data-ko="도우미는 지금 이 순간을 위한 것이고, 자리는 내일도 그대로 있는 것이에요. Corporate 는 두 번째 것만 다루고 — 자리가 생기는 방법만큼 떠나는 방법도 또렷하게 적어요.">A helper is for right now; a seat is still there tomorrow. This module is about the second kind — and it says how a seat leaves as clearly as how it arrives.</p>
+        <p data-aud="dev" data-en="Superscalar answers how wide, Constellation answers how they talk, Corporate answers who exists. The durable artifacts are the vocabulary and the boundaries — role vs lane vs process, desk vs locker, the residency ladder, the precedence chain, practice↔role bidirectionality. The spawn runtime and the visualization are exactly the class a provider ships natively first, so they are marked prunable rather than polished." data-ko="Superscalar 는 얼마나 넓게에, Constellation 은 어떻게 말하나에, Corporate 는 누가 존재하나에 답해요. 오래 남는 산출물은 어휘와 경계예요 — role 대 lane 대 process, desk 대 locker, residency 사다리, 우선순위 체인, practice↔role 양방향성. spawn 런타임과 시각화는 제공자가 native 로 가장 먼저 내놓을 바로 그 부류라서, 매끈하게 다듬는 대신 prunable 로 표시했어요.">How wide · how they talk · who exists. The durable artifacts are the vocabulary and boundaries; the spawn runtime and the visualization are marked prunable, not polished.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Why a seat is not just another helper" data-ko="자리는 왜 도우미 한 명 더가 아닌가요?">Why a seat is not just another helper</h2>
+      <h2 data-aud="dev" data-en="Why a durable seat is not a lane" data-ko="durable seat 은 왜 lane 이 아닌가">Why a durable seat is not a lane</h2>
+
+      <p data-aud="general" data-en="A helper is help for right now. You open five of them, they each do a part, and they are gone — nothing they worked out is kept anywhere, and afterwards there is nobody to ask about it. A seat differs in four ways, and none of the four can be faked by opening more helpers." data-ko="도우미는 지금 필요한 도움이에요. 다섯 명 띄우면 각자 한 부분을 하고 사라져요 — 그들이 알아낸 건 아무 데도 남지 않고, 나중에 물어볼 대상도 없어요. 자리는 네 가지 점에서 달라요. 그리고 그 넷 중 어느 것도 도우미를 더 많이 띄우는 방식으로는 따라 할 수 없어요.">A helper is help for right now — nothing it worked out is kept, and afterwards there is nobody to ask. A seat differs in four ways, none fakeable with more helpers.</p>
+      <p data-aud="dev" data-en="Four properties follow from a seat outliving its processes, and each is structurally unavailable to a lane. This is the whole argument for the module: if none of the four is worth paying for in a given project, the honest answer is a fan-out, not a roster." data-ko="자리가 자기 프로세스보다 오래 남는다는 사실에서 네 가지 속성이 따라 나오고, 각각은 lane 에게 구조적으로 불가능해요. 이게 모듈의 논거 전부예요 — 어떤 프로젝트에서 이 넷 중 값을 치를 만한 게 하나도 없다면, 정직한 답은 roster 가 아니라 fan-out 이에요.">Four properties follow from outliving your own processes, each structurally unavailable to a lane. If none is worth paying for, the honest answer is a fan-out, not a roster.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="Accumulation" data-ko="축적">Accumulation</h3>
+          <p data-aud="general" data-en="What the seat works out stays with the seat — the approaches that worked, the ones that were tried and rejected, where its job ends. So the tenth time a recurring task comes round, it does not start from nothing." data-ko="자리가 알아낸 건 그 자리에 남아요 — 통했던 방법, 시도했다 접은 방법, 자기 일이 어디서 끝나는지까지요. 그래서 반복되는 작업이 열 번째로 돌아올 때 맨땅에서 시작하지 않아요.">What the seat works out stays with the seat, so the tenth run of a recurring task doesn't start from nothing.</p>
+          <p data-aud="dev" data-en="Practice, boundary decisions and rejected approaches attach to the seat, so the Nth occurrence of a recurring job starts warmer than the first. A lane has nowhere to put any of it." data-ko="practice · 경계 결정 · 기각된 접근이 자리에 붙어서, 반복 작업의 N 번째가 첫 번째보다 따뜻하게 시작해요. lane 에는 그걸 둘 자리가 아예 없어요.">Practice, boundary decisions and rejected approaches attach to the seat — the Nth occurrence starts warmer. A lane has nowhere to put them.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Addressability across time" data-ko="시간을 건너는 지명 가능성">Addressability across time</h3>
+          <p data-aud="general" data-en="「Ask the reviewer」 means something even when nothing is running yet — you do not have to know which program is up. That is what makes it possible to say who hands work to whom at all." data-ko="「검토자에게 물어봐」가 아무것도 안 돌아가는 상태에서도 뜻이 통해요 — 지금 어느 프로그램이 떠 있는지 알 필요가 없어요. 애초에 누가 누구에게 일을 넘기는지 말할 수 있게 해 주는 게 이거예요.">「Ask the reviewer」 works even when nothing is running — which is what makes it possible to say who hands work to whom.</p>
+          <p data-aud="dev" data-en="「Ask the reviewer」 resolves without knowing which process is up, which is what makes a reporting structure expressible at all." data-ko="「검토자에게 물어봐」가 어느 프로세스가 떠 있는지 몰라도 resolve 돼요. 보고 구조를 표현 가능하게 만드는 게 바로 이 속성이에요.">Resolves without knowing which process is up — the precondition for a reporting structure being expressible at all.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Ownership" data-ko="소유">Ownership</h3>
+          <p data-aud="general" data-en="A seat can own a part of the project, so two of them do not quietly change the same thing at the same time. Anonymous helpers can own nothing, which is why their collisions only become visible afterwards." data-ko="자리는 프로젝트의 한 부분을 소유할 수 있어서, 둘이 같은 것을 동시에 조용히 고치는 일이 없어요. 익명 도우미는 아무것도 소유할 수 없고, 그래서 충돌이 늘 사후에야 보여요.">A seat can own part of the project, so two of them don't quietly change the same thing. Anonymous helpers own nothing — collisions surface only afterwards.</p>
+          <p data-aud="dev" data-en="A seat can own units in the ownership registry; an anonymous lane cannot, which is why cross-lane conflict is detectable only post-hoc." data-ko="자리는 ownership 레지스트리의 unit 을 소유할 수 있지만 익명 lane 은 못 해요. cross-lane 충돌이 post-hoc 으로만 검출되는 이유예요.">A seat can own units in the ownership registry; a lane cannot — hence cross-lane conflict is detectable only post-hoc.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Auditability" data-ko="감사 가능성">Auditability</h3>
+          <p data-aud="general" data-en="Every decision has someone attached to it, so 「why is it like this?」 has somebody to ask." data-ko="모든 결정에 누군가가 붙어 있어서, 「왜 이렇게 되어 있나요?」에 물어볼 대상이 생겨요.">Every decision has someone attached, so 「why is it like this?」 has somebody to ask.</p>
+          <p data-aud="dev" data-en="A decision has a seat attached, so 「why is it like this」 has an addressee rather than a guess at which lane produced it." data-ko="결정에 자리가 붙어 있어서, 「왜 이렇게 되어 있나」에 어느 lane 이 만들었는지 추측하는 대신 수신자가 생겨요.">A decision has a seat attached, so the question has an addressee instead of a guess about which lane produced it.</p>
+        </div>
+      </div>
+
+      <p data-aud="general" data-en="A seat is not free, though. Every seat that exists is a standing invitation to route work through it, and running its own program costs real money each time. The classic failure of every organization — human or otherwise — is that seats pile up and never leave, and each surviving seat taxes every future decision about how to split up work. That is why this module describes how a seat is removed at the same level of detail as how one is created." data-ko="다만 자리는 공짜가 아니에요. 존재하는 자리마다 「일을 여기로 보내라」는 상시 초대장이 되고, 자기 프로그램을 돌릴 때마다 실제 비용이 나가요. 사람 조직이든 아니든 모든 조직의 고전적 실패는 자리가 쌓이기만 하고 떠나지 않는 것이고, 살아남은 자리 하나하나가 앞으로의 모든 작업 분해 판단에 세금을 매겨요. 그래서 이 모듈은 자리를 없애는 방법을 만드는 방법과 같은 수준으로 자세히 적어요.">A seat isn't free — it's a standing invitation to route work through it, and each run costs money. Seats pile up and never leave, and each survivor taxes every future split of work. Hence removal is specified as carefully as creation.</p>
+      <p data-aud="dev" data-en="A seat is a standing invitation to route work through it, and multi-seat operation multiplies token cost rather than adding to it. The dominant failure mode of every organization is that seats accumulate and never leave, and each surviving seat taxes every future decomposition. Therefore eviction is specified at the same level as creation, residency defaults to the cheapest class, and the module ships a rule for when not to create a role at all. A module that proposed organizations without proposing their dissolution would be a framework-gravity generator." data-ko="자리는 「일을 여기로 라우팅하라」는 상시 초대장이고, 여러 자리 운영은 토큰 비용을 더하는 게 아니라 곱해요. 모든 조직의 지배적 실패 양상은 자리가 쌓이고 절대 떠나지 않는 것이며, 살아남은 자리 하나하나가 앞으로의 모든 분해에 세금을 매겨요. 그래서 eviction 을 생성과 같은 수준으로 명세하고, residency 는 가장 싼 등급을 기본값으로 두고, 아예 role 을 만들지 말아야 할 때의 규칙까지 함께 실어요. 조직 구성을 제안하면서 해산은 제안하지 않는 모듈은 framework-gravity 생성기가 될 거예요.">A seat is a standing routing invitation, and multi-seat operation multiplies token cost. So eviction is specified at creation's level, residency defaults to the cheapest class, and there is a rule for not creating a role at all.</p>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Every seat gets two folders" data-ko="자리마다 폴더가 두 개">Every seat gets two folders</h2>
+      <h2 data-aud="dev" data-en="The desk — a two-space contract" data-ko="desk — 두 공간 계약">The desk — a two-space contract</h2>
+
+      <p data-aud="general" data-en="A seat has a private folder and a public one, and the split is the whole point. The private folder is where the seat's AI actually runs: it holds the job description, the seat's own notes and its session state, and it is kept out of version control because it is local working state nobody needs to review. The public folder is what the rest of the organization — and you — read: reports, handoffs, finished work. That one is version-controlled, because it is the record." data-ko="자리에는 비공개 폴더와 공개 폴더가 있고, 그 분리가 핵심이에요. 비공개 폴더는 그 자리의 AI 가 실제로 돌아가는 곳이에요: 직무 설명서, 자리 자신의 메모, 세션 상태가 들어 있고, 아무도 검토할 필요 없는 로컬 작업 상태라서 버전 관리에서 빼요. 공개 폴더는 조직의 나머지와 — 그리고 당신이 — 읽는 곳이에요: 보고서, 인계, 완성된 산출물. 이쪽은 기록이니까 버전 관리로 추적해요.">A private folder (where the seat's AI actually runs — job description, its own notes, session state; kept out of version control) and a public one (reports, handoffs, finished work; tracked, because it is the record).</p>
+      <p data-aud="dev" data-en="Every role gets two directories with different audiences. The private desk is the cwd the role's harness is invoked in — context isolation, memory isolation and session identity are properties of that directory, which is why the role's process must actually run there rather than in the project root under a different prompt. It is gitignored: a desk is local operational state, and the accumulated session artifacts of N roles are neither reviewable nor portable. The public locker is tracked, because it holds the deliverables and the record. A role loads its own charter first and the project-common SSoT second — the charter is the more specific contract and must not be diluted by being read after a project-wide file." data-ko="role 마다 청중이 다른 디렉토리 두 개를 받아요. private desk 는 그 role 의 하네스가 invoke 되는 cwd 예요 — 컨텍스트 격리 · 메모리 격리 · 세션 정체성이 그 디렉토리의 속성이고, 그래서 role 의 프로세스는 프로젝트 루트에서 프롬프트만 바꿔 도는 게 아니라 실제로 거기서 돌아야 해요. desk 는 gitignore 대상이에요: 로컬 운영 상태이고, N 개 role 의 누적 세션 산출물은 검토 가능하지도 이식 가능하지도 않으니까요. public locker 는 추적해요 — 산출물과 기록이 거기 있으니까요. role 은 자기 charter 를 먼저, 프로젝트 공통 SSoT 를 나중에 읽어요. charter 가 더 구체적인 계약이라서, 프로젝트 전역 파일 뒤에 읽혀 희석되면 안 돼요.">Two directories, two audiences. The private desk is the harness cwd (isolation and session identity are properties of that directory), gitignored; the public locker is tracked. Charter loads first, project SSoT second — specificity order.</p>
+
+      <pre><code>.agent/
+  corporate.json
+  &lt;role&gt;/
+    README.md
+    reports/   handoffs/   deliverables/
+  workertables/
+    &lt;role&gt;/
+      AGENTS.md
+      toggles.json
+      memory/
+      .session/
+      scratch/</code></pre>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en-html="Private desk — <code>workertables/&lt;role&gt;/</code>" data-ko-html="비공개 desk — <code>workertables/&lt;role&gt;/</code>">Private desk — <code>workertables/&lt;role&gt;/</code></h3>
+          <p data-aud="general" data-en="Not version-controlled. This is the folder the seat's AI is actually started in, so its context, its memory and its session belong to it alone. Inside are the job description, the seat's own notes, its saved session and a scratch area." data-ko="버전 관리에 넣지 않아요. 자리의 AI 가 실제로 그 안에서 시작되는 폴더라, 컨텍스트 · 메모리 · 세션이 그 자리만의 것이 돼요. 안에는 직무 설명서, 자리 자신의 메모, 저장된 세션, 임시 작업 공간이 있어요.">Not version-controlled — the folder the seat's AI is started in, so context, memory and session are its own. Job description, own notes, saved session, scratch.</p>
+          <p data-aud="dev" data-en="Gitignored and local-bound by design: the charter (AGENTS.md), the harness bridge file that imports it, the role-layer toggle overrides, role-private memory, session identity with the charter hash, and scratch. Path grants are enumerated, never blanket — an allow-everything grant deletes the isolation that justified having a desk." data-ko="설계상 gitignore + 로컬 귀속이에요: charter(AGENTS.md), 그걸 import 하는 하네스 브릿지 파일, role 계층 토글 override, role 전용 메모리, charter 해시가 포함된 세션 정체성, 그리고 scratch. 경로 grant 는 열거식이고 절대 blanket 이 아니에요 — 「전부 허용」은 desk 를 둔 이유인 격리를 지워 버려요.">Gitignored by design: charter, the bridge file that imports it, role-layer toggle overrides, role-private memory, session identity with charter hash, scratch. Path grants are enumerated, never blanket.</p>
+        </div>
+        <div class="card">
+          <h3 data-en-html="Public locker — <code>.agent/&lt;role&gt;/</code>" data-ko-html="공개 locker — <code>.agent/&lt;role&gt;/</code>">Public locker — <code>.agent/&lt;role&gt;/</code></h3>
+          <p data-aud="general" data-en="Version-controlled. This is the reading surface for the organization and for you: a public summary of the seat's job, its reports, its handoffs, its finished work. It stays even after the seat is gone." data-ko="버전 관리로 추적해요. 조직과 당신이 읽는 표면이에요: 그 자리의 일에 대한 공개 요약, 보고서, 인계, 완성된 산출물. 자리가 없어진 뒤에도 남아요.">Version-controlled — the reading surface for the organization and for you: public summary, reports, handoffs, finished work. It stays even after the seat is gone.</p>
+          <p data-aud="dev" data-en="Tracked, because it holds the deliverables and the record. Where the organization's main belongs to another project, lockers are namespaced under a peer-named directory so two organizations on one device never collide on a path; a single-org deployment may omit that level, and adding it later is a move rather than a rewrite." data-ko="산출물과 기록이 있으니 추적해요. 조직의 main 이 다른 프로젝트에 속할 때는 locker 를 peer 이름 디렉토리 아래로 namespacing 해서, 한 장비의 두 조직이 경로에서 절대 충돌하지 않게 해요. 단일 조직 배치는 그 레벨을 생략해도 되고, 나중에 추가하는 건 재작성이 아니라 이동이에요.">Tracked — deliverables and record. Peer-namespaced where the main belongs to another project, so two orgs on one device never collide; omitting that level is reversible by a move.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Across machines" data-ko="여러 대의 장비에 걸칠 때">Across machines</h3>
+          <p data-aud="general" data-en="A desk lives on one machine and does not stretch across two. Moving a seat to another machine means closing it and opening a new one there. What crosses machines is the public folder, through ordinary version control — no shared network drive, no new plumbing." data-ko="desk 는 한 장비에 살고 두 장비에 걸쳐 늘어나지 않아요. 자리를 다른 장비로 옮기는 건 닫고 거기서 새로 여는 일이에요. 장비를 건너는 건 공개 폴더이고, 평범한 버전 관리를 타고 넘어가요 — 공유 네트워크 드라이브도, 새 배관도 필요 없어요.">A desk lives on one machine; moving a seat means closing it and opening a new one. What crosses machines is the public folder, via ordinary version control.</p>
+          <p data-aud="dev" data-en="Each role declares a host, and the roster declares the host set with what each can actually run — a seat routed to a local model is only placeable on a host that can hold it. A desk does not span hosts (moving one is an eviction plus a re-creation, not a path edit, because two hosts sharing a desk over a network filesystem reintroduces the concurrent-write hazard desks exist to remove), cross-host coordination goes over the board or the wire rather than a remote mount, and the locker is the cross-host exchange." data-ko="role 마다 host 를 선언하고, roster 는 각 host 가 실제로 무엇을 돌릴 수 있는지와 함께 host 집합을 선언해요 — 로컬 모델로 라우팅된 자리는 그 모델을 담을 수 있는 host 에만 놓을 수 있어요. desk 는 host 를 걸치지 않아요(옮기는 건 경로 수정이 아니라 eviction + 재생성이에요. 두 host 가 네트워크 파일시스템으로 desk 를 공유하면 desk 가 없애려던 동시 쓰기 위험이 그대로 돌아오니까요). host 간 조율은 원격 마운트가 아니라 보드나 wire 로 가고, locker 가 host 간 교환 창구예요.">Each role declares a host; the roster declares host capability. A desk does not span hosts (a move is eviction + re-creation), cross-host coordination goes over the board or wire, and the locker is the exchange.</p>
+        </div>
+      </div>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="The default way to share" data-ko="공유의 기본 방식">The default way to share</h4>
+        <h4 data-aud="dev" data-en="The sharing rule" data-ko="공유 규칙">The sharing rule</h4>
+        <p data-aud="general" data-en="Write the document into the public folder and pass the path. Sending the content inside a message is the exception, kept for the things that cannot wait." data-ko="문서를 공개 폴더에 쓰고 경로를 넘기세요. 내용을 메시지 안에 담아 보내는 건 예외이고, 기다릴 수 없는 것들을 위해 남겨 둬요.">Write the document into the public folder and pass the path; sending content in a message is the exception, kept for what cannot wait.</p>
+        <p data-aud="dev" data-en="The default inter-role sharing mechanism is write a document into the locker and pass the path: high bandwidth, no message-channel noise, durable and diffable. It is the default for reports, specs and handoffs — not a fallback. Passing content by message is reserved for immediacy." data-ko="role 간 공유의 기본 메커니즘은 locker 에 문서를 쓰고 경로를 넘기는 것이에요: 대역폭이 크고, 메시지 채널 노이즈가 없고, 오래 남고, diff 가 돼요. 보고서 · 스펙 · 인계의 기본값이고 fallback 이 아니에요. 내용을 메시지로 넘기는 건 즉시성이 필요한 경우로 한정해요.">Default: write into the locker, pass the path — high bandwidth, no channel noise, durable, diffable. The default for reports, specs and handoffs, not a fallback.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="The seats on offer" data-ko="고를 수 있는 자리들">The seats on offer</h2>
+      <h2 data-aud="dev" data-en="The reference roster" data-ko="기준 로스터">The reference roster</h2>
+
+      <p data-aud="general" data-en="This is a menu, not a checklist. An organization takes only the seats it can name real recurring work for, and leaves the rest off. The tier column is how strong a model the seat gets by default, and the residency column is how long its program is allowed to stay alive." data-ko="이건 체크리스트가 아니라 메뉴예요. 조직은 실제로 반복되는 일을 이름 붙일 수 있는 자리만 가져가고, 나머지는 두고 가요. 티어 열은 그 자리가 기본으로 받는 모델의 급이고, residency 열은 그 프로그램이 얼마나 오래 살아 있어도 되는지예요.">A menu, not a checklist — take only the seats you can name recurring work for. Tier is the default model strength; residency is how long its program may stay alive.</p>
+      <p data-aud="dev" data-en="A menu, not a checklist — the same discipline as the seed's adoption catalog. Tiers are Superscalar's vocabulary, reused rather than renamed; residency classes are defined in the next section. Role identity is declared, never inferred: name, tier, residency, harness binding, group and reporting edge are roster fields, and nothing is read off a directory name or off whichever model happens to be running." data-ko="체크리스트가 아니라 메뉴예요 — 시드의 채택 카탈로그와 같은 규율이에요. 티어는 Superscalar 의 어휘를 이름만 바꾸지 않고 그대로 재사용하고, residency 등급은 다음 절에서 정의해요. role 의 정체성은 선언되고 추론되지 않아요: 이름 · 티어 · residency · 하네스 바인딩 · 그룹 · 보고 엣지가 모두 roster 필드이고, 디렉토리 이름이나 「지금 어느 모델이 도는지」에서 읽어 오는 건 하나도 없어요.">A menu, not a checklist. Tiers are Superscalar's vocabulary reused as-is. Role identity is declared, never inferred — nothing is read off a directory name or off whichever model happens to be running.</p>
+
+      <table class="data">
+        <thead>
+          <tr>
+            <th data-en="Role" data-ko="자리">Role</th>
+            <th data-en="Duty" data-ko="맡는 일">Duty</th>
+            <th data-en="Default tier" data-ko="기본 티어">Default tier</th>
+            <th data-en="Default residency" data-ko="기본 residency">Default residency</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>main</code></td>
+            <td data-en="User dialogue, steering, outside collaboration, organization management, quota and model management. Does not take direct work." data-ko="사용자 대화, 방향 조정, 외부 협업, 조직 운영, 쿼터·모델 관리. 직접 작업은 맡지 않아요.">User dialogue, steering, outside collaboration, organization management. Does not take direct work.</td>
+            <td>T1</td>
+            <td><code>resident</code></td>
+          </tr>
+          <tr>
+            <td><code>liaison</code></td>
+            <td data-en="The user-facing seat inside an editor or desktop tool — consultation, request intake, project conversation. Not the organization's main." data-ko="편집기나 데스크톱 도구 안의 사용자 대면 자리 — 상담, 요청 접수, 프로젝트 대화. 조직의 main 은 아니에요.">The user-facing seat inside an editor or desktop tool — consultation, intake, project conversation. Not the organization's main.</td>
+            <td>T1/T2</td>
+            <td><code>resident</code></td>
+          </tr>
+          <tr>
+            <td><code>scribe</code></td>
+            <td data-en="Board upkeep, keeping the decisions panel tidy, room digests." data-ko="보드 관리, 결정 패널 정돈, 룸 요약.">Board upkeep, keeping the decisions panel tidy, room digests.</td>
+            <td>T4</td>
+            <td><code>on-wake</code></td>
+          </tr>
+          <tr>
+            <td><code>architect</code></td>
+            <td data-en="Design and spec authoring, decision records." data-ko="설계와 스펙 작성, 결정 기록.">Design and spec authoring, decision records.</td>
+            <td>T1</td>
+            <td><code>on-demand</code></td>
+          </tr>
+          <tr>
+            <td><code>builder</code></td>
+            <td data-en="Implementation once the spec is complete." data-ko="스펙이 완성된 뒤의 구현.">Implementation once the spec is complete.</td>
+            <td>T2</td>
+            <td><code>on-demand</code></td>
+          </tr>
+          <tr>
+            <td><code>reviewer</code></td>
+            <td data-en="Adversarial review. Must run on a different model family than builder." data-ko="적대적 검토. builder 와는 다른 모델 계열에서 돌아야 해요.">Adversarial review. Must run on a different model family than builder.</td>
+            <td>T1</td>
+            <td><code>on-demand</code></td>
+          </tr>
+          <tr>
+            <td><code>verifier</code></td>
+            <td data-en="Tests and deterministic checks." data-ko="테스트와 결정론적 검사.">Tests and deterministic checks.</td>
+            <td>T2/T3</td>
+            <td><code>on-demand</code></td>
+          </tr>
+          <tr>
+            <td><code>librarian</code></td>
+            <td data-en="Vocabulary and practice curation." data-ko="어휘와 practice 큐레이션.">Vocabulary and practice curation.</td>
+            <td>T3</td>
+            <td><code>on-wake</code></td>
+          </tr>
+          <tr>
+            <td><code>watch</code></td>
+            <td data-en="Release surveillance — model releases, tool updates, upstream policy changes." data-ko="릴리스 감시 — 모델 출시, 도구 업데이트, 상류 정책 변경.">Release surveillance — model releases, tool updates, upstream policy changes.</td>
+            <td>T4</td>
+            <td><code>scheduled</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="The seat that talks to you does not do the work" data-ko="당신과 말하는 자리는 작업을 맡지 않아요">The seat that talks to you does not do the work</h4>
+        <h4 data-aud="dev" data-en="main does not execute" data-ko="main 은 실행하지 않아요">main does not execute</h4>
+        <p data-aud="general" data-en="The coordinating seat holds the conversation, the steering and the outside contacts, and hands time-consuming work to others. The reason is not rank — it is waiting. A coordinator that is buried inside a long task cannot be reached, so anything arriving while it works just piles up in a queue, including your own next message." data-ko="조율하는 자리는 대화, 방향 조정, 외부 연락을 맡고, 시간이 오래 걸리는 일은 다른 자리에 넘겨요. 이유는 서열이 아니라 기다림이에요. 긴 작업 안에 파묻힌 조율자에게는 말을 걸 수 없어서, 그 사이에 도착하는 건 전부 대기줄에 쌓여요 — 당신의 다음 메시지까지도요.">The coordinating seat holds conversation, steering and outside contacts and hands long work away. Not rank — waiting: a coordinator inside a long task is unreachable, so everything arriving queues up, including your next message.</p>
+        <p data-aud="dev" data-en="main holds conversation, steering, external collaboration and organization management; time-consuming work is delegated. The rationale is latency, not hierarchy: a main that is inside a long task is unreachable by the user and by peers, and an unreachable coordinator converts every inbound into a queue. It is the mirror image of the existing invariant that forbids promoting a coordination-only main into an orchestrator — this one forbids demoting an orchestrator-main into an executor. Both protect the same property: a declared duty is a contract, not a suggestion." data-ko="main 은 대화 · 방향 조정 · 외부 협업 · 조직 운영을 맡고, 시간이 걸리는 일은 위임해요. 근거는 위계가 아니라 지연이에요: 긴 작업 안에 들어가 있는 main 은 사용자도 peer 도 닿을 수 없고, 닿을 수 없는 조율자는 들어오는 모든 것을 대기줄로 바꿔요. 조율 전용 main 을 orchestrator 로 승격하지 못하게 하는 기존 불변식의 거울상이에요 — 이쪽은 orchestrator-main 을 실행자로 강등하지 못하게 해요. 둘 다 같은 속성을 지켜요: 선언된 duty 는 제안이 아니라 계약이라는 것.">main holds conversation, steering, external collaboration and org management; work is delegated. Latency, not hierarchy — an unreachable coordinator converts every inbound into a queue. Mirror image of the no-promotion invariant: a declared duty is a contract.</p>
+      </div>
+
+      <div class="callout">
+        <h4 data-aud="general" data-en="The checker is a different kind of AI from the builder" data-ko="검사하는 쪽은 만든 쪽과 다른 종류의 AI 예요">The checker is a different kind of AI from the builder</h4>
+        <h4 data-aud="dev" data-en="reviewer runs on a different model family than builder" data-ko="reviewer 는 builder 와 다른 모델 계열에서 돌아요">reviewer runs on a different model family than builder</h4>
+        <p data-aud="general" data-en="Reviewing is only worth its cost if the reviewer can see what the builder could not, so the review seat is required to run on a different family of AI model from the one that wrote the work. Two copies of the same model tend to share the same blind spots and agree with each other." data-ko="검토는 만든 쪽이 못 본 것을 검토하는 쪽이 볼 수 있을 때만 값을 해요. 그래서 검토 자리는 작업을 쓴 쪽과 다른 계열의 AI 모델에서 돌아야 해요. 같은 모델 두 벌은 같은 맹점을 공유하고 서로 동의하는 경향이 있어요.">Review only pays if the reviewer sees what the builder could not, so it must run on a different family of model. Two copies of one model share blind spots and agree with each other.</p>
+        <p data-aud="dev" data-en="The roster states it as a MUST on the reviewer row: adversarial review must be routed to a different model family than builder. Same-family review correlates the failure modes it is supposed to catch, which is the same independence requirement that cross-perspective verification elsewhere in the project depends on." data-ko="roster 의 reviewer 행에 MUST 로 못 박아 뒀어요: 적대적 검토는 builder 와 다른 모델 계열로 라우팅해야 해요. 같은 계열 검토는 잡아내야 할 실패 양상을 서로 상관시켜 버리는데, 이건 프로젝트의 다른 곳에서 교차 관점 검증이 기대는 독립성 요건과 같은 것이에요.">A MUST on the reviewer row: adversarial review routes to a different model family. Same-family review correlates the very failure modes it should catch — the same independence requirement cross-perspective verification depends on.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="How long a seat stays awake, and what it costs" data-ko="자리가 얼마나 깨어 있고, 비용은 얼마인가요">How long a seat stays awake, and what it costs</h2>
+      <h2 data-aud="dev" data-en="Residency, budget, and the circuit breaker" data-ko="residency · 예산 · 회로 차단기">Residency, budget, and the circuit breaker</h2>
+
+      <p data-aud="general" data-en="Each seat picks exactly one of four ways to be awake, and the cheapest of them is the default for almost everything: a program that only exists while there is a task for it. Staying awake all the time is reserved for the seat that talks to you, because that is the only place where waiting is the actual product." data-ko="자리마다 깨어 있는 방식 네 가지 중 정확히 하나를 골라요. 그리고 그중 가장 싼 것이 거의 모든 자리의 기본값이에요: 맡은 작업이 있는 동안만 존재하는 프로그램이요. 늘 깨어 있는 방식은 당신과 대화하는 자리에만 남겨 둬요 — 기다림 자체가 산출물인 곳은 거기뿐이니까요.">Each seat picks one of four ways to be awake, and the cheapest is the default for nearly everything: a program that exists only while there is a task. Always-awake is reserved for the seat that talks to you.</p>
+      <p data-aud="dev" data-en="Exactly one residency class per role, and the resource axis declared at bootstrap is a hard constraint rather than a preference: a roster proposal includes only seats the declared resources can actually run, and it states which seats it left out and why. Spawn authority is separated from spawn data — a deterministic supervisor owns process lifecycle, the tool and path allowlist, and the wall-clock reclaim; the orchestrating model requests and never spawns." data-ko="role 마다 residency 등급은 정확히 하나이고, bootstrap 에서 선언한 자원 축은 선호가 아니라 hard constraint 예요: roster 제안에는 선언된 자원으로 실제 돌릴 수 있는 자리만 들어가고, 어떤 자리를 왜 빼놓았는지도 함께 밝혀요. spawn 권한은 spawn 데이터와 분리돼요 — 결정론적 supervisor 가 프로세스 lifecycle · 도구/경로 allowlist · wall-clock 회수를 소유하고, 오케스트레이팅 모델은 요청만 하고 절대 spawn 하지 않아요.">Exactly one class per role; the declared resource axis is a hard constraint (a proposal contains only runnable seats and says what it left out). Spawn authority sits with a deterministic supervisor — the model requests, never spawns.</p>
+
+      <table class="data">
+        <thead>
+          <tr>
+            <th data-en="Class" data-ko="등급">Class</th>
+            <th data-en="How long the model process lives" data-ko="모델 프로세스가 사는 기간">How long the model process lives</th>
+            <th data-en="Constraint" data-ko="제약">Constraint</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>resident</code></td>
+            <td data-en="Always alive" data-ko="항상 살아 있음">Always alive</td>
+            <td data-en="Cheapest tier only, except the two user-facing seats" data-ko="가장 싼 티어만 — 사용자 대면 자리 둘은 예외">Cheapest tier only, except the two user-facing seats</td>
+          </tr>
+          <tr>
+            <td><code>on-wake</code></td>
+            <td data-en="One turn per qualifying event, started by a supervisor" data-ko="자격을 갖춘 이벤트마다 1턴, supervisor 가 띄움">One turn per qualifying event, started by a supervisor</td>
+            <td data-en="Follows the existing worker profile" data-ko="기존 worker 프로파일을 따름">Follows the existing worker profile</td>
+          </tr>
+          <tr>
+            <td><code>on-demand</code></td>
+            <td data-en="One process per delegated task" data-ko="위임된 작업마다 프로세스 1개">One process per delegated task</td>
+            <td data-en="The default for every seat except the coordinator, the user-facing seat and the note-keeper" data-ko="조율자 · 사용자 대면 자리 · 기록자를 뺀 모든 자리의 기본값">The default for every seat except the coordinator, the user-facing seat and the note-keeper</td>
+          </tr>
+          <tr>
+            <td><code>scheduled</code></td>
+            <td data-en="On a timer" data-ko="타이머로">On a timer</td>
+            <td data-en="Must declare its cadence" data-ko="자기 주기를 선언해야 함">Must declare its cadence</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p data-aud="general" data-en="On top of that there is a spending limit per seat and one for the organization as a whole. When a limit is hit, the answer is not a hard stop: the seat drops one rung down the wakefulness ladder — always awake becomes woken by events, and so on — and the drop is written down together with the signal that caused it and the value it actually had. Work keeps moving, more cheaply, and the record says why." data-ko="그 위에 자리별 지출 한도와 조직 전체 한도가 있어요. 한도에 닿으면 답은 완전 정지가 아니에요: 그 자리가 깨어 있음 사다리에서 한 칸 내려가요 — 항상 깨어 있음이 이벤트로 깨어남이 되는 식으로요 — 그리고 그 강등을 원인이 된 신호와 실제 관측값과 함께 기록해요. 일은 더 싸게 계속 굴러가고, 왜 그랬는지가 기록에 남아요.">Per-seat and whole-organization spending limits. On breach the seat drops one rung down the wakefulness ladder rather than stopping, and the drop is recorded with the triggering signal and its observed value.</p>
+      <p data-aud="dev" data-en="Per-role period ceilings plus an organization total. On breach the response is demotion, not a hard stop: the role's residency class steps down one rung and the demotion is recorded with the triggering signal and its observed value. This deliberately reuses the shape — and the field name — of Superscalar's auto-demotion, because divergent names for identical mechanics are a documentation defect rather than a design choice." data-ko="role 별 기간 상한 + 조직 합계 상한이에요. 초과 시 응답은 완전 정지가 아니라 강등이에요: 그 role 의 residency 등급이 한 칸 내려가고, 강등은 트리거 신호와 관측값과 함께 기록돼요. Superscalar 의 auto-demotion 의 형태 — 그리고 필드 이름까지 — 를 의도적으로 재사용해요. 동일한 메커니즘에 서로 다른 이름을 붙이는 건 설계 선택이 아니라 문서 결함이니까요.">Per-role period ceilings plus an organization total; breach demotes one rung and records the triggering signal with its observed value. Reuses the shape and field name of Superscalar's auto-demotion on purpose.</p>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Taking a seat away matters as much as adding one" data-ko="자리를 없애는 일이 만드는 일만큼 중요해요">Taking a seat away matters as much as adding one</h2>
+      <h2 data-aud="dev" data-en="Eviction is symmetric with creation" data-ko="eviction 은 생성과 대칭이에요">Eviction is symmetric with creation</h2>
+
+      <p data-aud="general" data-en="This is the spine of the module, not a footnote at the end. A seat leaves by procedure, never by neglect. A seat that simply stops being used does not go away: it is still on the chart, still invites work to be routed to it, and still has to be thought about every time the work is split up. And if a project lets seats be created automatically, it must automate removal too — because growth fires on something that happens often (work arrives that no current seat fits), while shrinkage fires on something that requires looking back (nothing happened here for a while), and a backward-looking check that nobody automated simply never runs. Automating growth without automating shrinkage is a one-way ratchet." data-ko="이건 모듈의 척추예요 — 맨 끝의 각주가 아니에요. 자리는 절차로 떠나고, 방치로는 떠나지 않아요. 그냥 안 쓰이게 된 자리는 사라지지 않아요: 조직도에 여전히 있고, 여전히 「일을 여기로 보내라」고 부르고, 일을 나눌 때마다 여전히 고려 대상이 돼요. 그리고 자리를 자동으로 만들 수 있게 한 프로젝트라면 없애는 것도 반드시 자동화해야 해요 — 성장은 자주 일어나는 일(지금 어느 자리에도 안 맞는 일이 들어옴)에 발동하지만, 축소는 돌아봐야 알 수 있는 일(여기서 한동안 아무 일도 없었음)에 발동하고, 아무도 자동화하지 않은 회고형 점검은 그냥 실행되지 않으니까요. 성장만 자동화하고 축소를 자동화하지 않는 건 한 방향으로만 도는 톱니예요.">The spine, not a footnote. A seat leaves by procedure, never by neglect — an unused seat still sits on the chart and still invites routing. And automated creation demands automated removal: growth fires on a frequent event, shrinkage on a backward-looking check that never runs unless automated.</p>
+      <p data-aud="dev" data-en="A static organization may run eviction by hand — seats change rarely, and a periodic human review of the roster is sufficient. A dynamic organization, one that creates and dissolves seats at runtime, MUST NOT: automating only creation is a one-way ratchet, the organization grows monotonically, and every added seat dilutes the next decomposition. This is the module's own instance of the eviction-first-class axis — the mechanism that lets an organization grow is exactly the mechanism that must be able to shrink it, and the growth half shipping alone is how a substrate becomes something nobody can prune." data-ko="static 조직은 eviction 을 손으로 돌려도 돼요 — 자리가 드물게 바뀌고, roster 를 주기적으로 사람이 훑는 정도로 충분해요. 런타임에 자리를 만들고 해산하는 dynamic 조직은 그러면 안 돼요: 생성만 자동화하는 건 한 방향 톱니이고, 조직은 단조 증가하고, 추가된 자리마다 다음 분해를 희석해요. 이건 이 모듈이 스스로에게 적용한 eviction-1급 축이에요 — 조직을 자라게 하는 메커니즘이 바로 조직을 줄일 수 있어야 하는 메커니즘이고, 성장 절반만 먼저 나가는 게 substrate 가 아무도 잘라낼 수 없는 것이 되는 경로예요.">Static orgs may evict by hand; dynamic ones MUST NOT — creation-only automation is a one-way ratchet and the org grows monotonically. The module's own instance of the eviction-first-class axis.</p>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="Why this is the load-bearing part" data-ko="왜 이 부분이 하중을 받나요">Why this is the load-bearing part</h4>
+        <h4 data-aud="dev" data-en="The one-way ratchet" data-ko="한 방향 톱니">The one-way ratchet</h4>
+        <p data-aud="general" data-en="A system that can only add is a system that gets heavier every month, and the weight is invisible because nothing ever breaks — it just costs more to think in. So the removal half is specified in the same detail as the creation half, and where creation is automatic, removal has to be too." data-ko="더하기만 할 수 있는 체계는 매달 무거워지는 체계예요. 그리고 그 무게는 눈에 안 보여요 — 고장 나는 게 없으니까요. 그냥 그 안에서 생각하는 비용이 계속 올라가요. 그래서 없애는 절반을 만드는 절반과 같은 수준으로 명세하고, 생성이 자동이면 제거도 자동이어야 해요.">A system that can only add gets heavier every month, invisibly — nothing breaks, it just costs more to think in. So removal is specified as precisely as creation, and where creation is automatic, removal must be too.</p>
+        <p data-aud="dev" data-en="Creation fires on a frequent, forward-looking signal (work arrives that no current seat fits); dissolution fires on a rare, backward-looking one (nothing was attributable to this seat for N cycles). An unautomated backward-looking check does not run, so the asymmetry is not a matter of diligence — it is structural, and it has to be closed with machinery." data-ko="생성은 잦고 전방을 보는 신호에 발동해요(지금 어느 자리에도 안 맞는 일이 들어옴). 해산은 드물고 후방을 보는 신호에 발동해요(N 사이클 동안 이 자리에 귀속되는 게 없었음). 자동화되지 않은 후방 점검은 실행되지 않으니, 이 비대칭은 성실성의 문제가 아니에요 — 구조적인 문제이고, 기계 장치로 닫아야 해요.">Creation fires on a frequent forward-looking signal; dissolution on a rare backward-looking one. An unautomated backward-looking check does not run — the asymmetry is structural and must be closed with machinery.</p>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="A scheduled sweep" data-ko="정기 점검 실행">A scheduled sweep</h3>
+          <p data-aud="general" data-en="On a stated rhythm, the project checks every seat against the removal tests and produces a list. It produces a list, not a deletion." data-ko="정해진 주기마다 모든 자리를 제거 판정 기준에 대고 검사해서 목록을 만들어요. 삭제가 아니라 목록을 만들어요.">On a stated rhythm, every seat is checked against the removal tests, producing a list — not a deletion.</p>
+          <p data-aud="dev" data-en="The candidate tests evaluated on a declared cadence, as running machinery rather than as documentation, producing a list rather than a silent action." data-ko="후보 판정 기준을 선언된 주기로 평가해요. 문서가 아니라 실제로 도는 기계 장치로, 그리고 조용한 조치가 아니라 목록을 산출하는 방식으로요.">Candidate tests on a declared cadence — running machinery, not documentation — producing a list rather than a silent action.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="A person decides" data-ko="처분은 사람이">A person decides</h3>
+          <p data-aud="general" data-en="The sweep raises candidates; it never removes a seat on its own. Automatic creation plus automatic destruction is a system that reorganizes itself while nobody is reading." data-ko="점검은 후보를 올릴 뿐이고, 자기 권한으로 자리를 없애지는 않아요. 자동 생성 + 자동 파괴는 아무도 안 보는 사이에 스스로를 재편하는 체계예요.">The sweep raises candidates and never removes a seat itself — automatic creation plus automatic destruction reorganizes itself while nobody is reading.</p>
+          <p data-aud="dev" data-en="Disposal lands on the same human-gate surface as every other gate: the decisions panel where a board is running, or a file-backed panel in the organization's public space where none is." data-ko="처분은 다른 모든 게이트와 같은 사람-게이트 표면으로 가요: 보드가 돌면 결정 패널, 없으면 조직 공개 공간의 파일 기반 패널이요.">Disposal lands on the same human-gate surface as every other gate — the decisions panel, or a file-backed panel where no board runs.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="A ceiling on the number of seats" data-ko="자리 수 상한">A ceiling on the number of seats</h3>
+          <p data-aud="general" data-en="The organization declares how many seats it will hold. Once it is full, adding one means taking one away — which forces the trade to be made out loud instead of postponed." data-ko="조직은 자리를 몇 개까지 둘지 선언해요. 꽉 차면 하나 늘리는 건 하나 없애는 일이 되고 — 그러면 그 교환을 미루는 대신 소리 내어 하게 돼요.">The organization declares how many seats it will hold; once full, adding one means removing one — the trade gets made out loud instead of postponed.</p>
+          <p data-aud="dev" data-en="Declared in the roster and visible on the chart. Reaching it makes the next creation conditional on an eviction. Without a ceiling, 「we will prune later」 is the only policy, and it is not one." data-ko="roster 에 선언하고 차트에 보여요. 상한에 닿으면 다음 생성이 eviction 을 조건으로 걸게 돼요. 상한이 없으면 「나중에 정리하자」가 유일한 정책이 되는데, 그건 정책이 아니에요.">Declared in the roster and visible on the chart; reaching it makes the next creation conditional on an eviction. Without one, 「prune later」 is the only policy, and it is not one.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="A written reason per seat" data-ko="자리마다 남긴 이유">A written reason per seat</h3>
+          <p data-aud="general" data-en="Each seat records what made it necessary, so the periodic check can ask whether that is still true. A seat whose reason cannot be restated is already a candidate for removal." data-ko="자리마다 왜 필요했는지를 기록해 둬서, 정기 점검이 「그게 지금도 그런가」를 물을 수 있게 해요. 이유를 다시 말할 수 없는 자리는 이미 제거 후보예요.">Each seat records what made it necessary, so the periodic check can ask whether that still holds. A seat whose reason cannot be restated is already a candidate.</p>
+          <p data-aud="dev" data-en="The creation record travels on the chart, and it is required in a dynamic organization precisely because the sweep asks whether the justifying signal still holds. A seat whose reason cannot be restated is an eviction candidate by construction." data-ko="생성 기록은 차트에 실려 다니고, dynamic 조직에서는 필수예요 — 점검이 「정당화한 신호가 지금도 성립하나」를 묻기 때문이죠. 이유를 다시 말할 수 없는 자리는 구성상 eviction 후보예요.">The creation record travels on the chart and is required in a dynamic org, because the sweep asks whether the justifying signal still holds. Unrestatable reason ⇒ candidate by construction.</p>
+        </div>
+      </div>
+
+      <p data-aud="general" data-en="What raises the question: nothing was recorded against this seat for a while, or nothing was handed to it for a while, or its job is fully covered by another seat's job (which makes it a merge, not a deletion), or the budget no longer affords it even at its cheapest setting. Any one of those is enough to raise the question — and a person answers it." data-ko="질문을 올리는 신호는 이런 것들이에요: 한동안 이 자리에 귀속된 기록이 없었다, 한동안 이 자리에 넘어온 일이 없었다, 이 자리의 일이 다른 자리의 일에 완전히 포함된다(그럼 삭제가 아니라 병합이에요), 예산이 가장 싼 설정으로도 더는 감당하지 못한다. 이 중 하나만으로도 질문을 올리기에 충분하고 — 답은 사람이 해요.">Raising the question: no records attributable to the seat for a while, nothing handed to it, its duty fully covered by another seat (a merge, not a deletion), or the budget no longer affords it even at its cheapest setting. Any one suffices — a person answers.</p>
+      <p data-aud="general" data-en="How a seat actually leaves: its private folder is archived, its public folder is kept, it comes off the chart, the hand-off lines are re-wired, the change is announced, and the reason is written down. Keeping the public folder is not sentimentality — other seats' records still refer to its work, and deleting it to tidy the chart trades one visible seat for a set of invisible broken references." data-ko="자리가 실제로 떠나는 절차는 이래요: 비공개 폴더를 보관하고, 공개 폴더는 남기고, 조직도에서 내리고, 인계 선을 다시 잇고, 변경을 알리고, 이유를 적어요. 공개 폴더를 남기는 건 감상이 아니에요 — 다른 자리들의 기록이 여전히 그 작업을 참조하고 있어서, 조직도를 깔끔하게 하려고 지우면 보이는 자리 하나를 보이지 않는 깨진 참조 여러 개와 바꾸는 셈이에요.">Leaving: archive the private folder, keep the public one, come off the chart, re-wire the hand-off lines, announce the change, write the reason. Keeping the locker isn't sentimentality — deleting it trades one visible seat for invisible broken references.</p>
+      <p data-aud="dev" data-en="Eviction procedure: archive the desk → retain the locker (the record outlives the seat) → remove from the roster → re-wire reporting edges → emit the chart change → record the reason. Locker retention is load-bearing: a removed seat's deliverables are still referenced by other seats' records, so tidying the chart by deleting them trades a visible seat for invisible dangling pointers." data-ko="eviction 절차: desk 보관 → locker 유지(기록은 자리보다 오래 남아요) → roster 에서 제거 → 보고 엣지 재배선 → 차트 변경 emit → 이유 기록. locker 유지는 하중을 받는 항목이에요: 제거된 자리의 산출물을 다른 자리들의 기록이 여전히 참조하므로, 그걸 지워 차트를 정리하는 건 보이는 자리 하나를 보이지 않는 dangling pointer 들과 바꾸는 것이에요.">Procedure: archive the desk → retain the locker → remove from the roster → re-wire reporting edges → emit the chart change → record the reason. Locker retention is load-bearing against dangling pointers.</p>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Habits and seats point at each other" data-ko="관행과 자리는 서로를 가리켜요">Habits and seats point at each other</h2>
+      <h2 data-aud="dev" data-en="Practice ↔ role, both directions" data-ko="practice ↔ role, 양방향">Practice ↔ role, both directions</h2>
+
+      <p data-aud="general" data-en="If a project already keeps a record of how recurring work is done, that record and the seats can be derived from each other — and the more useful direction is the one people forget. A written-down habit is evidence that somebody keeps doing this, which is evidence a seat is warranted. Read the other way, a seat with nothing written against it is evidence the seat is not." data-ko="반복되는 일을 어떻게 하는지에 대한 기록을 이미 갖고 있는 프로젝트라면, 그 기록과 자리는 서로에게서 도출될 수 있어요 — 그리고 사람들이 잊는 쪽이 더 유용한 방향이에요. 적어 둔 관행은 「누군가 이걸 계속하고 있다」는 증거이고, 그건 자리가 정당하다는 증거예요. 거꾸로 읽으면, 아무 기록도 붙지 않은 자리는 그 자리가 정당하지 않다는 증거예요.">A recorded habit is evidence somebody keeps doing this — evidence a seat is warranted. Read the other way, a seat with nothing recorded against it is evidence the seat is not.</p>
+      <p data-aud="dev" data-en="Corporate composes with a practice-codification layer in both directions, and the reverse direction is the more valuable one: it is what makes the module applicable to an existing project rather than only to a greenfield one, because the organization is derived from measured work history rather than from an operator's picture of what an org should look like." data-ko="Corporate 는 practice 성문화 계층과 양방향으로 조합돼요. 그리고 역방향이 더 값진 쪽이에요 — 조직을 운영자가 그린 「조직은 이렇게 생겨야 한다」는 상 대신 실측된 작업 이력에서 도출하기 때문에, 그린필드가 아닌 기존 프로젝트에도 이 모듈을 적용 가능하게 만들어 줘요.">Composes in both directions; the reverse one is more valuable — the org is derived from measured work history, which is what makes the module applicable to an existing project.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="Forward — a seat reads and extends its own record" data-ko="정방향 — 자리가 자기 기록을 읽고 늘려요">Forward — a seat reads and extends its own record</h3>
+          <p data-aud="general" data-en="Work done once by this seat becomes the seat's own way of doing it, consulted and updated the next time something similar comes round. The job description carries the obligation to look it up before starting — otherwise the record gets written and never read." data-ko="이 자리가 한 번 한 일이 그 자리의 방식이 되고, 비슷한 일이 다시 올 때 참고하고 갱신해요. 직무 설명서에 「시작하기 전에 찾아볼 의무」를 넣어 둬요 — 안 그러면 기록은 쓰이기만 하고 읽히지 않아요.">Work done once becomes the seat's own way of doing it, consulted and updated next time. The job description carries the obligation to look it up first — otherwise the record is written and never read.</p>
+          <p data-aud="dev" data-en="Two scopes: organization-wide practices of running the org itself (delegation form, report form, gate routing), and role-boundary practices accumulated by the seat. The charter carries the obligation — consult the practice record inside your boundary before starting work — because without it the store is written and never read, the measured failure mode of every such store." data-ko="스코프가 둘이에요: 조직 자체를 운영하는 조직 전역 practice(위임 형식 · 보고 형식 · 게이트 라우팅), 그리고 자리가 축적한 role 경계 practice. 의무는 charter 가 실어요 — 작업 시작 전에 자기 경계 안의 practice 기록을 참조하라고요. 그게 없으면 스토어는 쓰이기만 하고 읽히지 않는데, 그게 그런 스토어들의 실측된 실패 양상이에요.">Two scopes: org-wide practices of running the org, and role-boundary practices. The charter carries the consult-before-starting obligation, without which the store is written and never read.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Reverse — a record implies a seat should exist" data-ko="역방향 — 기록이 자리의 존재를 함의해요">Reverse — a record implies a seat should exist</h3>
+          <p data-aud="general" data-en="If a body of work recurred often enough that somebody wrote down how to do it, then something recurring is being done by whoever happens to be free. That is the case for giving it a seat — so the set-up interview reads the existing record and proposes seats from the clusters it finds there." data-ko="어떤 일이 「어떻게 하는지」를 적어 둘 만큼 반복됐다면, 그 반복되는 일을 마침 시간이 되는 누군가가 하고 있다는 뜻이에요. 그게 그 일에 자리를 주자는 근거고 — 그래서 초기 인터뷰가 기존 기록을 읽고 거기서 발견한 덩어리들로부터 자리를 제안해요.">If somebody wrote down how to do it, something recurring is being done by whoever happens to be free — the case for a seat. The set-up interview reads the record and proposes seats from the clusters it finds.</p>
+          <p data-aud="dev" data-en="A recorded practice is evidence that a seat is warranted, so bootstrap reads the existing practice record and proposes roles from recurring clusters. This grounds organizational design in the project's own work history, which is the derivation that makes the module usable on a project that already exists." data-ko="기록된 practice 는 자리가 정당하다는 증거예요. 그래서 bootstrap 이 기존 practice 기록을 읽고 반복 클러스터에서 role 을 제안해요. 이렇게 조직 설계를 그 프로젝트 자신의 작업 이력에 grounding 하는 게, 이미 존재하는 프로젝트에 이 모듈을 쓸 수 있게 만드는 도출이에요.">A recorded practice is evidence a seat is warranted, so bootstrap proposes roles from recurring clusters in the existing record — grounding org design in the project's own work history.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="The same signal, inverted" data-ko="같은 신호를 뒤집으면">The same signal, inverted</h3>
+          <p data-aud="general" data-en="A seat that has accumulated nothing over several cycles is evidence the seat is not warranted. One signal, read in both directions, governs both ends of a seat's life — which is a better basis than inventing a separate busyness score." data-ko="여러 사이클 동안 아무것도 쌓이지 않은 자리는 그 자리가 정당하지 않다는 증거예요. 신호 하나를 양쪽으로 읽어서 자리의 생과 사 양 끝을 다스리는 게, 별도의 바쁨 점수를 새로 만드는 것보다 나은 근거예요.">A seat that accumulated nothing over several cycles is evidence it isn't warranted. One signal read both ways governs both ends of a seat's life — better than inventing a separate busyness score.</p>
+          <p data-aud="dev" data-en="Zero practice entries attributable to the seat over N cycles is one of the eviction candidate tests. The symmetry is the reason to prefer it over a bespoke utilization metric — and it also names a candidate addition on the practice side: an owner/boundary axis on entries, so the attribution is machine-readable rather than inferred." data-ko="N 사이클 동안 그 자리에 귀속되는 practice 항목이 0 인 것이 eviction 후보 판정 기준 중 하나예요. 이 대칭성이 맞춤 utilization 지표보다 이쪽을 택할 이유이고 — 동시에 practice 쪽의 후보 추가 항목도 지목해요: 항목에 owner/boundary 축을 두어 귀속을 추론이 아니라 기계가 읽을 수 있게 하는 것이요.">Zero attributable practice entries over N cycles is an eviction candidate test. The symmetry beats a bespoke utilization metric, and it names a candidate addition: an owner/boundary axis on entries.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="When not to adopt it" data-ko="언제 도입하지 말아야 하나요">When not to adopt it</h2>
+      <h2 data-aud="dev" data-en="Adoption thresholds — and the non-adoption cases" data-ko="도입 임계값 — 그리고 비도입 사례">Adoption thresholds — and the non-adoption cases</h2>
+
+      <p data-aud="general" data-en="Corporate is not for every project, and the honest default is not to adopt it. Three things must be true at once: two or three clearly different jobs keep coming back across sessions, and the record shows it rather than your intuition; the budget can pay for the seats at their cheapest settings, not at the settings you would like; and the coordination need outlives a single session, because work spans sessions, outside waits, or more than one project. Below that bar, opening several helpers at once plus a shared board is the cheaper answer to exactly the same need — and inside a single session it is strictly cheaper, always." data-ko="Corporate 는 모든 프로젝트를 위한 게 아니고, 정직한 기본값은 도입하지 않는 거예요. 세 가지가 동시에 참이어야 해요: 분명히 구별되는 일 두세 가지가 세션을 넘어 계속 돌아오고, 그걸 직감이 아니라 기록이 보여 줘야 해요. 예산이 원하는 설정이 아니라 가장 싼 설정의 자리들을 감당할 수 있어야 해요. 그리고 조율 필요가 한 세션보다 오래 살아야 해요 — 일이 세션을 걸치거나, 외부 대기를 끼거나, 프로젝트를 여럿 걸칠 때요. 그 선 아래에서는 도우미 여럿을 한꺼번에 띄우고 공유 보드를 두는 게 똑같은 필요에 대한 더 싼 답이에요 — 그리고 한 세션 안에서는 언제나 그쪽이 엄격하게 더 싸요.">Not for every project; the honest default is not to adopt. All three must hold: recurrence evidenced by the record, affordability at the cheapest settings, and a coordination need that outlives a session. Below that, several helpers at once plus a shared board is cheaper — and inside one session, strictly cheaper.</p>
+      <p data-aud="dev" data-en="Adopt only when all three hold: recurrence — at least two or three distinguishable duties recur across sessions, evidenced by the practice record rather than by intuition; affordability — the declared resource axis can fund the proposed residency classes at the cheapest defaults, not the desired ones; and a coordination need that outlives a session — work spans sessions, external waits, or multiple projects. Below that, Superscalar fan-out plus a board is the cheaper answer to the same need, and within a single session a fan-out is strictly cheaper." data-ko="셋이 모두 성립할 때만 도입해요: 반복성 — 구별되는 duty 가 최소 두세 개 세션을 넘어 반복되고, 직감이 아니라 practice 기록이 그걸 뒷받침해야 해요. 지불 가능성 — 선언된 자원 축이 원하는 등급이 아니라 가장 싼 기본 등급의 residency 를 감당할 수 있어야 해요. 그리고 한 세션보다 오래 사는 조율 필요 — 일이 세션 · 외부 대기 · 여러 프로젝트를 걸쳐야 해요. 그 아래에서는 Superscalar fan-out + 보드가 같은 필요에 대한 더 싼 답이고, 한 세션 안이라면 fan-out 이 엄격하게 더 싸요.">Adopt only when all three hold: recurrence evidenced by the practice record, affordability at cheapest defaults, and a coordination need outliving a session. Below that, fan-out plus a board is cheaper; within one session, strictly cheaper.</p>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="Do not adopt it for these" data-ko="이런 이유로는 도입하지 마세요">Do not adopt it for these</h4>
+        <h4 data-aud="dev" data-en="Explicit non-adoption cases" data-ko="명시적 비도입 사례">Explicit non-adoption cases</h4>
+        <p data-aud="general" data-en="A one-person project with a single recurring chore — that chore is the note-keeping seat, so take just that one and stop. A wish for a tidy-looking organization — the chart is not the product. Wanting things to run in parallel — that is what opening several helpers at once is for, and it needs none of this." data-ko="반복되는 잡무가 하나뿐인 1인 프로젝트 — 그 잡무가 곧 기록자 자리예요. 그것만 가져가고 멈추세요. 조직이 그럴싸해 보이길 바라는 마음 — 조직도는 산출물이 아니에요. 병렬로 돌리고 싶은 것 — 그건 도우미를 한꺼번에 여럿 띄우는 기능이 하는 일이고, 여기 있는 건 하나도 필요 없어요.">A one-person project with a single recurring chore (that chore is the note-keeping seat — take just that). A wish for a tidy-looking org (the chart is not the product). Parallelism (that is what fan-out is for).</p>
+        <p data-aud="dev" data-en="Do not adopt for: a single-developer project with one recurring duty (that is a scribe — adopt just that seat) · a desire for organizational aesthetics · parallelism alone (that is Superscalar). And the related anti-patterns: a role for work that happens once (that is a lane — the test is recurrence, not size), routing through a seat because it exists (org gravity, where the chart starts deciding decomposition), a main that executes, seats talking freely because it seems collaborative, blanket path grants 「to keep things simple」, and tidying the chart by deleting a seat's record." data-ko="이런 이유로는 도입하지 마세요: 반복 duty 가 하나뿐인 1인 개발 프로젝트(그건 scribe 예요 — 그 자리만 가져가세요) · 조직 미학에 대한 욕구 · 병렬성 하나만(그건 Superscalar 예요). 그리고 관련 안티패턴들: 한 번만 일어나는 일에 role 을 만드는 것(그건 lane 이에요 — 판정 기준은 크기가 아니라 반복성), 자리가 있으니까 그 자리로 라우팅하는 것(조직 중력 — 차트가 분해를 결정하기 시작해요), 실행하는 main, 협업처럼 보이니까 자리끼리 자유롭게 말하는 것, 「간단하게 하려고」 경로를 통째로 grant 하는 것, 그리고 자리의 기록을 지워 차트를 정리하는 것.">Non-adoption: one recurring duty (adopt just the scribe) · organizational aesthetics · parallelism alone. Anti-patterns: a role for one-off work, routing through a seat because it exists, a main that executes, undeclared seat-to-seat chat, blanket path grants, deleting a seat's record to tidy the chart.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Want to read more?" data-ko="더 자세히 알고 싶다면">Want to read more?</h2>
+      <h2 data-aud="dev" data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
+      <p data-en="The full Corporate.md rulebook is in the EstreGenesis repository (where the project's files are kept). It covers: §1 the three orchestration axes and what a durable seat buys that a helper cannot; §2 the two-folder contract, the order in which a seat reads its instructions, the enumerated path grants, and organizations spread over several machines; §3 the reference roster with the two invariants (the coordinating seat does not take direct work, and the review seat runs on a different model family than the building seat); §4 the four choices collected when an organization is set up, of which the resource choice is a hard constraint; §5 how one seat's settings, a group's and the organization's compose — read by exactly one resolver — plus the property that keeps a project without an organization behaving exactly as before; §6 why seats talk through the coordinator by default and the three declared exceptions; §7 the four ways a seat can be awake, the spending ceilings, the demotion-not-stop breaker, and the removal procedure that must be automated once seats are created automatically; §8 how a recorded habit and a seat imply each other in both directions; §9 why the per-tool details live in a dated data file with a per-row source requirement and a stated expiry; §10 the two announcements that let a shared board draw an organization it does not host; §11 what that org-chart surface must show; §12 where human decisions are routed; §13 the pieces deliberately not built yet, each named as replaceable; §14 the anti-patterns; §15 when not to adopt it at all." data-ko="전체 Corporate.md 규칙집이 EstreGenesis 저장소 (프로젝트 파일들이 모여 있는 곳) 에 있어요. 다루는 것: §1 세 오케스트레이션 축과, 도우미는 못 하고 오래 남는 자리만 되는 것들; §2 두 폴더 계약, 자리가 지시를 읽는 순서, 열거식 경로 grant, 여러 장비에 퍼진 조직; §3 기준 로스터와 두 불변식 (조율 자리는 직접 작업을 맡지 않는다, 검토 자리는 만드는 자리와 다른 모델 계열에서 돈다); §4 조직을 세울 때 모으는 네 가지 선택 — 그중 자원 선택은 hard constraint; §5 자리 · 그룹 · 조직의 설정이 어떻게 합성되는지 (읽는 구현은 정확히 하나) 와, 조직이 없는 프로젝트가 예전과 똑같이 동작하게 만드는 속성; §6 자리끼리 기본적으로 조율자를 거쳐 말하는 이유와 선언된 예외 3종; §7 자리가 깨어 있는 네 방식, 지출 상한, 정지 대신 강등하는 차단기, 그리고 자리를 자동으로 만들기 시작하면 반드시 자동화해야 하는 제거 절차; §8 기록된 관행과 자리가 양방향으로 서로를 함의하는 방식; §9 도구별 세부값이 행마다 출처를 요구하고 만료일을 스스로 밝히는 날짜 붙은 데이터 파일에 사는 이유; §10 공유 보드가 자기가 호스팅하지 않는 조직을 그릴 수 있게 하는 선언 2종; §11 그 조직도 표면이 반드시 보여야 하는 것; §12 사람의 결정이 어디로 모이는지; §13 의도적으로 아직 만들지 않은 조각들 — 각각 교체 가능한 것으로 이름 붙여 둠; §14 안티패턴; §15 아예 도입하지 말아야 할 때.">The full Corporate.md rulebook is in the EstreGenesis repository.</p>
+      <p><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Corporate.md" target="_blank" rel="noopener">github.com/SoliEstre/EstreGenesis/blob/main/Corporate.md →</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>EstreGenesis · Apache-2.0 · <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank">github.com/SoliEstre/EstreGenesis</a></p>
+    <div class="footer-style"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
+  </footer>
+
+  <script src="shared/data.js"></script>
+  <script src="shared/i18n.js"></script>
+  <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
+  <script src="shared/copy.js"></script>
+</body>
+</html>

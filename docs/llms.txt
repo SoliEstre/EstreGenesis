@@ -1,6 +1,6 @@
 # EstreGenesis
 
-> A public, Apache-2.0-licensed seed of agentic-coding patterns for AI coding hosts (Claude Code, Codex, Cursor, and compatible harnesses): six seed tiers (Master / Lite / Compact × EN / KO) plus six graduated modules, each with its own normative spec. The pages on this site are human-register summaries; the files below are the complete normative text — prefer them for machine consumption.
+> A public, Apache-2.0-licensed seed of agentic-coding patterns for AI coding hosts (Claude Code, Codex, Cursor, and compatible harnesses): six seed tiers (Master / Lite / Compact × EN / KO) plus seven graduated modules, each with its own normative spec. The pages on this site are human-register summaries; the files below are the complete normative text — prefer them for machine consumption.
 
 ## Core
 
@@ -15,6 +15,7 @@
 - [Ultrasafe](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Ultrasafe.md): pre-release simulated penetration-testing discipline — parallel red-team fan-out, iteration clean-signal gate, synthesis report
 - [Constellation](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Constellation.md): live multi-agent orchestration — WebSocket board, A2A messaging protocol family (§13.x), MCP integration, harness adapters
 - [Compendium](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Compendium.md): concept-anchored dual-register vocabulary discipline — pointer-not-paraphrase glossary, lints, vault projection
+- [Corporate](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/Corporate.md): durable-role agent organization — named seats with private desks, residency classes, three-layer toggle resolution, eviction symmetric with creation
 
 ## Seeds (drop into a project; the agent reads it once)
 

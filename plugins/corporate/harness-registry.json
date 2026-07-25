@@ -1,0 +1,89 @@
+{
+  "$comment": "Corporate.md §9 — the perishable half of the module, deliberately a data file rather than spec prose so the spec does not rot on harness release cadence. THREE RULES govern this file: (1) a row requires a source — any flag, key, or path not confirmed verbatim against vendor documentation belongs in `caveats`, never in `harnesses`, because a plausible-looking flag is worse than a gap: it will be pasted into a launcher; (2) bind per invocation, never by a global pin — a pin can silently override an explicit per-seat choice, so the resolved value must travel with the invocation and actual application must be observed rather than assumed; (3) this file states its own expiry — `revisit` makes re-survey scheduled rather than reactive, and the `watch` seat (§3.2) is its executor.",
+  "asOf": "2026-07-25",
+  "revisit": {
+    "date": "2026-09-01",
+    "graceDays": 45,
+    "reason": "Agent CLIs ship flag changes on a weeks-to-months cadence. Past the date a verify axis reports a reminder; past the grace it fails. Re-survey updates asOf, revisit, and watchlist together."
+  },
+
+  "fields": {
+    "$comment": "The field contract every confirmed row must satisfy. A row missing a required field is not a partial row — it is a caveat.",
+    "harness": "stable identifier used by roster `harness` values",
+    "label": "human-facing name",
+    "instructionFile": "the per-directory instruction filename this harness discovers (Corporate.md §2.2)",
+    "instructionImport": "the syntax, if any, by which an instruction file includes another — null when the harness has none, in which case the charter must instruct the agent to read the project SSoT (both shapes satisfy §2.2)",
+    "nonInteractive": "how to run one turn without a TTY",
+    "sessionContinue": "how to continue the same conversation across invocations (§7.1 residency depends on this)",
+    "pathGrant": "how to grant read/write beyond the working directory (§2.3) — enumerated, never blanket",
+    "modelBind": "per-invocation model selection (rule 2)",
+    "effortBind": "per-invocation reasoning-effort selection, where the harness exposes one; null when it does not",
+    "customEndpoint": "how to point the harness at a non-default endpoint (§9.1) — mechanism only; permission is the deployment's responsibility",
+    "confirmedBy": "REQUIRED — source URL where every string above was read verbatim",
+    "confirmedOn": "REQUIRED — date the source was read"
+  },
+
+  "harnesses": [],
+
+  "caveats": [
+    {
+      "harness": "claude-code",
+      "status": "pending-confirmation",
+      "why": "Non-interactive invocation, session continuation, directory grants, permission modes, and per-invocation model/effort binding are all believed to exist, but no string in this row has been read against current vendor documentation in this cut. Until each is confirmed verbatim it stays here — rule 1.",
+      "needs": ["nonInteractive", "sessionContinue", "pathGrant", "modelBind", "effortBind", "instructionFile", "instructionImport", "customEndpoint"]
+    },
+    {
+      "harness": "codex-cli",
+      "status": "pending-confirmation",
+      "why": "Non-interactive execution, session resume syntax, the config-file location and its keys (model, reasoning effort, sandbox mode, approval policy, project trust), and the custom-provider block schema are all unconfirmed in this cut.",
+      "needs": ["nonInteractive", "sessionContinue", "pathGrant", "modelBind", "effortBind", "instructionFile", "customEndpoint"]
+    },
+    {
+      "harness": "gemini-cli",
+      "status": "pending-confirmation",
+      "why": "Non-interactive flags, session persistence, settings-file location, and instruction-file discovery are unconfirmed in this cut.",
+      "needs": ["nonInteractive", "sessionContinue", "pathGrant", "modelBind", "instructionFile"]
+    },
+    {
+      "harness": "agy",
+      "status": "pending-confirmation",
+      "why": "The tool exists and has an official reference, but that reference carries no complete CLI flag table, so the invocation strings cannot be confirmed verbatim. Third-party summaries disagree with the project's own changelog on at least one short flag's meaning, which is exactly the class of discrepancy rule 1 exists to keep out of a launcher.",
+      "needs": ["nonInteractive", "sessionContinue", "pathGrant", "modelBind", "effortBind", "instructionFile", "customEndpoint"],
+      "confirmedSoFar": [
+        "A workspace-access setting exists that governs reading outside the working directory; its exact key and override semantics are unconfirmed.",
+        "Distribution is a closed-source single binary. This is a supply-chain input, not a disqualifier: it means version pinning and provenance checking carry more weight here than for an open-source harness (Corporate.md §9.2)."
+      ]
+    }
+  ],
+
+  "crossHarnessFacts": [
+    {
+      "fact": "Instruction-file discovery runs repository-root down to the working directory, and no surveyed harness exposes a setting, flag, or frontmatter field that reverses that order.",
+      "consequence": "Charter specificity is obtained by PRECEDENCE (run the harness in the desk so the charter merges last / nearest-wins), never by claiming a reversed load order. Corporate.md §2.2 is written against this fact.",
+      "status": "confirmed-mechanism"
+    },
+    {
+      "fact": "Pointing a harness at a non-first-party endpoint disables several of its own capabilities, some recoverable only by additional environment flags.",
+      "consequence": "A custom endpoint is a capability trade, not a transparent substitution. A seat whose duty depends on a capability the endpoint disables must not be routed there — record the disabled set alongside any endpoint row.",
+      "status": "confirmed-mechanism"
+    }
+  ],
+
+  "watchlist": [
+    {
+      "item": "subscription-vs-automation boundary",
+      "why": "Whether a given subscription credential may drive programmatic multi-seat execution is a terms question, not a technical one (§9.1). A roster MUST NOT be assembled on the assumption that any credential permits fan-out. Confirm per vendor and record the exact clause, not a summary.",
+      "blocks": ["roster sizing for any seat backed by a subscription rather than a metered key"]
+    },
+    {
+      "item": "local-model tool-calling fitness",
+      "why": "A resident seat on a local model is only viable if the serving stack supports the tool-calling the harness requires. Confirm per serving stack and per model, not per family.",
+      "blocks": ["resident residency class on a local host (§7.1)"]
+    },
+    {
+      "item": "free-tier data-use policy",
+      "why": "A free API tier that trains on prompts is unusable for a private workspace regardless of its rate limits. Record the policy clause alongside any free-tier row.",
+      "blocks": ["routing any seat that reads project content to a free tier"]
+    }
+  ]
+}
