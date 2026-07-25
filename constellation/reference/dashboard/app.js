@@ -1329,6 +1329,7 @@ function wsOpsStripSync() {
   let txt = '⚙ ' + wsOpsShort((t.ops && t.ops.model) || (t.bk && t.bk.model) || '?');
   if (t.ops && t.ops.effort) txt += '·' + t.ops.effort;
   if (t.ops && t.ops.fast) txt += '·fast';
+  if (t.ops && t.ops.superscalar && t.ops.superscalar.mode) txt += ' · ss:' + t.ops.superscalar.mode;   // v2.4.86 — 디스패치 적극성 (Superscalar §5.2)
   if (t.ops && t.ops.subscaler) txt += ' · sub:' + (t.ops.subscaler.on ? 'on' : 'off');
   const _ec = wsEchoState[t.route]; if (_ec && _ec.level && _ec.level !== 'off') txt += ' · 📡' + _ec.level;   // v2.4.81 — 에코 모드 (EchoModeState 공지 기준; off/미공지 = 요약 생략)
   b.textContent = txt;
@@ -1354,6 +1355,21 @@ function wsOpsMenuToggle() {
   row('model', wsOpsShort((t.ops && t.ops.model) || (t.bk && t.bk.model) || '(미선언)'), null);
   row('effort', (t.ops && t.ops.effort) || '(미선언)', null);
   if (t.ops && typeof t.ops.fast === 'boolean') row('fast', t.ops.fast ? 'on' : 'off', null);
+  // v2.4.86 — superscalar 모드 행 (Superscalar §5.2 always/auto/off). 컨트롤 규율 동일: 타깃이 /superscalar 를 선언한 경우만 actionable, 순환 auto→always→off→auto.
+  {
+    const ss = t.ops && t.ops.superscalar;
+    if (ss) {
+      const hasSsCmd = !!(man && Array.isArray(man.commands) && man.commands.some((c) => c && c.name === '/superscalar'));
+      const cur = ss.mode || 'auto';
+      const nextS = cur === 'auto' ? 'always' : (cur === 'always' ? 'off' : 'auto');
+      row('superscalar', cur + (ss.autoDemotedFrom ? ' (↓' + ss.autoDemotedFrom + ')' : ''), hasSsCmd ? () => {
+        const promptId = 'p-' + Date.now().toString(36);
+        if (wsSend({ type: 'CUSTOM', name: 'UserPrompt', value: { promptId, text: '/superscalar ' + nextS, atts: [] } })) wsLocalRow('user', '🙋 UserPrompt', '/superscalar ' + nextS, { promptId });
+        wsOpsMenuClose();
+      } : null);
+      if (hasSsCmd) { const h = el('div', 'ws-ops-hint'); h.textContent = 'superscalar 클릭 = /superscalar ' + nextS + ' 전송 (대상이 선언한 명령)'; menu.appendChild(h); }
+    }
+  }
   const sub = t.ops && t.ops.subscaler;
   if (sub) {
     const next = sub.on ? 'off' : 'on';
