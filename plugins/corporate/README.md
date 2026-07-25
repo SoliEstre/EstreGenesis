@@ -1,10 +1,10 @@
 # corporate — EstreGenesis plugin
 
-Durable-role agent organization. Wraps [`Corporate.md`](../../Corporate.md) v0.1.3.
+Durable-role agent organization. Wraps [`Corporate.md`](../../Corporate.md) v0.1.4.
 
 Where **Superscalar** decides how many lanes and at which tier (anonymous, one fan-out) and **Constellation** decides how agent processes talk, Corporate decides **who exists** — the *durable role*: a named seat that outlives any session or process, and can therefore accumulate practice, be addressed across time, own units, and give a decision an addressee. An anonymous lane can do none of those.
 
-## What ships in v0.1.3
+## What ships in v0.1.4
 
 | Surface | What it is |
 |---|---|
@@ -62,7 +62,7 @@ Below all three adoption thresholds — duties recurring across sessions, resour
 
 ## Status
 
-v0.1.3 is a design-draft cut (v0.1.0 shipped the spec; this increment populates the registry): the vocabulary, boundaries, invariants, and wire declarations. The supervisor (process lifecycle, reclaim, allowlists), the org-chart rendering, bootstrap automation, and boot residency are **named prunable units** deferred to v0.2 — each is a candidate for replacement by a provider-native equivalent, and each can be removed without touching the spec sections above.
+v0.1.4 is a design-draft cut (v0.1.0 shipped the spec; this increment populates the registry): the vocabulary, boundaries, invariants, and wire declarations. The supervisor (process lifecycle, reclaim, allowlists), the org-chart rendering, bootstrap automation, and boot residency are **named prunable units** deferred to v0.2 — each is a candidate for replacement by a provider-native equivalent, and each can be removed without touching the spec sections above.
 
 `harness-registry.json` now carries **four confirmed harnesses** — Claude Code, Codex CLI, Antigravity CLI (`agy`), and Gemini CLI — each with its non-interactive flag, session-continuation syntax, path-grant mechanism, instruction discovery order, and the `gotchas` that break a naive desk implementation. Eight gaps stay in `caveats` rather than being guessed at, and five `crossHarnessFacts` record mechanisms that hold across all of them (notably: discovery runs root→cwd everywhere, so §2.2 is precedence rather than order; instruction budgets are small enough that a long charter silently truncates; and one vendor already protects an agent's own config directories read-only, which is the precedent behind the no-self-configuration invariant).
 

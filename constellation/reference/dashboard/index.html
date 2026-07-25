@@ -80,6 +80,7 @@
     <nav class="tabs">
       <button class="tab active" data-tab="dashboard">대시보드</button>
       <button class="tab" data-tab="decisions">검토 사안 <span id="decisions-badge" class="pill">0</span></button>
+      <button class="tab" data-tab="org" title="Corporate — 역할 기반 조직">🏢 조직도 <span id="org-badge" class="pill">0</span></button>
       <button class="tab" data-tab="wiki" title="Compendium — 개념 용어집">📖 위키</button>
     </nav>
     <div class="filters-wrap">
@@ -134,6 +135,35 @@
           <input type="file" id="free-req-file" multiple hidden />
         </div>
         <div id="decisions" class="cards"></div>
+      </div>
+    </section>
+    <!-- 조직도 탭 (Corporate §10·§11 · Constellation §13.33) — 좌석 기반 조직 선언(CorporateChart/RoleState) 투영.
+         보드는 조직을 갖고 있지 않고 선언받아 그릴 뿐이에요: 선언 안 된 좌석은 '유휴' 가 아니라 '미선언' 으로 표시돼요. -->
+    <section id="tab-org" class="tabpane">
+      <div class="org-head">
+        <h2 class="org-title">🏢 조직도 <span class="muted">Corporate 선언 투영</span></h2>
+        <p class="org-sub" id="org-sub">조직 선언을 기다리는 중이에요.</p>
+        <div class="org-tools">
+          <div class="org-legend" aria-label="좌석 상태 표시 설명">
+            <span title="지금 무언가 하고 있는 좌석이에요"><span class="org-dot working"></span>작업 중</span>
+            <span title="비어 있고 다음 일을 기다리는 좌석이에요"><span class="org-dot idle"></span>유휴</span>
+            <span title="막혀서 더 못 나가는 좌석이에요"><span class="org-dot blocked"></span>막힘</span>
+            <span title="사람 승인을 기다리는 좌석이에요"><span class="org-dot waiting-gate"></span>승인 대기</span>
+            <span title="지금은 꺼져 있다고 알린 좌석이에요"><span class="org-dot offline"></span>오프라인</span>
+            <span title="상태를 알린 적이 없는 좌석이에요 — 유휴가 아니라 '모름' 이에요"><span class="org-dot unknown"></span>미선언</span>
+          </div>
+          <button class="org-btn" id="org-refresh" type="button" title="받아둔 최신 조직 선언으로 다시 그려요">↻ 다시 그리기</button>
+        </div>
+      </div>
+      <div class="org-body">
+        <div id="org-chart" class="org-chart" aria-live="polite" aria-label="좌석 조직도"></div>
+        <div id="org-rooms" class="org-rooms" aria-label="주제 방"></div>
+      </div>
+      <p id="org-empty" class="org-empty">아직 선언된 조직이 없어요. 메인 에이전트가 조직 구성을 선언하면 좌석과 상태가 여기에 나타나요.</p>
+      <!-- 좌석 상세 레이어 — 제목은 #org-pop-title 에 넣어요 (#org-pop-head 를 textContent 로 덮으면 닫기 버튼까지 지워져요) -->
+      <div id="org-pop" class="org-pop" hidden role="dialog" aria-modal="false" aria-labelledby="org-pop-title" tabindex="-1">
+        <div class="org-pop-head" id="org-pop-head"><b class="org-pop-title" id="org-pop-title">좌석 상세</b><button class="org-pop-x" id="org-pop-x" type="button" aria-label="좌석 상세 닫기">✕</button></div>
+        <div class="org-pop-body" id="org-pop-body"></div>
       </div>
     </section>
     <section id="tab-wiki" class="tabpane">
@@ -204,6 +234,7 @@
   <nav id="mobile-tabbar" class="mobile-tabbar" aria-label="모바일 탭">
     <button class="mtab" data-mtab="dashboard" type="button">📋<span>대시보드</span></button>
     <button class="mtab" data-mtab="decisions" type="button">📝<span>검토사안</span></button>
+    <button class="mtab" data-mtab="org" type="button" title="Corporate — 역할 기반 조직">🏢<span>조직도</span></button>
     <button class="mtab" data-mtab="wiki" type="button" title="Compendium — 개념 용어집">📖<span>위키</span></button>
     <button class="mtab" data-mtab="realtime" type="button">💬<span>실시간</span></button>
   </nav>

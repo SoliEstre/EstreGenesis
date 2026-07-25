@@ -53,6 +53,15 @@ const ui = {
 const DRAFT_KEY = (id) => `constellation-dash-draft:${id}`;
 const NEAR = 3;               // 현재 작업 인접 N개 기본 펼침
 
+// ---- §13.33 조직도 상태 (Corporate 모듈 §10 두 선언 이벤트) ----
+// CommandManifest/OpsState 와 같은 선언 클래스 — 변경-트리거·latest-wins·서버 persist·History 동봉.
+// 보드는 조직을 소유하지 않아요: 선언이 없으면 탭만 비고 나머지는 그대로예요(graceful degradation).
+let orgChart = null;            // 최신 CorporateChart value {version, org, hosts[], roles[], links[], groups[], rooms[]}
+const roleStates = new Map();   // role → 최신 RoleState value {status, task?, taskRef?, since, blockReason?, budgetUsed?}
+let orgPopRole = null;          // 상세 팝업이 열려 있는 좌석 (재선언 수신 시 갱신 대상)
+let orgPayloadSeen = false;     // History 페이로드가 조직 선언을 실어줬나 — 실어줬다면 그게 서버의 latest-wins 정본이라,
+                                // 재생되는 기록 이벤트(회전으로 낡을 수 있어요)가 그 정본을 덮지 않게 막아요.
+
 // ---- data ----
 function applyState(s) {
   ui.state = s;
@@ -136,6 +145,7 @@ function renderAll() {
   renderPlanned();
   renderDecisions();
   renderFreeRequest();
+  try { renderOrg(); } catch {}   // §13.33 조직도 — 보드 state 와 무관한 선언 소스지만 상세 절(단계·보고·게이트)이 state 를 읽어요
   setCurHeight();   // 예정 섹션 헤더가 현재 밴드 아래에 고정되도록 높이 노출
   // 홈 위치 유지·초기 센터링은 setupHomeTracking 의 ResizeObserver 가 콘텐츠 크기 변화에 맞춰 처리
   ui.prevIds = collectIds();
@@ -1151,6 +1161,521 @@ function setupWiki() {
   }).catch((e) => { const body = $('#wiki-body'); if (body) body.innerHTML = '<div class="empty">Compendium 데이터 로드 실패 (' + esc(String(e && e.message || e)) + ').</div>'; });
 }
 
+// ==== §13.33 조직도 탭 (Corporate 모듈 §10·§11 투영) ====
+// 보드는 조직을 소유하지 않아요 — CorporateChart(구조)·RoleState(좌석 생사) 두 선언만 받아 렌더해요.
+// 렌더 불변식(§13.33.3): ① 상태 미선언 좌석은 '미선언'(unknown) — 절대 유휴로 그리지 않아요(데이터가 없을 때
+// 표면이 가장 건강해 보이는 실패) ② 차트가 안 실은 필드는 그럴듯한 기본값이 아니라 부재로 ③ 티어·모델은 해석된
+// 값만(차트가 준 그대로, 체인의 한 층 아님) ④ reportsTo=실선(가로 줄 배치)·links[]=점선 ⑤ deskRef 는 불투명
+// 라벨이라 경로처럼 렌더하지 않아요 ⑥ 와이어 유래 문자열은 전부 textContent (innerHTML 에 원본 금지, §8.1).
+const ORG_ST = { idle: '유휴', working: '작업 중', blocked: '막힘', 'waiting-gate': '승인 대기', offline: '오프라인' };   // 라벨 문구는 마크업 범례와 일치시켜요
+const ORG_ST_KEYS = ['idle', 'working', 'blocked', 'waiting-gate', 'offline'];
+const ORG_UNKNOWN = '미선언';
+const ORG_UNDECLARED = '선언되지 않았어요';
+const ORG_LIVE_MS = 30 * 60 * 1000;   // 엣지 live 판정 창 — 최근 30분 내 두 좌석 사이 A2A 관측
+const ORG_A2A_N = 8;                  // 상세 팝업 최근 A2A 표시 건수
+// 아래 라벨 맵은 '알려진 값 → 평이한 한국어' 변환일 뿐이고, 미등록 값은 원문 그대로 보존해요(식별자 보존·번역 발명 금지).
+const ORG_TOPOLOGY_KO = { 'flat': '평면(동료 구조)', 'flat peer': '평면(동료 구조)', 'hierarchical': '계층', 'mixed': '혼합' };
+const ORG_DRIVE_KO = { 'event-driven': '이벤트 구동(반자율)', 'event-driven semi-autonomous': '이벤트 구동(반자율)', 'goal-driven': '목표 구동(자율)', 'goal-driven autonomous': '목표 구동(자율)', 'between': '중간' };
+const ORG_VAR_KO = { 'static': '고정', 'dynamic': '가변(런타임 좌석 생성·해산)' };
+const ORG_RES_KO = { 'resident': '상주', 'on-wake': '기상 시', 'on-demand': '요청 시', 'scheduled': '예약' };
+const ORG_LANE_KO = { 'interactive': '대화 레인', 'automation': '자동화 레인', 'local': '로컬 레인' };
+const ORG_TRACE_KO = { 'full-trace': '전체 트레이스', 'result-only': '결과만' };
+const ORG_WIRING_KO = { 'directed': '지정 경로', 'discretionary': '재량 경로' };
+const ORG_ROOM_MODE_KO = { 'persistent': '상시', 'temporary': '임시' };
+const ORG_SEAT_FIELDS = ['role', 'seat', 'owner', 'assignee', 'raisedBy'];   // 보드 항목이 좌석을 밝히는 필드 — 없으면 좌석별로 가리지 않아요(추정 금지)
+function orgKo(map, v) { const s = (v == null) ? '' : String(v); if (!s) return ''; return map[s.toLowerCase()] || s; }
+function orgStr(v) { return (v == null) ? '' : String(v); }
+function orgHas(v) { return v != null && String(v) !== ''; }
+
+function orgRolesArr() { return (orgChart && Array.isArray(orgChart.roles)) ? orgChart.roles.filter(r => r && orgHas(r.role)) : []; }
+function orgRoleObj(role) { const w = String(role); return orgRolesArr().find(r => String(r.role) === w) || null; }
+function orgStateOf(role) { const s = roleStates.get(String(role)); return (s && typeof s === 'object') ? s : null; }
+// 불변식 1 — RoleState 부재 또는 미지 status 는 unknown. idle 로 접지 않아요.
+function orgStatusKey(role) { const s = orgStateOf(role); if (!s) return 'unknown'; const st = orgStr(s.status); return ORG_ST_KEYS.indexOf(st) >= 0 ? st : 'unknown'; }
+function orgStatusLabel(role) { const k = orgStatusKey(role); return k === 'unknown' ? ORG_UNKNOWN : ORG_ST[k]; }
+function orgHostTitle(host) {
+  if (!orgHas(host)) return '';
+  const h = (orgChart && Array.isArray(orgChart.hosts) ? orgChart.hosts : []).find(x => x && String(x.host) === String(host));
+  if (!h) return '차트 hosts[] 에 이 호스트 선언이 없어요';
+  return [orgHas(h.label) ? String(h.label) : '', orgHas(h.address) ? '주소 ' + String(h.address) : '', orgHas(h.accelerator) ? '가속기 ' + String(h.accelerator) : '', orgHas(h.memory) ? '메모리 ' + String(h.memory) : ''].filter(Boolean).join(' · ');
+}
+function orgGroupTitle(group) {
+  if (!orgHas(group)) return '';
+  const g = (orgChart && Array.isArray(orgChart.groups) ? orgChart.groups : []).find(x => x && String(x.group) === String(group));
+  return (g && orgHas(g.title)) ? String(g.title) + ' (' + String(group) + ')' : String(group);
+}
+// 보고 깊이 — reportsTo 를 따라 올라가며 계산. 상위 미선언은 그 지점에서 끊고(없는 좌석 발명 금지), 순환은 방어해요.
+function orgDepths(roles) {
+  const by = new Map(roles.map(r => [String(r.role), r]));
+  const depth = new Map(), dangling = new Set(), cyclic = new Set();
+  for (const r of roles) {
+    const id = String(r.role);
+    let d = 0, cur = r; const seen = new Set([id]);
+    for (;;) {
+      if (!orgHas(cur.reportsTo)) break;
+      const up = by.get(String(cur.reportsTo));
+      if (!up) { if (cur === r) dangling.add(id); break; }
+      const uid = String(up.role);
+      if (seen.has(uid)) { cyclic.add(id); break; }
+      seen.add(uid); d++; cur = up;
+      if (d > 64) { cyclic.add(id); break; }
+    }
+    depth.set(id, d);
+  }
+  return { depth, dangling, cyclic };
+}
+// 좌석명 → 실시간 채널 후보. 좌석명과 에이전트 id 가 같은 이름 체계가 아닐 수 있으므로 exact 여부를 함께 돌려줘요.
+function orgResolveChannel(role) {
+  // 차트가 이 좌석의 agentId 를 선언했으면 그것이 권위 — 아래 휴리스틱은 선언이 없을 때만 돌아요.
+  try {
+    const _d = (orgChart && Array.isArray(orgChart.roles)) ? orgChart.roles.find((r) => r && r.role === role) : null;
+    if (_d && _d.agentId && wsState && wsState.channels && wsState.channels.has(_d.agentId)) return _d.agentId;
+  } catch (e) {}
+
+  try {
+    const want = orgStr(role).trim(); if (!want) return null;
+    const ents = [...wsState.channels.entries()];
+    const usable = ents.filter(([id, c]) => id && !wsIsMon(id) && !wsIsGroup(id) && String(id).indexOf('room:') !== 0);
+    const order = usable.filter(([, c]) => !(c && c.hidden)).concat(usable.filter(([, c]) => (c && c.hidden)));
+    const lw = want.toLowerCase();
+    for (const [id, c] of order) if (String(id) === want || orgStr(c && c.routeId) === want) return { id, exact: true };
+    for (const [id, c] of order) if (String(id).toLowerCase() === lw || orgStr(c && c.routeId).toLowerCase() === lw) return { id, exact: true };
+    if (lw.length >= 3) for (const [id, c] of order) if ((String(id) + ' ' + orgStr(c && c.name)).toLowerCase().indexOf(lw) >= 0) return { id, exact: false };
+    return null;
+  } catch { return null; }   // TDZ 가드 — 초기 렌더가 wsState/WS_MON_* 선언 실행 전일 수 있어요 (v2.4.32 사고 클래스)
+}
+// A2A 관측 자료구조 = 모니터 채널 행의 src {from,to} (wsPushRow 가 실측 발신·수신 agentId 로 채워요) + row.ts.
+function orgA2aRows() {
+  const out = [];
+  try { for (const c of wsState.channels.values()) { if (!c || !Array.isArray(c.rows)) continue; for (const r of c.rows) if (r && r.src && r.src.from && r.src.to) out.push(r); } } catch {}
+  return out;
+}
+function orgA2aRowsFor(chanId) { const w = String(chanId); return orgA2aRows().filter(r => String(r.src.from) === w || String(r.src.to) === w).sort((a, b) => (a.ts || 0) - (b.ts || 0)); }
+function orgLivePairs() {
+  const set = new Set(), now = Date.now();
+  for (const r of orgA2aRows()) {
+    if (r.ts != null && (now - r.ts) > ORG_LIVE_MS) continue;
+    const f = String(r.src.from), t = String(r.src.to);
+    set.add(f + '\u0000' + t); set.add(t + '\u0000' + f);
+  }
+  return set;
+}
+// 조용한 실패 금지 — 채널 매칭이 안 됐거나 근사 매칭이면 1줄로 알려요. 자체 완결(인라인 스타일) 이라 스타일 계약에 의존하지 않아요.
+function orgNote(msg) {
+  let n = document.getElementById('org-note');
+  if (!n) {
+    n = document.createElement('div'); n.id = 'org-note';
+    n.setAttribute('role', 'status'); n.setAttribute('aria-live', 'polite');
+    n.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:99999;max-width:min(560px,92vw);padding:10px 14px;border-radius:10px;background:rgba(22,24,30,.96);color:#eef1f6;font-size:13px;line-height:1.55;border:1px solid rgba(255,255,255,.16);box-shadow:0 6px 24px rgba(0,0,0,.38)';
+    document.body.appendChild(n);
+  }
+  n.textContent = orgStr(msg);
+  n.hidden = false;
+  if (n._t) clearTimeout(n._t);
+  n._t = setTimeout(() => { n.hidden = true; }, 7000);
+}
+function orgSwitchChannel(id) {
+  try { if (id) wsState.active = id; } catch {}
+  try { toggleWsPop(true); } catch {}
+  try { wsRenderTabs(); wsRenderActiveStream(); } catch {}
+}
+function orgTalk(role) {
+  const hit = orgResolveChannel(role);
+  orgSwitchChannel(hit ? hit.id : null);
+  if (!hit) orgNote('좌석 "' + orgStr(role) + '" 에 대응하는 실시간 채널을 찾지 못했어요 — 실시간 창만 열었어요 (좌석명과 에이전트 id 가 다른 이름이면 매칭되지 않아요).');
+  else if (!hit.exact) orgNote('좌석 "' + orgStr(role) + '" → 채널 "' + hit.id + '" 로 이름이 비슷해 연결했어요 (정확히 같은 id 는 아니에요).');
+}
+function orgOpenRoom(roomId) {
+  const key = 'room:' + orgStr(roomId);   // §13.30 방 채널 키 규약 (wsChanKey·wsRtIntake 와 동일)
+  let has = false; try { has = wsState.channels.has(key); } catch {}
+  orgSwitchChannel(has ? key : null);
+  if (!has) orgNote('방 "' + orgStr(roomId) + '" 채널이 아직 없어요 (방 트래픽 수신 전) — 실시간 창만 열었어요.');
+}
+function orgOpenPair(from, to) {
+  const ca = orgResolveChannel(from), cb = orgResolveChannel(to);
+  let mon = null;
+  if (ca && cb) {
+    try {
+      for (const [id, c] of wsState.channels.entries()) {
+        if (!wsIsMon(id) || !Array.isArray(c.rows)) continue;
+        if (c.rows.some(r => r && r.src && ((String(r.src.from) === ca.id && String(r.src.to) === cb.id) || (String(r.src.from) === cb.id && String(r.src.to) === ca.id)))) { mon = id; break; }
+      }
+    } catch {}
+  }
+  const target = mon || (cb && cb.id) || (ca && ca.id) || null;
+  orgSwitchChannel(target);
+  if (!target) orgNote('"' + orgStr(from) + ' ⇢ ' + orgStr(to) + '" 두 좌석 중 어느 쪽도 실시간 채널로 매칭되지 않았어요 — 실시간 창만 열었어요.');
+  else if (!mon) orgNote('두 좌석 사이 전용 모니터 채널을 찾지 못해 "' + target + '" 채널로 열었어요.');
+}
+// 예산 — 차트가 실은 형태를 모르므로 숫자로 해석되는 경우에만 게이지를 그리고, 아니면 선언값을 칩으로만 보여줘요(허구 게이지 금지).
+function orgBudget(budget, used) {
+  const num = (x) => (typeof x === 'number' && isFinite(x)) ? x : ((typeof x === 'string' && x.trim() !== '' && isFinite(Number(x))) ? Number(x) : null);
+  if (budget == null && used == null) return null;
+  let limit = null, u = null; const extra = [];
+  if (budget != null && typeof budget === 'object') {
+    for (const k of ['limit', 'max', 'ceiling', 'tokens', 'amount']) { if (limit == null) limit = num(budget[k]); }
+    if (orgHas(budget.period)) extra.push('주기 ' + String(budget.period));
+    if (orgHas(budget.unit)) extra.push('단위 ' + String(budget.unit));
+  } else if (budget != null) limit = num(budget);
+  if (used != null && typeof used === 'object') { for (const k of ['used', 'tokens', 'amount']) { if (u == null) u = num(used[k]); } }
+  else if (used != null) u = num(used);
+  const title = ['예산 ' + (limit != null ? '상한 ' + limit : (budget != null ? '선언됨(숫자 해석 불가)' : '미선언')), (u != null ? '사용 ' + u : (used != null ? '사용 선언됨(숫자 해석 불가)' : '')), ...extra].filter(Boolean).join(' · ');
+  if (limit != null && limit > 0 && u != null) {
+    const pct = Math.max(0, Math.min(100, Math.round((u / limit) * 1000) / 10));
+    return { pctOk: true, pct, title: title + ' · ' + pct + '%' };
+  }
+  const bits = [];
+  if (budget != null) bits.push('예산 ' + (limit != null ? String(limit) : '선언됨'));
+  if (used != null) bits.push('사용 ' + (u != null ? String(u) : '선언됨'));
+  return { pctOk: false, text: bits.join(' / '), title };
+}
+function orgSubText() {
+  if (!orgChart) return '아직 조직 선언(CorporateChart)을 받지 못했어요.';
+  const o = (orgChart.org && typeof orgChart.org === 'object') ? orgChart.org : null;
+  const parts = [];
+  if (o) {
+    if (orgHas(o.topology)) parts.push('형태 ' + orgKo(ORG_TOPOLOGY_KO, o.topology));
+    if (orgHas(o.drive)) parts.push('구동 ' + orgKo(ORG_DRIVE_KO, o.drive));
+    if (orgHas(o.variability)) parts.push('가변성 ' + orgKo(ORG_VAR_KO, o.variability));
+    if (o.seatCeiling != null) parts.push('좌석 상한 ' + String(o.seatCeiling));
+    if (o.fanoutCeiling != null) parts.push('동시 분기 상한 ' + String(o.fanoutCeiling));
+  } else parts.push('조직 형태가 선언되지 않았어요');
+  parts.push('좌석 ' + orgRolesArr().length + '개');
+  const hosts = Array.isArray(orgChart.hosts) ? orgChart.hosts.length : 0; if (hosts) parts.push('호스트 ' + hosts + '대');
+  const rooms = Array.isArray(orgChart.rooms) ? orgChart.rooms.length : 0; if (rooms) parts.push('방 ' + rooms + '개');
+  return parts.join(' · ');
+}
+// 레인 B 마크업이 id 만 걸어둔 경우에도 클래스가 붙도록 보정 + 상태 점 범례를 1회 생성(멱등).
+function orgEnsureClasses() {
+  const add = (sel, cls) => { const e = $(sel); if (e && !e.classList.contains(cls)) e.classList.add(cls); };
+  add('#org-sub', 'org-sub'); add('#org-chart', 'org-chart'); add('#org-rooms', 'org-rooms'); add('#org-empty', 'org-empty');
+  add('#org-refresh', 'org-btn'); add('#org-pop', 'org-pop'); add('#org-pop-head', 'org-pop-head'); add('#org-pop-body', 'org-pop-body'); add('#org-pop-x', 'org-pop-x');
+  const pane = $('#tab-org');
+  if (pane && !pane.querySelector('.org-legend')) {
+    const rf = $('#org-refresh');
+    const host = (rf && rf.parentNode) || pane.querySelector('.org-tools') || pane.querySelector('.org-head');
+    if (host) {
+      const lg = el('div', 'org-legend');
+      for (const k of ORG_ST_KEYS.concat(['unknown'])) {
+        const w = el('span'); const d = el('span', 'org-dot ' + k); const t = el('span');
+        t.textContent = (k === 'unknown' ? ORG_UNKNOWN : ORG_ST[k]);
+        w.append(d, t); lg.append(w);
+      }
+      if (rf && rf.parentNode === host) host.insertBefore(lg, rf); else host.append(lg);
+    }
+  }
+}
+function orgNodeEl(r, opt) {
+  const role = String(r.role), k = orgStatusKey(role), st = orgStateOf(role);
+  const n = el('div', 'org-node' + (k === 'unknown' ? ' unknown' : k === 'blocked' ? ' blocked' : k === 'working' ? ' working' : ''));
+  n.dataset.role = role; n.tabIndex = 0; n.title = '클릭하면 이 좌석의 상세를 열어요';
+  const name = el('div', 'org-name');
+  const dot = el('span', 'org-dot ' + k);
+  dot.title = '상태 ' + orgStatusLabel(role) + (st && orgHas(st.since) ? ' · ' + relTime(st.since) : (k === 'unknown' ? ' — 이 좌석의 RoleState 를 받지 못했어요' : ''));
+  const nm = el('span'); nm.textContent = role;
+  name.append(dot, nm); n.append(name);
+  const ttl = el('div', 'org-role-title'); ttl.textContent = orgHas(r.title) ? String(r.title) : '직무 ' + ORG_UNDECLARED; n.append(ttl);
+  const task = el('div', 'org-task');
+  if (!st) task.textContent = ORG_UNKNOWN + ' — 상태 선언을 받지 못했어요';
+  else {
+    const bits = [orgStatusLabel(role)];
+    if (orgHas(st.task)) bits.push(String(st.task));
+    else if (orgHas(st.blockReason)) bits.push(String(st.blockReason));
+    else bits.push('작업 ' + ORG_UNDECLARED);
+    if (orgHas(st.since)) bits.push(relTime(st.since));
+    task.textContent = bits.join(' · ');
+  }
+  n.append(task);
+  const meta = el('div', 'org-meta');
+  const chip = (text, cls, title) => { if (!text) return; const c = el('span', 'org-chip' + (cls ? ' ' + cls : '')); c.textContent = text; if (title) c.title = title; meta.append(c); };
+  if (orgHas(r.tier)) chip('티어 ' + String(r.tier), '', '차트가 준 해석된 값이에요 (체인의 한 층이 아니에요)');
+  if (orgHas(r.residency)) chip('잔류 ' + orgKo(ORG_RES_KO, r.residency), String(r.residency) === 'resident' ? 'res-resident' : '');
+  if (orgHas(r.host)) chip('호스트 ' + String(r.host), '', orgHostTitle(r.host));
+  if (orgHas(r.lane)) chip(orgKo(ORG_LANE_KO, r.lane), String(r.lane) === 'automation' ? 'lane-automation' : (String(r.lane) === 'local' ? 'lane-local' : ''), '자격증명 레인 선언 (§9.1)');
+  if (orgHas(r.harness)) chip('하네스 ' + String(r.harness));
+  if (orgHas(r.traceMode)) chip('트레이스 ' + orgKo(ORG_TRACE_KO, r.traceMode), '', '이 좌석으로 무엇이 넘어오는지 (§6.6)');
+  if (orgHas(r.group)) chip('그룹 ' + orgGroupTitle(r.group));
+  if (orgHas(r.reportsTo)) chip('보고 → ' + String(r.reportsTo), '', '실선 보고선이에요');
+  if (opt && opt.dangling) chip('상위 미선언', '', 'reportsTo 가 가리키는 좌석이 차트에 없어요 — 없는 좌석을 만들지 않고 여기서 끊었어요');
+  if (opt && opt.cyclic) chip('보고 순환', '', '보고선이 순환해서 깊이 계산을 끊었어요');
+  const bud = orgBudget(r.budget, st && st.budgetUsed);
+  if (bud && !bud.pctOk && bud.text) chip(bud.text, '', bud.title);
+  n.append(meta);
+  if (bud && bud.pctOk) {
+    const b = el('div', 'org-budget'); b.title = bud.title;
+    const f = el('span', 'org-budget-fill'); f.style.width = bud.pct + '%';
+    b.append(f); n.append(b);
+  }
+  if (Array.isArray(r.owns) && r.owns.length) {
+    const o = el('div', 'org-owns');
+    o.textContent = '경계 ' + r.owns.length + '곳 · ' + r.owns.map(x => orgStr(x)).join(' · ');
+    o.title = '이 좌석이 쓸 수 있는 경로예요 (§6.7 쓰기 분할)';
+    n.append(o);
+  }
+  const talk = el('button', 'org-talk'); talk.type = 'button'; talk.textContent = '💬 대화'; talk.title = '이 좌석의 실시간 대화 표면으로';
+  talk.onclick = (e) => { e.stopPropagation(); orgTalk(role); };
+  n.append(talk);
+  n.onclick = () => orgOpenDetail(role);
+  n.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); orgOpenDetail(role); } };
+  return n;
+}
+function orgLinkEl(l, chanOf, livePairs) {
+  const from = String(l.from), to = String(l.to);
+  const ca = chanOf.get(from) || null, cb = chanOf.get(to) || null;
+  const live = !!(ca && cb && livePairs.has(ca.id + '\u0000' + cb.id));
+  const row = el('div', 'org-link' + (live ? ' live' : ''));
+  const txt = el('span');
+  txt.textContent = from + ' ⇢ ' + to
+    + (orgHas(l.reason) ? ' · ' + String(l.reason) : ' · 사유 ' + ORG_UNDECLARED)
+    + (orgHas(l.wiring) ? ' · ' + orgKo(ORG_WIRING_KO, l.wiring) : '')
+    + (live ? ' · 최근 대화 있음' : '');
+  row.append(txt);
+  row.tabIndex = 0;
+  row.title = live ? '최근 30분 내 두 좌석 사이 A2A 가 관측됐어요 — 클릭하면 그 대화 표면으로' : '클릭하면 이 페어의 대화 표면을 열어요 (최근 A2A 관측 없음)';
+  row.onclick = () => orgOpenPair(from, to);
+  row.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); orgOpenPair(from, to); } };
+  return row;
+}
+function orgRoomEl(rm) {
+  const roomId = String(rm.roomId);
+  const box = el('div', 'org-room'); box.dataset.roomId = roomId; box.tabIndex = 0;
+  const top = el('div', 'org-room-topic');
+  top.textContent = '🪑 ' + (orgHas(rm.topic) ? String(rm.topic) : roomId) + (orgHas(rm.mode) ? ' · ' + orgKo(ORG_ROOM_MODE_KO, rm.mode) : '');
+  box.append(top);
+  const chips = el('div', 'org-room-chips');
+  for (const p of (Array.isArray(rm.participants) ? rm.participants : [])) {
+    const isObj = p && typeof p === 'object';
+    const nm = isObj ? orgStr(p.agentId != null ? p.agentId : (p.role != null ? p.role : p.name)) : orgStr(p);
+    if (!nm) continue;
+    const human = (isObj && orgStr(p.speakerClass) === 'human-operator') || nm === 'human-operator';
+    const c = el('span', 'org-room-chip' + (human ? ' human' : ''));
+    c.textContent = (human ? '👤 ' : '') + nm + ((isObj && orgHas(p.role) && orgStr(p.agentId) !== '') ? ' · ' + String(p.role) : '');
+    chips.append(c);
+  }
+  if (!chips.children.length) { const c = el('span', 'org-room-chip'); c.textContent = '참여자 ' + ORG_UNDECLARED; chips.append(c); }
+  box.append(chips);
+  const talk = el('button', 'org-talk'); talk.type = 'button'; talk.textContent = '💬 방 대화'; talk.title = '이 방의 실시간 탭으로';
+  talk.onclick = (e) => { e.stopPropagation(); orgOpenRoom(roomId); };
+  box.append(talk);
+  box.onclick = () => orgOpenRoom(roomId);
+  box.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); orgOpenRoom(roomId); } };
+  return box;
+}
+function renderOrg() {
+  const chartEl = $('#org-chart'); if (!chartEl) return;   // 마크업 미배포 → 조용히 반환 (기존 관례)
+  const roomsEl = $('#org-rooms'), emptyEl = $('#org-empty'), badge = $('#org-badge'), subEl = $('#org-sub');
+  orgEnsureClasses();
+  const roles = orgRolesArr();
+  chartEl.innerHTML = ''; if (roomsEl) roomsEl.innerHTML = '';
+  // 배지 = 상태를 선언했고 내려가지 않은 좌석 수 / 차트가 선언한 좌석 수 (Map 조회·배열 길이에서만 계산, 추정 없음)
+  let live = 0; for (const r of roles) { const k = orgStatusKey(r.role); if (k !== 'unknown' && k !== 'offline') live++; }
+  if (badge) {
+    badge.textContent = roles.length ? (live + '/' + roles.length) : '0';
+    badge.hidden = !roles.length;
+    badge.title = roles.length ? ('가동 ' + live + ' / 선언 ' + roles.length + ' — 상태 미선언 좌석은 가동으로 세지 않아요') : '조직 선언 수신 전';
+  }
+  if (subEl) { subEl.textContent = orgSubText(); subEl.title = (orgChart && orgChart.version != null) ? ('차트 버전 ' + String(orgChart.version)) : ''; }
+  if (!orgChart || !roles.length) {
+    if (emptyEl) {
+      emptyEl.hidden = false;
+      emptyEl.textContent = orgChart
+        ? '조직 차트는 받았지만 선언된 좌석이 없어요 (roles[] 가 비어 있어요).'
+        : '아직 조직 선언(CorporateChart)을 받지 못했어요 — 조직을 선언하는 메인이 붙으면 여기에 그려요.';
+    }
+    if (orgPopRole) orgCloseDetail();
+    return;
+  }
+  if (emptyEl) emptyEl.hidden = true;
+  const dep = orgDepths(roles);
+  const chanOf = new Map(); for (const r of roles) chanOf.set(String(r.role), orgResolveChannel(r.role));
+  const livePairs = orgLivePairs();
+  let maxD = 0; for (const r of roles) maxD = Math.max(maxD, dep.depth.get(String(r.role)) || 0);
+  for (let d = 0; d <= maxD; d++) {
+    const tierRoles = roles.filter(r => (dep.depth.get(String(r.role)) || 0) === d);
+    if (!tierRoles.length) continue;
+    const tier = el('div', 'org-tier');
+    const lab = el('div', 'org-tier-label');
+    lab.textContent = (d === 0 ? '최상위' : '보고 깊이 ' + d) + ' · 좌석 ' + tierRoles.length + '개';
+    tier.append(lab);
+    for (const r of tierRoles) tier.append(orgNodeEl(r, { dangling: dep.dangling.has(String(r.role)), cyclic: dep.cyclic.has(String(r.role)) }));
+    chartEl.append(tier);
+  }
+  const links = (orgChart && Array.isArray(orgChart.links)) ? orgChart.links.filter(l => l && orgHas(l.from) && orgHas(l.to)) : [];
+  if (links.length) {
+    const box = el('div', 'org-links');
+    const h = el('div', 'org-tier-label');
+    h.textContent = '추가 연결(점선) ' + links.length + '건 — 보고선과 별개예요';
+    box.append(h);
+    for (const l of links) box.append(orgLinkEl(l, chanOf, livePairs));
+    chartEl.append(box);
+  }
+  if (roomsEl) {
+    const rooms = (orgChart && Array.isArray(orgChart.rooms)) ? orgChart.rooms.filter(x => x && orgHas(x.roomId)) : [];
+    for (const rm of rooms) roomsEl.append(orgRoomEl(rm));
+    if (!rooms.length) { const e = el('div', 'org-empty'); e.textContent = '선언된 방이 없어요.'; roomsEl.append(e); }
+  }
+  if (orgPopRole) { if (orgRoleObj(orgPopRole)) orgOpenDetail(orgPopRole); else orgCloseDetail(); }   // 열려 있던 상세는 새 선언으로 갱신
+}
+// ---- 상세 팝업 (§13.33.3-5: 새 위젯 클래스가 아니라 한 좌석으로 좁힌 모니터) ----
+function orgSec(title) { const s = el('div', 'org-sec'); const h = el('div', 'org-sec-h'); h.textContent = title; s.append(h); return s; }
+function orgRow(k, v, title) {
+  const row = el('div', 'org-row');
+  const kk = el('span', 'org-k'); kk.textContent = orgStr(k);
+  const vv = el('span', 'org-v'); vv.textContent = orgHas(v) ? String(v) : ORG_UNDECLARED;
+  if (title) row.title = title;
+  row.append(kk, vv); return row;
+}
+function orgFindCurrent(ref) {
+  if (!orgHas(ref) || !ui.state) return null;
+  const cur = ui.state.current, items = Array.isArray(cur) ? cur : (cur ? [cur] : []), want = String(ref);
+  for (const it of items) if (it && it.id != null && String(it.id) === want) return it;
+  for (const it of items) if (it && Array.isArray(it.sub)) for (const s of it.sub) if (s && s.id != null && String(s.id) === want) return s;
+  return null;
+}
+function orgSeatOf(entry) { for (const f of ORG_SEAT_FIELDS) { const v = entry && entry[f]; if (orgHas(v)) return String(v); } return null; }
+function orgAnySeatAttr(list) { return (Array.isArray(list) ? list : []).some(e => orgSeatOf(e)); }
+function orgBoardSlice(list, role, taskRef) {
+  const want = String(role), ref = orgStr(taskRef), out = [];
+  for (const e of (Array.isArray(list) ? list : [])) {
+    if (!e) continue;
+    const seat = orgSeatOf(e);
+    if ((seat && seat === want) || (ref && e.id != null && String(e.id) === ref)) out.push(e);
+  }
+  return out;
+}
+function orgCloseDetail() { orgPopRole = null; const p = $('#org-pop'); if (p) p.hidden = true; }
+function orgOpenDetail(role) {
+  const pop = $('#org-pop'), body = $('#org-pop-body'); if (!pop || !body) return;
+  const r = orgRoleObj(role); if (!r) return;
+  orgPopRole = String(role);
+  orgEnsureClasses();
+  const st = orgStateOf(orgPopRole), k = orgStatusKey(orgPopRole), ch = orgResolveChannel(orgPopRole);
+  // 머리 — 닫기 버튼(#org-pop-x)을 지우지 않도록 머리 전체를 덮지 않아요. 제목 자리(#org-pop-title)가 있으면 그걸 쓰고,
+  // 없을 때만 내가 만든 .org-title 을 넣어요. 내가 만든 요소는 data-org-owned 로 표시해 다음 열기 때 그것만 교체해요.
+  const head = $('#org-pop-head');
+  const headTitle = orgPopRole + (orgHas(r.title) ? ' · ' + String(r.title) : '') + ' · ' + orgStatusLabel(orgPopRole);
+  const popTitle = $('#org-pop-title');
+  if (popTitle) popTitle.textContent = headTitle;
+  if (head) {
+    head.querySelectorAll('[data-org-owned="1"]').forEach(n => n.remove());
+    const add = [];
+    if (!popTitle) { const t = el('span', 'org-title'); t.dataset.orgOwned = '1'; t.textContent = headTitle; add.push(t); }
+    const talk = el('button', 'org-talk'); talk.dataset.orgOwned = '1'; talk.type = 'button'; talk.textContent = '💬 대화';
+    talk.title = '이 좌석의 실시간 대화 표면으로';
+    talk.onclick = (e) => { e.stopPropagation(); orgTalk(orgPopRole); };
+    add.push(talk);
+    const x = $('#org-pop-x');
+    if (x && x.parentNode === head) for (const n of add) head.insertBefore(n, x);
+    else head.append(...add);
+  }
+  body.innerHTML = '';
+  // ① 현재 작업 + 단계 타임라인 (taskRef 로 보드 current[] 항목을 참조 — 복제 아니라 참조)
+  const s1 = orgSec('현재 작업');
+  if (!st) s1.append(orgRow('상태', ORG_UNKNOWN + ' — 이 좌석의 RoleState 를 받지 못했어요'));
+  else {
+    s1.append(orgRow('상태', orgStatusLabel(orgPopRole)));
+    s1.append(orgRow('작업', orgHas(st.task) ? String(st.task) : null));
+    s1.append(orgRow('시작', orgHas(st.since) ? fmtDateTime(st.since) + ' (' + relTime(st.since) + ')' : null));
+    if (k === 'blocked' || orgHas(st.blockReason)) s1.append(orgRow('막힌 이유', orgHas(st.blockReason) ? String(st.blockReason) : null));
+    s1.append(orgRow('보드 항목 (taskRef)', orgHas(st.taskRef) ? String(st.taskRef) : null));
+  }
+  const curItem = orgFindCurrent(st && st.taskRef);
+  if (curItem && Array.isArray(curItem.stages) && curItem.stages.length) {
+    const row = el('div', 'org-row');
+    const kk = el('span', 'org-k'); kk.textContent = '단계';
+    const vv = el('span', 'org-v');
+    for (const sg of curItem.stages) {
+      const sstat = orgStr(sg && sg.status);
+      const e = el('span', 'org-stage ' + (sstat === 'done' ? 'done' : sstat === 'active' ? 'active' : 'pending'));
+      e.textContent = orgStr(sg && sg.label);
+      e.title = '상태 ' + (sstat || 'pending');
+      vv.append(e);
+    }
+    row.append(kk, vv); s1.append(row);
+  } else {
+    s1.append(orgRow('단계', null, (st && orgHas(st.taskRef))
+      ? (curItem ? '그 보드 항목에 stages[] 가 없어요' : 'taskRef 가 가리키는 보드 항목을 현재 작업에서 찾지 못했어요')
+      : 'taskRef 가 없어 보드 항목과 연결할 수 없어요'));
+  }
+  body.append(s1);
+  // ② 최근 보고 — 좌석 귀속 필드 또는 taskRef 일치분만 (추정으로 끌어오지 않아요)
+  const s2 = orgSec('최근 보고');
+  const doneList = (ui.state && ui.state.done) || [];
+  const mineDone = orgBoardSlice(doneList, orgPopRole, st && st.taskRef).slice(0, 5);
+  if (mineDone.length) for (const d of mineDone) s2.append(orgRow(orgHas(d.at) ? fmtDateTime(d.at) : (orgHas(d.when) ? String(d.when) : '완료'), orgHas(d.title) ? String(d.title) : null));
+  else {
+    s2.append(orgRow('보고', null));
+    if (doneList.length && !orgAnySeatAttr(doneList)) s2.append(orgRow('참고', '보드 완료 항목에 좌석 귀속 필드가 없어서 좌석별로 가릴 수 없어요'));
+  }
+  body.append(s2);
+  // ③ 이 좌석의 예정 슬라이스
+  const s3 = orgSec('예정 슬라이스');
+  const planList = (ui.state && ui.state.planned) || [];
+  const minePlan = orgBoardSlice(planList, orgPopRole, st && st.taskRef);
+  if (minePlan.length) for (const p of minePlan) s3.append(orgRow(p.blocked ? '막힘' : (p.waiting ? '대기' : '예정'), orgHas(p.title) ? String(p.title) : null, orgHas(p.blockReason) ? String(p.blockReason) : ''));
+  else {
+    s3.append(orgRow('예정', null));
+    if (planList.length && !orgAnySeatAttr(planList)) s3.append(orgRow('참고', '보드 예정 항목에 좌석 귀속 필드가 없어서 좌석별로 가릴 수 없어요'));
+  }
+  body.append(s3);
+  // ④ 경계 (owns[] — §6.7 쓰기 분할)
+  const s4 = orgSec('경계 (쓰기 가능 경로)');
+  if (Array.isArray(r.owns) && r.owns.length) for (const p of r.owns) s4.append(orgRow('경로', orgStr(p)));
+  else s4.append(orgRow('경로', null));
+  body.append(s4);
+  // ⑤ 해석된 토글 — 차트가 준 값 그대로 (불변식 3·4)
+  const s5 = orgSec('해석된 토글 · 좌석 선언');
+  s5.append(orgRow('티어', orgHas(r.tier) ? String(r.tier) : null, '차트가 준 해석된 값이에요'));
+  s5.append(orgRow('잔류', orgHas(r.residency) ? orgKo(ORG_RES_KO, r.residency) : null));
+  s5.append(orgRow('하네스', orgHas(r.harness) ? String(r.harness) : null));
+  s5.append(orgRow('호스트', orgHas(r.host) ? String(r.host) + (orgHostTitle(r.host) ? ' — ' + orgHostTitle(r.host) : '') : null));
+  s5.append(orgRow('레인', orgHas(r.lane) ? orgKo(ORG_LANE_KO, r.lane) : null));
+  s5.append(orgRow('트레이스', orgHas(r.traceMode) ? orgKo(ORG_TRACE_KO, r.traceMode) : null));
+  s5.append(orgRow('그룹', orgHas(r.group) ? orgGroupTitle(r.group) : null));
+  s5.append(orgRow('생성 근거 (createdFor)', orgHas(r.createdFor) ? String(r.createdFor) : null));
+  s5.append(orgRow('책상 라벨 (deskRef)', orgHas(r.deskRef) ? String(r.deskRef) : null, '불투명 라벨이에요 — 파일 경로가 아니에요'));
+  if (ch && ch.exact) {
+    let ops = null; try { ops = wsOpsStates.get(ch.id) || null; } catch {}
+    if (ops) {
+      const bits = [orgHas(ops.model) ? '모델 ' + String(ops.model) : '', orgHas(ops.effort) ? 'effort ' + String(ops.effort) : '', ops.fast != null ? 'fast ' + String(ops.fast) : '', orgHas(ops.subscaler) ? 'subscaler ' + String(ops.subscaler) : ''].filter(Boolean).join(' · ');
+      s5.append(orgRow('운용 선언 (OpsState)', bits || null, '채널 ' + ch.id + ' 가 스스로 선언한 값이에요 — 차트와 별개 소스예요'));
+    }
+  }
+  body.append(s5);
+  // ⑥ 최근 A2A — 모니터 행의 src {from,to} 실측분만
+  const s6 = orgSec('최근 A2A ' + ORG_A2A_N + '건');
+  if (!ch) s6.append(orgRow('대응 채널', null, '좌석명과 이름이 맞는 실시간 채널을 찾지 못했어요'));
+  else {
+    const rows = orgA2aRowsFor(ch.id).slice(-ORG_A2A_N).reverse();
+    if (!rows.length) s6.append(orgRow('메시지', null, '채널 ' + ch.id + ' 에서 관측된 A2A 가 없어요'));
+    else for (const rw of rows) {
+      const dir = String(rw.src.from) === ch.id ? '→ ' + String(rw.src.to) : '← ' + String(rw.src.from);
+      const sum = [orgStr(rw.label), orgStr(rw.a2a && rw.a2a.summary)].filter(Boolean).join(' · ');
+      s6.append(orgRow(orgStr(rw.t) + ' ' + dir, sum || null));
+    }
+    if (!ch.exact) s6.append(orgRow('참고', '채널 "' + ch.id + '" 은 이름이 비슷해 고른 근사 매칭이에요'));
+  }
+  body.append(s6);
+  // ⑦ 이 좌석의 게이트 큐 (열린 검토사안)
+  const s7 = orgSec('게이트 큐');
+  const decs = ((ui.state && Array.isArray(ui.state.decisions)) ? ui.state.decisions : []).filter(d => d && d.status !== 'resolved');
+  const mineDec = decs.filter(d => { const seat = orgSeatOf(d); return seat && seat === orgPopRole; });
+  if (mineDec.length) for (const d of mineDec) s7.append(orgRow(orgHas(d.id) ? String(d.id) : '검토', orgHas(d.question) ? String(d.question) : (orgHas(d.title) ? String(d.title) : null)));
+  else {
+    s7.append(orgRow('열린 검토사안', null));
+    if (decs.length && !orgAnySeatAttr(decs)) s7.append(orgRow('참고', '열린 검토사안 ' + decs.length + '건이 있지만 좌석 귀속 필드가 없어요 — 좌석별로 가릴 수 없어요'));
+  }
+  body.append(s7);
+  pop.hidden = false;
+}
+function setupOrg() {
+  const rf = $('#org-refresh'); if (rf) rf.onclick = () => { try { renderOrg(); } catch {} };
+  const x = $('#org-pop-x'); if (x) x.onclick = () => orgCloseDetail();
+  // ESC = 상세 팝업만 닫고 전파 차단 (#wiki-aside 관례와 동일)
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { const p = $('#org-pop'); if (p && !p.hidden) { ev.stopPropagation(); orgCloseDetail(); } } });
+  try { renderOrg(); } catch {}
+}
+
 // ---- boot ----
 ui.panes = loadPanes(); ui.splitFrac = loadSplitFrac(); ui.splitFixed = loadSplitFixed();
 setupTopbar();         // fixed 상단바 높이 → --topbar-h (메인 패딩)
@@ -1162,6 +1687,7 @@ setupAttachments();    // 항목 첨부(코드/mermaid/시각) 칩 → 팝업 �
 setupStandbyToggle();  // 무한 대기 모드 토글 (conn 왼쪽)
 setupHomeTracking();   // 콘텐츠 크기 변화에 맞춰 홈 위치 유지 (초기 센터링 포함)
 setupWiki();           // Compendium 위키 탭 (v0.2-d) — /compendium.json fetch + dual-register 렌더
+setupOrg();            // §13.33 조직도 탭 — 새로고침·상세 팝업 닫기(✕/ESC) 배선 + 초기 빈 상태 렌더
 fetch('/api/state').then(r => r.json()).then(applyState).catch(() => {});
 connect();
 // 검토 반영 시각의 상대시간 실시간 갱신
@@ -2471,7 +2997,12 @@ function onWsEvent(m) {
     } else { events = []; }
     if (v.manifests && typeof v.manifests === 'object') { for (const k of Object.keys(v.manifests)) wsCmdManifests.set(k, v.manifests[k]); }   // v2.4.67 자동완성 매니페스트 동봉분
     if (v.opsStates && typeof v.opsStates === 'object') { for (const k of Object.keys(v.opsStates)) wsOpsStates.set(k, v.opsStates[k]); }   // v2.4.71 운용상태 동봉분
-    wsReplayHistory(events, v.cold, v.archived); return;
+    if (v.corporateChart !== undefined || v.roleStates !== undefined) orgPayloadSeen = true;   // §13.33 서버 persist 동봉 여부 (재생 이벤트가 최신본을 덮지 않게 하는 표식)
+    if (v.corporateChart && typeof v.corporateChart === 'object') { orgChart = v.corporateChart; }   // §13.33 조직 구조 동봉분 (단일 객체·latest-wins)
+    if (v.roleStates && typeof v.roleStates === 'object') { for (const k of Object.keys(v.roleStates)) roleStates.set(k, v.roleStates[k]); }   // §13.33 좌석 상태 동봉분 (role → state)
+    wsReplayHistory(events, v.cold, v.archived);
+    try { renderOrg(); } catch {}   // 조직도 탭은 재생이 끝난 뒤 한 번만 그려요 (선언 부재 시 빈 상태 유지)
+    return;
   }
   if (t === 'ChannelHistory' || (t === 'CUSTOM' && m.name === 'ChannelHistory')) {
     const v = (t === 'ChannelHistory') ? m : (m.value || {});
@@ -2543,6 +3074,18 @@ function onWsEvent(m) {
   if (t === 'CUSTOM' && m.name === 'OpsState') {   // v2.4.71 — 입력줄 상태 스트립 선언 (스트림 카드 미생성, live 갱신)
     const v = m.value || {};
     if (m.agentId && v && typeof v === 'object') { wsOpsStates.set(m.agentId, v); try { wsOpsStripSync(); } catch {} }
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'CorporateChart') {   // §13.33 — 조직 구조 선언 (스트림 카드 미생성, live 갱신). 발신 권한(main 한정) 판정은 서버 몫
+    if (wsState.replaying && orgPayloadSeen) return;   // 페이로드 정본 보호 — 기록 재생분으로 최신 차트를 되돌리지 않아요
+    const v = m.value || {};
+    if (v && typeof v === 'object' && Array.isArray(v.roles)) { orgChart = v; if (!wsState.replaying) { try { renderOrg(); } catch {} } }
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'RoleState') {   // §13.33 — 좌석별 생사 선언 (role 별 latest-wins, 스트림 카드 미생성)
+    if (wsState.replaying && orgPayloadSeen) return;
+    const v = m.value || {};
+    if (v && typeof v === 'object' && v.role != null && String(v.role) !== '') { roleStates.set(String(v.role), v); if (!wsState.replaying) { try { renderOrg(); } catch {} } }
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CollabKeyIssued') {   // v2.4.2 통합: RegisterCollabKey transitional alias 응답 → wsKeyMgmt 로 통합 (kind=collab 명시 fallback)
@@ -3457,7 +4000,10 @@ function syncMobileTabbar() {
   const bar = document.getElementById('mobile-tabbar'); if (!bar) return;
   let popOpen, panes;
   try { popOpen = wsState.popOpen; panes = ui.panes; } catch (e) { return; }   // 초기 applyPanes 호출은 wsState(const, 하단 정의) 초기화 전 — TDZ 가드(이후 setupMobileTabbar/재호출에서 정상 동기)
-  const active = popOpen ? 'realtime' : (panes && panes.includes('decisions') && !panes.includes('dashboard') ? 'decisions' : (panes && panes.includes('dashboard') ? 'dashboard' : null));
+  // 하단바 하이라이트: 분할이면 dashboard 우선(기존 semantics 유지), 단일 pane 이면 그 pane. org/wiki 도 이제 켜져요(종전 갭).
+  const MTABS = ['decisions', 'org', 'wiki'];
+  const active = popOpen ? 'realtime'
+    : (panes ? (panes.includes('dashboard') ? 'dashboard' : (MTABS.find((k) => panes.includes(k)) || null)) : null);
   bar.querySelectorAll('[data-mtab]').forEach((b) => b.classList.toggle('active', b.dataset.mtab === active));
 }
 function setupMobileTabbar() {
