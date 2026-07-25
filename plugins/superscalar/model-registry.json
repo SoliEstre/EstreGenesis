@@ -1,0 +1,527 @@
+{
+  "$schema": "https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md#51-tiered-model-composition",
+  "$comment": "Volatile model facts for the /subscaler tier-composition toggle. The DURABLE contract is the tier vocabulary + the routing rubric in Superscalar.md §5.1; this file carries only the perishable part (which concrete models occupy which tier today, and what each vendor actually accepts as an effort value). Replace the data, keep the vocabulary. Every row is expected to carry a confirmedBy URL — an unverifiable claim belongs in caveats[], not in models[].",
+  "asOf": "2026-07-25",
+  "method": "Six-axis live-source sweep (Anthropic / OpenAI / Google+xAI / open-weight / benchmarks / harness binding), each axis independently fact-checked by an adversarial pass instructed to refute; only vendor-page-confirmed ids and values were promoted here. Corrections applied included one fabricated model id, one shut-down model presented as current, and several mis-attributed benchmark sources.",
+  "revisit": {
+    "date": "2026-09-01",
+    "trigger": "2026-09-01 is chosen because it is the first date on which a SINGLE revisit re-baselines every dated event in the near window: Opus 4.1's 2026-08-05 retirement, OpenAI's 2026-08-10 chat-latest shutdowns, and Sonnet 5's 2026-08-31 introductory-pricing expiry all land before it, so pricing and id-validity can be re-derived in one pass rather than three. It also matches the observed cadence: Anthropic shipped Fable 5 (2026-06-09), Sonnet 5 (2026-06-30) and Opus 5 (2026-07-24) — 21 and 24 days apart; OpenAI shipped GPT-5.4 (2026-03-05), 5.5 (2026-04-24) and 5.6 (2026-07-09); Google shipped 3.1 Flash-Lite (2026-05-07), 3.5 Flash (2026-05-19) and the 3.6 Flash wave (2026-07-21); Moonshot shipped K3 (2026-07-16) and DeepSeek V4 (2026-04-24). Across the five vendors something material lands roughly every two to three weeks, and per-vendor flagships land every five to eight weeks — so ~5.5 weeks is about one flagship generation of drift, the most staleness this registry can absorb before a tier row is wrong. FORCE AN EARLIER REVISIT, do not wait for 2026-09-01, on any of: (a) 2026-08-05, to confirm nothing in the estate still pins claude-opus-4-1-20250805; (b) 2026-07-27, to check whether Kimi K3 weights actually published, since that single event is what makes a frontier-tier self-hosted lane real; (c) any new flagship announcement from Anthropic, OpenAI or Google, because Opus 5 shipped ONE DAY before this sweep and the whole T1 row would move again; (d) the first observed silent effort clamp or model substitution in a scripted run, which indicates an org-policy or alias-resolution change this registry cannot see; (e) any harness upgrade (Claude Code, Codex, Gemini CLI, Grok Build), since several findings here are version-gated — Opus 5 needs v2.1.219+, org effort limits v2.1.195+, ultracode v2.1.203+, the 20-subagent limit v2.1.217+.",
+    "gracePeriodDays": 45,
+    "watchlist": [
+      "Claude Sonnet 5 introductory pricing ENDS 2026-08-31 — $2/$10 per MTok reverts to standard $3/$15 (batch $1/$5 → $1.50/$7.50). Explicitly dated on the vendor pricing page; a 50% cost increase on the most likely default execution tier. Source: https://platform.claude.com/docs/en/about-claude/pricing",
+      "claude-opus-4-1-20250805 RETIRES 2026-08-05 (11 days after this sweep) — requests will fail. Note the split sourcing a maintainer must reconcile: the 2026-06-05 deprecation notice names claude-opus-4-8 as the replacement of record while the models-overview warning says \"Migrate to Claude Opus 5\". Source: https://platform.claude.com/docs/en/about-claude/model-deprecations",
+      "OpenAI shutdown 2026-08-10: gpt-5.2-chat-latest and gpt-5.3-chat-latest (announced 2026-05-08, still live today). Source: https://developers.openai.com/api/docs/deprecations",
+      "OpenAI shutdown 2026-10-23: o4-mini-2025-04-16, ft-o4-mini-2025-04-16, o3-mini-2025-01-31, o1-2024-12-17, o1-pro-2025-03-19 — any inherited config pinned to these breaks in under three months. Then 2026-12-11: gpt-5, gpt-5-mini, gpt-5-nano, gpt-5-pro, o3, o3-pro. Source: https://developers.openai.com/api/docs/deprecations",
+      "Google shutdown 2026-10-16 for the ENTIRE 2.5 family — gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite. This simultaneously kills the cheapest Gemini ($0.10/$0.40) and Gemini CLI's hardcoded DEFAULT_GEMINI_MODEL, so it forces both a cost-tier and a harness change. Source: https://ai.google.dev/gemini-api/docs/deprecations",
+      "gemini-3.1-flash-lite shutdown 2027-05-07 — the Gemini CLI's DEFAULT_GEMINI_FLASH_LITE_MODEL has a ~12-month clock. Longer-dated but worth recording now because it is the CLI's cheap default. Source: https://ai.google.dev/gemini-api/docs/deprecations",
+      "gemini-3.1-pro-preview leaving preview, or a Pro-class successor. The 2026-07-21 launch shipped three Flash-class models and no 3.5/3.6 Pro, leaving 3.1 Pro the only Pro-class Gemini 3 and still preview-labelled five months in. Timing unannounced. Source: https://techcrunch.com/2026/07/21/google-releases-three-new-gemini-models-but-no-3-5-pro/",
+      "Gemini 4 — Google stated on 2026-07-21 that it has \"already started our most ambitious pre-training run yet, for Gemini 4\". Confirmed as said; zero timing signal. Source: https://9to5google.com/2026/07/21/gemini-3-6-flash-launch/",
+      "Kimi K3 open weights — Moonshot reportedly committed to releasing full weights by 2026-07-27 under a Modified MIT licence. Two days out from this sweep and directly checkable: either the files exist or they don't. Source: https://platform.kimi.ai/docs/pricing/kimi-k3",
+      "A Haiku-class refresh from Anthropic. There is no Haiku 5; claude-haiku-4-5 (Oct 2025, Feb 2025 knowledge cutoff) is the oldest model in the active lineup and the only one with no effort parameter, making it the most likely next refresh. Inferred from absence of evidence across vendor newsroom and docs, NOT a vendor statement.",
+      "Grok 5 — confirmed in training on Colossus 2 in xAI's 2026-01-28 Series E announcement; the Q1 and Q2 2026 windows both passed with no release. Low confidence on timing. Source (secondary, x.ai returns 403): https://www.nxcode.io/resources/news/grok-5-release-date-latest-news-2026",
+      "DeepSeek legacy id removal — deepseek-chat and deepseek-reasoner were stated to deprecate 2026/07/24 15:59 UTC, i.e. already past at time of writing. Verify whether the ids still resolve or now error. Source: https://api-docs.deexseek.com/quick_start/pricing (canonical: https://api-docs.deepseek.com/quick_start/pricing)"
+    ]
+  },
+  "tiers": [
+    {
+      "tier": "T1 · Frontier Reasoning",
+      "definition": "The vendor's deepest-reasoning flagship, highest cost per token, thinking on by default and often not disableable. Characterized by sustained multi-hour autonomy, self-verification before acting, and the widest reasoning-effort ladder (including a top rung the cheaper tiers lack). Today: claude-fable-5 / claude-opus-5, gpt-5.6-sol, gemini-3.1-pro-preview, grok-4.5, kimi-k3.",
+      "selectionIntent": "Select when the cost of a wrong answer exceeds the cost of the tokens: irreversible actions, ambiguous or under-specified inputs, architecture that later work will be built on, and adversarial review of another model's output. Do NOT select for volume — its per-token price is the tier's defining constraint, and vendor guidance is that a larger model can be cheaper per finished task only when the task is genuinely hard."
+    },
+    {
+      "tier": "T2 · Agentic Execution",
+      "definition": "The workhorse: near-frontier coding capability at roughly a third to a half of T1 per-token cost, tuned for tool loops and multi-file edits, with a full effort ladder and a large (≥400K, usually ~1M) context window. Today: claude-sonnet-5 / claude-opus-4-8, gpt-5.6-terra, gemini-3.6-flash / gemini-3.5-flash, grok-4.3, glm-5.2, deepseek-v4-pro.",
+      "selectionIntent": "The default tier for the main coding loop once the decision is already made and the spec is written. Select whenever the work is 'do the thing correctly' rather than 'decide what the thing is'. This is where a maintainer should spend most tokens; escalation to T1 should be the exception you can name a reason for."
+    },
+    {
+      "tier": "T3 · Bulk Worker",
+      "definition": "Cheap-but-competent models the vendor itself markets for subagents and fan-out — real code edits and real tool use, but a smaller window or a shallower reasoning ceiling than T2. Typically 5-15x cheaper on output than T1. Today: gpt-5.6-luna, gpt-5.4-mini, deepseek-v4-flash, kimi-k2.7-code.",
+      "selectionIntent": "Select for wide parallel lanes where the unit of work is small, independently verifiable, and cheap to redo: read-heavy scans, large-file review, per-file mechanical edits, test scaffolding. The economic point of this tier is that a failed lane is cheap to re-run, so buy width instead of depth."
+    },
+    {
+      "tier": "T4 · Resident Observer",
+      "definition": "The cheapest always-on tier: sub-$1 input, minimal or off-by-default thinking, lowest latency floor. Marketed for classification, extraction, routing and watch loops rather than authoring. Often has NO effort parameter at all (claude-haiku-4-5) or defaults to none/minimal (gpt-5.4-nano, gemini-3.5-flash-lite, gemini-2.5-flash-lite). Today: claude-haiku-4-5-20251001, gpt-5.4-nano, gemini-3.5-flash-lite / gemini-3.1-flash-lite / gemini-2.5-flash-lite.",
+      "selectionIntent": "Select for anything that must run continuously and mostly return 'nothing to do': inbox/board polling, event classification, triage routing, digest extraction. Budget it as a fixed monthly cost, not per-task. Never let this tier author code or make a routing decision that is expensive to reverse — its job is to decide whether to wake a higher tier."
+    }
+  ],
+  "models": [
+    {
+      "provider": "Anthropic",
+      "displayName": "Claude Fable 5",
+      "apiModelId": "claude-fable-5",
+      "tier": "T1 · Frontier Reasoning",
+      "contextWindow": "1M input / 128k max output (300k output on Message Batches API with beta header output-300k-2026-03-24)",
+      "pricingPerMTok": "$10 input / $50 output",
+      "effort": "output_config.effort = low | medium | high (default) | xhigh | max. Thinking ALWAYS ON — thinking:{type:\"disabled\"} and {type:\"enabled\",budget_tokens:N} both 400. In Claude Code thinking cannot be turned off (MAX_THINKING_TOKENS=0 has no effect).",
+      "notes": "Vendor: \"Next-generation intelligence for long-running agents\", \"most capable widely released model\". Comparative latency \"Slower\"; single requests can run many minutes. Best for tasks larger than one sitting. Vendor effort guidance: \"Lower effort settings on Claude Fable 5 still perform well and often exceed xhigh performance on prior models\" — so step DOWN here before stepping across tiers. Unavailable under zero data retention (requires 30-day retention).",
+      "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
+    },
+    {
+      "provider": "Anthropic",
+      "displayName": "Claude Opus 5",
+      "apiModelId": "claude-opus-5",
+      "tier": "T1 · Frontier Reasoning",
+      "contextWindow": "1M input / 128k max output (300k on Batch API with output-300k-2026-03-24)",
+      "pricingPerMTok": "$5 input / $25 output",
+      "effort": "output_config.effort = low | medium | high (default on Claude API and Claude Code) | xhigh | max. Adaptive thinking on by default. BREAKING: thinking:{type:\"disabled\"} + effort xhigh|max returns 400. In Claude Code, Opus 5 has NO first-run default-effort hold — a level set for another model carries over.",
+      "notes": "Vendor: \"For complex agentic coding and enterprise work\"; the model the docs tell you to start with. Released 2026-07-24 (one day before this sweep). Vendor effort guidance is explicit: \"use low and medium liberally as your primary control for token cost and response time wherever your evals show quality holds\", and \"If you carried effort settings over from an earlier model, run a fresh effort sweep\". Caution for agent harnesses: effort does NOT reliably shorten visible responses on Opus 5 — prompt for length instead. Knowledge cutoff May 2026.",
+      "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
+    },
+    {
+      "provider": "Anthropic",
+      "displayName": "Claude Sonnet 5",
+      "apiModelId": "claude-sonnet-5",
+      "tier": "T2 · Agentic Execution",
+      "contextWindow": "1M input / 128k max output",
+      "pricingPerMTok": "$3 input / $15 output standard; introductory $2 / $10 applies through 2026-08-31",
+      "effort": "output_config.effort = low | medium | high (default) | xhigh | max. Adaptive thinking on by default; manual budget_tokens removed; non-default temperature/top_p/top_k return 400.",
+      "notes": "Vendor: \"The best combination of speed and intelligence\"; latency \"Fast\". Native 1M window on the Claude API with no 200K variant. Vendor effort ladder for this model: medium is \"Comparable to Claude Sonnet 4.6 at high effort\" — i.e. the cheap step-down is a generation-over-generation wash, which is the single most useful cost lever in this tier. xhigh reserved for \"the hardest coding and agentic tasks\". Note: mid-conversation system messages are NOT supported on Sonnet 5 (they are on Opus 5 / Opus 4.8 / Fable 5).",
+      "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
+    },
+    {
+      "provider": "Anthropic",
+      "displayName": "Claude Opus 4.8",
+      "apiModelId": "claude-opus-4-8",
+      "tier": "T2 · Agentic Execution",
+      "contextWindow": "1M input / 128k max output",
+      "pricingPerMTok": "$5 input / $25 output",
+      "effort": "output_config.effort = low | medium | high (default on API, Claude Code AND claude.ai) | xhigh | max. thinking:{type:\"adaptive\"} must be set EXPLICITLY — omitting it means no thinking, the opposite of Opus 5. In Claude Code it holds its default effort across sessions until you make an explicit choice.",
+      "notes": "Keep configured as the designated fallback target, not as a primary: Claude Code re-runs cybersecurity-flagged requests from Opus 5 and Fable 5 on Opus 4.8, and after fallback the session stays there. Vendor effort guidance: \"Start with xhigh for coding and agentic use cases\" — the same guidance as Opus 4.7, and different from Opus 5's start-at-high. Anthropic's Model status table lists it Active, not Legacy; retirement not sooner than 2027-05-28.",
+      "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
+    },
+    {
+      "provider": "Anthropic",
+      "displayName": "Claude Haiku 4.5",
+      "apiModelId": "claude-haiku-4-5-20251001",
+      "tier": "T4 · Resident Observer",
+      "aliases": [
+        "claude-haiku-4-5"
+      ],
+      "contextWindow": "200k input / 64k max output",
+      "pricingPerMTok": "$1 input / $5 output",
+      "effort": "NO effort parameter (errors). NO adaptive thinking. Extended thinking only via thinking:{type:\"enabled\",budget_tokens:N}. Prompt-cache minimum 4096 tokens.",
+      "notes": "Vendor: \"The fastest model with near-frontier intelligence\", latency \"Fastest\". The only cheap tier Anthropic sells — there is no Haiku 5, and at Feb 2025 knowledge cutoff it is the oldest model in the active lineup. 200K context and the total absence of an effort knob rule it out of long agentic loops; it is a watcher/classifier, not a coder. Operationally valuable: in Claude Code, Haiku can never be disabled by org model restrictions, so every member always keeps one usable model. Retirement not sooner than 2026-10-15.",
+      "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
+    },
+    {
+      "provider": "Anthropic",
+      "displayName": "Claude Mythos 5",
+      "apiModelId": "claude-mythos-5",
+      "tier": "T1 · Frontier Reasoning",
+      "availability": "restricted access",
+      "contextWindow": "1M input / 128k max output",
+      "pricingPerMTok": "$10 input / $50 output",
+      "effort": "Same as Fable 5: effort low–max, thinking always on.",
+      "notes": "Do not plan around this unless your org is already in Project Glasswing — invitation-only limited availability for defensive cybersecurity workflows, no self-serve sign-up. Shares Fable 5's specs and pricing exactly. Listed only so a maintainer recognizes the id if it appears in an org's allowlist; it is the one model where vendor benchmark text puts Opus 5 'far behind' on exploit-development work.",
+      "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
+    },
+    {
+      "provider": "OpenAI",
+      "displayName": "GPT-5.6 Sol",
+      "apiModelId": "gpt-5.6-sol",
+      "tier": "T1 · Frontier Reasoning",
+      "aliases": [
+        "gpt-5.6"
+      ],
+      "contextWindow": "1,050,000 context / 128,000 max output",
+      "pricingPerMTok": "$5.00 input / $0.50 cached input / $30.00 output — plus \"Prompts with >272K input tokens are priced at 2x input and 1.5x output\" for the whole request",
+      "effort": "reasoning.effort — vendor documents only a model-dependent UNION (none, minimal, low, medium, high, xhigh, max) and instructs you to check the model page; the gpt-5.6-sol page publishes no effort enumeration or default. reasoning.mode = standard | pro is documented for the GPT-5.6 family, and the 2026-07-09 changelog confirms 5.6 introduced \"persisted reasoning, max reasoning effort, and Pro mode\".",
+      "notes": "Vendor: \"Frontier model for complex professional work\", strongest for complex coding, computer use, research and cybersecurity. reasoning.mode:\"pro\" is the documented replacement for the retiring o3-pro and gpt-5-pro — Pro is now a MODE, not a separate model id, so do not shop for a gpt-5.6-pro. Codex docs name \"gpt-5.6\" as the start-here model for demanding subagents. Knowledge cutoff Feb 16 2026.",
+      "confirmedBy": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+    },
+    {
+      "provider": "OpenAI",
+      "displayName": "GPT-5.6 Terra",
+      "apiModelId": "gpt-5.6-terra",
+      "tier": "T2 · Agentic Execution",
+      "contextWindow": "1,050,000 context / 128,000 max output",
+      "pricingPerMTok": "$2.50 input / $0.25 cached / $15.00 output — >272K-token prompts billed at 2x input and 1.5x output",
+      "effort": "reasoning.effort supported (reasoning-token support confirmed on the model page; no per-model enumeration or default published). reasoning.mode standard|pro documented family-wide.",
+      "notes": "Vendor: \"Balanced GPT-5.6 model for everyday work, with performance competitive with GPT-5.5 at a lower cost\" — at half Sol's price with the identical 1.05M window, this is the vendor-named execution lane. Codex subagent doc, verbatim: \"Use for agents that favor speed and efficiency over depth, such as exploration, read-heavy scans, large-file review, or processing supporting documents.\" Knowledge cutoff Feb 16 2026.",
+      "confirmedBy": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+    },
+    {
+      "provider": "OpenAI",
+      "displayName": "GPT-5.6 Luna",
+      "apiModelId": "gpt-5.6-luna",
+      "tier": "T3 · Bulk Worker",
+      "contextWindow": "1,050,000 context / 128,000 max output",
+      "pricingPerMTok": "$1.00 input / $0.10 cached / $6.00 output — >272K-token prompts billed at 2x input and 1.5x output",
+      "effort": "reasoning.effort supported; no per-model enumeration or default published on the model page.",
+      "notes": "Vendor: \"Fast and affordable GPT-5.6 model that delivers strong capability at the lowest cost in the family\", \"Optimized for cost-sensitive, high-volume workloads\". Full 1.05M window at a fifth of Sol's input price makes it the best fan-out lane in the OpenAI line — but the >272K surcharge applies here too, so a wide fan-out that each pushes 300K+ of repo context silently loses much of the discount. Keep per-lane prompts under 272K to preserve the tier's economics.",
+      "confirmedBy": "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
+    },
+    {
+      "provider": "OpenAI",
+      "displayName": "GPT-5.4 mini",
+      "apiModelId": "gpt-5.4-mini",
+      "tier": "T3 · Bulk Worker",
+      "contextWindow": "400,000 context / 128,000 max output",
+      "pricingPerMTok": "$0.75 input / $0.075 cached / $4.50 output",
+      "effort": "reasoning.effort = none (DEFAULT) | low | medium | high | xhigh",
+      "notes": "Vendor: \"Strongest mini model yet for coding, computer use, and subagents\" — subagents named explicitly. Cheapest OpenAI model still marketed for real code edits. The default of `none` is a trap for edit lanes: a harness that omits reasoning.effort gets a non-reasoning model, so raise it explicitly to low/medium on anything that writes code. Smaller 400K window than the 5.6 family.",
+      "confirmedBy": "https://developers.openai.com/api/docs/models/gpt-5.4-mini"
+    },
+    {
+      "provider": "OpenAI",
+      "displayName": "GPT-5.4 nano",
+      "apiModelId": "gpt-5.4-nano",
+      "tier": "T4 · Resident Observer",
+      "contextWindow": "400,000 context / 128,000 max output",
+      "pricingPerMTok": "$0.20 input / $0.02 cached / $1.25 output",
+      "effort": "reasoning.effort = none (DEFAULT) | low | medium | high | xhigh",
+      "notes": "Vendor tagline names \"classification, data extraction, ranking, and sub-agents\" — so sub-agent use IS marketed, and an earlier read of this axis wrongly framed it as watcher-only. Cheapest GPT-5.4-class id; the natural OpenAI-side resident observer. Not in the Codex model picker, so this is an API-side lane, not something you select inside the coding CLI.",
+      "confirmedBy": "https://developers.openai.com/api/docs/models/gpt-5.4-nano"
+    },
+    {
+      "provider": "OpenAI",
+      "displayName": "GPT-5.5 Pro",
+      "apiModelId": "gpt-5.5-pro",
+      "tier": "T1 · Frontier Reasoning",
+      "availability": "escalation-only",
+      "contextWindow": "1,050,000 context / 128,000 max output",
+      "pricingPerMTok": "$30.00 input / $180.00 output (no cached-input rate published)",
+      "effort": "reasoning.effort = medium | high (DEFAULT) | xhigh. Responses API only.",
+      "notes": "6x Sol's price in both directions. Justifiable only as a one-shot escalation for a hard review or a stuck diagnosis — never inside an agent loop, where per-step cost compounds. Functionally superseded by gpt-5.6-sol with reasoning.mode:\"pro\", which is also what OpenAI's own deprecation table names as the replacement for the retiring pro-class ids. Note the sibling gpt-5.4-pro has the same price but defaults to medium, not high.",
+      "confirmedBy": "https://developers.openai.com/api/docs/pricing"
+    },
+    {
+      "provider": "Google",
+      "displayName": "Gemini 3.1 Pro (Preview)",
+      "apiModelId": "gemini-3.1-pro-preview",
+      "tier": "T1 · Frontier Reasoning",
+      "contextWindow": "1,048,576 input / 65,536 max output",
+      "pricingPerMTok": "$2.00 in / $12.00 out at ≤200k prompt; $4.00 in / $18.00 out above 200k. No free tier.",
+      "effort": "generation_config.thinking_level = \"low\" | \"medium\" | \"high\" (default \"high\"). No \"minimal\" rung on this model.",
+      "notes": "The only Pro-class Gemini 3 in the API, and still labelled preview five months after launch — Google shipped three Flash-class models on 2026-07-21 and no 3.5/3.6 Pro. Do not assume it is Google's most capable coding model: Google's own models page describes gemini-3.5-flash as \"Most intelligent model for sustained frontier performance on agentic and coding tasks\". Reserve 3.1 Pro for planning/architecture lanes, not bulk edits, and note the 200K price break doubles input cost on large-repo prompts.",
+      "confirmedBy": "https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    {
+      "provider": "Google",
+      "displayName": "Gemini 3.6 Flash",
+      "apiModelId": "gemini-3.6-flash",
+      "tier": "T2 · Agentic Execution",
+      "contextWindow": "1,048,576 input / 65,536 max output",
+      "pricingPerMTok": "$1.50 in / $7.50 out. Free tier available.",
+      "effort": "generation_config.thinking_level = \"minimal\" | \"low\" | \"medium\" (default) | \"high\"",
+      "notes": "Google's current agentic-execution pick, released 2026-07-21: DeepSWE 49% vs 37% and MLE-Bench 63.9% vs 49.7% against 3.5 Flash, with ~17% fewer output tokens, at a lower output price ($7.50 vs $9.00). Frame it as an efficiency and cost-per-finished-task upgrade, NOT a raw-intelligence upgrade — Google's models page still calls 3.5 Flash the more intelligent of the two, and independent measurement scores them equal. Practical blocker: absent from Gemini CLI's VALID_GEMINI_MODELS, so today it is API-only.",
+      "confirmedBy": "https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    {
+      "provider": "Google",
+      "displayName": "Gemini 3.5 Flash",
+      "apiModelId": "gemini-3.5-flash",
+      "tier": "T2 · Agentic Execution",
+      "contextWindow": "1,048,576 input / 65,536 max output",
+      "pricingPerMTok": "$1.50 in / $9.00 out. Free tier available.",
+      "effort": "generation_config.thinking_level = \"minimal\" | \"low\" | \"medium\" (default) | \"high\"",
+      "notes": "Google's models page: \"Most intelligent model for sustained frontier performance on agentic and coding tasks\" — which makes it, not 3.1 Pro, the quality ceiling for Gemini coding work. Costs $1.50 more per MTok output than 3.6 Flash and emits ~17% more output tokens for the same work, so pick it over 3.6 only when you have measured a quality reason. Unlike 3.6, it IS reachable from Gemini CLI (behind a rollout experiment).",
+      "confirmedBy": "https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    {
+      "provider": "Google",
+      "displayName": "Gemini 3.5 Flash-Lite",
+      "apiModelId": "gemini-3.5-flash-lite",
+      "tier": "T4 · Resident Observer",
+      "contextWindow": "1,048,576 input / 65,536 max output",
+      "pricingPerMTok": "$0.30 in / $2.50 out. Free tier available.",
+      "effort": "generation_config.thinking_level = \"minimal\" (DEFAULT) | \"low\" | \"medium\" | \"high\"",
+      "notes": "The strongest vendor endorsement for this tier in the whole sweep: Google's changelog calls it \"a low-latency, highly cost-effective subagent option\". Default thinking_level \"minimal\" keeps the latency and cost floor low without you configuring anything, and it carries the full 1,048,576 window — a resident observer that can hold an entire board history. Released 2026-07-21, so it is the newest model in the cheap band.",
+      "confirmedBy": "https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    {
+      "provider": "Google",
+      "displayName": "Gemini 3.1 Flash-Lite",
+      "apiModelId": "gemini-3.1-flash-lite",
+      "tier": "T4 · Resident Observer",
+      "contextWindow": "1,048,576 input / 65,536 max output",
+      "pricingPerMTok": "$0.25 in (text/image/video), $0.50 in (audio) / $1.50 out. Free tier available.",
+      "effort": "thinking_level supported but NOT enumerated for this id in Google's thinking table — treat the level set as undocumented and test before relying on it.",
+      "notes": "Lowest output price in the Gemini 3 line, and already the Gemini CLI's DEFAULT_GEMINI_FLASH_LITE_MODEL, so it is the cheap lane you get by default inside that harness. Choose it over 3.5 Flash-Lite when output volume dominates cost ($1.50 vs $2.50 out). Hard clock: announced shutdown 2027-05-07, i.e. the CLI's default cheap lane has a ~12-month life.",
+      "confirmedBy": "https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    {
+      "provider": "Google",
+      "displayName": "Gemini 2.5 Flash-Lite",
+      "apiModelId": "gemini-2.5-flash-lite",
+      "tier": "T4 · Resident Observer",
+      "availability": "cheapest, retiring",
+      "contextWindow": "1M-class (2.5 generation); not re-confirmed per-model this turn",
+      "pricingPerMTok": "$0.10 in / $0.40 out. Free tier available.",
+      "effort": "thinking_level = \"low\" | \"medium\" | \"high\", thinking OFF by default — the only model in the current set with thinking off by default, which is why its latency floor is the lowest available.",
+      "notes": "Absolute cheapest selectable Gemini at $0.40/MTok output — roughly 6x cheaper than 3.5 Flash-Lite. Correct pick ONLY if you accept a forced migration: Google's deprecations page confirms shutdown 2026-10-16 for the whole 2.5 family (2.5 Pro, 2.5 Flash, 2.5 Flash-Lite). Weakest instruction-following of the cheap candidates. For a long-lived resident observer, prefer 3.5 or 3.1 Flash-Lite and treat this as a short-term cost experiment.",
+      "confirmedBy": "https://ai.google.dev/gemini-api/docs/pricing"
+    },
+    {
+      "provider": "xAI",
+      "displayName": "Grok 4.5",
+      "apiModelId": "grok-4.5",
+      "tier": "T1 · Frontier Reasoning",
+      "aliases": [
+        "grok-4.5-latest",
+        "grok-build-latest"
+      ],
+      "contextWindow": "500,000 tokens",
+      "pricingPerMTok": "<200k prompt: $2.00 in / $0.30 cached / $6.00 out. ≥200k prompt: $4.00 / $0.60 / $12.00 applied to the whole request.",
+      "effort": "reasoning_effort = \"low\" | \"medium\" | \"high\", default \"high\"; \"Reasoning cannot be disabled\" — there is no none/minimal rung. The nested reasoning.effort spelling is the OpenAI-SDK form. The model page itself publishes no effort section.",
+      "notes": "xAI's flagship and the Grok Build CLI's default for new sessions. ALIAS TRAP worth encoding in any harness: grok-build-latest resolves to grok-4.5 ($2/$6, 500k), NOT to the cheap grok-build-0.1 ($1/$2, 256k) — pinning the alias to save money buys the flagship instead. Smallest window among xAI's reasoning models (500k vs 1M on 4.3), which binds first on large-repo work. Prompts reaching 200k tokens are billed at the higher rate for ALL tokens in the request.",
+      "confirmedBy": "https://docs.x.ai/developers/models/grok-4.5"
+    },
+    {
+      "provider": "xAI",
+      "displayName": "Grok 4.3",
+      "apiModelId": "grok-4.3",
+      "tier": "T2 · Agentic Execution",
+      "aliases": [
+        "grok-4.3-latest",
+        "grok-latest"
+      ],
+      "contextWindow": "1M tokens",
+      "pricingPerMTok": "<200k: $1.25 in / $0.20 cached / $2.50 out. ≥200k: $2.50 / $0.40 / $5.00.",
+      "effort": "Model page states \"Reasoning: Yes\"; xAI's reasoning guide enumerates effort values only for grok-4.5 and grok-4.20-multi-agent, so grok-4.3's accepted effort set is UNCONFIRMED — probe it before depending on it.",
+      "notes": "Cheapest 1M-context xAI model at 2.4x less output cost than 4.5 — the value pick when 4.5's 500k window is the binding constraint. Second ALIAS TRAP: the bare grok-latest resolves to grok-4.3, not to the newest flagship, so a harness pinning grok-latest silently runs a non-flagship model.",
+      "confirmedBy": "https://docs.x.ai/developers/pricing"
+    },
+    {
+      "provider": "xAI",
+      "displayName": "Grok Build 0.1",
+      "apiModelId": "grok-build-0.1",
+      "tier": "T3 · Bulk Worker",
+      "aliases": [
+        "grok-code-fast-1",
+        "grok-code-fast",
+        "grok-code-fast-1-0825"
+      ],
+      "contextWindow": "256k tokens",
+      "pricingPerMTok": "<200k: $1.00 in / $0.20 cached / $2.00 out. ≥200k: $2.00 / $0.40 / $4.00.",
+      "effort": "Not documented on a reachable xAI page. The Grok Build CLI's flag/slash-command effort surface (--reasoning-effort, /effort, [models].default_reasoning_effort) is secondary-source only — docs.x.ai/build/reference/cli and /build/models both 404.",
+      "notes": "Cheapest text model xAI sells and the coding-CLI model, but it is a REBRAND of grok-code-fast-1 (released 2025-08-28) with traffic rerouted after 2026-05-15 — a 2025-vintage model, not a new one. 256k context is the smallest in the xAI line, and its 256k ceiling sits just above the 200k surcharge threshold, so any prompt using more than ~78% of the window doubles the input rate on the whole request. At $2.00/MTok output it is still ~5x Google's cheap band, so xAI has no true T4 candidate.",
+      "confirmedBy": "https://docs.x.ai/developers/pricing"
+    },
+    {
+      "provider": "DeepSeek",
+      "displayName": "DeepSeek V4 Pro",
+      "apiModelId": "deepseek-v4-pro",
+      "tier": "T2 · Agentic Execution",
+      "contextWindow": "1M tokens",
+      "pricingPerMTok": "$0.435 input (cache miss) / $0.003625 input (cache hit) / $0.87 output",
+      "effort": "Not confirmed this turn from the pricing page. Probe the chat-completions reference before wiring an effort knob.",
+      "notes": "Resets the cost floor for 1M-context execution work: $0.87/MTok output is roughly a seventeenth of gpt-5.6-sol and a third of grok-4.3, with a cache-hit input rate of $0.003625 that makes repeated repo context nearly free. Migration note a maintainer must act on: the legacy names deepseek-chat and deepseek-reasoner are stated to be deprecated on 2026/07/24 15:59 UTC — i.e. yesterday relative to this sweep — so any harness still pinning those ids is already on borrowed time.",
+      "confirmedBy": "https://api-docs.deepseek.com/quick_start/pricing"
+    },
+    {
+      "provider": "DeepSeek",
+      "displayName": "DeepSeek V4 Flash",
+      "apiModelId": "deepseek-v4-flash",
+      "tier": "T3 · Bulk Worker",
+      "contextWindow": "1M tokens",
+      "pricingPerMTok": "$0.14 input (cache miss) / $0.0028 input (cache hit) / $0.28 output",
+      "effort": "Not confirmed this turn.",
+      "notes": "The cheapest 1M-context model confirmed anywhere in this sweep — $0.28/MTok output, cheaper on output than Google's retiring gemini-2.5-flash-lite while carrying 1M of context instead of a small window. That combination makes it the strongest candidate for very wide read-only fan-out where each lane needs a lot of repo context. Same deepseek-chat/deepseek-reasoner deprecation applies.",
+      "confirmedBy": "https://api-docs.deepseek.com/quick_start/pricing"
+    },
+    {
+      "provider": "Z.ai (Zhipu)",
+      "displayName": "GLM-5.2",
+      "apiModelId": "glm-5.2",
+      "tier": "T2 · Agentic Execution",
+      "contextWindow": "1M tokens / 128K max output",
+      "pricingPerMTok": "not stated on the model page — unconfirmed",
+      "effort": "thinking = {type: \"enabled\" | \"disabled\"} plus a separate reasoning_effort parameter (vendor examples show reasoning_effort: \"max\"). The full accepted value set is not enumerated on the model page — confirm by probe.",
+      "notes": "Vendor positions it on \"truly usable 1M-token context\" with \"specialized training for long-horizon Coding Agent scenarios\", which is exactly the T2 long-context-review shape. Notable as an open-weight-family model that exposes BOTH an on/off thinking switch and a separate effort knob, so it can be driven either as a deterministic worker or as a reasoning lane from one id. Pricing not published on the model page — confirm before budgeting.",
+      "confirmedBy": "https://docs.z.ai/guides/llm/glm-5.2"
+    },
+    {
+      "provider": "Moonshot AI (Kimi)",
+      "displayName": "Kimi K3",
+      "apiModelId": "kimi-k3",
+      "tier": "T1 · Frontier Reasoning",
+      "availability": "open-weight",
+      "contextWindow": "1M-token context window (vendor docs); 1,048,576 per secondary sources",
+      "pricingPerMTok": "not confirmed from a vendor page (secondary sources report $3 in / $0.30 cache-hit / $15 out)",
+      "effort": "Not confirmed on a vendor page this turn.",
+      "notes": "Moonshot's 2.8T-parameter flagship, API live from 2026-07-16 with a 1M-token context window per the vendor docs. Relevant to this registry as the first plausibly-frontier OPEN-WEIGHT option, which changes the calculus for work that cannot leave your infrastructure. Two things a maintainer must verify before committing: the weights release (reported for 2026-07-27 under a Modified MIT licence, not yet observable) and the API pricing, which the vendor pricing pages did not render on fetch. Sibling ids confirmed on the same vendor page: kimi-k2.7-code and kimi-k2.6, both 256K context.",
+      "confirmedBy": "https://platform.kimi.ai/docs/pricing/kimi-k3"
+    }
+  ],
+  "taskShapeRouting": [
+    {
+      "taskShape": "Architecture / design decisions",
+      "tier": "T1 · Frontier Reasoning",
+      "effort": "high (the default) — step to xhigh only when evals show headroom; reserve max for genuinely frontier problems",
+      "why": "Anthropic's own guidance is to \"Pick a larger model when the problem is genuinely hard. For example, problems like subtle bugs, unfamiliar domains, or architecture decisions\", and the effort docs pair that with starting at the default rather than the ceiling."
+    },
+    {
+      "taskShape": "Ambiguous-requirement interpretation",
+      "tier": "T1 · Frontier Reasoning",
+      "effort": "high, with xhigh when the ambiguity spans many files or tools",
+      "why": "Fable 5's documented strength is that it \"investigates before acting\" and self-verifies, which is precisely what an under-specified request needs; a cheaper tier will confidently resolve the ambiguity the wrong way and the error surfaces only after the code is written."
+    },
+    {
+      "taskShape": "Spec-complete implementation",
+      "tier": "T2 · Agentic Execution",
+      "effort": "high default; drop to medium once evals hold — on Sonnet 5 medium is \"Comparable to Claude Sonnet 4.6 at high effort\"",
+      "why": "Vendor guidance is to \"Pick a smaller model when the work is routine. For example, edits you can describe precisely\" — once the decision is made the remaining risk is execution fidelity, which T2 buys at a third to a half the per-token cost."
+    },
+    {
+      "taskShape": "Mechanical multi-file edit / migration",
+      "tier": "T2 · Agentic Execution",
+      "effort": "low to medium",
+      "why": "Vendor effort table puts low at \"short, scoped, latency-sensitive tasks that are not intelligence-sensitive\" and warns that max \"is prone to overthinking\" on structured-output work — a rote rename is exactly the shape where extra reasoning invents unrequested changes."
+    },
+    {
+      "taskShape": "Test authoring",
+      "tier": "T2 · Agentic Execution",
+      "effort": "medium, raised to high when tests must infer intent rather than mirror a spec",
+      "why": "Test bodies are mostly mechanical once the contract is fixed, but choosing WHICH cases matter is a judgement step; medium keeps cost down while leaving enough reasoning to enumerate edge cases, and you raise effort only on the observed failure of missing them."
+    },
+    {
+      "taskShape": "Read-only exploration / search",
+      "tier": "T3 · Bulk Worker",
+      "effort": "low",
+      "why": "OpenAI's Codex subagent doc names this shape verbatim for its execution tier — \"agents that favor speed and efficiency over depth, such as exploration, read-heavy scans, large-file review\" — and Anthropic notes lower effort makes FEWER tool calls, which is the dominant cost term in a search lane."
+    },
+    {
+      "taskShape": "Summarization / extraction",
+      "tier": "T3 · Bulk Worker",
+      "effort": "low; none or minimal where the vendor offers it (gpt-5.4-nano defaults to none, gemini-3.5-flash-lite to minimal)",
+      "why": "Anthropic's effort docs list \"simple classification tasks, quick lookups, or high-volume use cases\" as the canonical low-effort case; reasoning adds cost without changing a well-specified extraction, and the cheap tiers already default to the right rung."
+    },
+    {
+      "taskShape": "Long-context review",
+      "tier": "T2 · Agentic Execution",
+      "effort": "medium — the binding constraint is window and per-token price, not reasoning depth",
+      "why": "Every current T2 carries ~1M context, but the cost cliffs sit at different thresholds — >272K doubles input on the GPT-5.6 family, ≥200k doubles it on all Grok models and on gemini-3.1-pro-preview — so the routing decision here is which cliff you can stay under, and deepseek-v4-pro's $0.003625 cache-hit rate is the cheapest way to re-read the same corpus."
+    },
+    {
+      "taskShape": "Resident board / inbox observation",
+      "tier": "T4 · Resident Observer",
+      "effort": "minimal or none; low only when the watcher must classify intent rather than match a pattern",
+      "why": "Google's changelog calls gemini-3.5-flash-lite \"a low-latency, highly cost-effective subagent option\" and ships it with thinking_level defaulting to \"minimal\" — the vendor has already tuned this tier for the wake-or-ignore loop, and the observer's only real decision is whether to escalate."
+    },
+    {
+      "taskShape": "Adversarial verification / red-team",
+      "tier": "T1 · Frontier Reasoning",
+      "effort": "xhigh — \"Deeper reasoning at higher token spend\"",
+      "why": "Verification is the one shape where paying T1 rates on a small input is clearly worth it, because a missed defect is discovered downstream at far higher cost; running the verifier on the same model that authored the code correlates the blind spots, so cross-vendor separation is the point, not a nicety."
+    }
+  ],
+  "effortGuidance": [
+    "Default first, escalate on evidence — not on principle. Anthropic's own Claude Code guidance is \"For most tasks you should use the model's default effort level\", and to \"Pick a higher effort level if Claude got it wrong by skipping a file, not running the tests, or not double-checking its work.\" Escalation should be traceable to an observed failure mode, not to the importance of the task.",
+    "NON-MONOTONICITY IS VENDOR-DOCUMENTED, not folklore. Claude Code's effort table says of max: \"Can improve performance on demanding tasks but may show diminishing returns and is prone to overthinking. Test before adopting broadly.\" The API docs are blunter for the Opus 4.7/4.8 line: \"On most workloads max adds significant cost for relatively small quality gains, and on some structured-output or less intelligence-sensitive tasks it can lead to overthinking.\" A blanket always-max policy is therefore a documented anti-pattern, not merely expensive.",
+    "Effort level names are NOT comparable across models: \"The effort scale is calibrated per model, so the same level name does not represent the same underlying value across models.\" Any harness that stores one global effort setting and applies it to whatever model is active is storing a meaningless number — bind effort per model, as Claude Code does with per-subagent and per-skill `effort` frontmatter.",
+    "Carried-over settings are actively harmful after a model change. Anthropic on Opus 5: \"If you carried effort settings over from an earlier model, run a fresh effort sweep on your evals rather than reusing them.\" This bites hardest in Claude Code, where Fable 5 / Opus 4.8 / Opus 4.7 HOLD their default effort until you make an explicit choice, but Opus 5 has no such hold — a level you set for another model silently carries over.",
+    "Step DOWN the ladder before stepping across tiers. Vendor guidance for Fable 5: \"Lower effort settings on Claude Fable 5 still perform well and often exceed xhigh performance on prior models.\" And for Sonnet 5, medium is \"Comparable to Claude Sonnet 4.6 at high effort.\" A generation bump usually means the cheap rung of the new model beats the expensive rung of the old one — check that before downgrading tier.",
+    "Low effort is the intended subagent setting, and it changes tool behavior, not just prose. The effort docs list low's typical use as \"Simpler tasks that need the best speed and lowest costs, such as subagents\", and state that lower effort makes the model \"Combine multiple operations into fewer tool calls\" and \"Make fewer tool calls\". In a search or exploration lane, tool-call count is the dominant cost term, so low effort saves more than the token delta suggests.",
+    "Effort is a behavioral signal, not a token budget: \"At lower effort levels, Claude will still think on sufficiently difficult problems, but it will think less than it would at higher effort levels for the same problem.\" You cannot use effort as a hard cost cap — pair it with max_tokens, and conversely at xhigh/max the docs tell you to set a LARGE max_tokens (\"Starting at 64k tokens\") or the model runs out of room mid-thought.",
+    "Effort is a caching decision as much as a quality decision: \"Changing the effort value between requests invalidates prompt caching, so vary effort across workloads rather than within a conversation that relies on cache hits.\" For a long resident session, pick one level at session start and hold it; dynamic per-turn effort tuning can cost more than it saves.",
+    "On Opus 5, do not use effort to control verbosity — \"changing effort does not reliably shorten responses, so prompt for length instead.\" Harnesses that lowered effort to cut output size on older models will see the cost saving without the brevity, and Opus 5 is separately reported to narrate more than 4.8 by default.",
+    "Know the two default-effort exceptions before you trust a default. In Claude Code \"The default effort is high on every model that supports effort, except Opus 4.7, which defaults to xhigh.\" On the OpenAI side the exception runs the other way: gpt-5.4-mini and gpt-5.4-nano default reasoning.effort to `none`, so omitting the parameter gives you a non-reasoning model on a code-editing lane.",
+    "Anthropic's cheap tier has NO effort knob at all: claude-haiku-4-5 rejects the effort parameter and has no adaptive thinking. That asymmetry is a routing constraint, not a detail — if your resident-observer lane needs a dial, Google's Flash-Lite line (minimal/low/medium/high) or gpt-5.4-nano gives you one and Haiku does not.",
+    "On Google, effort control is now the ONLY supported determinism knob: the 2026-07-21 changelog deprecated temperature, top_p and top_k in the Gemini API. Any harness pinning temperature for reproducible output must migrate to thinking_level.",
+    "xAI has no low end of the ladder: for grok-4.5 the values are low, medium, high (default high) and \"Reasoning cannot be disabled\" — there is no none/minimal rung, so xAI cannot serve a true resident-observer lane on effort alone. Separately, on grok-4.20-multi-agent, effort selects AGENT COUNT (4 or 16) rather than reasoning depth, which makes xhigh there a 16x token multiplier rather than a deeper single pass.",
+    "`ultracode` and `ultrathink` are not effort levels and should not be modelled as such. Ultracode \"is a Claude Code setting rather than a model effort level: it sends xhigh to the model and additionally has Claude orchestrate dynamic workflows\", is session-only, and is rejected by both the persisted effortLevel setting and CLAUDE_CODE_EFFORT_LEVEL. Ultrathink \"adds an in-context instruction\" and \"The effort level sent to the API is unchanged\" — so it costs nothing at the API-parameter layer and changes nothing there either."
+  ],
+  "planGating": [
+    "Claude Code — Pro: `default` resolves to Sonnet 5. Opus 5 IS selectable (Anthropic calls it \"the strongest model on Claude Pro\"), but Opus with the 1M window \"Requires usage credits\" on Pro — it is included with subscription only on Max/Team/Enterprise. Sonnet 4.6 at 1M needs credits on every plan including Max.",
+    "Claude Code — Max (5x/20x) and Team Premium seats: `default` resolves to Opus 5 (\"Max, Team Premium, Enterprise pay-as-you-go, and Anthropic API: defaults to Opus 5\"). Opus is auto-upgraded to 1M context with no configuration. Fable 5 is never the default on any account type — reach it via /model fable or the `best` alias where the org has access, and it is hidden entirely under zero data retention.",
+    "Claude Code — Team Standard and Enterprise subscription seats: `default` resolves to Sonnet 5, not Opus 5 (\"Pro, Team Standard, and Enterprise subscription seats: defaults to Sonnet 5\"). Enterprise pay-as-you-go orgs get Opus 5. Seat billing tier, not company size, decides the tier an agent starts on.",
+    "Claude Code — Enterprise governance: admins can disable individual models org-wide or per custom role (Haiku can never be disabled, so every member always retains one usable model), set an organization default model that replaces the account-type default, and — Enterprise only — set a MAXIMUM EFFORT LEVEL PER MODEL PER ROLE. Levels above the cap vanish from the /effort picker and --effort requests run at the cap; the clamp warns in interactive and plain --print runs but \"with json or stream-json output or in background agents, the clamp applies silently.\" A scripted agent can therefore run below its requested effort with no signal.",
+    "Claude Code — Anthropic API key: `default` resolves to Opus 5, full lineup available, `opus`→Opus 5 / `sonnet`→Sonnet 5 / `best`→Fable 5 where entitled. No subscription cap; org TPM/RPM limits apply, and Opus 5 draws on a separate rate-limit bucket from the combined Opus 4.x pool.",
+    "Claude Code — third-party providers are a generation behind on aliases: on Microsoft Foundry `default` resolves to Sonnet 4.5, and the `opus` alias still resolves to Opus 4.6 there. Amazon Bedrock and Google Cloud's Agent Platform resolved `default` to Sonnet 4.5 before v2.1.207. Organization effort limits are NOT delivered on Bedrock/Google Cloud/Foundry/Claude Platform on AWS — use availableModels in managed settings instead.",
+    "Claude Code — subagent model resolution order (this is where a tiered-composition policy actually lands): CLAUDE_CODE_SUBAGENT_MODEL → per-invocation `model` parameter → subagent frontmatter `model` → main conversation's model. Frontmatter accepts sonnet/opus/haiku/fable, a full id, or `inherit` (the default), and a separate `effort` frontmatter field overrides the session level while that subagent runs. Note the built-in Explore agent no longer forces Haiku: as of v2.1.198 it inherits the main model, capped at Opus on the Claude API — define a project subagent named Explore with `model: haiku` to put exploration back on a cheap lane. Concurrency default is 20 subagents per session (CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS), and ultracode sessions are exempt from that limit.",
+    "Claude Code — fast mode: Opus 5 and Opus 4.8 only, at $10/$50 per MTok for up to ~2.5x output tokens/sec. Heavily gated: an API research preview needing the fast-mode-2026-02-01 beta header plus account-manager/waitlist access; in Claude Code it requires usage credits turned on, draws from credits from the first token even when plan usage remains, needs Owner enablement on Team/Enterprise, is CLI-only (not the VS Code extension), and is unavailable on Bedrock/Google Cloud/Foundry/Claude Platform on AWS. Enable at session start — the first enable re-bills the whole context at fast-mode uncached input price. Opus 4.7 fast mode was REMOVED 2026-07-24 while Claude Code still treats 4.7 as fast-mode-capable, so /fast on 4.7 produces API rejections.",
+    "Codex — Plus ($20/mo): gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.4, gpt-5.4-mini. Roughly 15-90 Sol messages per 5-hour window scaling to ~60-350 on Luna. This is the tier where Sol-on-every-lane is not viable — a wide fan-out must run Terra or Luna.",
+    "Codex — Pro ($100/mo 5x, $200/mo 20x): everything on Plus plus gpt-5.3-codex-spark (research preview, Pro only, ChatGPT-surfaces only, separately rate-limited). ~75-450 Sol messages (5x) to ~300-1,800 (20x) per 5-hour window — the first tier with real headroom for many-subagent operation.",
+    "Codex — Business ($25/user/mo, min 2): the same roster as Plus, WITHOUT codex-spark, and it does not inherit Pro's 5x/20x multipliers — a Business seat has Plus-sized headroom for fan-out. A common planning error is assuming the paid-team tier buys concurrency.",
+    "Codex — Enterprise/Edu and bring-your-own-key: model availability \"follows the API models available to your key\"; flexible-pricing workspaces have no fixed rate limits and scale with credits. With a BYO key you \"Pay only for the tokens Codex uses, based on API pricing\" — the ceiling becomes org rate limits and budget rather than a 5-hour window, which is the only configuration where per-lane model choice is a pure cost question.",
+    "Codex — per-agent binding (the mechanism a tiered policy needs): agent files at ~/.codex/agents/<name>.toml or .codex/agents/<name>.toml take `model` and `model_reasoning_effort`, and \"If a custom agent file sets model or model_reasoning_effort, the value in the file takes precedence.\" Global [agents] keys: enabled (default true), max_concurrent_threads_per_session, default_subagent_model, default_subagent_reasoning_effort. Session controls: /model, /effort, --model/-m, --reasoning-effort/-e.",
+    "Gemini CLI — maximum model requests per user per day: Gemini Code Assist (Individual) 1,000; Google AI Pro 1,500; Google AI Ultra 2,000; Code Assist Standard 1,500; Code Assist Enterprise 2,000; Gemini API key free/unpaid 250 and \"Model requests to Flash model only\"; paid API key and Vertex \"Varies\". Two things matter for agent design: one prompt can be dozens of model requests, and model availability is \"across the Gemini model family as determined by Gemini CLI\" — per-model selection is not plan-gated, the CLI chooses.",
+    "Gemini CLI — model selection lags the API materially. The CLI's valid-model set does not include gemini-3.6-flash or gemini-3.5-flash-lite, still hardcodes gemini-2.5-pro as DEFAULT_GEMINI_MODEL (a model with an announced 2026-10-16 shutdown) and gemini-3-pro-preview in its picker (shut down 2026-03-09). Selection surfaces: --model/-m (highest precedence) → GEMINI_MODEL → project settings → user settings; per-subagent via agents.overrides.<agentName>.modelConfig.model, since /model \"does not override the model used by sub-agents\".",
+    "xAI / Grok Build CLI — plan gating is NOT documented on any reachable xAI page: x.ai/news and x.ai/build/changelog return 403 to fetchers and docs.x.ai/build/overview states no subscription requirement. Beta access reportedly opened 2026-05-14 to SuperGrok Heavy then 2026-05-25 to all SuperGrok and X Premium+, with no public per-day quota table — usage is observable only in-session via /usage. Treat every Grok plan number as secondary-sourced.",
+    "Consumer Gemini app — Free gets gemini-3.6-flash as the new default plus a limited daily allotment of 3.1 Pro; AI Pro (~$19.99) adds Gemini 3 Pro access and Antigravity at basic limits (4x free limits); AI Ultra adds Deep Think / Gemini Spark at up to 20x Pro limits. Relevant only as a signal of which model a non-API teammate is actually talking to."
+  ],
+  "harnessBinding": [
+    {
+      "harness": "Claude Code",
+      "perLaneModel": "Agent tool per-invocation `model`; subagent frontmatter `model` (sonnet|opus|haiku|fable | full id | `inherit`, the default); resolution order = `CLAUDE_CODE_SUBAGENT_MODEL` env pin → per-invocation `model` → frontmatter `model` → main conversation model.",
+      "perLaneEffort": "subagent frontmatter `effort` (overrides the session level while that subagent runs); session-level `--effort` at launch · `/effort` · `CLAUDE_CODE_EFFORT_LEVEL`. There is no per-subagent *thinking* setting.",
+      "concurrency": "default 20 subagents per session (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`); ultracode sessions are exempt from that limit.",
+      "caveats": [
+        "Default effort is high on every effort-capable model except Opus 4.7 (xhigh).",
+        "Fable 5 / Opus 4.8 / Opus 4.7 hold a first-run default-effort choice across sessions that a non-interactive `/effort` cannot release (reports `Not applied`) — pass `--effort` at launch instead.",
+        "The env pin overrides even per-invocation choices and an org-allowlist-excluded value falls back to the inherited model silently — prefer per-invocation binding and verify actual application.",
+        "The built-in Explore agent no longer forces Haiku (inherits the main model since v2.1.198) — define a project subagent named Explore with `model: haiku` to put exploration back on a cheap lane.",
+        "Enterprise admins can cap maximum effort per model per role; with json/stream-json output or in background agents the clamp applies SILENTLY, so a scripted lane can run below its requested effort with no signal."
+      ]
+    },
+    {
+      "harness": "Codex CLI",
+      "perLaneModel": "agent files at `~/.codex/agents/<name>.toml` or `.codex/agents/<name>.toml` with `model`; global `[agents] default_subagent_model`.",
+      "perLaneEffort": "same agent file with `model_reasoning_effort`; global `[agents] default_subagent_reasoning_effort`; session `/model`, `--model/-m`, `--reasoning-effort/-e`.",
+      "concurrency": "`[agents] max_concurrent_threads_per_session` (and `[agents] enabled`, default true).",
+      "caveats": [
+        "Precedence: a custom-agent file value wins; otherwise explicit spawn value → the `[agents]` default → the parent value.",
+        "Effort value sets differ across vendor pages (subagents page lists low..max/ultra; config reference lists minimal..xhigh) — treat the exact allowed set as per-model and verify against the model you bind."
+      ]
+    },
+    {
+      "harness": "Cursor",
+      "perLaneModel": "subagent frontmatter — only `name`, `description`, `model` (default `inherit`), `readonly`, `is_background`. Bracket-option syntax carries the knobs: `composer-2.5[fast=false]`, `claude-opus-5[effort=high,context=300k]`.",
+      "perLaneEffort": "via the bracket parameter `effort` (also `fast`, `context`) — no separate effort field.",
+      "concurrency": "parallel agents + `/worktree` + `/best-of-n` across models (Cursor 3.0).",
+      "caveats": [
+        "Auto Cost bills a flat per-million rate independent of the model that serves the request; Auto Balance / Auto Intelligence bill at the actual model rates and third-party models add a Cursor Token Rate.",
+        "Max Mode \"API rate plus 20%\" is scoped to legacy request-based plans only."
+      ]
+    },
+    {
+      "harness": "Gemini CLI",
+      "perLaneModel": "`agents.overrides.<agentName>.modelConfig.model` — `/model` does NOT change the model used by subagents. Selection precedence for the main lane: `--model/-m` → `GEMINI_MODEL` → project settings → user settings.",
+      "perLaneEffort": "no harness-level effort tier. Per-lane budget dials are the subagent schema fields instead: `kind`, `tools`, `mcpServers`, `temperature`, `max_turns`, `timeout_mins`.",
+      "concurrency": "not documented as a single key; day quotas are per plan (see planGating).",
+      "caveats": [
+        "The CLI's valid-model set lags the API materially — it can still default to and offer models the API has shut down. Pin explicitly rather than trusting the picker.",
+        "Google deprecated temperature / top_p / top_k in the Gemini API (2026-07-21 changelog), leaving thinking_level as the determinism knob."
+      ]
+    },
+    {
+      "harness": "Kimi Code CLI",
+      "perLaneModel": "`[secondary_model]` — a second model pointer beside `default_model`, intended for spawning subagents at lower cost; accepts `model`, `default_effort` and the same patch fields as model overrides.",
+      "perLaneEffort": "`default_effort` on the model pointer; K3 accepts `reasoning_effort` low|high|max (default high).",
+      "concurrency": "not documented.",
+      "caveats": [
+        "`model_preference` accepts only `primary`/`secondary` — it never names a concrete model alias, so a lane picks a *pointer*, not a model.",
+        "Docs warn that K3 / K2.7 without Thinking routes to K2.6 — a silent cross-model reroute."
+      ]
+    },
+    {
+      "harness": "opencode / router layers (OpenRouter, LiteLLM)",
+      "perLaneModel": "per-agent model selection exists in opencode; routers expose whatever the upstream provider accepts.",
+      "perLaneEffort": "unverified. opencode documents `reasoningEffort` only as a provider passthrough example, and LiteLLM does not explicitly document pinning `reasoning_effort` per deployment.",
+      "concurrency": "not documented.",
+      "caveats": [
+        "Treat per-lane effort at the router layer as unproven until measured on the actual provider+model pair."
+      ]
+    }
+  ],
+  "caveats": [
+    "THE INPUT BUNDLE WAS TRUNCATED. It was described as six axes, but the payload visible to this synthesis stage ends mid-sentence inside the fourth (open-weight) axis, at the first DeepSeek entry, and no verifier verdict for that axis was received. Two further axes were never visible at all. I re-verified the open-weight tier myself against vendor pages (DeepSeek, Z.ai, Moonshot) so the registry is not silently missing that band, but it should be treated as thinner than the other three and the two unseen axes as wholly unrepresented. A maintainer must re-run the sweep to learn what they covered.",
+    "NO BENCHMARK NUMBER IN THIS REGISTRY WAS CONFIRMED FROM A VENDOR PAGE I FETCHED. The Opus 5 figures (Frontier-Bench v0.1, CursorBench 3.2, OSWorld 2.0, ARC-AGI 3, Zapier AutomationBench) live on anthropic.com/news/claude-opus-5, NOT on the whats-new-opus-5 docs page the finder cited; the finder also mis-rendered several of them (vendor says Opus 5 \"more than doubles Opus 4.8's performance at a lower cost per task\", and the CursorBench within-0.5%-of-Fable-5 claim is MAX-EFFORT-CONDITIONAL, which changes the cost argument entirely). Google's DeepSWE 49%/37% and MLE-Bench 63.9%/49.7% come from Google's blog via press. Grok 4.5's 83.3% Terminal-Bench 2.1 and every Kimi K3 benchmark are secondary-only. Do not quote any of these as measured facts without re-fetching.",
+    "PER-MODEL EFFORT ENUMERATIONS FOR THE GPT-5.6 FAMILY ARE NOT PUBLISHED. The reasoning guide gives only a model-dependent union (none, minimal, low, medium, high, xhigh, max) and explicitly says \"Some models support only a subset of these values, so check the relevant model page\" — and the gpt-5.6-sol / terra / luna model pages have no effort section at all. Any specific claim that Sol accepts `minimal`, or that its default is `medium`, is inference. Probe each id before wiring effort into a Codex agent file.",
+    "OPENAI'S EFFORT VOCABULARY IS INTERNALLY INCONSISTENT ACROSS FOUR VENDOR PAGES and this was not resolved: config-reference gives model_reasoning_effort = minimal|low|medium|high|xhigh; the subagents page gives ultra|max|xhigh|high|medium|low; the Codex models page shows UI rungs Light/Low, Medium, High, Extra High, Max, Ultra; the API reasoning guide gives none|minimal|low|medium|high|xhigh|max. Whether `ultra` and `max` are valid config.toml or per-agent strings, or only UI labels, is unknown — as is whether they propagate to spawned subagents. Test before relying on the top two rungs.",
+    "EXACT SUBSCRIPTION USAGE LIMITS ARE UNPUBLISHED BY ANTHROPIC. No token count, prompt count or weekly-limit number exists in official docs or the help centre for Pro / Max 5x / Max 20x / Team / Enterprise — only relative statements. Every specific figure in circulation (e.g. \"~44,000 tokens per 5-hour window for Pro\") is third-party and unusable for capacity planning. Use /usage. Likewise, whether Max has a Sonnet-specific weekly limit could not be confirmed; the error reference documents only session, weekly, and a model-specific Opus limit.",
+    "THE CODEX PER-PLAN MESSAGE BANDS IN planGating ARE VENDOR-PUBLISHED RANGES, NOT GUARANTEES, and the claim that GPT-5.5 remains selectable on every paid plan is inference — the Codex models doc lists it as recommended but makes no plan-gating statement. Whether Free/Go can select any GPT-5.6 model at all is unstated (\"limited model access\"). Whether Terra and Luna are selectable in standard ChatGPT conversations versus only Codex/Work is third-party only.",
+    "RELEASE DATES FOR SEVERAL ANTHROPIC IDS DO NOT EXIST IN VENDOR DOCS. Confirmed this turn: Opus 5 = 2026-07-24, Fable 5 and Mythos 5 = 2026-06-09, Sonnet 5 = 2026-06-30. NOT confirmed: Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6 — the finder inferred these by subtracting a year from the retirement floors (2027-05-28, 2027-04-16, 2027-02-05, 2027-02-17). That inference is undocumented and demonstrably fails elsewhere: claude-haiku-4-5-20251001 has a 2026-10-15 floor, a 12.5-month gap. Treat those four release dates as unknown.",
+    "\"LEGACY\" IS NOT A LIFECYCLE STATUS FOR THE OPUS/SONNET 4.x LINE. Anthropic's Model status table lists claude-opus-4-8, 4-7, 4-6, claude-opus-4-5-20251101, claude-sonnet-4-6, claude-sonnet-4-5-20250929 and claude-haiku-4-5-20251001 all as ACTIVE; only claude-opus-4-1-20250805 is Deprecated. \"Legacy models\" is merely the collapsed-accordion heading on the overview page. Do not tell a maintainer these models are on a deprecation path — they are not, and Opus 4.8 in particular is the designated automatic fallback target.",
+    "ONE DIRECT CONTRADICTION I COULD NOT SETTLE: the verifier reported gemini-3-flash-preview listed on the Gemini API pricing page at $0.50 in / $3.00 out with a free tier — which would make it the cheapest thinking-capable Gemini 3 with a full minimal-to-high ladder, a genuine T4 contender. My own fetch of the same page today returned a table that does NOT include it. Because it is contested, I excluded it from the registry. A maintainer evaluating cheap Gemini lanes should re-read that pricing table by hand. Note separately that gemini-3-pro-preview IS retired (shut down 2026-03-09) despite still appearing in Gemini CLI's hardcoded picker.",
+    "MOST xAI FACTS REST ON PAGES THAT ARE 404 OR 403. Confirmed from docs.x.ai this turn: grok-4.5's id, aliases, 500k window and tiered pricing; grok-4.3's and grok-build-0.1's pricing. NOT confirmed: any release date for any current Grok model (docs.x.ai/developers/release-notes served content ending July 2025 on fetch), the entire Grok Build CLI flag/config surface (docs.x.ai/build/reference/cli and /build/models both 404), all plan gating (x.ai/news and x.ai/build/changelog return 403), and whether grok-4.3 or grok-4.20-0309-reasoning accept reasoning_effort at all. Grok Build's per-subagent config keys in particular are entirely secondary-sourced.",
+    "TWO ALIAS TRAPS ARE LIVE AND WILL SILENTLY MIS-BILL: grok-build-latest resolves to grok-4.5 (500k, $2/$6), NOT to grok-build-0.1 (256k, $1/$2); and the bare grok-latest resolves to grok-4.3, NOT to the newest flagship. Also grok-build-0.1 is a rebrand of grok-code-fast-1 (released 2025-08-28) with traffic rerouted after 2026-05-15, so it is a 2025-vintage model despite the 2026 name. Audit any pinned xAI alias by hand.",
+    "OPEN-WEIGHT PRICING AND EFFORT CONTROLS ARE THE THINNEST PART OF THIS REGISTRY. Confirmed verbatim from vendor pages: deepseek-v4-pro and deepseek-v4-flash (ids, 1M context, full price table), glm-5.2 (id, 1M/128K, thinking type + reasoning_effort), kimi-k3 / kimi-k2.7-code / kimi-k2.6 (ids and context windows). NOT confirmed: any Kimi pricing (the vendor pricing pages did not render a table on fetch), glm-5.2 pricing at all, effort value sets for the DeepSeek and Kimi ids, and the Kimi K3 weights release. Qwen is ABSENT from the registry entirely because no Alibaba/DashScope vendor page could be confirmed for qwen3.6-max or qwen3-coder-next — only aggregators, which disagree with each other. A maintainer wanting a Qwen lane must confirm ids on DashScope directly.",
+    "LONG-CONTEXT SURCHARGE THRESHOLDS ARE A ROUTING HAZARD THAT VARIES BY VENDOR AND IS EASY TO MISS. GPT-5.6 family and gpt-5.4: prompts >272K input tokens are billed at 2x input and 1.5x output FOR THE FULL REQUEST (confirmed on the Sol, Terra and Luna model pages, though absent from the pricing table). All Grok text models: requests reaching 200k are billed at the higher rate for ALL tokens. gemini-3.1-pro-preview and gemini-2.5-pro: price break at 200k. Anthropic: no premium beyond 200K on the 1M window. A fan-out sized by nominal per-token price will overrun budget on three of four vendors.",
+    "FAST MODE MUST NOT BE MODELLED AS A SIMPLE PRICE TIER. It is an API research preview requiring the fast-mode-2026-02-01 beta header plus account-manager or waitlist access, and in Claude Code it additionally requires usage credits on, Owner enablement for Team/Enterprise, is CLI-only, is unavailable on Bedrock/Google Cloud/Foundry/Claude Platform on AWS, draws from credits from the first token even when plan usage remains, and re-bills the entire context at fast-mode uncached input price on first enable in a conversation. Opus 4.7 fast mode was removed 2026-07-24 while Claude Code still advertises it, so /fast on 4.7 produces API rejections.",
+    "CONTENT-BASED AUTOMATIC MODEL FALLBACK CAN CHANGE YOUR TIER WITHOUT ASKING, and it is directly relevant to security-adjacent repos. Fable 5: biology-flagged → re-runs on Opus 5; cybersecurity-flagged → Opus 4.8. Opus 5: cybersecurity-flagged → Opus 4.8; biology-flagged → refusal with no fallback. A flagged request can trip on the FIRST request from CLAUDE.md content or git status alone, and after fallback the session STAYS on the fallback model. If availableModels blocks the fallback target, no fallback happens and the request simply refuses. Requires v2.1.219+; `claude --safe-mode` isolates whether local customizations are the trigger.",
+    "GEMINI'S 2026-07-21 DEPRECATION OF temperature, top_p AND top_k IS A BREAKING CHANGE FOR ANY HARNESS THAT PINS THEM, and Gemini CLI docs still expose them via generateContentConfig. Migrate to thinking_level. Note also that the Gemini CLI caps thinking at 8192 tokens (DEFAULT_THINKING_MODE) to prevent runaway loops — an independent ceiling on the CLI path that the API path does not have.",
+    "VERIFICATION SCOPE: two MCP servers in this environment (claude.ai Neurabble, claude.ai 법령MCP) require OAuth authorization and were unavailable, so no MCP-sourced cross-check was possible; the user must authorize them via claude.ai connector settings if that matters. Several vendor launch posts return HTTP 403 to fetchers (anthropic.com/news pages, openai.com launch posts, x.ai/news), so claims that live only on those pages are marked secondary throughout rather than silently upgraded. Two Claude Code doc pages exceeded fetch size and were read from persisted files at C:\\Users\\excte\\.claude\\projects\\c--Dev-EstreGenesis\\f9dc17b6-a790-4625-ad20-5c07217899b6\\tool-results\\ — those quotes are verbatim from the vendor page."
+  ]
+}
