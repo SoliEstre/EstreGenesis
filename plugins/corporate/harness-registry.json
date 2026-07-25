@@ -6,7 +6,6 @@
     "graceDays": 45,
     "reason": "Agent CLIs ship flag changes on a weeks-to-months cadence. Past the date a verify axis reports a reminder; past the grace it fails. Re-survey updates asOf, revisit, and watchlist together."
   },
-
   "fields": {
     "$comment": "The field contract every confirmed row must satisfy. A row missing a required field is not a partial row — it is a caveat.",
     "harness": "stable identifier used by roster `harness` values",
@@ -27,7 +26,6 @@
     "confirmedBy": "REQUIRED — source URL(s) where the strings above were read verbatim",
     "confirmedOn": "REQUIRED — date the source was read"
   },
-
   "harnesses": [
     {
       "harness": "claude-code",
@@ -45,7 +43,7 @@
       "pathGrant": "--add-dir <path> (repeatable) or /add-dir in session; permanently via settings permissions.additionalDirectories",
       "modelBind": "--model sonnet|opus|haiku|fable|<full model name>",
       "effortBind": "--effort low|medium|high|xhigh|max|ultracode",
-      "budgetBind": "--max-turns <int> · --max-budget-usd <amount>",
+      "budgetBind": "--max-budget-usd <amount>. NOTE: --max-turns is NOT present in the binary measured on this deployment (2026-07-25) although it appears in some documentation — a CORRECTED row, and exactly the class of drift rule 1 exists to keep out of a launcher. Bind spend, not turns, until a build is measured that carries it.",
       "permissionMode": "--permission-mode default|acceptEdits|plan|auto|dontAsk|bypassPermissions|manual — blockable via permissions.disableBypassPermissionsMode / disableAutoMode",
       "selfConfigProtection": "none at the harness level — Corporate.md §9.2's no-self-configuration invariant must be carried by the charter and the path grant here",
       "gotchas": [
@@ -53,7 +51,8 @@
         "RESUME DOES NOT RESTORE: --mcp-config, --settings, --plugin-dir, --fallback-model, and --add-dir must be passed again on every resume. The plan and bypassPermissions permission modes are never restored. settings.json / settings.local.json ARE re-read each launch. A resident seat's launcher must therefore keep its full flag set, not just the session id.",
         "A session created by -p does not appear in the interactive --resume picker; it is resumable only by explicit session id.",
         "CLAUDE_CODE_CHILD_SESSION=1 is set in subprocesses the harness spawns, and such nested sessions are excluded from --resume/--continue/history; CLAUDE_CODE_FORCE_SESSION_PERSISTENCE overrides that exclusion. A supervisor spawning seats from inside a session must know which behaviour it wants.",
-        "--bare skips auto-discovery of hooks, skills, plugins, MCP servers, auto memory and CLAUDE.md, restricts tools to Bash/read/edit, and skips OAuth/keychain (so it needs an API key or an apiKeyHelper). Documented as the recommended mode for scripted calls — but it defeats the charter-discovery mechanism §2.2 relies on, so a Corporate desk using --bare must inject its charter explicitly."
+        "--bare skips auto-discovery of hooks, skills, plugins, MCP servers, auto memory and CLAUDE.md, restricts tools to Bash/read/edit, and skips OAuth/keychain (so it needs an API key or an apiKeyHelper). Documented as the recommended mode for scripted calls — but it defeats the charter-discovery mechanism §2.2 relies on, so a Corporate desk using --bare must inject its charter explicitly.",
+        "A background-agent supervisor exists in-product (--bg plus `claude agents`), so a residency implementation should evaluate it before building a bespoke supervisor — §13 already names the bespoke supervisor a prunable unit for exactly this reason."
       ],
       "confirmedBy": [
         "https://code.claude.com/docs/en/headless",
@@ -62,9 +61,11 @@
         "https://code.claude.com/docs/en/permissions",
         "https://code.claude.com/docs/en/memory",
         "https://code.claude.com/docs/en/settings",
-        "https://code.claude.com/docs/en/env-vars"
+        "https://code.claude.com/docs/en/env-vars",
+        "local measurement: claude.exe --help and claude.exe agents --help on the deployment host, 2026-07-25"
       ],
-      "confirmedOn": "2026-07-25"
+      "confirmedOn": "2026-07-25",
+      "backgroundMode": "--bg / --background starts the session as a background agent and returns immediately; `claude agents` manages the resulting sessions (its own flag set includes --add-dir, --agent, --effort, --cwd, --all, --json). The OS-service installation path around this remains undocumented — that gap is a Corporate contribution target, not a registry fact."
     },
     {
       "harness": "codex-cli",
@@ -87,7 +88,8 @@
       "outputFlags": "-o/--output-last-message <path> · --json (alias --experimental-json) · --output-schema <path> (final response conforms to a JSON Schema) · --ignore-user-config · --ignore-rules · --cd/-C <path> · --skip-git-repo-check",
       "gotchas": [
         "A project must be trusted for its .codex/ layer to load at all — so a desk relying on project-local config silently loses it when the trust entry is missing. The scriptable path for granting trust in a non-interactive run was NOT confirmed (see caveats).",
-        "Auth injection is documented inline (CODEX_API_KEY=<key> codex exec ...) rather than as job-level environment, which matters for a supervisor spawning many seats."
+        "Auth injection is documented inline (CODEX_API_KEY=<key> codex exec ...) rather than as job-level environment, which matters for a supervisor spawning many seats.",
+        "`codex doctor` diagnoses install, config, auth and runtime health — the natural liveness probe for a supervisor to run before declaring a seat available, instead of inferring health from a failed turn."
       ],
       "confirmedBy": [
         "https://learn.chatgpt.com/docs/non-interactive-mode",
@@ -96,9 +98,13 @@
         "https://learn.chatgpt.com/docs/config-file/config-reference",
         "https://learn.chatgpt.com/docs/sandboxing",
         "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
-        "https://github.com/openai/codex/blob/main/codex-rs/rollout/src/list.rs"
+        "https://github.com/openai/codex/blob/main/codex-rs/rollout/src/list.rs",
+        "local measurement: codex.exe --help and codex.exe exec --help on the deployment host, 2026-07-25"
       ],
-      "confirmedOn": "2026-07-25"
+      "confirmedOn": "2026-07-25",
+      "subcommands": "exec (alias e) · review · resume / archive / delete / unarchive (session lifecycle) · login / logout · mcp / mcp-server · plugin · app-server · remote-control · app · sandbox (run a command inside the Codex sandbox) · doctor (diagnose install, config, auth, runtime health) · update · completion · debug · apply (alias a)",
+      "configOverride": "-c / --config key=value with dotted paths for nested values; the value is parsed as TOML and falls back to a literal string if it does not parse. Confirmed: `-c model=\"o3\"`, `-c 'sandbox_permissions=[\"disk-full-read-access\"]'`, `-c shell_environment_policy.inherit=all`.",
+      "stdinContract": "A bare PROMPT argument, or `-` to read from stdin. If stdin is piped AND a prompt argument is given, stdin is appended as a <stdin> block — so a supervisor can pass a charter as the argument and the inbound as the pipe without them colliding."
     },
     {
       "harness": "agy",
@@ -107,18 +113,20 @@
       "instructionFile": "GEMINI.md and AGENTS.md in the active directory; global constraints from ~/.gemini/GEMINI.md",
       "instructionOrder": "Global then active-directory, per the Gemini CLI lineage it inherits (see gotchas — a full per-directory merge order was not confirmed for this CLI specifically).",
       "instructionImport": null,
-      "nonInteractive": "-p / --print",
-      "sessionContinue": "-c / --continue resumes the active workspace's newest conversation; --conversation <conversation-id> loads a specific session",
+      "nonInteractive": "-p / --print (--prompt is an ALIAS for --print, not a separate flag); -i / --prompt-interactive runs a prompt then stays interactive",
+      "sessionContinue": "-c / --continue (confirmed: -c is the alias of --continue) resumes the most recent conversation; --conversation <id> resumes a specific one. There is no fork/new-session-id flag.",
       "sessionStore": "~/.gemini/antigravity-cli/cache/last_conversations.json maps absolute workspace paths to their most recently active conversation id; workspace↔project mapping in cache/projects.json. Conversation history is scoped to the current working directory.",
       "configFiles": "~/.gemini/antigravity-cli/settings.json (keybindings in the sibling keybindings.json). Extension paths moved from the Gemini CLI layout: global skills ~/.gemini/antigravity-cli/skills/, workspace skills .agents/skills/, global MCP ~/.gemini/config/mcp_config.json, workspace MCP .agents/mcp_config.json (schema key url/httpUrl → serverUrl), workspace hooks <workspace>/.agents/hooks.json.",
       "pathGrant": "settings.json allowNonWorkspaceAccess (DEFAULT off) plus /add-dir <path> in session; permission rules live in the same settings.json under `permissions` as allow/deny/ask lists with precedence Deny > Ask > Allow (rule syntax e.g. \"command(git)\"), managed in session via /permissions",
       "modelBind": "--model <slug> — in print mode an unresolvable slug is a hard non-zero failure that prints the available model list; interactive warns and falls back",
-      "effortBind": "--effort <level>",
+      "effortBind": "--effort low|medium|high (three values only — a narrower ladder than the other harnesses)",
       "budgetBind": null,
-      "modeFlags": "--mode=default|accept-edits|plan (Shift+Tab cycles in session) · --sandbox · --dangerously-skip-permissions · --agent <name> (with agent/agents and models subcommands) · --project / --new-project",
+      "modeFlags": "--mode accept-edits|plan · --sandbox · --dangerously-skip-permissions · --add-dir <dir> (repeatable) · --agent <name> · --model <slug> · --project / --new-project · --log-file <path> · --print-timeout <dur> (default 5m0s)",
       "selfConfigProtection": "not documented as harness-enforced; the .agents/ convention is shared with Codex (which does protect it), so a deployment should assume it must enforce §9.2 itself",
       "gotchas": [
-        "Headless runs now honour persisted settings.json policies (permissions, file access, sandbox mode, auto-execution, artifact review) — earlier 1.0.x builds could hang or silently auto-approve. A tool needing confirmation is soft-denied with a stderr notice naming the allow-rule required to permit it, which is the signal a supervisor should parse rather than treating silence as success.",
+        "Print mode has a wall-clock ceiling of its own: --print-timeout, default 5m0s. A seat whose turn can exceed five minutes must raise it explicitly or it is silently cut.",
+        "No structured output. Where the other harnesses can return JSON, agy returns prose — so a seat on agy should be one whose product is judgement for a human or another model to read, not a record to be parsed. This is why the reviewer seat fits it and a scribe seat does not.",
+        "Headless runs honour persisted settings.json policies, and a tool needing confirmation is soft-denied with a stderr notice naming the required allow-rule. Parse that notice; treating silence as success is the failure it was fixed to prevent.",
         "allowNonWorkspaceAccess defaults to off, so a desk needs an explicit grant before it can read the project root."
       ],
       "install": "macOS/Linux: curl -fsSL https://antigravity.google/cli/install.sh | bash · Windows PowerShell: irm https://antigravity.google/cli/install.ps1 | iex",
@@ -128,9 +136,14 @@
         "https://antigravity.google/docs/cli/settings",
         "https://antigravity.google/docs/cli/commands/resume",
         "https://antigravity.google/docs/cli/gcli-migration",
-        "https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md"
+        "https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md",
+        "local measurement: agy.exe --version (1.1.7) and agy.exe --help on the deployment host, 2026-07-25"
       ],
-      "confirmedOn": "2026-07-25"
+      "confirmedOn": "2026-07-25",
+      "measuredVersion": "1.1.7",
+      "subcommands": "agent/agents (list) · models (list) · plugin/plugins · changelog · update · install (\"Configure environment paths and shell settings\" — this is what writes the PATH entry) · help",
+      "outputFormat": "NONE — print mode emits plain text. There is no --output-format or --json, so a supervisor parses prose or nothing. This is the sharpest constraint on using agy for a machine-consumed seat.",
+      "provenance": "docs + official changelog, then CONFIRMED against the installed binary on the deployment host"
     },
     {
       "harness": "gemini-cli",
@@ -164,23 +177,7 @@
       "confirmedOn": "2026-07-25"
     }
   ],
-
   "caveats": [
-    {
-      "harness": "agy",
-      "item": "complete flag reference",
-      "why": "No official page carries a full CLI flag table; the reference page covers TUI slash commands, keybindings and settings keys only. The flags in the row above were assembled from the modes/resume/using pages plus the official changelog, so completeness is not guaranteed. Resolve by running `agy --help` locally and recording the output."
-    },
-    {
-      "harness": "agy",
-      "item": "--print-timeout default",
-      "why": "A print-mode wait timeout with a 5m0s default appears only in a third-party cheat sheet, not in official documentation or the changelog. It directly affects headless worker design, so it must be measured rather than assumed."
-    },
-    {
-      "harness": "agy",
-      "item": "-c alias ambiguity",
-      "why": "The official resume page separates -c/--continue (newest conversation) from --conversation <id> (a specific session), while a 1.0.x changelog entry writes them together as \"--conversation/-c\". Measure locally before scripting either."
-    },
     {
       "harness": "agy",
       "item": "project-level settings file",
@@ -205,47 +202,73 @@
       "harness": "gemini-cli",
       "item": "system-wide settings path",
       "why": "Only user and workspace scopes were confirmed; an OS-level system settings path was not found."
+    },
+    {
+      "harness": "agy",
+      "item": "structured output",
+      "why": "Confirmed absent rather than unconfirmed: print mode has no JSON or output-format option. Recorded as a caveat because it constrains which seats may run here, not because the fact is uncertain."
     }
   ],
-
   "crossHarnessFacts": [
     {
       "fact": "Instruction-file discovery runs repository-root down to the working directory on every harness surveyed, and none exposes a setting, flag, or frontmatter field that reverses that order. The nearest-to-cwd file is merged LAST and therefore wins.",
       "consequence": "Charter specificity is obtained by PRECEDENCE (run the harness in the desk so the charter merges last), never by claiming a reversed load order. Corporate.md §2.2 is written against this fact.",
       "status": "confirmed-mechanism",
-      "confirmedBy": ["https://code.claude.com/docs/en/memory", "https://learn.chatgpt.com/docs/agent-configuration/agents-md", "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/gemini-md.md"]
+      "confirmedBy": [
+        "https://code.claude.com/docs/en/memory",
+        "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+        "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/gemini-md.md"
+      ]
     },
     {
       "fact": "Instruction budgets are capped per harness, and the caps are small: one harness loads only the first 200 lines or 25 KB of its memory index, another stops accumulating instruction files at 32 KiB.",
       "consequence": "A charter competes with the project SSoT for a bounded budget. Charters stay short and point at paths (Corporate.md §6.3); a long charter silently truncates the thing it was supposed to override.",
       "status": "confirmed-mechanism",
-      "confirmedBy": ["https://code.claude.com/docs/en/memory", "https://learn.chatgpt.com/docs/agent-configuration/agents-md"]
+      "confirmedBy": [
+        "https://code.claude.com/docs/en/memory",
+        "https://learn.chatgpt.com/docs/agent-configuration/agents-md"
+      ]
     },
     {
       "fact": "At least one harness protects an agent's own configuration directories as read-only even inside otherwise-writable roots.",
       "consequence": "Corporate.md §9.2's no-self-configuration invariant has vendor precedent rather than being a house rule; harnesses without the protection need it enforced through the path grant and the charter.",
       "status": "confirmed-mechanism",
-      "confirmedBy": ["https://learn.chatgpt.com/docs/sandboxing"]
+      "confirmedBy": [
+        "https://learn.chatgpt.com/docs/sandboxing"
+      ]
     },
     {
       "fact": "Pointing a harness at a non-first-party endpoint disables several of its own capabilities, some recoverable only via additional environment flags.",
       "consequence": "A custom endpoint is a capability trade, not a transparent substitution. A seat whose duty depends on a disabled capability must not be routed there — record the disabled set alongside any endpoint row.",
       "status": "confirmed-mechanism",
-      "confirmedBy": ["https://code.claude.com/docs/en/env-vars"]
+      "confirmedBy": [
+        "https://code.claude.com/docs/en/env-vars"
+      ]
     },
     {
       "fact": "Turn and spend ceilings exist as per-invocation flags on at least one harness, and subagent spend aggregates into the parent's total.",
       "consequence": "Corporate.md §7.4b prefers binding the harness's own ceilings at spawn over implementing budget accounting in the module — a harness that can fail a spawn on breach is a stronger guarantee than module-side bookkeeping.",
       "status": "confirmed-mechanism",
-      "confirmedBy": ["https://code.claude.com/docs/en/cli-reference"]
+      "confirmedBy": [
+        "https://code.claude.com/docs/en/cli-reference"
+      ]
+    },
+    {
+      "fact": "A long-lived process holds the PATH snapshot it inherited at start. A harness installed — or self-updated into a new directory — after that moment is invisible to the process even though the user PATH in the registry carries it. Measured on the deployment host: three entries present in the user PATH and absent from the live IDE process, one of them the CLI that had just self-updated.",
+      "consequence": "A desk launcher MUST resolve harness binaries by ABSOLUTE PATH (recorded per host in the roster) rather than relying on inherited PATH. A supervisor that shells out by bare command name will report a harness as missing that is in fact installed — and the failure looks like a configuration error rather than a stale environment.",
+      "status": "confirmed-mechanism",
+      "confirmedBy": [
+        "local measurement: HKCU:\\Environment Path vs the live process PATH on the deployment host, 2026-07-25"
+      ]
     }
   ],
-
   "watchlist": [
     {
       "item": "Gemini CLI consumer-plan entitlement vs repository activity",
       "why": "The official announcement states consumer-plan request serving stopped 2026-06-18, yet the repository was still being pushed to in late July and its README still advertises free-tier rate limits. Treat the announcement as authoritative for seat assignment and re-check whether the documentation catches up.",
-      "blocks": ["assigning any seat backed by a consumer Google subscription to gemini-cli rather than agy"]
+      "blocks": [
+        "assigning any seat backed by a consumer Google subscription to gemini-cli rather than agy"
+      ]
     },
     {
       "item": "subscription lane determination",
@@ -255,17 +278,23 @@
     {
       "item": "local-endpoint capability parity",
       "why": "A local OpenAI-compatible endpoint removes the entitlement question and the per-wake cost, which makes it the natural host for resident T4 seats — but capability is the trade. Confirm tool-calling, structured-output and context behaviour per serving stack and per model before a local seat is given work whose failure is not obvious.",
-      "blocks": ["assigning a local-lane seat any duty whose silent failure would not be caught"]
+      "blocks": [
+        "assigning a local-lane seat any duty whose silent failure would not be caught"
+      ]
     },
     {
       "item": "local-model tool-calling fitness",
       "why": "A resident seat on a local model is only viable if the serving stack supports the tool-calling the harness requires. Confirm per serving stack and per model, not per family.",
-      "blocks": ["resident residency class on a local host (§7.1)"]
+      "blocks": [
+        "resident residency class on a local host (§7.1)"
+      ]
     },
     {
       "item": "free-tier data-use policy",
       "why": "A free API tier that trains on prompts is unusable for a private workspace regardless of its rate limits. Record the policy clause alongside any free-tier row, and keep the productionAllowed=false routing rule of §9.1 absolute.",
-      "blocks": ["routing any seat that reads project content to a free tier"]
+      "blocks": [
+        "routing any seat that reads project content to a free tier"
+      ]
     },
     {
       "item": "agy source availability",
