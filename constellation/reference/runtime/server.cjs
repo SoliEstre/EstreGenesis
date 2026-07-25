@@ -1020,7 +1020,11 @@ function wsAgentList() {
 }
 function wsToBoards(msg) { for (const c of wsConns) if (c.meta.role !== 'agent' && c.alive) c.send(msg); }
 function wsToAll(msg) { for (const c of wsConns) if (c.alive) c.send(msg); }   // 시스템 공지(ServerNotice 등) — 에이전트+board 전체
-function wsPushAgentList() { wsToBoards(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } })); }
+// v2.4.88 (adopter question → measured defect): AgentList 갱신이 board 로만 나가고 있었다. 에이전트는 upgrade 직후
+// 스냅샷 1장만 받는데 그 시점은 자기 HELLO **이전**이라, 그 캐시는 자기 자신도 없고 이후 합류자도 영구히 반영되지 않는다
+// (어댑터가 "자기 자신이 목록에 없다"로 관측 — 의도된 self-필터가 아니라 stale 캐시였다). 프레즌스는 에이전트에게도
+// 1급 데이터(§13.9.4 tri-state·§13.13.2 재전달의 recipient-present 판정)이므로 board 와 함께 에이전트에게도 push.
+function wsPushAgentList() { wsToAll(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } })); }
 
 // §13.19.10 Q3 board-adapter deadlock detector — OPT-IN (도입측이 필요할 때만). 기본 OFF (서버↔application 결합 회피 — Constellation.md §13.19.3 의 canonical 검출은 에이전트측 turn-start wait-edge DFS).
 //   _a2aPending 는 reply-pairing(응답 에이전트 → {from=요청자}) 이라 wait-edge 의 lightweight 근사: pending.get(B).from===A ⟺ A 가 B 응답 대기(A→B). 2-cycle(A↔B) 이 threshold 초과 지속 시 DeadlockProbe 를 board 로 emit.
