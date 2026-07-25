@@ -137,12 +137,20 @@ Field mapping: `RegisterUpstreamKey{alias, label}` → `KeyIssue{label, ttl, sco
 ```jsonc
 {
   "key":      "u-<22 base62 chars>",      // opaque, server-generated, never reused
-  "joinUrl":  "ws://host:7878/ws?upstreamKey=<key>",  // pre-formed URL for share
+  "joinUrl":  "ws://host:7878/ws?upstreamKey=<key>",  // pre-formed URL for share (declared public host if any, else loopback — unchanged since v2.4.0)
+  "joinUrls": [                           // v2.4.85 §13.25.8 — every address the server knows, so the issuer picks instead of guessing
+    { "host": "localhost:7878",    "scope": "loopback", "iface": "loopback", "url": "ws://localhost:7878/ws?upstreamKey=<key>",    "reachable": true },
+    { "host": "192.168.0.12:7878", "scope": "lan",      "iface": "Wi-Fi",    "url": "ws://192.168.0.12:7878/ws?upstreamKey=<key>", "reachable": false }
+  ],
+  "bind":     "127.0.0.1",                // v2.4.85 — actual listen bind (reachable is derived from this, not from intent)
+  "exposed":  false,                      // v2.4.85 — false = loopback-only bind, so every non-loopback row is reachable:false
   "label":    "phone-claude",             // echo
   "ttl":      1209600000,                 // echo (post-clamp if server enforces min/max)
   "issuedAt": 1780193127639               // server clock, ms epoch
 }
 ```
+
+`joinUrls` ordering is **declared public host → loopback → LAN IPv4 → global IPv6** (link-local excluded), capped at 12 entries. It is purely additive: consumers that read only `joinUrl` are unaffected. `kind: 'local'` is unchanged — wire-private, no URL (§3.6).
 
 **Errors** (server → main, `name: "KeyError"`, `value: { code, message, re_msgId }`):
 - `LIMIT_EXCEEDED` — too many active keys (default cap 32, configurable via env `WS_KEY_MAX_ACTIVE`)

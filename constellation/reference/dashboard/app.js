@@ -2314,7 +2314,8 @@ function wsWfPopOpen(runId) {
   colBtn.onclick = (ev) => { ev.stopPropagation(); const s = wsWfPopState; s.collapsed = !s.collapsed; s.body.hidden = s.collapsed; s.colBtn.textContent = s.collapsed ? '▸' : '▾'; };
   x.onclick = (ev) => { ev.stopPropagation(); pop.remove(); wsWfPopState = null; };
   let drag = null;   // 헤더 드래그 이동 (pointer capture) — 놓을 때 위치·폭 영속
-  head.onpointerdown = (ev) => { if (ev.target === colBtn || ev.target === x) return; drag = { x: ev.clientX - pop.offsetLeft, y: ev.clientY - pop.offsetTop }; try { head.setPointerCapture(ev.pointerId); } catch {} };
+  // v2.4.85: 헤더 안의 드랍다운 패널·폼 컨트롤에서 시작한 pointerdown 은 드래그로 가로채지 않는다 — 가로채면 패널 안 키/URL 텍스트를 드래그 선택할 수 없어 수동 복사가 불가능(실사용 보고).
+  head.onpointerdown = (ev) => { if (ev.target === colBtn || ev.target === x) return; if (ev.target && ev.target.closest && ev.target.closest('.ws-collab-panel, button, input, textarea, select, label, a')) return; drag = { x: ev.clientX - pop.offsetLeft, y: ev.clientY - pop.offsetTop }; try { head.setPointerCapture(ev.pointerId); } catch {} };
   head.onpointermove = (ev) => { if (!drag) return; pop.style.left = Math.max(0, ev.clientX - drag.x) + 'px'; pop.style.top = Math.max(0, ev.clientY - drag.y) + 'px'; };
   head.onpointerup = () => { if (!drag) return; drag = null; try { localStorage.setItem('constellation-wf-pop', JSON.stringify({ l: pop.offsetLeft, t: pop.offsetTop, w: pop.offsetWidth })); } catch {} };
   wsWfPopRender();
@@ -3107,6 +3108,7 @@ function setupWsKeyMgmt() {
   if (collabWrap) head.insertBefore(wrap, collabWrap); else { const archWrap = head.querySelector('.ws-arch-wrap'); if (archWrap) head.insertBefore(wrap, archWrap); else head.appendChild(wrap); }
 
   let status = 'idle', key = '', joinUrl = '', label = '', kind = 'local', roleDescription = '', joinHint = '', joinFile = '';   // v2.4.2: 기본값 local
+  let joinUrls = [], exposed = false, bindAddr = '';   // v2.4.85 §13.25.8 — 주소별 접속 URL 전수 + bind 실측(도달 가능성 표시용)
   function render() {
     panel.textContent = '';
     const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '🔑 키 발행 (UI4)'; panel.appendChild(h);
@@ -3158,14 +3160,33 @@ function setupWsKeyMgmt() {
         row.appendChild(cpHint); row.appendChild(nw); row.appendChild(mg);
         panel.appendChild(row);
       } else {
-        const urlEl = document.createElement('div'); urlEl.className = 'ws-invite-url'; urlEl.textContent = joinUrl || key;
+        // v2.4.85 §13.25.8 — 주소별 접속 URL 전수 렌더 (다중 NIC/IP). 서버가 joinUrls 를 안 싣는 구버전이면 단일 joinUrl 로 폴백.
+        const urls = (Array.isArray(joinUrls) && joinUrls.length) ? joinUrls
+          : (joinUrl ? [{ host: '', scope: 'loopback', url: joinUrl, reachable: true }] : []);
+        const scopeIcon = (s) => s === 'public' ? '☁' : s === 'loopback' ? '🖥' : '🌐';
+        const scopeText = (u) => u.scope === 'public' ? '공개 호스트' : u.scope === 'loopback' ? '로컬 (이 PC)' : ((u.iface || 'LAN') + (u.scope === 'lan6' ? ' · IPv6' : ''));
+        if (!urls.length) { const only = document.createElement('div'); only.className = 'ws-invite-url'; only.textContent = key; panel.appendChild(only); }
+        urls.forEach((u) => {
+          const box = document.createElement('div'); box.className = 'ws-invite-urlbox' + (u.reachable === false ? ' unreach' : '');
+          const hd = document.createElement('div'); hd.className = 'ws-invite-urlhead';
+          const tag = document.createElement('span'); tag.className = 'ws-invite-urltag'; tag.textContent = scopeIcon(u.scope) + ' ' + scopeText(u);
+          if (u.reachable === false) tag.title = '서버가 loopback 에만 bind 돼 있어 이 주소로는 아직 도달할 수 없어요 — 설정 ▸ 접속 제어에서 노출을 켜고 재시작하면 열려요.';
+          const cp = document.createElement('button'); cp.className = 'ws-invite-copy'; cp.type = 'button'; cp.textContent = '복사'; cp.onclick = () => copy(cp, u.url);
+          hd.appendChild(tag); hd.appendChild(cp);
+          const urlEl = document.createElement('div'); urlEl.className = 'ws-invite-url'; urlEl.textContent = u.url;
+          box.appendChild(hd); box.appendChild(urlEl); panel.appendChild(box);
+        });
+        if (!exposed && urls.some((u) => u.reachable === false)) {
+          const note = document.createElement('div'); note.className = 'ws-invite-meta'; note.style.fontSize = '.68rem';
+          note.textContent = 'ℹ 회색 주소는 노출이 꺼져 있어(bind ' + (bindAddr || '127.0.0.1') + ') 지금은 도달 불가 — 설정 ▸ 접속 제어에서 켠 뒤 재시작하면 활성화돼요.';
+          panel.appendChild(note);
+        }
         const row = document.createElement('div'); row.className = 'ws-invite-row';
-        const cpUrl = document.createElement('button'); cpUrl.className = 'ws-invite-copy'; cpUrl.type = 'button'; cpUrl.textContent = 'URL 복사'; cpUrl.onclick = () => copy(cpUrl, joinUrl || key);
         const cpKey = document.createElement('button'); cpKey.className = 'ws-invite-copy'; cpKey.type = 'button'; cpKey.textContent = '키만 복사'; cpKey.onclick = () => copy(cpKey, key);
-        const nw = document.createElement('button'); nw.className = 'ws-invite-new'; nw.type = 'button'; nw.textContent = '새 키'; nw.onclick = () => { status = 'idle'; key = ''; joinUrl = ''; roleDescription = ''; render(); };
+        const nw = document.createElement('button'); nw.className = 'ws-invite-new'; nw.type = 'button'; nw.textContent = '새 키'; nw.onclick = () => { status = 'idle'; key = ''; joinUrl = ''; joinUrls = []; roleDescription = ''; render(); };
         const mg = document.createElement('button'); mg.className = 'ws-invite-new'; mg.type = 'button'; mg.textContent = '🔐 관리'; mg.onclick = () => { panel.hidden = true; openManager(); };
-        row.appendChild(cpUrl); row.appendChild(cpKey); row.appendChild(nw); row.appendChild(mg);
-        panel.appendChild(urlEl); panel.appendChild(row);
+        row.appendChild(cpKey); row.appendChild(nw); row.appendChild(mg);
+        panel.appendChild(row);
       }
     }
   }
@@ -3265,7 +3286,7 @@ function setupWsKeyMgmt() {
   wsKeyMgmt = {
     openManager,
     openIssuePanel() { panel.hidden = false; render(); },   // 키 발행 패널 직접 열기 (우클릭 컨텍스트 메뉴용)
-    setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; joinHint = p.joinHint || ''; joinFile = p.joinFile || ''; if (p.label != null) label = p.label; if (p.kind != null) kind = p.kind; if (p.roleDescription != null) roleDescription = p.roleDescription; status = 'issued'; panel.hidden = false; render(); },
+    setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; joinUrls = Array.isArray(p.joinUrls) ? p.joinUrls : []; exposed = !!p.exposed; bindAddr = p.bind ? String(p.bind) : ''; joinHint = p.joinHint || ''; joinFile = p.joinFile || ''; if (p.label != null) label = p.label; if (p.kind != null) kind = p.kind; if (p.roleDescription != null) roleDescription = p.roleDescription; status = 'issued'; panel.hidden = false; render(); },
     setError(p) { status = 'error'; key = (p && (p.message || p.code)) || '발급 실패'; render(); },
     setList(keys) { modalKeys = Array.isArray(keys) ? keys : []; if (modal && !modal.hidden) renderTable(); },
     onMutated() { if (modal && !modal.hidden) requestList(); },
