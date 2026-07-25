@@ -11,6 +11,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');                            // v2.4.85 — 접속 URL 후보 host 열거 (다중 NIC/IP)
 const push = require('./push.cjs');                 // #3b webpush (tier-2) — deps-0 VAPID tickle
 
 const DIR = __dirname;
@@ -407,6 +408,26 @@ function wsValidKey(key) { return !!key && wsKeys.some((k) => k.key === key); }
 function wsKeyRole(key) { const k = wsKeys.find((x) => x.key === key); return k ? (k.role || 'upstream') : null; }   // #168 키 role 조회(collab/upstream)
 function wsRevokeKey(key) { const n = wsKeys.length; wsKeys = wsKeys.filter((k) => k.key !== key); if (wsKeys.length !== n) wsSaveKeys(); }
 function wsJoinUrl(group, key, host) { return `http://${host || process.env.WS_PUBLIC_HOST || ('localhost:' + PORT)}/join/${group}?key=${encodeURIComponent(key)}`; }   // #168 그룹별 접속 URL(키 포함 → /join 온보딩 md)
+// v2.4.85 §13.25.8 — 접속 URL 후보 host 전수 열거. 다중 NIC/IP 호스트에서 "어느 주소로 붙어야 하나"를 발급자가 추측하지 않게, 서버가 아는 주소를 모두 싣는다.
+// 순서 = 명시 공개호스트 → loopback → LAN IPv4 → 전역 IPv6 (link-local fe80:: 제외). reachable 은 bind 실측 기반 (loopback bind 면 LAN 주소는 지금 도달 불가).
+function wsHostCandidates() {
+  const seen = new Set(), out = [];
+  const add = (host, scope, iface) => { if (!host || seen.has(host)) return; seen.add(host); out.push({ host, scope, iface }); };
+  if (process.env.WS_PUBLIC_HOST) add(process.env.WS_PUBLIC_HOST, 'public', 'WS_PUBLIC_HOST');
+  add('localhost:' + PORT, 'loopback', 'loopback');
+  let ifaces = {};
+  try { ifaces = os.networkInterfaces() || {}; } catch {}
+  for (const name of Object.keys(ifaces)) {
+    for (const a of (ifaces[name] || [])) {
+      if (!a || a.internal) continue;
+      const fam = String(a.family);
+      if (fam === 'IPv4' || fam === '4') add(a.address + ':' + PORT, 'lan', name);
+      else if ((fam === 'IPv6' || fam === '6') && !/^fe80:/i.test(a.address)) add('[' + a.address + ']:' + PORT, 'lan6', name);
+    }
+  }
+  return out.slice(0, 12);   // 가상 NIC 다수 환경(WSL/Docker/VPN) 상한 — 목록이 UI 를 삼키지 않게
+}
+function wsJoinUrls(make) { return wsHostCandidates().map((c) => ({ host: c.host, scope: c.scope, iface: c.iface, url: make(c.host), reachable: c.scope === 'loopback' ? true : !_isLoopback })); }
 // === KEY-MGMT (v2.4.0 — WS-PROTOCOL-KEY-MGMT.md v0.2 구현 · 본격 #406 patch parity) ===
 // keyStore = key.json (5-state machine + TTL + lastAgent/lastSeenAt + connectionStatus 매타 영속).
 // 레거시 ws-keys.json (role lookup, HELLO/upgrade 판정) 와 dual-layer 운영 — 레거시 entry 가 정본 role, keyStore 가 정본 metadata.
@@ -497,8 +518,10 @@ function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (u
     return;
   }
   const urlParam = kind === 'collab' ? 'key' : kind === 'peer' ? 'peerKey' : 'upstreamKey';   // v2.4.52 peer 전용 파라미터 — upstream 파라미터에 편승 금지 (kind 혼동 방지)
-  const joinUrl = `ws://${process.env.WS_PUBLIC_HOST || ('localhost:' + PORT)}/ws?${urlParam}=${encodeURIComponent(key)}`;
-  wsKeyReply(conn, 'KeyIssued', { key, joinUrl, label, kind, roleDescription, ttl, issuedAt }, msg);
+  const mkWs = (host) => `ws://${host}/ws?${urlParam}=${encodeURIComponent(key)}`;
+  const joinUrls = wsJoinUrls(mkWs);   // v2.4.85 §13.25.8 — 주소별 전수. joinUrl 은 종전 의미(공개호스트 우선, 없으면 loopback) 그대로 유지 = 무변경 소비자 호환.
+  const joinUrl = (joinUrls.find((u) => u.scope === 'public') || joinUrls[0] || {}).url || mkWs('localhost:' + PORT);
+  wsKeyReply(conn, 'KeyIssued', { key, joinUrl, joinUrls, bind: WS_BIND, exposed: !_isLoopback, label, kind, roleDescription, ttl, issuedAt }, msg);
 }
 function wsKeyList(conn, msg, v) {   // §3.2 전체 키 enumerate (상태 + connectionStatus + lastAgent + TTL)
   const incRevoked = !!v.includeRevoked, incDeleted = !!v.includeDeleted;
@@ -681,8 +704,8 @@ function wsHandoffReady() { if (_pendingMain) { if (_pendingTimer) clearTimeout(
 function wsHandleOrch(conn, msg) {
   if (!msg || msg.type !== 'CUSTOM') return false;
   const n = msg.name, v = msg.value || {};
-  if (n === 'RegisterUpstreamKey') { const key = wsIssueKey(v.label); const joinUrl = wsJoinUrl('upstream', key); conn.send(wscore.event('CUSTOM', { name: 'UpstreamKeyIssued', value: { key, label: v.label || 'upstream', joinUrl } })); return true; }   // v2.3.23 transitional alias — KeyIssue 가 canonical, RegisterUpstreamKey 는 §3.1 retirement schedule 따라 zero-traffic gate 후 제거
-  if (n === 'RegisterCollabKey') { const key = wsIssueKey(v.label, 'collab'); const clabel = v.label || 'collab'; const joinUrl = wsJoinUrl('collab', key); keyStore.keys.push({ key, label: clabel, state: 'ISSUED', kind: 'collab', issuedAt: Date.now(), ttl: KEY_TTL_DEFAULT, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null }); keySave(); conn.send(wscore.event('CUSTOM', { name: 'CollabKeyIssued', value: { key, label: clabel, joinUrl } })); return true; }   // #168 외부협업 키+접속 URL (v2.4.0 KEY-MGMT 통합: keyStore 등록 kind=collab)
+  if (n === 'RegisterUpstreamKey') { const key = wsIssueKey(v.label); const joinUrl = wsJoinUrl('upstream', key); conn.send(wscore.event('CUSTOM', { name: 'UpstreamKeyIssued', value: { key, label: v.label || 'upstream', joinUrl, joinUrls: wsJoinUrls((h) => wsJoinUrl('upstream', key, h)), bind: WS_BIND, exposed: !_isLoopback } })); return true; }   // v2.3.23 transitional alias — KeyIssue 가 canonical, RegisterUpstreamKey 는 §3.1 retirement schedule 따라 zero-traffic gate 후 제거
+  if (n === 'RegisterCollabKey') { const key = wsIssueKey(v.label, 'collab'); const clabel = v.label || 'collab'; const joinUrl = wsJoinUrl('collab', key); keyStore.keys.push({ key, label: clabel, state: 'ISSUED', kind: 'collab', issuedAt: Date.now(), ttl: KEY_TTL_DEFAULT, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null }); keySave(); conn.send(wscore.event('CUSTOM', { name: 'CollabKeyIssued', value: { key, label: clabel, joinUrl, joinUrls: wsJoinUrls((h) => wsJoinUrl('collab', key, h)), bind: WS_BIND, exposed: !_isLoopback } })); return true; }   // #168 외부협업 키+접속 URL (v2.4.0 KEY-MGMT 통합: keyStore 등록 kind=collab)
   if (n === 'RevokeCollabKey' || n === 'RevokeUpstreamKey') { wsRevokeKey(v.key); return true; }
   // === KEY-MGMT (v2.4.0 — WS-PROTOCOL-KEY-MGMT.md v0.2) ===
   if (n === 'KeyIssue' || n === 'KeyList' || n === 'KeyRevoke' || n === 'KeyLabel') {

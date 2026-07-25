@@ -497,6 +497,12 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-collab-wrap { position: relative; display: inline-flex; margin-right: 10px; cursor: default; }   /* v2.4.7 cursor leak fix — .ws-pop-head 의 cursor:move 상속 차단(드래그 영역은 head 의 빈 부분만) */
 .ws-collab-panel { position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 320px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.4); z-index: 30; padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: default; }   /* v2.4.2 폭 240→320; v2.4.7 cursor leak fix */
 .ws-collab-panel[hidden] { display: none; }
+/* v2.4.85: 패널은 .ws-pop-head(user-select:none 드래그 핸들) 안에 살기 때문에 선택 불가를 상속받아 키/URL 수동 복사가 막혔다 — 패널 안에서는 선택 허용으로 되돌린다 (pointerdown 가로채기 해제는 app.js). */
+.ws-collab-panel { user-select: text; -webkit-user-select: text; }
+.ws-invite-urlbox { display: flex; flex-direction: column; gap: 3px; background: color-mix(in srgb, var(--panel2) 60%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 4px 5px; }
+.ws-invite-urlbox.unreach { opacity: .55; }
+.ws-invite-urlhead { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.ws-invite-urltag { font-size: .66rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ws-invite-h { font-weight: 600; color: var(--ink); font-size: .8rem; }
 .ws-invite-label { background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 7px; color: var(--ink); font: inherit; font-size: .75rem; }
 .ws-invite-btn { background: var(--ws-role-collab, #2a9d8f); color: #fff; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600; }
