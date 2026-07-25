@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Seed Prompt — Lite
 
-<!-- seed-tier: Lite; language: English; version: v2.5.1; date: 2026-07-04; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = pruning+registry cut — §13.x operating disciplines pointerized from inline to the Constellation.md SSoT (seed keeps invariant vocabulary + one-line gists) + provenance/verbatim redaction + § EG Module Registry (one-table of 5 modules) added; v2.5.1 = registry to six — Compendium row added (Migration-B dogfood follow-up) -->
+<!-- seed-tier: Lite; language: English; version: v2.6.0; date: 2026-07-25; counterpart: AI_Native_프로젝트_시드_프롬프트_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = pruning+registry cut — §13.x operating disciplines pointerized from inline to the Constellation.md SSoT (seed keeps invariant vocabulary + one-line gists) + provenance/verbatim redaction + § EG Module Registry (one-table of 5 modules) added; v2.5.1 = registry to six — Compendium row added (Migration-B dogfood follow-up); v2.6.0 = registry 7 modules — Corporate row added (new durable-role agent organization module) -->
 
 > **How to use**: Copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent will run an **interactive bootstrap session** (or a **migration session** if your project already exists — see § Migration Guides).
 >
@@ -677,7 +677,7 @@ Wall-clock without label · single-number override extending to research tasks �
 
 ## EG Module Registry
 
-**Six optional modules** shipped by the same repo (EstreGenesis) as this seed. Same principle as the Adoption Catalog — a menu, not a checklist; adopt only when a trigger fires. The full-text SSoT is each module's `.md` (raw URL on `main` = `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/<Module>.md`; pin a tag for reproducibility). Version locations: each module `.md` frontmatter `version:` + `plugins/<module>/.claude-plugin/plugin.json` + repo-root `.claude-plugin/marketplace.json` — synced in the same cut (an N-way sync registry surface).
+**Seven optional modules** shipped by the same repo (EstreGenesis) as this seed. Same principle as the Adoption Catalog — a menu, not a checklist; adopt only when a trigger fires. The full-text SSoT is each module's `.md` (raw URL on `main` = `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/<Module>.md`; pin a tag for reproducibility). Version locations: each module `.md` frontmatter `version:` + `plugins/<module>/.claude-plugin/plugin.json` + repo-root `.claude-plugin/marketplace.json` — synced in the same cut (an N-way sync registry surface).
 
 | Module | Category (one line) | Adoption trigger | Body | Plugin |
 | --- | --- | --- | --- | --- |
@@ -687,6 +687,7 @@ Wall-clock without label · single-number override extending to research tasks �
 | Greatpractice | Recurring-practice codification (macro/mezzo/micro tree) | The same work pattern repeats + omission cost exceeds documentation cost | `Greatpractice.md` | `plugins/greatpractice` |
 | Ultrasafe | Pre-publish security attestation (advisory → blocking) | publish/release commands enter an agent automation loop (pre-release gate) | `Ultrasafe.md` | `plugins/ultrasafe` |
 | Compendium | Concept-anchored dual-register vocabulary substrate (dual-register glossary + pointer-not-paraphrase owner pointers) | Cross-cutting vocabulary accumulates + definition-duplication/drift cost exceeds documentation cost | `Compendium.md` | `plugins/compendium` |
+| Corporate | Durable-role agent organization (named seats + private desks + residency/eviction lifecycle) | Two or three duties recur across sessions + resources can fund those seats + coordination outlives a session (within one session, a Superscalar fan-out is cheaper) | `Corporate.md` | `plugins/corporate` |
 
 
 
