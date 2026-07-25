@@ -1,9 +1,35 @@
 ---
 name: superscalar
-description: Use BEFORE dispatching multiple sub-agents in parallel (Agent tool fan-outs, Workflow.parallel/pipeline, multi-lane Edit operations). Consult the issue_width formula to bound concurrency, apply the cost-benefit gate to decide spawn-vs-inline, honor the irreversibility barrier (write/deploy/send retire-gated), enforce in-order retire, and respect the v0.4 nested-repo worktree limitation. **v0.4.1 §3.1 Hyperbrief interlock** — for write/deploy/send lanes that pass the cost-benefit gate, also invoke `hyperbrief-trigger-check` (4-score escalation + 5 MUST-trigger); on FULL_HYPERBRIEF pause the lane and emit Constellation `DECISION_REQUEST + HyperbriefCard`, await `ack_tier='decided'`; read-only lanes are exempt by construction. Especially relevant when the work shape is "audit / cross-dimension consistency / handover-grade output" — where Entry 06's A/B measurement showed Arm B (discipline) catches the contradictions Arm A (naïve max-parallel) leaves silently unresolved.
+description: "Dispatch-aggressiveness mode toggle + the parallel-dispatch checklist. Invoke as /superscalar always|auto|off|status to set how eagerly the agent fans out (marker .agent/superscalar.json, default auto; `always` inverts the burden of proof with a named veto list and auto-demotes on §6 threshold signals; safety invariants unconditional in every mode). Also use BEFORE dispatching multiple sub-agents in parallel (Agent tool fan-outs, Workflow.parallel/pipeline, multi-lane Edit operations). Consult the issue_width formula to bound concurrency, apply the cost-benefit gate to decide spawn-vs-inline, honor the irreversibility barrier (write/deploy/send retire-gated), enforce in-order retire, and respect the v0.4 nested-repo worktree limitation. **v0.4.1 §3.1 Hyperbrief interlock** — for write/deploy/send lanes that pass the cost-benefit gate, also invoke `hyperbrief-trigger-check` (4-score escalation + 5 MUST-trigger); on FULL_HYPERBRIEF pause the lane and emit Constellation `DECISION_REQUEST + HyperbriefCard`, await `ack_tier='decided'`; read-only lanes are exempt by construction. Especially relevant when the work shape is 'audit / cross-dimension consistency / handover-grade output' — where Entry 06's A/B measurement showed Arm B (discipline) catches the contradictions Arm A (naïve max-parallel) leaves silently unresolved."
 ---
 
 # Superscalar — execution-scheduling discipline
+
+Two jobs in one skill. **Invoked with an argument** (`/superscalar always|auto|off|status`) it is a **mode toggle** — see §0. **Invoked with no argument, or consulted before a fan-out**, it is the dispatch checklist — §1 onward, read through the lens of the current mode.
+
+## 0. Mode toggle — how eagerly to fan out (`always` | `auto` | `off`)
+
+State = **one marker file**, `.agent/superscalar.json` → `{"mode": "always"|"auto"|"off", "since": "<date>", "note": "<why>"}`. **Absent ⇒ `auto`.** Read it at dispatch time; never mirror the mode into other settings surfaces.
+
+- `/superscalar always` — write the marker with `always` · `/superscalar auto` — write `auto` (or delete the marker) · `/superscalar off` — write `off` · `/superscalar status` — read it back and report the mode plus where it would apply to the work in front of you.
+
+| Mode | What it changes | What it does not change |
+|---|---|---|
+| `off` | No fan-out on your own initiative — independent work runs in declared order. An explicit user request to parallelize is still honored; record it as an override. | — |
+| `auto` *(default)* | §2's cost-benefit gate arbitrates, as before. | — |
+| `always` | **Burden of proof inverts**: with ≥2 independent lanes, fan out *unless* a veto below applies. The gate becomes a veto list, not a hurdle. Prefer `Workflow`/`pipeline` over serial inline for multi-item work. | Every safety invariant. See below. |
+
+**`always` vetoes** (still serial): not write-disjoint and isolation unavailable (§3, nested-repo case included) · no independent decomposition · deep shared-context work · total work below the inline-wins floor (§2, ~8k) · latency-critical interactive edit · `issue_width` already saturated.
+
+**Unconditional in every mode** — `always` never loosens these: §4 irreversibility barrier · §3.1 Hyperbrief interlock on write/deploy/send lanes · §5 in-order retire + consistency gate + completeness critic · §1 `issue_width` caps (the prior moves, the ceiling does not) · speculation stays a separate, default-off axis.
+
+**Auto-demote when a §6 signal fires.** merge-conflict rate > 15%, concurrent cost > 3× in-order, or FM-1.3 ≥ 1/session ⇒ rewrite the marker to `auto` with `autoDemotedFrom: "always"` + the signal and its observed value, and say so in the turn. `off` is never auto-changed. Aggressive prior, automatic evidenced backpressure — that pairing is the point.
+
+**After every toggle: re-declare.** If this workspace is joined to a Constellation board, emit an updated `OpsState` carrying `superscalar: {mode}` (Constellation §13.23.4 — change-triggered, latest-wins). Toggle + announce are one unit of work; a toggle alone leaves the board's status strip asserting stale state. (EG-ops helper: `node scripts/emit-ops-state.cjs`.) Not board-joined → skip.
+
+Tier selection for whatever does fan out is the sibling toggle's job: `/subscaler` (§5.1). Aggressiveness and tier are orthogonal axes — set them independently.
+
+---
 
 You are about to dispatch parallel work. Before you do, run through this checklist.
 
