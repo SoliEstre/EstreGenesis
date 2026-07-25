@@ -12,64 +12,241 @@
     "harness": "stable identifier used by roster `harness` values",
     "label": "human-facing name",
     "instructionFile": "the per-directory instruction filename this harness discovers (Corporate.md §2.2)",
-    "instructionImport": "the syntax, if any, by which an instruction file includes another — null when the harness has none, in which case the charter must instruct the agent to read the project SSoT (both shapes satisfy §2.2)",
+    "instructionOrder": "the discovery/merge order, stated as observed — Corporate.md §2.2 depends on knowing this rather than assuming it",
+    "instructionImport": "the syntax, if any, by which an instruction file includes another — null when the harness has none, in which case the charter must instruct the agent to read the project SSoT",
     "nonInteractive": "how to run one turn without a TTY",
     "sessionContinue": "how to continue the same conversation across invocations (§7.1 residency depends on this)",
+    "sessionStore": "where session transcripts live — needed to reason about desk locality and cleanup",
     "pathGrant": "how to grant read/write beyond the working directory (§2.3) — enumerated, never blanket",
     "modelBind": "per-invocation model selection (rule 2)",
     "effortBind": "per-invocation reasoning-effort selection, where the harness exposes one; null when it does not",
+    "budgetBind": "per-invocation turn/spend ceilings, where the harness exposes them (§7.4b prefers these over module-side accounting)",
+    "selfConfigProtection": "whether the harness itself prevents an agent from editing its own configuration (§9.2)",
     "customEndpoint": "how to point the harness at a non-default endpoint (§9.1) — mechanism only; permission is the deployment's responsibility",
-    "confirmedBy": "REQUIRED — source URL where every string above was read verbatim",
+    "gotchas": "behaviours that break a naive desk/residency implementation",
+    "confirmedBy": "REQUIRED — source URL(s) where the strings above were read verbatim",
     "confirmedOn": "REQUIRED — date the source was read"
   },
 
-  "harnesses": [],
-
-  "caveats": [
+  "harnesses": [
     {
       "harness": "claude-code",
-      "status": "pending-confirmation",
-      "why": "Non-interactive invocation, session continuation, directory grants, permission modes, and per-invocation model/effort binding are all believed to exist, but no string in this row has been read against current vendor documentation in this cut. Until each is confirmed verbatim it stays here — rule 1.",
-      "needs": ["nonInteractive", "sessionContinue", "pathGrant", "modelBind", "effortBind", "instructionFile", "instructionImport", "customEndpoint"]
+      "label": "Claude Code CLI",
+      "instructionFile": "CLAUDE.md (also ./.claude/CLAUDE.md, ./CLAUDE.local.md)",
+      "instructionOrder": "Collected by walking upward from cwd, then concatenated filesystem-root → cwd (append, not overwrite). A subdirectory CLAUDE.md is loaded on demand when a file in that directory is read, not at launch. Scope order: managed policy → user ~/.claude/CLAUDE.md → project → local.",
+      "instructionImport": "@path/to/file — up to 4 recursive hops; relative paths resolve against the importing file; a path inside backticks is literal. AGENTS.md is NOT read natively; the documented bridge is an `@AGENTS.md` import from CLAUDE.md.",
+      "pathScopedRules": ".claude/rules/*.md with optional `paths` glob frontmatter (recursive discovery; user-level ~/.claude/rules/ loads before project rules so project wins).",
+      "nonInteractive": "-p / --print (every CLI option works alongside it); stdin may be piped in",
+      "sessionContinue": "--continue (-c) resumes the newest conversation in the current directory; or capture the id from `--output-format json` and pass `--resume <session-id>`. Both invocations MUST run in the same directory — session lookup is scoped to the project directory and its git worktrees.",
+      "sessionIdFlags": "--session-id <UUID> · --fork-session (new id on resume) · -n/--name <string> · -r/--resume <id|name>",
+      "sessionStore": "~/.claude/projects/<project>/<session-id>.jsonl, where <project> is the working-directory path with non-alphanumerics replaced by '-'. Relocate with CLAUDE_CONFIG_DIR; retention via cleanupPeriodDays; suppress a one-shot with --no-session-persistence. The entry format is documented as internal and version-unstable — do not parse it.",
+      "memoryStore": "~/.claude/projects/<project>/memory/ with MEMORY.md as the index. Only the first 200 lines or 25 KB of MEMORY.md (whichever comes first) is loaded at session start. <project> derives from the git repository, so all worktrees and subdirectories share one memory directory.",
+      "ioFormat": "--output-format text|json|stream-json · --input-format text|stream-json · stream extras --include-partial-messages, --include-hook-events, --replay-user-messages, --forward-subagent-text",
+      "pathGrant": "--add-dir <path> (repeatable) or /add-dir in session; permanently via settings permissions.additionalDirectories",
+      "modelBind": "--model sonnet|opus|haiku|fable|<full model name>",
+      "effortBind": "--effort low|medium|high|xhigh|max|ultracode",
+      "budgetBind": "--max-turns <int> · --max-budget-usd <amount>",
+      "permissionMode": "--permission-mode default|acceptEdits|plan|auto|dontAsk|bypassPermissions|manual — blockable via permissions.disableBypassPermissionsMode / disableAutoMode",
+      "selfConfigProtection": "none at the harness level — Corporate.md §9.2's no-self-configuration invariant must be carried by the charter and the path grant here",
+      "gotchas": [
+        "PATH-GRANT ASYMMETRY (affects desks directly): directories added with --add-dir / /add-dir also load that directory's .claude/skills/, .claude/agents/ and the enabledPlugins + extraKnownMarketplaces settings keys. Directories listed in permissions.additionalDirectories grant FILE ACCESS ONLY and load no configuration. Choose deliberately: a desk that needs the project's skills must use --add-dir, not the settings key.",
+        "RESUME DOES NOT RESTORE: --mcp-config, --settings, --plugin-dir, --fallback-model, and --add-dir must be passed again on every resume. The plan and bypassPermissions permission modes are never restored. settings.json / settings.local.json ARE re-read each launch. A resident seat's launcher must therefore keep its full flag set, not just the session id.",
+        "A session created by -p does not appear in the interactive --resume picker; it is resumable only by explicit session id.",
+        "CLAUDE_CODE_CHILD_SESSION=1 is set in subprocesses the harness spawns, and such nested sessions are excluded from --resume/--continue/history; CLAUDE_CODE_FORCE_SESSION_PERSISTENCE overrides that exclusion. A supervisor spawning seats from inside a session must know which behaviour it wants.",
+        "--bare skips auto-discovery of hooks, skills, plugins, MCP servers, auto memory and CLAUDE.md, restricts tools to Bash/read/edit, and skips OAuth/keychain (so it needs an API key or an apiKeyHelper). Documented as the recommended mode for scripted calls — but it defeats the charter-discovery mechanism §2.2 relies on, so a Corporate desk using --bare must inject its charter explicitly."
+      ],
+      "confirmedBy": [
+        "https://code.claude.com/docs/en/headless",
+        "https://code.claude.com/docs/en/cli-reference",
+        "https://code.claude.com/docs/en/sessions",
+        "https://code.claude.com/docs/en/permissions",
+        "https://code.claude.com/docs/en/memory",
+        "https://code.claude.com/docs/en/settings",
+        "https://code.claude.com/docs/en/env-vars"
+      ],
+      "confirmedOn": "2026-07-25"
     },
     {
       "harness": "codex-cli",
-      "status": "pending-confirmation",
-      "why": "Non-interactive execution, session resume syntax, the config-file location and its keys (model, reasoning effort, sandbox mode, approval policy, project trust), and the custom-provider block schema are all unconfirmed in this cut.",
-      "needs": ["nonInteractive", "sessionContinue", "pathGrant", "modelBind", "effortBind", "instructionFile", "customEndpoint"]
-    },
-    {
-      "harness": "gemini-cli",
-      "status": "pending-confirmation",
-      "why": "Non-interactive flags, session persistence, settings-file location, and instruction-file discovery are unconfirmed in this cut.",
-      "needs": ["nonInteractive", "sessionContinue", "pathGrant", "modelBind", "instructionFile"]
+      "label": "OpenAI Codex CLI",
+      "instructionFile": "AGENTS.override.md, else AGENTS.md, else project_doc_fallback_filenames — at most ONE file per directory",
+      "instructionOrder": "Global scope first (CODEX_HOME, default ~/.codex: AGENTS.override.md then AGENTS.md — one file), then project scope walking project root → cwd, concatenated root-first with blank-line separators. The file nearest cwd therefore lands LAST and wins. Empty files are skipped; accumulation stops at project_doc_max_bytes (default 32 KiB). The chain is built once per run.",
+      "instructionImport": null,
+      "nonInteractive": "codex exec (alias codex e); `cat prompt.txt | codex exec -` uses stdin as the prompt",
+      "sessionContinue": "codex exec resume --last \"<prompt>\" or codex exec resume <SESSION_ID> (--all searches all directories); interactive: codex resume [--last]",
+      "sessionStore": "~/.codex/sessions/YYYY/MM/DD/rollout-YYYY-MM-DDThh-mm-ss-<uuid>.jsonl (a .jsonl.zst variant is recognised); --ephemeral skips persisting rollout files",
+      "configFiles": "Precedence: CLI flags and -c/--config overrides → project .codex/config.toml (nearest wins, trusted projects only) → profile ~/.codex/<name>.config.toml (--profile) → user ~/.codex/config.toml → system /etc/codex/config.toml → built-in defaults. Local state root is CODEX_HOME (default ~/.codex). TOML constraint: root keys must precede tables.",
+      "pathGrant": "sandbox_mode = \"workspace-write\" plus [sandbox_workspace_write].writable_roots (array); companions network_access, exclude_tmpdir_env_var, exclude_slash_tmp. Full release is sandbox_mode = \"danger-full-access\" or --dangerously-bypass-approvals-and-sandbox.",
+      "sandboxFlags": "--sandbox|-s read-only|workspace-write|danger-full-access · --ask-for-approval|-a untrusted|on-request|never · --dangerously-bypass-approvals-and-sandbox (alias --yolo). codex exec defaults to the read-only sandbox. --full-auto is deprecated in favour of --sandbox workspace-write.",
+      "modelBind": "--model|-m <string>, or config key model",
+      "effortBind": "config key model_reasoning_effort = minimal|low|medium|high|xhigh (xhigh depends on model support)",
+      "budgetBind": null,
+      "trust": "projects.<path>.trust_level = \"trusted\"|\"untrusted\". An untrusted project skips the entire project-scoped .codex/ layer (project config, hooks, rules) and loads only user/system config.",
+      "selfConfigProtection": "ENFORCED BY THE HARNESS: inside writable roots, .git (including the real path behind a gitdir pointer), .agents (when present as a directory) and .codex (when present as a directory) remain read-only. This is the vendor-level precedent Corporate.md §9.2 generalizes into a cross-harness invariant.",
+      "customEndpoint": "config.toml model_providers table (see caveats — the exact key set was not confirmed verbatim in this survey)",
+      "outputFlags": "-o/--output-last-message <path> · --json (alias --experimental-json) · --output-schema <path> (final response conforms to a JSON Schema) · --ignore-user-config · --ignore-rules · --cd/-C <path> · --skip-git-repo-check",
+      "gotchas": [
+        "A project must be trusted for its .codex/ layer to load at all — so a desk relying on project-local config silently loses it when the trust entry is missing. The scriptable path for granting trust in a non-interactive run was NOT confirmed (see caveats).",
+        "Auth injection is documented inline (CODEX_API_KEY=<key> codex exec ...) rather than as job-level environment, which matters for a supervisor spawning many seats."
+      ],
+      "confirmedBy": [
+        "https://learn.chatgpt.com/docs/non-interactive-mode",
+        "https://learn.chatgpt.com/docs/developer-commands?surface=cli",
+        "https://learn.chatgpt.com/docs/config-file/config-basic",
+        "https://learn.chatgpt.com/docs/config-file/config-reference",
+        "https://learn.chatgpt.com/docs/sandboxing",
+        "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+        "https://github.com/openai/codex/blob/main/codex-rs/rollout/src/list.rs"
+      ],
+      "confirmedOn": "2026-07-25"
     },
     {
       "harness": "agy",
-      "status": "pending-confirmation",
-      "why": "The tool exists and has an official reference, but that reference carries no complete CLI flag table, so the invocation strings cannot be confirmed verbatim. Third-party summaries disagree with the project's own changelog on at least one short flag's meaning, which is exactly the class of discrepancy rule 1 exists to keep out of a launcher.",
-      "needs": ["nonInteractive", "sessionContinue", "pathGrant", "modelBind", "effortBind", "instructionFile", "customEndpoint"],
-      "confirmedSoFar": [
-        "A workspace-access setting exists that governs reading outside the working directory; its exact key and override semantics are unconfirmed.",
-        "Distribution is a closed-source single binary. This is a supply-chain input, not a disqualifier: it means version pinning and provenance checking carry more weight here than for an open-source harness (Corporate.md §9.2)."
-      ]
+      "label": "Google Antigravity CLI",
+      "identity": "Antigravity CLI, invoked as `agy`. Official docs at antigravity.google/docs/cli/*; official repo google-antigravity/antigravity-cli carries README/CHANGELOG/examples only — the binary is distributed, not the source. Shares the core agent engine and bidirectional settings sync with the Antigravity GUI.",
+      "instructionFile": "GEMINI.md and AGENTS.md in the active directory; global constraints from ~/.gemini/GEMINI.md",
+      "instructionOrder": "Global then active-directory, per the Gemini CLI lineage it inherits (see gotchas — a full per-directory merge order was not confirmed for this CLI specifically).",
+      "instructionImport": null,
+      "nonInteractive": "-p / --print",
+      "sessionContinue": "-c / --continue resumes the active workspace's newest conversation; --conversation <conversation-id> loads a specific session",
+      "sessionStore": "~/.gemini/antigravity-cli/cache/last_conversations.json maps absolute workspace paths to their most recently active conversation id; workspace↔project mapping in cache/projects.json. Conversation history is scoped to the current working directory.",
+      "configFiles": "~/.gemini/antigravity-cli/settings.json (keybindings in the sibling keybindings.json). Extension paths moved from the Gemini CLI layout: global skills ~/.gemini/antigravity-cli/skills/, workspace skills .agents/skills/, global MCP ~/.gemini/config/mcp_config.json, workspace MCP .agents/mcp_config.json (schema key url/httpUrl → serverUrl), workspace hooks <workspace>/.agents/hooks.json.",
+      "pathGrant": "settings.json allowNonWorkspaceAccess (DEFAULT off) plus /add-dir <path> in session; permission rules live in the same settings.json under `permissions` as allow/deny/ask lists with precedence Deny > Ask > Allow (rule syntax e.g. \"command(git)\"), managed in session via /permissions",
+      "modelBind": "--model <slug> — in print mode an unresolvable slug is a hard non-zero failure that prints the available model list; interactive warns and falls back",
+      "effortBind": "--effort <level>",
+      "budgetBind": null,
+      "modeFlags": "--mode=default|accept-edits|plan (Shift+Tab cycles in session) · --sandbox · --dangerously-skip-permissions · --agent <name> (with agent/agents and models subcommands) · --project / --new-project",
+      "selfConfigProtection": "not documented as harness-enforced; the .agents/ convention is shared with Codex (which does protect it), so a deployment should assume it must enforce §9.2 itself",
+      "gotchas": [
+        "Headless runs now honour persisted settings.json policies (permissions, file access, sandbox mode, auto-execution, artifact review) — earlier 1.0.x builds could hang or silently auto-approve. A tool needing confirmation is soft-denied with a stderr notice naming the allow-rule required to permit it, which is the signal a supervisor should parse rather than treating silence as success.",
+        "allowNonWorkspaceAccess defaults to off, so a desk needs an explicit grant before it can read the project root."
+      ],
+      "install": "macOS/Linux: curl -fsSL https://antigravity.google/cli/install.sh | bash · Windows PowerShell: irm https://antigravity.google/cli/install.ps1 | iex",
+      "confirmedBy": [
+        "https://antigravity.google/docs/cli/overview",
+        "https://antigravity.google/docs/cli/modes",
+        "https://antigravity.google/docs/cli/settings",
+        "https://antigravity.google/docs/cli/commands/resume",
+        "https://antigravity.google/docs/cli/gcli-migration",
+        "https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md"
+      ],
+      "confirmedOn": "2026-07-25"
+    },
+    {
+      "harness": "gemini-cli",
+      "label": "Gemini CLI",
+      "status": "SUPERSEDED FOR CONSUMER PLANS — read `entitlementChange` before assigning a seat",
+      "entitlementChange": "As announced 2026-06-18, Gemini CLI and the Gemini Code Assist IDE extensions stopped serving requests for Google AI Pro and Ultra (free tier included); Code Assist Standard/Enterprise licences are stated to be unaffected. A seat backed by a consumer Google subscription therefore belongs on `agy` (Antigravity CLI), not here. Note the documentation/reality mismatch recorded in watchlist.",
+      "instructionFile": "GEMINI.md by default; settings context.fileName accepts an ARRAY, e.g. [\"AGENTS.md\", \"CONTEXT.md\", \"GEMINI.md\"]",
+      "instructionOrder": "Global ~/.gemini/GEMINI.md → configured workspace directories and their ancestors → just-in-time scan when a tool touches a file or directory. /memory show prints the concatenated text actually sent; /memory reload rescans.",
+      "instructionImport": null,
+      "nonInteractive": "-p / --prompt <string> (appended to stdin input if provided; forces non-interactive mode); -i / --prompt-interactive runs a prompt then stays interactive",
+      "sessionContinue": "-r / --resume <\"latest\"|index|UUID> · --list-sessions · --delete-session <index>; in-session /resume [save|list|resume] <name>",
+      "sessionStore": "~/.gemini/tmp/<project_hash>/chats/ (project_hash derives from the project root). Retention keys general.sessionRetention.{enabled,maxAge,maxCount,minRetention}; turn cap model.maxSessionTurns.",
+      "configFiles": "user ~/.gemini/settings.json and workspace <project>/.gemini/settings.json — workspace overrides user",
+      "pathGrant": "--include-directories; folder trust via security.folderTrust.enabled with decisions stored in ~/.gemini/trustedFolders.json",
+      "modelBind": "-m / --model auto (default) | pro | flash | flash-lite | <specific model>",
+      "effortBind": null,
+      "budgetBind": null,
+      "modeFlags": "--approval-mode default|auto_edit|yolo|plan (-y/--yolo deprecated) · -s/--sandbox · -o/--output-format text|json|stream-json · -e/--extensions · -w/--worktree · --allowed-mcp-server-names",
+      "selfConfigProtection": "none documented",
+      "gotchas": [
+        "An untrusted folder's safe mode disables far more than file access: workspace settings are ignored, environment variables are ignored, extension management is limited, tool auto-acceptance is off, automatic memory loading is off, MCP servers do not connect, and custom commands do not load. A desk in an untrusted folder is not a degraded desk — it is a different environment.",
+        "Whether -p composes with -r/--resume for headless multi-turn is NOT documented; every official resume example is interactive."
+      ],
+      "confirmedBy": [
+        "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/cli-reference.md",
+        "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/session-management.md",
+        "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/gemini-md.md",
+        "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/settings.md",
+        "https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/"
+      ],
+      "confirmedOn": "2026-07-25"
+    }
+  ],
+
+  "caveats": [
+    {
+      "harness": "agy",
+      "item": "complete flag reference",
+      "why": "No official page carries a full CLI flag table; the reference page covers TUI slash commands, keybindings and settings keys only. The flags in the row above were assembled from the modes/resume/using pages plus the official changelog, so completeness is not guaranteed. Resolve by running `agy --help` locally and recording the output."
+    },
+    {
+      "harness": "agy",
+      "item": "--print-timeout default",
+      "why": "A print-mode wait timeout with a 5m0s default appears only in a third-party cheat sheet, not in official documentation or the changelog. It directly affects headless worker design, so it must be measured rather than assumed."
+    },
+    {
+      "harness": "agy",
+      "item": "-c alias ambiguity",
+      "why": "The official resume page separates -c/--continue (newest conversation) from --conversation <id> (a specific session), while a 1.0.x changelog entry writes them together as \"--conversation/-c\". Measure locally before scripting either."
+    },
+    {
+      "harness": "agy",
+      "item": "project-level settings file",
+      "why": "Only ~/.gemini/antigravity-cli/settings.json is documented; whether a project-level settings file exists, and whether allowNonWorkspaceAccess can be overridden per project or by flag, is unconfirmed — while extensions ARE workspace-local under .agents/."
+    },
+    {
+      "harness": "codex-cli",
+      "item": "scriptable project trust",
+      "why": "Documentation names an onboarding prompt or /permissions; the config reference gives the projects.<path>.trust_level key. The non-interactive path for granting trust before a `codex exec` run is unclear, and an untrusted project silently drops the whole project-scoped layer."
+    },
+    {
+      "harness": "codex-cli",
+      "item": "model_providers block schema",
+      "why": "A custom-provider mechanism exists, but the exact key set (base_url / env_key / wire_api and their spellings) was not read verbatim in this survey. Rule 1 keeps it out of the row."
+    },
+    {
+      "harness": "claude-code",
+      "item": "--input-format stream-json stdin envelope",
+      "why": "The CLI-level newline-delimited JSON envelope is not specified; documentation gives only the SDK message shape, without stating that the CLI stdin contract is identical."
+    },
+    {
+      "harness": "gemini-cli",
+      "item": "system-wide settings path",
+      "why": "Only user and workspace scopes were confirmed; an OS-level system settings path was not found."
     }
   ],
 
   "crossHarnessFacts": [
     {
-      "fact": "Instruction-file discovery runs repository-root down to the working directory, and no surveyed harness exposes a setting, flag, or frontmatter field that reverses that order.",
-      "consequence": "Charter specificity is obtained by PRECEDENCE (run the harness in the desk so the charter merges last / nearest-wins), never by claiming a reversed load order. Corporate.md §2.2 is written against this fact.",
-      "status": "confirmed-mechanism"
+      "fact": "Instruction-file discovery runs repository-root down to the working directory on every harness surveyed, and none exposes a setting, flag, or frontmatter field that reverses that order. The nearest-to-cwd file is merged LAST and therefore wins.",
+      "consequence": "Charter specificity is obtained by PRECEDENCE (run the harness in the desk so the charter merges last), never by claiming a reversed load order. Corporate.md §2.2 is written against this fact.",
+      "status": "confirmed-mechanism",
+      "confirmedBy": ["https://code.claude.com/docs/en/memory", "https://learn.chatgpt.com/docs/agent-configuration/agents-md", "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/gemini-md.md"]
     },
     {
-      "fact": "Pointing a harness at a non-first-party endpoint disables several of its own capabilities, some recoverable only by additional environment flags.",
-      "consequence": "A custom endpoint is a capability trade, not a transparent substitution. A seat whose duty depends on a capability the endpoint disables must not be routed there — record the disabled set alongside any endpoint row.",
-      "status": "confirmed-mechanism"
+      "fact": "Instruction budgets are capped per harness, and the caps are small: one harness loads only the first 200 lines or 25 KB of its memory index, another stops accumulating instruction files at 32 KiB.",
+      "consequence": "A charter competes with the project SSoT for a bounded budget. Charters stay short and point at paths (Corporate.md §6.3); a long charter silently truncates the thing it was supposed to override.",
+      "status": "confirmed-mechanism",
+      "confirmedBy": ["https://code.claude.com/docs/en/memory", "https://learn.chatgpt.com/docs/agent-configuration/agents-md"]
+    },
+    {
+      "fact": "At least one harness protects an agent's own configuration directories as read-only even inside otherwise-writable roots.",
+      "consequence": "Corporate.md §9.2's no-self-configuration invariant has vendor precedent rather than being a house rule; harnesses without the protection need it enforced through the path grant and the charter.",
+      "status": "confirmed-mechanism",
+      "confirmedBy": ["https://learn.chatgpt.com/docs/sandboxing"]
+    },
+    {
+      "fact": "Pointing a harness at a non-first-party endpoint disables several of its own capabilities, some recoverable only via additional environment flags.",
+      "consequence": "A custom endpoint is a capability trade, not a transparent substitution. A seat whose duty depends on a disabled capability must not be routed there — record the disabled set alongside any endpoint row.",
+      "status": "confirmed-mechanism",
+      "confirmedBy": ["https://code.claude.com/docs/en/env-vars"]
+    },
+    {
+      "fact": "Turn and spend ceilings exist as per-invocation flags on at least one harness, and subagent spend aggregates into the parent's total.",
+      "consequence": "Corporate.md §7.4b prefers binding the harness's own ceilings at spawn over implementing budget accounting in the module — a harness that can fail a spawn on breach is a stronger guarantee than module-side bookkeeping.",
+      "status": "confirmed-mechanism",
+      "confirmedBy": ["https://code.claude.com/docs/en/cli-reference"]
     }
   ],
 
   "watchlist": [
+    {
+      "item": "Gemini CLI consumer-plan entitlement vs repository activity",
+      "why": "The official announcement states consumer-plan request serving stopped 2026-06-18, yet the repository was still being pushed to in late July and its README still advertises free-tier rate limits. Treat the announcement as authoritative for seat assignment and re-check whether the documentation catches up.",
+      "blocks": ["assigning any seat backed by a consumer Google subscription to gemini-cli rather than agy"]
+    },
     {
       "item": "subscription-vs-automation boundary",
       "why": "Whether a given subscription credential may drive programmatic multi-seat execution is a terms question, not a technical one (§9.1). A roster MUST NOT be assembled on the assumption that any credential permits fan-out. Confirm per vendor and record the exact clause, not a summary.",
@@ -82,8 +259,13 @@
     },
     {
       "item": "free-tier data-use policy",
-      "why": "A free API tier that trains on prompts is unusable for a private workspace regardless of its rate limits. Record the policy clause alongside any free-tier row.",
+      "why": "A free API tier that trains on prompts is unusable for a private workspace regardless of its rate limits. Record the policy clause alongside any free-tier row, and keep the productionAllowed=false routing rule of §9.1 absolute.",
       "blocks": ["routing any seat that reads project content to a free tier"]
+    },
+    {
+      "item": "agy source availability",
+      "why": "The CLI ships as a distributed binary with no source in its public repository. Version pinning and provenance checking therefore carry more weight here than for an open-source harness (§9.2).",
+      "blocks": []
     }
   ]
 }
