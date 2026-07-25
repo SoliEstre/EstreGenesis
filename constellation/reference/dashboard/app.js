@@ -1224,23 +1224,30 @@ function orgDepths(roles) {
   }
   return { depth, dangling, cyclic };
 }
-// 좌석명 → 실시간 채널 후보. 좌석명과 에이전트 id 가 같은 이름 체계가 아닐 수 있으므로 exact 여부를 함께 돌려줘요.
+// 좌석명 → 실시간 채널. 돌려주는 모양 3가지: {id, exact} 매칭됨 · {id:null, declared} 선언은 있는데 아직 미합류 · null 선언도 매칭도 없음.
+// 좌석은 **이 조직의 좌석**이므로 후보는 로컬측 채널(main·local·board-worker)뿐이에요 — peer/upstream/collab 은 정의상
+// 다른 프로젝트·다른 당사자라(§13.9.3) 좌석에 대응할 수 없어요.
 function orgResolveChannel(role) {
-  // 차트가 이 좌석의 agentId 를 선언했으면 그것이 권위 — 아래 휴리스틱은 선언이 없을 때만 돌아요.
-  try {
-    const _d = (orgChart && Array.isArray(orgChart.roles)) ? orgChart.roles.find((r) => r && r.role === role) : null;
-    if (_d && _d.agentId && wsState && wsState.channels && wsState.channels.has(_d.agentId)) return _d.agentId;
-  } catch (e) {}
-
   try {
     const want = orgStr(role).trim(); if (!want) return null;
+    // ① 차트가 agentId 를 선언했으면 그것만이 답 — 미합류면 "없음"으로 끝내요(fail-closed). v2.6.4 서버측과 같은 규칙:
+    //    선언 불일치를 유사매칭으로 메우면 엉뚱한 상대에게 말을 걸어요.
+    let declared = '';
+    try {
+      const d = (orgChart && Array.isArray(orgChart.roles)) ? orgChart.roles.find((r) => r && orgStr(r.role) === want) : null;
+      declared = d ? orgStr(d.agentId) : '';
+    } catch (e) {}
+    if (declared) return wsState.channels.has(declared) ? { id: declared, exact: true, declared } : { id: null, declared };
+    // ② 선언이 없을 때만 이름으로 찾고, **exact 만** 봐요. 부분일치는 폐기했어요 — 좌석명은 'main'·'watch' 같은
+    //    일반어라 다른 프로젝트 채널의 id·이름에 우연히 들어있고, 그러면 조용히 성공해서 남의 메인으로 연결돼요
+    //    (2026-07-26 실측: main 좌석의 대화 버튼이 협업 피어 메인으로 이어짐).
+    const roleOk = (c) => !c || !orgHas(c.role) || ['main', 'local', 'board-worker'].indexOf(String(c.role)) >= 0;
     const ents = [...wsState.channels.entries()];
-    const usable = ents.filter(([id, c]) => id && !wsIsMon(id) && !wsIsGroup(id) && String(id).indexOf('room:') !== 0);
+    const usable = ents.filter(([id, c]) => id && !wsIsMon(id) && !wsIsGroup(id) && String(id).indexOf('room:') !== 0 && roleOk(c));
     const order = usable.filter(([, c]) => !(c && c.hidden)).concat(usable.filter(([, c]) => (c && c.hidden)));
     const lw = want.toLowerCase();
     for (const [id, c] of order) if (String(id) === want || orgStr(c && c.routeId) === want) return { id, exact: true };
     for (const [id, c] of order) if (String(id).toLowerCase() === lw || orgStr(c && c.routeId).toLowerCase() === lw) return { id, exact: true };
-    if (lw.length >= 3) for (const [id, c] of order) if ((String(id) + ' ' + orgStr(c && c.name)).toLowerCase().indexOf(lw) >= 0) return { id, exact: false };
     return null;
   } catch { return null; }   // TDZ 가드 — 초기 렌더가 wsState/WS_MON_* 선언 실행 전일 수 있어요 (v2.4.32 사고 클래스)
 }
@@ -1274,38 +1281,45 @@ function orgNote(msg) {
   if (n._t) clearTimeout(n._t);
   n._t = setTimeout(() => { n.hidden = true; }, 7000);
 }
+// 타깃이 없으면 **창을 열지 않아요**. 옛 판(열되 active 는 그대로)은 직전에 보던 남의 채널을 띄워서
+// "연결된 것처럼" 보이게 했어요 — 조직도의 대화 버튼이 협업 피어로 이어진 사고의 절반이 이 함수였어요.
 function orgSwitchChannel(id) {
-  try { if (id) wsState.active = id; } catch {}
+  if (!id) return false;
+  try { wsState.active = id; } catch {}
   try { toggleWsPop(true); } catch {}
   try { wsRenderTabs(); wsRenderActiveStream(); } catch {}
+  return true;
 }
 function orgTalk(role) {
   const hit = orgResolveChannel(role);
-  orgSwitchChannel(hit ? hit.id : null);
-  if (!hit) orgNote('좌석 "' + orgStr(role) + '" 에 대응하는 실시간 채널을 찾지 못했어요 — 실시간 창만 열었어요 (좌석명과 에이전트 id 가 다른 이름이면 매칭되지 않아요).');
-  else if (!hit.exact) orgNote('좌석 "' + orgStr(role) + '" → 채널 "' + hit.id + '" 로 이름이 비슷해 연결했어요 (정확히 같은 id 는 아니에요).');
+  if (hit && hit.id) { orgSwitchChannel(hit.id); return; }
+  if (hit && hit.declared) orgNote('좌석 "' + orgStr(role) + '" 은 에이전트 "' + hit.declared + '" 로 선언돼 있는데 아직 보드에 합류하지 않았어요 — 말을 걸 표면이 없어서 창을 열지 않았어요.');
+  else orgNote('좌석 "' + orgStr(role) + '" 에는 agentId 선언이 없어서 상대를 특정할 수 없어요 — 로스터에 이 좌석의 agentId 를 선언하면 연결돼요. 이름이 비슷한 채널로 짐작해서 잇지는 않아요(남의 프로젝트 메인으로 갈 수 있어서요).');
 }
 function orgOpenRoom(roomId) {
   const key = 'room:' + orgStr(roomId);   // §13.30 방 채널 키 규약 (wsChanKey·wsRtIntake 와 동일)
   let has = false; try { has = wsState.channels.has(key); } catch {}
-  orgSwitchChannel(has ? key : null);
-  if (!has) orgNote('방 "' + orgStr(roomId) + '" 채널이 아직 없어요 (방 트래픽 수신 전) — 실시간 창만 열었어요.');
+  if (has) { orgSwitchChannel(key); return; }
+  orgNote('방 "' + orgStr(roomId) + '" 채널이 아직 없어요 (이 방의 트래픽을 받은 적이 없어요) — 열 대화 표면이 없어서 창을 열지 않았어요.');
 }
 function orgOpenPair(from, to) {
   const ca = orgResolveChannel(from), cb = orgResolveChannel(to);
+  const ia = (ca && ca.id) || null, ib = (cb && cb.id) || null;
   let mon = null;
-  if (ca && cb) {
+  if (ia && ib) {
     try {
       for (const [id, c] of wsState.channels.entries()) {
         if (!wsIsMon(id) || !Array.isArray(c.rows)) continue;
-        if (c.rows.some(r => r && r.src && ((String(r.src.from) === ca.id && String(r.src.to) === cb.id) || (String(r.src.from) === cb.id && String(r.src.to) === ca.id)))) { mon = id; break; }
+        if (c.rows.some(r => r && r.src && ((String(r.src.from) === ia && String(r.src.to) === ib) || (String(r.src.from) === ib && String(r.src.to) === ia)))) { mon = id; break; }
       }
     } catch {}
   }
-  const target = mon || (cb && cb.id) || (ca && ca.id) || null;
-  orgSwitchChannel(target);
-  if (!target) orgNote('"' + orgStr(from) + ' ⇢ ' + orgStr(to) + '" 두 좌석 중 어느 쪽도 실시간 채널로 매칭되지 않았어요 — 실시간 창만 열었어요.');
-  else if (!mon) orgNote('두 좌석 사이 전용 모니터 채널을 찾지 못해 "' + target + '" 채널로 열었어요.');
+  const target = mon || ib || ia || null;
+  if (orgSwitchChannel(target)) {
+    if (!mon) orgNote('두 좌석 사이 전용 모니터 채널을 찾지 못해 "' + target + '" 채널로 열었어요.');
+    return;
+  }
+  orgNote('"' + orgStr(from) + ' ⇢ ' + orgStr(to) + '" 두 좌석 중 합류한 채널이 없어요 — 열 대화 표면이 없어서 창을 열지 않았어요.');
 }
 // 예산 — 차트가 실은 형태를 모르므로 숫자로 해석되는 경우에만 게이지를 그리고, 아니면 선언값을 칩으로만 보여줘요(허구 게이지 금지).
 function orgBudget(budget, used) {
@@ -1412,17 +1426,31 @@ function orgNodeEl(r, opt) {
     o.title = '이 좌석이 쓸 수 있는 경로예요 (§6.7 쓰기 분할)';
     n.append(o);
   }
-  const talk = el('button', 'org-talk'); talk.type = 'button'; talk.textContent = '💬 대화'; talk.title = '이 좌석의 실시간 대화 표면으로';
-  talk.onclick = (e) => { e.stopPropagation(); orgTalk(role); };
-  n.append(talk);
+  n.append(orgTalkBtn(role, opt && opt.chan));
   n.onclick = () => orgOpenDetail(role);
   n.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); orgOpenDetail(role); } };
   return n;
 }
+// 대화 버튼 — 붙을 곳이 없는 좌석은 눌러보기 전에 보이게 표시해요(.unbound). 그래도 클릭은 살려둬요:
+// 비활성 버튼은 이유를 말해주지 못하는데, 여기선 "왜 못 붙는지"가 정보예요.
+function orgTalkBtn(role, chan) {
+  const b = el('button', 'org-talk'); b.type = 'button';
+  const bound = !!(chan && chan.id);
+  b.textContent = '💬 대화';
+  if (!bound) {
+    b.classList.add('unbound');
+    b.textContent = '💬 대화 (미연결)';
+    b.title = (chan && chan.declared)
+      ? '선언된 에이전트 "' + chan.declared + '" 가 아직 보드에 합류하지 않았어요 — 좌석 미가동이에요'
+      : '이 좌석엔 agentId 선언이 없어요 — 짐작해서 잇지 않아요';
+  } else b.title = '이 좌석의 실시간 대화 표면으로 (채널 ' + chan.id + ')';
+  b.onclick = (e) => { e.stopPropagation(); orgTalk(role); };
+  return b;
+}
 function orgLinkEl(l, chanOf, livePairs) {
   const from = String(l.from), to = String(l.to);
   const ca = chanOf.get(from) || null, cb = chanOf.get(to) || null;
-  const live = !!(ca && cb && livePairs.has(ca.id + '\u0000' + cb.id));
+  const live = !!(ca && ca.id && cb && cb.id && livePairs.has(ca.id + '\u0000' + cb.id));
   const row = el('div', 'org-link' + (live ? ' live' : ''));
   const txt = el('span');
   txt.textContent = from + ' ⇢ ' + to
@@ -1454,7 +1482,10 @@ function orgRoomEl(rm) {
   }
   if (!chips.children.length) { const c = el('span', 'org-room-chip'); c.textContent = '참여자 ' + ORG_UNDECLARED; chips.append(c); }
   box.append(chips);
-  const talk = el('button', 'org-talk'); talk.type = 'button'; talk.textContent = '💬 방 대화'; talk.title = '이 방의 실시간 탭으로';
+  let rhas = false; try { rhas = wsState.channels.has('room:' + roomId); } catch {}
+  const talk = el('button', 'org-talk' + (rhas ? '' : ' unbound')); talk.type = 'button';
+  talk.textContent = rhas ? '💬 방 대화' : '💬 방 대화 (미연결)';
+  talk.title = rhas ? '이 방의 실시간 탭으로' : '이 방의 트래픽을 아직 받은 적이 없어요 — 열 탭이 없어요';
   talk.onclick = (e) => { e.stopPropagation(); orgOpenRoom(roomId); };
   box.append(talk);
   box.onclick = () => orgOpenRoom(roomId);
@@ -1497,7 +1528,7 @@ function renderOrg() {
     const lab = el('div', 'org-tier-label');
     lab.textContent = (d === 0 ? '최상위' : '보고 깊이 ' + d) + ' · 좌석 ' + tierRoles.length + '개';
     tier.append(lab);
-    for (const r of tierRoles) tier.append(orgNodeEl(r, { dangling: dep.dangling.has(String(r.role)), cyclic: dep.cyclic.has(String(r.role)) }));
+    for (const r of tierRoles) tier.append(orgNodeEl(r, { dangling: dep.dangling.has(String(r.role)), cyclic: dep.cyclic.has(String(r.role)), chan: chanOf.get(String(r.role)) || null }));
     chartEl.append(tier);
   }
   const links = (orgChart && Array.isArray(orgChart.links)) ? orgChart.links.filter(l => l && orgHas(l.from) && orgHas(l.to)) : [];
@@ -1560,9 +1591,7 @@ function orgOpenDetail(role) {
     head.querySelectorAll('[data-org-owned="1"]').forEach(n => n.remove());
     const add = [];
     if (!popTitle) { const t = el('span', 'org-title'); t.dataset.orgOwned = '1'; t.textContent = headTitle; add.push(t); }
-    const talk = el('button', 'org-talk'); talk.dataset.orgOwned = '1'; talk.type = 'button'; talk.textContent = '💬 대화';
-    talk.title = '이 좌석의 실시간 대화 표면으로';
-    talk.onclick = (e) => { e.stopPropagation(); orgTalk(orgPopRole); };
+    const talk = orgTalkBtn(orgPopRole, ch); talk.dataset.orgOwned = '1';
     add.push(talk);
     const x = $('#org-pop-x');
     if (x && x.parentNode === head) for (const n of add) head.insertBefore(n, x);
@@ -1644,7 +1673,10 @@ function orgOpenDetail(role) {
   body.append(s5);
   // ⑥ 최근 A2A — 모니터 행의 src {from,to} 실측분만
   const s6 = orgSec('최근 A2A ' + ORG_A2A_N + '건');
-  if (!ch) s6.append(orgRow('대응 채널', null, '좌석명과 이름이 맞는 실시간 채널을 찾지 못했어요'));
+  // 사유는 값 자리에 적어요 — null 로 넘기면 orgRow 가 '미선언' 으로 접어버려서 "선언은 됐는데 미합류" 와
+  // "선언 자체가 없음" 이 같은 글자로 보여요 (렌더 기본값이 구분을 삼키는 부류).
+  if (!ch) s6.append(orgRow('대응 채널', 'agentId 미선언 — 짐작 매칭 안 함', '좌석명과 정확히 같은 채널도 없어요. 로스터에 이 좌석의 agentId 를 선언하면 연결돼요'));
+  else if (!ch.id) s6.append(orgRow('대응 채널', '선언 "' + orgStr(ch.declared) + '" · 아직 미합류', '좌석 미가동이에요 — 선언된 에이전트가 보드에 합류하면 연결돼요'));
   else {
     const rows = orgA2aRowsFor(ch.id).slice(-ORG_A2A_N).reverse();
     if (!rows.length) s6.append(orgRow('메시지', null, '채널 ' + ch.id + ' 에서 관측된 A2A 가 없어요'));
@@ -1653,7 +1685,6 @@ function orgOpenDetail(role) {
       const sum = [orgStr(rw.label), orgStr(rw.a2a && rw.a2a.summary)].filter(Boolean).join(' · ');
       s6.append(orgRow(orgStr(rw.t) + ' ' + dir, sum || null));
     }
-    if (!ch.exact) s6.append(orgRow('참고', '채널 "' + ch.id + '" 은 이름이 비슷해 고른 근사 매칭이에요'));
   }
   body.append(s6);
   // ⑦ 이 좌석의 게이트 큐 (열린 검토사안)
