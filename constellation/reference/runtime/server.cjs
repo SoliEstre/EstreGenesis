@@ -397,6 +397,16 @@ function wsIsAckable(msg) {   // §13.13 A2A delivered ack 대상: ack/ping류·
 let WS_PRIMARY_ID = process.env.WS_PRIMARY_AGENT || 'main-agent';   // generic default (dashboard WS_LOCAL 과 일관); 다운스트림이 자기 환경 메인 agentId 를 env 로 주입
 function wsPrimaryAgent() { const p = wsAgents.get(WS_PRIMARY_ID); if (p && p.alive) return p; for (const c of wsAgents.values()) if (c.alive) return c; return null; }
 function wsAgentRole(c) { return c.meta.collab ? 'collab' : (c.meta.peer ? 'peer' : (c.meta.upstream ? 'upstream' : (c.meta.agentId === WS_PRIMARY_ID ? 'main' : 'local'))); }   // v0.3 오케스트레이션 role (+collab #168, +peer v2.4.52 — peer-main ≠ 자율 upstream)
+// v2.4.87 §13.25.9 — 키 관리·SetMain 권한 판정. 에이전트 표면은 main 만. board 연결(무-HELLO 대시보드/운영자
+// 클라이언트)은 loopback 이거나 **ui 표면 allowlist** 를 통과하는 주소만 — 대시보드 HTTP 를 여는 권한과 보드를
+// 조작하는 권한을 같은 경계로 묶는다. access.json 부재/allowlist 없음 = 종전 fail-open 유지(파괴적 변경 회피)이며,
+// 그 조합은 기동 로그가 명시적으로 경고한다.
+function wsOperatorAuthz(conn) {
+  if (conn.meta.role === 'agent') return wsAgentRole(conn) === 'main';
+  const ip = conn.meta.ip || '';
+  if (_isLoopback || isLoopbackIp(ip)) return true;
+  return surfaceAllowed('ui', ip);
+}
 // 업스트림 등록키 레지스트리 (영속, gitignore). 메인이 발급 → 사용자 경유 업스트림에 전달 → 그 키로 upstream role.
 const crypto = require('crypto');
 const WS_KEYS = path.join(DIR, 'ws-keys.json');
@@ -439,6 +449,24 @@ let keyStore = { version: 1, updatedAt: 0, keys: [] };
 try { const j = JSON.parse(fs.readFileSync(KEY_JSON, 'utf8')); if (j && Array.isArray(j.keys)) keyStore = j; }
 catch (e) { try { if (fs.existsSync(KEY_JSON)) fs.renameSync(KEY_JSON, KEY_JSON + '.corrupt-' + Date.now()); } catch {} }   // §6 손상 파일 보존(forensic), fresh 시작
 const _keyGraceTimers = new Map();   // key → grace setTimeout (REVOKED_PENDING)
+// v2.4.87 (adopter-reported C9a — remediation half): 레거시 ws-keys.json 에만 사는 키를 기동 시 keyStore 로 입양.
+// 그 파일이 wsValidKey() 의 정본이므로 그런 키는 **와이어에서 여전히 유효**한데, keyFind() 가 못 봐서 canonical
+// KeyList/KeyRevoke 로는 보이지도 폐기되지도 않았다 — 관리 불가능한 유효 크레덴셜. 발급 시점 등록(위)은 앞으로를
+// 막고, 이 입양은 이미 생긴 것을 관리 표면으로 끌어온다. 상태는 ISSUED 로 두고 adoptedFromLegacy 로 출처를 남긴다
+// (자동 폐기하지 않음 — 폐기는 운용자 판단이고, 조용한 크레덴셜 무효화가 더 나쁜 실패다).
+function keyAdoptLegacy() {
+  const have = new Set(keyStore.keys.map((k) => k.key));
+  let added = 0;
+  for (const lk of wsKeys) {
+    if (!lk || !lk.key || have.has(lk.key)) continue;
+    const kind = lk.role === 'collab' ? 'collab' : lk.role === 'local' ? 'local' : lk.role === 'peer' ? 'peer' : 'upstream';
+    const issuedAt = Date.parse(lk.createdAt || '') || Date.now();
+    keyStore.keys.push({ key: lk.key, label: lk.label || kind, state: 'ISSUED', kind, issuedAt, ttl: 0, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null, adoptedFromLegacy: true });
+    added++;
+  }
+  if (added) { keySave(); console.log(`[server] KEY-MGMT: 레거시 키 ${added}건 입양 (ws-keys.json → keyStore, state=ISSUED ttl=0 adoptedFromLegacy) — canonical KeyList/KeyRevoke 로 관리 가능해졌어요`); }
+  return added;
+}
 function keySave() {   // §6 atomic write + fsync
   keyStore.updatedAt = Date.now();
   try { const tmp = KEY_JSON + '.tmp'; const fd = fs.openSync(tmp, 'w'); fs.writeSync(fd, JSON.stringify(keyStore)); fs.fsyncSync(fd); fs.closeSync(fd); fs.renameSync(tmp, KEY_JSON); } catch {}
@@ -531,7 +559,7 @@ function wsKeyList(conn, msg, v) {   // §3.2 전체 키 enumerate (상태 + con
     if (state === 'DELETED' && !incDeleted) continue;
     if (state === 'REVOKED' && !incRevoked) continue;
     const isLocal = (k.kind || 'upstream') === 'local';
-    keys.push({ key: isLocal ? null : k.key, label: k.label, kind: k.kind || 'upstream', roleDescription: k.roleDescription || null, lastAgent: k.lastAgent || null, lastSeenAt: k.lastSeenAt || null, connectionStatus: keyConnStatus(k), ttl: k.ttl, issuedAt: k.issuedAt, state });   // v2.4.1 local 키는 wire 응답에 키 자체 미포함, roleDescription 포함
+    keys.push({ key: isLocal ? null : k.key, label: k.label, kind: k.kind || 'upstream', roleDescription: k.roleDescription || null, lastAgent: k.lastAgent || null, lastSeenAt: k.lastSeenAt || null, connectionStatus: keyConnStatus(k), ttl: k.ttl, issuedAt: k.issuedAt, state, adoptedFromLegacy: !!k.adoptedFromLegacy });   // v2.4.1 local 키는 wire 응답에 키 자체 미포함, roleDescription 포함 · v2.4.87 adoptedFromLegacy 출처 표기(입양 키는 발급 이력이 레거시 파일뿐)
   }
   wsKeyReply(conn, 'KeyListResult', { keys }, msg);
 }
@@ -704,13 +732,31 @@ function wsHandoffReady() { if (_pendingMain) { if (_pendingTimer) clearTimeout(
 function wsHandleOrch(conn, msg) {
   if (!msg || msg.type !== 'CUSTOM') return false;
   const n = msg.name, v = msg.value || {};
-  if (n === 'RegisterUpstreamKey') { const key = wsIssueKey(v.label); const joinUrl = wsJoinUrl('upstream', key); conn.send(wscore.event('CUSTOM', { name: 'UpstreamKeyIssued', value: { key, label: v.label || 'upstream', joinUrl, joinUrls: wsJoinUrls((h) => wsJoinUrl('upstream', key, h)), bind: WS_BIND, exposed: !_isLoopback } })); return true; }   // v2.3.23 transitional alias — KeyIssue 가 canonical, RegisterUpstreamKey 는 §3.1 retirement schedule 따라 zero-traffic gate 후 제거
+  // === 키 관리 / main 이양 authz 게이트 (v2.4.87, §13.25.9) ===
+  // 어댑터 리포트(C9b)는 "deprecated 별칭이 게이트 위에 있어 아무 agent 나 폐기 가능"을 지적했다. 실측 검증에서
+  // 더 넓은 구멍이 드러났다: 게이트가 `conn.meta.role === 'agent'` 로 판정하는데 그 값은 **HELLO 를 보낸 연결에만**
+  // 세팅된다 → HELLO 를 아예 안 보내는 연결은 board(운영자)로 취급돼 canonical 게이트조차 통과했다. 노출된 보드에서는
+  // 도달 가능한 누구나 무-HELLO 연결로 키 발급/폐기·SetMain 이 가능했던 것(requireKey 도 HELLO 시점 검사라 무효).
+  // 판정을 "무엇을 안 보냈나"가 아니라 "어느 표면의 신뢰된 운영자인가"로 바꾼다.
+  const KEY_VERBS = ['RegisterUpstreamKey', 'RegisterCollabKey', 'RevokeCollabKey', 'RevokeUpstreamKey', 'KeyIssue', 'KeyList', 'KeyRevoke', 'KeyLabel', 'SetMain'];
+  if (KEY_VERBS.includes(n) && !wsOperatorAuthz(conn)) {
+    const why = conn.meta.role === 'agent' ? 'only main may manage keys' : 'operator surface not permitted from this address (Constellation §13.25 ui allowlist)';
+    keyError(conn, msg, 'PERMISSION_DENIED', why);
+    console.warn('[ws authz] %s 거부 — role=%s ip=%s', n, conn.meta.role === 'agent' ? wsAgentRole(conn) : 'board', conn.meta.ip || '?');
+    return true;
+  }
+  if (n === 'RegisterUpstreamKey') {   // v2.3.23 transitional alias — KeyIssue 가 canonical, §3.1 retirement schedule 따라 zero-traffic gate 후 제거
+    const key = wsIssueKey(v.label); const ulabel = v.label || 'upstream'; const joinUrl = wsJoinUrl('upstream', key);
+    // v2.4.87 (C9a): 바로 아래 RegisterCollabKey 는 keyStore 에 등록하는데 이쪽만 누락돼 있었다 — 레거시 파일에만
+    // 사는 키는 keyFind() 가 못 봐서 canonical KeyList/KeyRevoke/KeyLabel 에 안 보이고, 폐기하려면 authz 없는
+    // deprecated 경로밖에 없었다(= C9b 와 맞물려 서로를 필요악으로 만든 짝). 발급 시점에 등록해 짝을 끊는다.
+    keyStore.keys.push({ key, label: ulabel, state: 'ISSUED', kind: 'upstream', issuedAt: Date.now(), ttl: KEY_TTL_DEFAULT, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null }); keySave();
+    conn.send(wscore.event('CUSTOM', { name: 'UpstreamKeyIssued', value: { key, label: ulabel, joinUrl, joinUrls: wsJoinUrls((h) => wsJoinUrl('upstream', key, h)), bind: WS_BIND, exposed: !_isLoopback } })); return true;
+  }
   if (n === 'RegisterCollabKey') { const key = wsIssueKey(v.label, 'collab'); const clabel = v.label || 'collab'; const joinUrl = wsJoinUrl('collab', key); keyStore.keys.push({ key, label: clabel, state: 'ISSUED', kind: 'collab', issuedAt: Date.now(), ttl: KEY_TTL_DEFAULT, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null }); keySave(); conn.send(wscore.event('CUSTOM', { name: 'CollabKeyIssued', value: { key, label: clabel, joinUrl, joinUrls: wsJoinUrls((h) => wsJoinUrl('collab', key, h)), bind: WS_BIND, exposed: !_isLoopback } })); return true; }   // #168 외부협업 키+접속 URL (v2.4.0 KEY-MGMT 통합: keyStore 등록 kind=collab)
-  if (n === 'RevokeCollabKey' || n === 'RevokeUpstreamKey') { wsRevokeKey(v.key); return true; }
+  if (n === 'RevokeCollabKey' || n === 'RevokeUpstreamKey') { wsRevokeKey(v.key); const _k = keyFind(v.key); if (_k) { keyTransition(_k, 'REVOKED'); } return true; }   // v2.4.87: 레거시 경로도 keyStore 상태를 함께 내린다 (두 스토어 분기 방지)
   // === KEY-MGMT (v2.4.0 — WS-PROTOCOL-KEY-MGMT.md v0.2) ===
   if (n === 'KeyIssue' || n === 'KeyList' || n === 'KeyRevoke' || n === 'KeyLabel') {
-    const isAgent = conn.meta.role === 'agent';
-    if (isAgent && wsAgentRole(conn) !== 'main') { keyError(conn, msg, 'PERMISSION_DENIED', 'only main may manage keys'); return true; }
     if (n === 'KeyIssue') wsKeyIssue(conn, msg, v);
     else if (n === 'KeyList') wsKeyList(conn, msg, v);
     else if (n === 'KeyRevoke') wsKeyRevoke(conn, msg, v);
@@ -1150,6 +1196,7 @@ server.on('upgrade', (req, socket) => {
     } }
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
+  conn.meta.ip = normIp(req.socket.remoteAddress);   // v2.4.87 — 운영자 authz(§13.25.9) 가 주소를 봐야 하므로 upgrade 시 보관
   try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
@@ -1302,11 +1349,18 @@ server.on('upgrade', (req, socket) => {
 // 할 수 있는 trusted-operator 전제라, 네트워크 노출은 명시 opt-in 이어야 함 (secure-by-default).
 // LAN/원격 노출이 필요하면 WS_BIND=0.0.0.0 (또는 특정 인터페이스 IP) 를 명시 주입 + 그땐 token 게이트 권장.
 // (WS_BIND/_isLoopback 정의는 상단 config 블록으로 이동 — #5a access-gating 이 모듈 로드시 노출 판정을 사용.)
+keyAdoptLegacy();   // v2.4.87 — 기동 시 레거시-only 키를 keyStore 로 입양 (멱등: 이미 있으면 무동작)
 server.listen(PORT, WS_BIND, () => {
   console.log(`Constellation live dashboard → http://localhost:${PORT}/  (state: ${STATE})  [WS: /ws]  [bind: ${WS_BIND}]`);
   console.log(`[server] WS_PRIMARY_ID=${WS_PRIMARY_ID}  (메인 role 로 분류될 agentId — WS_PRIMARY_AGENT env 로 주입)`);
-  if (!_isLoopback) {   // v2.4.11 — 비-loopback 바인드는 무인증 board 표면(키관리·SetMain)을 네트워크에 노출. 운영자 인지 필수.
-    console.warn(`[server] ⚠⚠ WS_BIND=${WS_BIND} (비-loopback) — board 연결은 무인증이라 같은 네트워크의 누구나 키 발급/조회/SetMain 이 가능합니다. 신뢰 네트워크에서만 사용하거나 reverse-proxy + 인증을 앞단에 두세요. (기본값은 127.0.0.1 — 노출은 의도적 opt-in.)`);
+  if (!_isLoopback) {   // v2.4.11 — 비-loopback 바인드는 board 표면(키관리·SetMain)을 네트워크에 노출. 운영자 인지 필수.
+    // v2.4.87 §13.25.9 — board 연결의 키관리/SetMain 은 이제 ui allowlist 로 게이트된다. 단 allowlist 미설정(=전체 허용)이면
+    // 종전과 동일하게 열린 상태이므로, 그 조합만 별도로 경고한다 (fail-open 유지 + 닫는 방법 명시).
+    if (Array.isArray(accessCfg.ui.allowlist) && accessCfg.ui.allowlist.length) {
+      console.log(`[server] §13.25.9 운영자 authz — board 연결의 키관리·SetMain 은 ui allowlist(${accessCfg.ui.allowlist.length} 항목) + loopback 만 허용됩니다.`);
+    } else {
+      console.warn(`[server] ⚠⚠ WS_BIND=${WS_BIND} (비-loopback) + ui allowlist 미설정 — 도달 가능한 누구나 board 연결로 키 발급/조회/폐기·SetMain 이 가능합니다. access.json 의 ui.allowlist 에 운영자 IP/대역을 넣으면 §13.25.9 게이트가 닫힙니다. (기본값은 127.0.0.1 — 노출은 의도적 opt-in.)`);
+    }
     const _f = (al) => Array.isArray(al) ? al.length + ' IPs' : 'all';   // #5a-3 노출 시 표면별 접근 정책 1줄 표시
     console.log(`[server] #5a access — ui:${_f(accessCfg.ui.allowlist)} · agent:${_f(accessCfg.agent.allowlist)}(requireKey:${accessCfg.agent.requireKey}) · mcp:${_f(accessCfg.mcp.allowlist)}  (access.json — 비우면 전체 허용)`);
   }

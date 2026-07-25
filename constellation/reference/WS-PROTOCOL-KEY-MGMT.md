@@ -152,6 +152,15 @@ Field mapping: `RegisterUpstreamKey{alias, label}` → `KeyIssue{label, ttl, sco
 
 `joinUrls` ordering is **declared public host → loopback → LAN IPv4 → global IPv6** (link-local excluded), capped at 12 entries. It is purely additive: consumers that read only `joinUrl` are unaffected. `kind: 'local'` is unchanged — wire-private, no URL (§3.6).
 
+**Authorization (v2.4.87, Constellation §13.25.9)** — every message in this protocol, plus the transitional `Register*` / `Revoke*` aliases and `SetMain`, is an **operator** verb:
+
+- agent-surface connection (`HELLO` seen) → permitted only when the resolved role is `main`; `local` / `upstream` / `peer` / `collab` get `PERMISSION_DENIED`, through the aliases as well as the canonical verbs.
+- board-surface connection (no `HELLO`) → permitted from loopback, or from an address that passes the `ui` allowlist. An exposed board with no `ui` allowlist keeps the prior open behavior and says so in the boot log.
+
+Prior to v2.4.87 the gate keyed off `conn.meta.role === 'agent'`, which is set only in the `HELLO` branch — so a connection that never sent `HELLO` was treated as an operator, and `agent.requireKey` (also `HELLO`-time) did not apply. Adopter-reported; the alias ordering was the visible half.
+
+**`adoptedFromLegacy` (v2.4.87)** — `KeyList` rows carry this boolean. `true` means the key was found in the legacy registry at boot and adopted into `keyStore` so it could be managed at all; there is no issuance record behind it. Adoption never revokes — surfacing a live credential for operator judgment beats silently invalidating a working one.
+
 **Errors** (server → main, `name: "KeyError"`, `value: { code, message, re_msgId }`):
 - `LIMIT_EXCEEDED` — too many active keys (default cap 32, configurable via env `WS_KEY_MAX_ACTIVE`)
 - `INVALID_LABEL` — empty / >64 chars / control chars

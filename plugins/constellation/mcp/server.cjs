@@ -25,9 +25,17 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-// ----- Optional ws dependency (lazy require) -----
+// ----- Optional ws dependency (re-required on demand — see loadWs) -----
+// v0.3.32 (adopter-reported C8): a single module-load require whose failure is swallowed made a
+// missing-at-boot `ws` permanently missing for the whole session — measured: `npm install ws`
+// completed 41s BEFORE the session spawned and the process still reported it absent until /mcp
+// re-spawn. The old comment claimed lazy loading that the code never did. Retry at each use.
 let WebSocket = null;
-try { WebSocket = require('ws'); } catch (_) { /* loaded lazily; first connect attempt will fail-loud */ }
+function loadWs() {
+  if (!WebSocket) { try { WebSocket = require('ws'); } catch (_) { /* still absent — caller reports */ } }
+  return WebSocket;
+}
+loadWs();
 
 // ----- Config from env -----
 function getBoardEndpoint() {
@@ -50,6 +58,35 @@ function getAgentIdentity() {
 
 function getStatePath() {
   return process.env.CONSTELLATION_STATE_PATH || null;
+}
+// v0.3.32 (adopter-reported C11): a peer-main is BY DEFINITION attached to someone else's board, which
+// is normally on another host — so a local-file-only state read was permanently unusable in the very
+// configuration the peer path exists for. The board already serves the same document over HTTP at
+// /api/state on the same origin, so derive it from the WS endpoint instead of demanding a mount.
+function getStateHttpUrl() {
+  let base;
+  try { base = getBoardEndpoint(); } catch (_) { return null; }
+  const m = String(base).match(/^(wss?):\/\/([^/?#]+)/i);
+  if (!m) return null;
+  return (m[1].toLowerCase() === 'wss' ? 'https' : 'http') + '://' + m[2] + '/api/state';
+}
+function fetchStateOverHttp(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    let mod;
+    try { mod = require(url.startsWith('https:') ? 'https' : 'http'); } catch (e) { return reject(e); }
+    const req = mod.get(url, (res) => {
+      if (res.statusCode !== 200) { res.resume(); return reject(new Error('HTTP ' + res.statusCode)); }
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (d) => { body += d; });
+      res.on('end', () => {
+        try { JSON.parse(body); } catch (e) { return reject(new Error('non-JSON body: ' + e.message)); }
+        resolve(body);
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(timeoutMs || 5000, () => { req.destroy(new Error('timeout after ' + (timeoutMs || 5000) + 'ms')); });
+  });
 }
 
 // ----- §13.16.9 v2.5.2 A2A-intent meaningful filter -----
@@ -103,7 +140,7 @@ function makeMsgId() {
 
 async function connectWS() {
   if (wsState.ready) return wsState.socket;
-  if (!WebSocket) throw new Error('ws npm package not installed — run `npm install ws` in plugin dir');
+  if (!loadWs()) throw new Error('ws npm package not installed — run `npm install ws` in plugin dir');
   const baseUrl = getBoardEndpoint();
   const auth = getAuth();
   const agentId = getAgentIdentity();
@@ -223,7 +260,7 @@ async function connectWS() {
 // ----- Tools -----
 
 const TOOLS = [
-  { name: 'board_state_get', description: 'Constellation board state.json (modes, channels, tracks, decisions, keys). Read-only.', inputSchema: { type: 'object', properties: {}, required: [] } },
+  { name: 'board_state_get', description: 'Constellation board state (modes, projects, current/done/planned tracks, decisions). Read-only. Resolves in order: CONSTELLATION_STATE_PATH if set and present → HTTP GET /api/state on the origin derived from CONSTELLATION_WS_URL (works for remote boards, e.g. a peer-main attachment) → isError. A failed read is returned as isError, never as prose in a success body.', inputSchema: { type: 'object', properties: {}, required: [] } },
   { name: 'board_history_tail', description: 'Per-channel A2A history from cursor forward. Read-only.', inputSchema: { type: 'object', properties: { channelId: { type: 'string' }, sinceCursor: { type: 'integer' }, meaningfulOnly: { type: 'boolean', default: true } }, required: ['channelId', 'sinceCursor'] } },
   { name: 'agent_list_get', description: 'Current AgentList (§13.9 handshake group). Read-only.', inputSchema: { type: 'object', properties: {}, required: [] } },
   { name: 'a2a_emit', description: 'Emit targeted CUSTOM/{name} envelope to targetAgentId. §13.11 rule 5 attachment-aware. Returns server-stamped msgId.', inputSchema: { type: 'object', properties: { targetAgentId: { type: 'string' }, name: { type: 'string' }, value: { type: 'object' }, attachments: { type: 'array', items: { type: 'object' } } }, required: ['targetAgentId', 'name', 'value'] } },
@@ -235,13 +272,24 @@ async function ensureConnected() {
 }
 
 async function handleBoardStateGet() {
+  // Resolution order: explicit local path → HTTP /api/state on the board's own origin → error.
   const statePath = getStatePath();
   if (statePath && fs.existsSync(statePath)) {
     return { content: [{ type: 'text', text: fs.readFileSync(statePath, 'utf8') }] };
   }
-  await ensureConnected();
-  // Phase 2: synchronous read via local file; live WS-fetch could subscribe to state snapshot events
-  return { content: [{ type: 'text', text: 'state.json not accessible — set CONSTELLATION_STATE_PATH or expose via server state-snapshot event' }], isError: false };
+  const httpUrl = getStateHttpUrl();
+  if (httpUrl) {
+    try {
+      const body = await fetchStateOverHttp(httpUrl, 5000);
+      return { content: [{ type: 'text', text: body }] };
+    } catch (e) {
+      // isError:true is load-bearing: the previous isError:false made a failed read look like a
+      // successful read whose CONTENT was an apology — a silent-failure class that is worst inside
+      // an autonomous loop, where nothing downstream can tell the two apart.
+      return { content: [{ type: 'text', text: `board state unavailable — local path unset/missing and GET ${httpUrl} failed: ${e.message}. If the board's HTTP surface is IP-allowlisted (Constellation §13.25), add this host or set CONSTELLATION_STATE_PATH.` }], isError: true };
+    }
+  }
+  return { content: [{ type: 'text', text: 'board state unavailable — set CONSTELLATION_STATE_PATH, or set CONSTELLATION_WS_URL so the HTTP /api/state origin can be derived from it' }], isError: true };
 }
 
 async function handleBoardHistoryTail({ channelId, sinceCursor, meaningfulOnly = true }) {
