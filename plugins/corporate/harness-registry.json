@@ -248,9 +248,14 @@
       "blocks": ["assigning any seat backed by a consumer Google subscription to gemini-cli rather than agy"]
     },
     {
-      "item": "subscription-vs-automation boundary",
-      "why": "Whether a given subscription credential may drive programmatic multi-seat execution is a terms question, not a technical one (§9.1). A roster MUST NOT be assembled on the assumption that any credential permits fan-out. Confirm per vendor and record the exact clause, not a summary.",
-      "blocks": ["roster sizing for any seat backed by a subscription rather than a metered key"]
+      "item": "subscription lane determination",
+      "why": "The prohibitions read from vendor terms are narrow and specific: credential sharing, offering consumer sign-in to third parties, and routing other parties' requests. They do not speak to how intensely a subscriber drives their own subscription through the vendor's own documented non-interactive mode — and every harness row above records such a mode as a published, maintained flag. §9.1 therefore requires the operator to DECLARE the lane and the fan-out ceiling rather than imposing a lane. Watch for terms revisions that would narrow the non-interactive surface itself, and record the clause verbatim if one appears.",
+      "blocks": []
+    },
+    {
+      "item": "local-endpoint capability parity",
+      "why": "A local OpenAI-compatible endpoint removes the entitlement question and the per-wake cost, which makes it the natural host for resident T4 seats — but capability is the trade. Confirm tool-calling, structured-output and context behaviour per serving stack and per model before a local seat is given work whose failure is not obvious.",
+      "blocks": ["assigning a local-lane seat any duty whose silent failure would not be caught"]
     },
     {
       "item": "local-model tool-calling fitness",
