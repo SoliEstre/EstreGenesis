@@ -971,7 +971,10 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 events full + col
     else cold.push({ key: ck, count: a.length, lastTs: a[a.length - 1].timestamp || 0, role: wsChanRoleOf(ck) });   // v2.4.59 role 동봉 — 그룹 오분류 fix
   }
   events.sort((x, y) => (x.timestamp || 0) - (y.timestamp || 0));
-  return { events, cold, archived: wsArchivedList(), manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 동봉
+  // v2.4.89 (adopter observation C11b-부수): History 는 **활성 채널의 events + cold/archived 스텁**이라는 정책적 축약본인데,
+  // 축약되었다는 신호가 없어 "이 보드 History 는 A2A 를 담지 않는다"는 오진을 유발했다. 정책을 페이로드에 명시한다.
+  const scope = { policy: 'active-channels+stubs', activeEvents: events.length, coldChannels: cold.length, archivedChannels: wsArchivedList().length, note: 'cold/archived 채널 내용은 RequestChannelHistory 로 on-demand — 부재 ≠ 미기록' };
+  return { events, cold, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope 동봉
 }
 function wsLoadChannel(ck) {   // RequestChannelHistory 응답용 — 메모리(active) 우선, 없으면 archived(cold)에서 로드 + active 복귀
   let a = wsHistByChan.get(ck);
@@ -1227,13 +1230,25 @@ server.on('upgrade', (req, socket) => {
       // #5a-3 표면별 접근 판정 — HELLO 에서 agent/MCP 구분(capabilities mcp-proxy) 후 그 표면의 IP allowlist + (둘 다) requireKey 적용.
       { const _ip = conn.remoteAddr;
         const _surface = (Array.isArray(msg.capabilities) && msg.capabilities.includes('mcp-proxy')) ? 'mcp' : 'agent';
+        // v2.4.89 (adopter-reported C11b): 거부는 **말해주고** 끊는다. 종전엔 사유 없는 close 뿐이라, 같은 버스트에
+        // 파이프라인된 후속 프레임이 전송 계층에서 사라지고 클라이언트는 "SERVER_HELLO 받고 정상 종료 = 전송 성공"으로
+        // 오인했다 (어댑터가 리포트를 보냈다고 믿었는데 보드에 없던 실사례). ConnectionRejected 이벤트 + close code 4403.
+        const _reject = (code, reason, hint) => {
+          try { conn.send(wscore.event('CUSTOM', { name: 'ConnectionRejected', value: { reason, surface: _surface, ip: normIp(_ip), agentId: conn.meta.agentId, hint } })); } catch {}
+          setTimeout(() => { try { conn.close(4403, code); } catch {} }, 50);   // 이벤트가 flush 될 틈을 준 뒤 close
+        };
         if (!surfaceAllowed(_surface, _ip)) {
           console.warn('[ws HELLO] #5a-3 %s 거부 (IP allowlist 밖) ip=%s agent=%s', _surface, _ip || '?', conn.meta.agentId);
-          try { conn.close(); } catch {} return;
+          _reject('ip-not-allowlisted', `${_surface} surface: address not in allowlist`, 'Constellation §13.25 — access.json 의 ' + _surface + '.allowlist 에 이 주소를 추가하세요.');
+          return;
         }
         if (accessCfg.agent.requireKey && !_isLoopback && !isLoopbackIp(_ip)) {
           const _k = msg.key || msg.peerKey || msg.upstreamKey || msg.collabKey || conn.meta._urlKey;
-          if (!wsValidKey(_k)) { console.warn('[ws HELLO] #5a-3 무키/무효키 거부 ip=%s agent=%s', _ip || '?', conn.meta.agentId); try { conn.close(); } catch {} return; }
+          if (!wsValidKey(_k)) {
+            console.warn('[ws HELLO] #5a-3 무키/무효키 거부 ip=%s agent=%s', _ip || '?', conn.meta.agentId);
+            _reject('key-required', 'agent surface requires a valid key (agent.requireKey=true)', 'Constellation §13.25.3 — 유효한 키를 ?key=/?peerKey=/?upstreamKey= 또는 HELLO 에 실어 주세요. 이 연결로 보낸 후속 메시지는 relay 되지 않아요.');
+            return;
+          }
         }
       }
       console.log('[ws HELLO]%s agent=%s ip=%s ua=%s upstreamKey=%s → role=%s', _hadId ? '' : ' [ANON]', conn.meta.agentId, conn.remoteAddr || '?', (conn.ua || '').slice(0, 50) || '-', msg.upstreamKey ? String(msg.upstreamKey).slice(0, 14) + '…' : '(none)', wsAgentRole(conn));   // role 전환 audit + 출처(ip/ua)
@@ -1244,6 +1259,16 @@ server.on('upgrade', (req, socket) => {
       wsChanRoleNote(conn.meta.agentId, wsAgentRole(conn));   // v2.4.59 — 채널 role 영속 (끊긴 뒤에도 스텁이 그룹 유지)
       wsPushAgentList();
       if (conn.meta.upstreamKey) keyObserveHello(conn.meta.upstreamKey, conn.meta.agentId);   // v2.4.0 §3.2/§4 lastAgent·lastSeenAt + ISSUED→ACTIVE
+      // v2.4.89 (adopter proposal C11b-2): 등록 성공 시 **자기 권한을 알려준다**. 클라이언트가 "나는 지금 어떤 role 이고
+      // 무엇이 허용되는가"를 추측하지 않아도 되게 — 권한을 모르면 무효 발신을 성공으로 오인하는 경로가 다시 생긴다.
+      try {
+        const _role = wsAgentRole(conn);
+        conn.send(wscore.event('CUSTOM', { name: 'ConnectionInfo', value: {
+          agentId: conn.meta.agentId, role: _role, surface: (Array.isArray(msg.capabilities) && msg.capabilities.includes('mcp-proxy')) ? 'mcp' : 'agent',
+          mayManageKeys: _role === 'main', mayRelayTargeted: true, keyed: !!conn.meta.upstreamKey,
+          historyScope: 'active-channels+stubs',
+        } }));
+      } catch {}
       return;
     }
     if (conn.meta.role === 'agent') {                           // 에이전트 outbound

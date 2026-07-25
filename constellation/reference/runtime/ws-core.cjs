@@ -112,9 +112,17 @@ class WSConn {
     if (!this.alive) return false;
     try { this.socket.write(encodeFrame(payload, opcode)); return true; } catch { return false; }
   }
-  close() {
+  // v2.4.89 — close 에 code/reason 을 실을 수 있게 (RFC6455 close payload = 2바이트 코드 + UTF-8 사유).
+  // 무인자 호출은 종전과 동일한 빈 close. 인증 거부처럼 "왜 끊겼는지"가 진단의 전부인 경로에서, 사유 없는
+  // close 는 클라이언트에게 정상 종료와 구분되지 않는다 (어댑터 실측: 거부 사실을 모른 채 발신 성공으로 오인).
+  close(code, reason) {
     if (!this.alive) return;
-    try { this.socket.write(encodeFrame(Buffer.alloc(0), 0x8)); this.socket.end(); } catch {}
+    let payload = Buffer.alloc(0);
+    if (Number.isInteger(code) && code >= 1000 && code <= 4999) {
+      const r = Buffer.from(String(reason || '').slice(0, 120), 'utf8');
+      payload = Buffer.concat([Buffer.from([(code >> 8) & 0xff, code & 0xff]), r]);
+    }
+    try { this.socket.write(encodeFrame(payload, 0x8)); this.socket.end(); } catch {}
     this._dead();
   }
 }
