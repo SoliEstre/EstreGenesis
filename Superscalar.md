@@ -1,4 +1,4 @@
-<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-07, Entry 07 = resume-cache incident n=1) + resume-cache discipline (v0.4.3 §3.2 — journal-backed re-issue, determinism + idempotent-artifact preconditions) + (§11 Entry 01-06 with Entry 05 n=7→n=8 absorption sync to bundle 005) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1) + Hyperbrief decision-delegation interlock (v0.4.1 §3.1 — orthogonal gate, serial evaluation: write/deploy/send lanes pass through cost-benefit gate AND hyperbrief-trigger-check, read-only exempt) + topology pattern catalog (v0.5.0 §1.5 — divergence/reconvergence shape vocabulary + 4 named patterns Pipeline/Fan-out·Fan-in/Expert-Pool/Producer-Reviewer, netwaif/multi-agent-starter MIT attribution); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-07-25; version: v0.8.0; depends-on: none (optional synergy: Constellation §13.16.9 A2A intents, Hyperbrief §2 trigger rubric — both orthogonal); license: Apache-2.0 -->
+<!-- module: Superscalar; layer: execution-scheduling; part-of: EstreGenesis 2.5.0 (seed-integrated); status: Stage 1 dogfood baseline (§11 Entry 01-07, Entry 07 = resume-cache incident n=1) + resume-cache discipline (v0.4.3 §3.2 — journal-backed re-issue, determinism + idempotent-artifact preconditions) + (§11 Entry 01-06 with Entry 05 n=7→n=8 absorption sync to bundle 005) + autonomy-aware (v2.2.4 telemetry-integrated) + lane-class-aware (v0.3 read/write cap split) + nested-repo worktree limitation documented (v0.4 §3) + discipline-vs-parallelism meta-note (v0.4 §1) + Hyperbrief decision-delegation interlock (v0.4.1 §3.1 — orthogonal gate, serial evaluation: write/deploy/send lanes pass through cost-benefit gate AND hyperbrief-trigger-check, read-only exempt) + topology pattern catalog (v0.5.0 §1.5 — divergence/reconvergence shape vocabulary + 4 named patterns Pipeline/Fan-out·Fan-in/Expert-Pool/Producer-Reviewer, netwaif/multi-agent-starter MIT attribution); seed-integration: v2.3.0 (2026-05-29) — Master #13 / Lite #10 / Compact #15; date: 2026-07-25; version: v0.9.0; depends-on: none (optional synergy: Constellation §13.16.9 A2A intents, Hyperbrief §2 trigger rubric — both orthogonal); license: Apache-2.0 -->
 
 # Superscalar — Aggressive Sub-Agent Execution Scheduling (design draft v0.3)
 
@@ -263,16 +263,46 @@ Dispatch discipline (§2) decides *what* fans out; **subscaler decides which mod
 - **Retain on the main model**: architecture decisions · ambiguous-requirement interpretation · cross-cutting design · complex debugging · final review · deep shared-context coding.
 - Every delegated lane carries **explicit acceptance criteria and a test gate** written by the orchestrator — the spec-completeness moderator made procedural. The §2 cost-benefit gate still runs first (is spawning worth it at all?); subscaler only chooses the tier of lanes that pass it.
 
-**Model pair mapping** (adjust as ladders move; the *shape* is the contract — main = frontier reasoner, sub = strongest execution tier, effort raised):
+#### 5.1.1 Four tiers, not two models (v0.9.0)
 
-| Family | Main (orchestrator) | Sub (executor) | Effort default |
-|---|---|---|---|
-| Claude | Fable-class | Opus-class | `high` (raise to `xhigh` selectively — effort→quality is non-monotonic and task-set-dependent, so blanket-max is not evidence-backed) |
-| GPT | Sol-class | Terra-class | `high` (same caveat) |
+Earlier versions named a two-row pair table (frontier main → execution sub) per vendor family. That shape was right and too coarse: a fan-out has more than two kinds of lane, the cheap end of a ladder is where most tokens actually go, and naming *models* in a spec guarantees the spec rots on the vendor's release cadence rather than on its own. So the **durable artifact is the tier vocabulary**, and which concrete models occupy each tier lives in a dated, replaceable data file — `plugins/superscalar/model-registry.json` (§5.1.3).
 
-Executor selection weighs **edit-format compliance** as an independent axis — it is a published, model-differentiating metric, and a split pair lives or dies on the editor emitting well-formed edits.
+| Tier | What it is | Select when |
+|---|---|---|
+| **T1 · Frontier Reasoning** | The vendor's deepest-reasoning flagship: highest price per token, thinking on by default and often not disableable, widest effort ladder (it owns the top rung the cheaper tiers lack). | The cost of a *wrong* answer exceeds the cost of the tokens — irreversible actions, ambiguous or under-specified input, architecture later work is built on, adversarial review of another model's output. Never for volume. |
+| **T2 · Agentic Execution** | The workhorse: near-frontier coding at roughly a third to a half of T1 per token, tuned for tool loops and multi-file edits, full effort ladder, large window. | The decision is already made and the spec is written — "do the thing correctly" rather than "decide what the thing is". This is where most tokens should go; escalation to T1 should be an exception you can name a reason for. |
+| **T3 · Bulk Worker** | Cheap-but-competent models the vendors themselves market for subagents: real edits and real tool use, but a smaller window or shallower reasoning ceiling than T2. | Wide parallel lanes whose unit of work is small, independently verifiable, and cheap to redo — read-heavy scans, per-file mechanical edits, test scaffolding. The economics say buy **width** here, not depth. |
+| **T4 · Resident Observer** | The cheapest always-on tier: lowest latency floor, thinking minimal or absent — some members have no effort parameter at all. | Anything that must run continuously and mostly report "nothing to do": inbox/board polling, event classification, triage routing. Budget it monthly, not per task. Its job is to decide **whether to wake a higher tier**, never to author code or make an expensive-to-reverse call. |
 
-**Application surfaces** (exact mechanisms verified per harness): Claude Code — the Agent tool's per-invocation `model` parameter and Workflow `opts.model`/`opts.effort` (the global `CLAUDE_CODE_SUBAGENT_MODEL` env pin is discouraged: it overrides even per-invocation choices, and excluded values fall back *silently* to the inherited model, so observe actual application rather than assuming it). Codex CLI — per-agent TOML under `.codex/agents/` with `model=` and `model_reasoning_effort=`. Kimi Code — the Agent tool's per-invocation `model` parameter (no agent-file field documented). Procedure lives in the **`/subscaler` skill**.
+Selection also weighs **edit-format compliance** as an independent axis from raw capability — a split pair lives or dies on the editor emitting well-formed edits, and that is a published, model-differentiating metric.
+
+#### 5.1.2 Routing by task shape
+
+The tier is a property of **the lane's work shape**, not of the project or the operator's mood. The registry ships the full table with a stated reason per row; the shape of it:
+
+| Lane shape | Tier | Effort |
+|---|---|---|
+| Architecture / design decisions · ambiguous-requirement interpretation | T1 | default (`high`-class); step up only where evals show headroom |
+| Spec-complete implementation | T2 | default, dropping a rung once evals hold |
+| Mechanical multi-file edit / migration | T2, or T3 where each file is independently verifiable | low–medium |
+| Test authoring | T2 | medium; raise when tests must infer intent rather than mirror a spec |
+| Read-only exploration / search | T3 | low |
+| Summarization / extraction | T3, or T4 where the output schema is fixed | low, or none/minimal where the vendor offers it |
+| Long-context review | T2 on a large-window model | medium — the binding constraint is window and price, not reasoning depth |
+| Resident board / inbox observation | T4 | minimal/none; low only when the watcher must classify intent rather than match a pattern |
+| Adversarial verification / red-team | T1, deliberately from a **different family** than the author | raised |
+
+#### 5.1.3 The registry, and why the volatile part is a data file
+
+`plugins/superscalar/model-registry.json` carries `asOf`, the tier definitions, one row per confirmed model (`apiModelId`, tier, context, price, the vendor's **exact** effort values, and a `confirmedBy` source URL), the routing table, evidence-anchored effort guidance, per-plan availability, per-harness lane-binding keys, and `caveats` for everything that stayed unverified. Three rules make it worth trusting:
+
+1. **A row requires a source.** Any model whose id could not be confirmed verbatim against a vendor page belongs in `caveats`, not in `models`. A plausible-looking model id is worse than a gap, because it will be pasted into a config.
+2. **Effort values are per model and per vendor, never global.** The level names are not comparable across models — vendors say so explicitly — so a harness that stores one global effort number and applies it to whatever model is active is storing a meaningless number. Bind effort *with* the model.
+3. **The file states its own expiry.** `revisit.date` + a watchlist of announced-but-unshipped changes (price reversions, retirement dates, models in preview) makes re-research **scheduled rather than reactive** — the point being to avoid both stale data and constant re-surveying. A verify axis reads the date: past it, the run reports a reminder; past a 45-day grace, it fails. That is the §0-axis-3 eviction discipline applied to the module's own data.
+
+**Effort discipline** (the registry carries the full evidence-anchored list; the load-bearing three): default first and escalate only on an *observed* failure mode, not on a task's importance — vendors document the top rung as prone to overthinking with diminishing returns, so blanket-max is a documented anti-pattern rather than merely expensive. **Step down the ladder before stepping across tiers**: a generation bump usually means the cheap rung of the new model beats the expensive rung of the old one. And effort is a **caching** decision as much as a quality one — changing it mid-conversation invalidates the prompt cache, so vary effort *across* workloads, not within a cache-dependent session.
+
+**Application surfaces**: per-harness lane-binding keys (Claude Code / Codex CLI / Cursor / Gemini CLI / Kimi Code / router layers) live in the registry's `harnessBinding`, because they change on the harness's cadence too. Two invariants that are spec-level rather than data-level: (a) prefer **per-invocation binding** over any global env pin — a pin can override even explicit per-lane choices and an excluded value can fall back to the inherited model *silently*, so observe actual application rather than assuming it; (b) a delegated subagent starts **cache-cold** on its own model, which is why fan-out (where the shared cache is already forfeited) is the natural application point and a cache-hot single-file edit is not. Procedure lives in the **`/subscaler` skill**.
 
 **Boundary:** Constellation §13.27.4 (loop-contract tier routing) governs *resident unattended loops*; subscaler governs *in-session delegation by a conversing orchestrator*. Cross-linked, deliberately separate jurisdictions.
 
