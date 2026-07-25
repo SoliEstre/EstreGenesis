@@ -805,6 +805,8 @@ function wsRecord(msg) {
   if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
   if (msg.type === 'CUSTOM' && msg.name === 'OpsState') wsOpsStateNote(msg.agentId, msg.value);   // v2.4.71 상태 스트립 선언 캡처
   if (msg.type === 'CUSTOM' && msg.name === 'CapabilityManifest') wsCapManifestNote(msg.agentId, msg.value);   // v2.4.76 계약-표면 능력 선언 캡처
+  if (msg.type === 'CUSTOM' && msg.name === 'CorporateChart') wsCorpChartNote(msg.agentId, msg.value);   // v2.4.90 §13.33 조직 구조 선언 캡처 (권한 게이트는 inbound 경계에서 — wsCorpDeclAuthz)
+  if (msg.type === 'CUSTOM' && msg.name === 'RoleState') wsRoleStateNote(msg.agentId, msg.value);   // v2.4.90 §13.33 좌석별 생사 선언 캡처
   if (msg.type === 'CUSTOM' && msg.name === 'SelectionPrompt') wsSelPendNote(msg);   // v2.4.74 선택지 타임아웃 추적
   if (msg.type === 'CUSTOM' && (msg.name === 'SelectionAnswer' || msg.name === 'SelectionCancel') && msg.value) wsSelPendClear(msg.value.promptId);   // v2.4.74 응답/취소 = pending 해제
   const ck = wsMsgChan(msg), buf = wsBufFor(ck), t = msg.type;
@@ -901,6 +903,193 @@ function wsCapManifestNote(agentId, v) {
   if (_capManT) return;
   _capManT = setTimeout(() => { _capManT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(CAPMANIFESTS, JSON.stringify(Object.fromEntries(wsCapManifests), null, 1)); } catch {} }, 1000);
 }
+// v2.4.90 §13.33 — 조직 투영 선언 2종 영속: CorporateChart(구조) + RoleState(좌석별 생사).
+// CommandManifest/OpsState/CapabilityManifest 와 **같은 선언 클래스**이고 배관도 그대로예요 — 변경-트리거
+// (주기 스냅샷 아님)·latest-wins·서버 persist·History 동봉·사람에겐 소음(Web Push·워커 pending 분류기 제외).
+// 새 패턴은 하나도 안 만들어요. 보드가 조직을 렌더하려면 조직이 **선언으로 도달**해야 하거든요 (Corporate 의
+// roster 는 로컬·gitignore 이고, 보드는 peer 가 호스팅할 수도 있어서 파일로 읽을 수가 없어요).
+// 서버 측 규율 3가지:
+//   ① 차트는 projection — desk 내용·크레덴셜·프로젝트 밖 경로를 담지 않고 deskRef 는 불투명 라벨이에요.
+//   ② 선언된 필드만 싣어요 (§13.33.3-2). 빈 값은 키 자체를 만들지 않아 렌더가 "부재"로 보게 해요.
+//   ③ 없는 좌석 상태를 서버가 만들어내지 않아요 (§13.33.3-1 부재 ≠ 유휴). 차트에만 있고 RoleState 가 없는
+//      좌석은 정상 transient(선언은 됐고 아직 안 채워진 조직)이며 오류가 아니에요 (§13.33.4).
+// tier/model/effort 는 이미 resolved 된 값이 오는 것이고, 서버는 토글 체인을 해석하지 않아요 (§13.33.3-4).
+const CORPCHART = path.join(HISTDIR, '.corporate-chart.json');    // 단일 객체 (latest-wins)
+const ROLESTATES = path.join(HISTDIR, '.role-states.json');       // role → state 맵 (role 별 latest-wins)
+const CORP_MAX = { roles: 200, links: 400, hosts: 32, groups: 64, rooms: 64, owns: 64, participants: 64, str: 4000, bytes: 262144 };   // 보수적 캡 (기존 선언 이벤트의 개수·길이 캡 관행과 같은 수준)
+const CORP_STATUS = new Set(['idle', 'working', 'blocked', 'waiting-gate', 'offline']);   // 이 5개 외의 status 는 싣지 않아요 — 미정의 값을 idle 로 접는 게 §13.33.3-1 위반이에요
+let wsCorpChart = null;
+const wsRoleStates = new Map();
+try { const _cc = JSON.parse(fs.readFileSync(CORPCHART, 'utf8')); if (_cc && typeof _cc === 'object' && !Array.isArray(_cc)) wsCorpChart = _cc; } catch {}
+try { const _rs = JSON.parse(fs.readFileSync(ROLESTATES, 'utf8')); for (const k of Object.keys(_rs)) wsRoleStates.set(k, _rs[k]); } catch {}
+let _corpChartT = null, _roleStT = null;
+function _corpS(x, n) { if (typeof x === 'number' && isFinite(x)) x = String(x); if (typeof x !== 'string') return ''; return x.slice(0, Math.min(n, CORP_MAX.str)).trim(); }
+function _corpN(x) { const n = Number(x); return (typeof x !== 'boolean' && x !== '' && x != null && isFinite(n) && n >= 0) ? n : null; }
+function _corpPut(o, k, v) { if (v !== '' && v != null) o[k] = v; }   // 선언된 필드만 — 빈 값이면 키를 안 만들어요
+function _corpObj(x, cap) { if (!x || typeof x !== 'object') return null; try { const s = JSON.stringify(x); if (s.length <= cap) return JSON.parse(s); } catch {} return null; }
+function _corpArr(x, cap) { return Array.isArray(x) ? x.slice(0, cap) : []; }
+// 룸 참여자 — §13.30.2 는 객체({agentId, role, voice, speakerClass}) 이고 문자열 축약도 실전에서 옵니다.
+// 문자열만 통과시키면 persist 후 객체형 참여자가 사라져요(라이브에선 보이고 재기동 뒤 없어지는 종류의 결함).
+function _corpParticipants(x) {
+  const out = [];
+  for (const p of _corpArr(x, CORP_MAX.participants)) {
+    if (typeof p === 'string' || typeof p === 'number') { const s = _corpS(p, 64); if (s) out.push({ agentId: s }); continue; }
+    if (!p || typeof p !== 'object') continue;
+    const id = _corpS(p.agentId || p.agent || p.id, 64); if (!id) continue;
+    const e = { agentId: id };
+    _corpPut(e, 'role', _corpS(p.role, 32));
+    _corpPut(e, 'speakerClass', _corpS(p.speakerClass, 32));
+    if (typeof p.voice === 'boolean') e.voice = p.voice;
+    out.push(e);
+  }
+  return out;
+}
+function _corpStrArr(x, cap, n) { return _corpArr(x, cap).map((e) => _corpS(e, n)).filter(Boolean); }
+function wsCorpChartSan(v) {   // 와이어 → 저장형 정규화 (누락 필드는 부재로, 초과분은 캡으로)
+  const o = {};
+  _corpPut(o, 'version', _corpS(v.version, 64));
+  if (v.org && typeof v.org === 'object') {
+    const g = {};
+    _corpPut(g, 'topology', _corpS(v.org.topology, 64));
+    _corpPut(g, 'drive', _corpS(v.org.drive, 64));
+    _corpPut(g, 'variability', _corpS(v.org.variability, 64));
+    const _sc = _corpN(v.org.seatCeiling); if (_sc != null) g.seatCeiling = _sc;
+    const _fc = _corpN(v.org.fanoutCeiling); if (_fc != null) g.fanoutCeiling = _fc;
+    if (Object.keys(g).length) o.org = g;
+  }
+  const hosts = [];
+  for (const h of _corpArr(v.hosts, CORP_MAX.hosts)) {
+    if (!h || typeof h !== 'object') continue;
+    const id = _corpS(h.host, 64); if (!id) continue;
+    const e = { host: id };
+    _corpPut(e, 'label', _corpS(h.label, 160));
+    _corpPut(e, 'address', _corpS(h.address, 200));
+    _corpPut(e, 'accelerator', _corpS(h.accelerator, 120));   // 능력 class — 인벤토리가 아니에요 (§13.33.2)
+    _corpPut(e, 'memory', _corpS(h.memory, 64));
+    hosts.push(e);
+  }
+  if (hosts.length) o.hosts = hosts;
+  const roles = [];
+  for (const r of _corpArr(v.roles, CORP_MAX.roles)) {
+    if (!r || typeof r !== 'object') continue;
+    const id = _corpS(r.role, 64); if (!id) continue;
+    const e = { role: id };
+    _corpPut(e, 'title', _corpS(r.title, 160));
+    _corpPut(e, 'tier', _corpS(r.tier, 64));            // resolved 값 그대로 (서버는 체인 해석 안 함)
+    _corpPut(e, 'residency', _corpS(r.residency, 32));
+    _corpPut(e, 'harness', _corpS(r.harness, 64));
+    _corpPut(e, 'agentId', _corpS(r.agentId, 120));    // 선택 — 이 좌석을 채우는 에이전트의 canonical id. 있으면 좌석↔채널 해석이 추측이 아니라 선언이 돼요.
+    _corpPut(e, 'host', _corpS(r.host, 64));
+    _corpPut(e, 'lane', _corpS(r.lane, 32));            // interactive | automation — 미정의 값도 원문 보존(렌더가 부재/원문으로 판단)
+    _corpPut(e, 'traceMode', _corpS(r.traceMode, 32));  // full-trace | result-only — 기본값 없음(§10.1)
+    const owns = _corpStrArr(r.owns, CORP_MAX.owns, 240); if (owns.length) e.owns = owns;
+    _corpPut(e, 'group', _corpS(r.group, 64));
+    _corpPut(e, 'reportsTo', _corpS(r.reportsTo, 64));
+    _corpPut(e, 'deskRef', _corpS(r.deskRef, 160));     // 불투명 라벨 — 파일시스템 경로 아님
+    if (r.budget != null) _corpPut(e, 'budget', (typeof r.budget === 'object') ? _corpObj(r.budget, 512) : (typeof r.budget === 'number' ? _corpN(r.budget) : _corpS(r.budget, 120)));
+    _corpPut(e, 'createdFor', _corpS(r.createdFor, 400));
+    roles.push(e);
+  }
+  if (!roles.length) return null;   // 좌석 0 = 조직이 아님 → 차트로 채택하지 않아요
+  o.roles = roles;
+  const links = [];
+  for (const l of _corpArr(v.links, CORP_MAX.links)) {
+    if (!l || typeof l !== 'object') continue;
+    const f = _corpS(l.from, 64), t = _corpS(l.to, 64); if (!f || !t) continue;
+    const e = { from: f, to: t };
+    _corpPut(e, 'reason', _corpS(l.reason, 400));
+    _corpPut(e, 'wiring', _corpS(l.wiring, 32));        // directed | discretionary — 조직도와 전달 규칙을 분리하는 축
+    links.push(e);
+  }
+  if (links.length) o.links = links;
+  const groups = [];
+  for (const g of _corpArr(v.groups, CORP_MAX.groups)) {
+    if (!g || typeof g !== 'object') continue;
+    const id = _corpS(g.group, 64); if (!id) continue;
+    const e = { group: id };
+    _corpPut(e, 'title', _corpS(g.title, 160));
+    const ov = _corpObj(g.overrides, 512); if (ov) e.overrides = ov;
+    groups.push(e);
+  }
+  if (groups.length) o.groups = groups;
+  const rooms = [];
+  for (const r of _corpArr(v.rooms, CORP_MAX.rooms)) {
+    if (!r || typeof r !== 'object') continue;
+    const id = _corpS(r.roomId, 64); if (!id) continue;
+    const e = { roomId: id };
+    _corpPut(e, 'topic', _corpS(r.topic, 200));
+    _corpPut(e, 'mode', _corpS(r.mode, 32));
+    const ps = _corpParticipants(r.participants); if (ps.length) e.participants = ps;
+    rooms.push(e);
+  }
+  if (rooms.length) o.rooms = rooms;
+  return o;
+}
+function wsCorpChartNote(agentId, v) {
+  if (!agentId || !v || typeof v !== 'object') return;
+  const o = wsCorpChartSan(v);
+  if (!o) { console.warn('[ws corp] CorporateChart from %s — roles[] 가 비어 채택 안 함 (좌석 없는 차트는 조직이 아님)', agentId); return; }
+  let s; try { s = JSON.stringify(o); } catch { return; }
+  if (s.length > CORP_MAX.bytes) { console.warn('[ws corp] CorporateChart from %s — %d bytes > cap %d, drop', agentId, s.length, CORP_MAX.bytes); return; }
+  o.declaredBy = String(agentId); o.updatedAt = Date.now();
+  wsCorpChart = o;
+  if (_corpChartT) return;
+  _corpChartT = setTimeout(() => { _corpChartT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(CORPCHART, JSON.stringify(wsCorpChart, null, 1)); } catch {} }, 1000);
+}
+function wsRoleStateNote(agentId, v) {
+  if (!agentId || !v || typeof v !== 'object') return;
+  const role = _corpS(v.role, 64);
+  if (!role) { console.warn('[ws corp] RoleState from %s — value.role 누락, drop', agentId); return; }
+  const o = { role };
+  const st = _corpS(v.status, 32);
+  if (st && CORP_STATUS.has(st)) o.status = st;
+  else if (st) console.warn('[ws corp] RoleState "%s" from %s — 미정의 status "%s" 는 싣지 않아요 (부재 ≠ 유휴)', role, agentId, st);
+  _corpPut(o, 'task', _corpS(v.task, 400));
+  _corpPut(o, 'taskRef', _corpS(v.taskRef, 120));   // §13.31 보드 항목 id — 차트와 작업 등록부는 참조로 일치시켜요(재기술 금지)
+  const _since = (typeof v.since === 'number') ? v.since : (typeof v.since === 'string' ? Date.parse(v.since) : NaN);
+  if (isFinite(_since) && _since > 0) o.since = _since;   // epoch 정규화 (wsNormTs 와 같은 규율 — ISO 문자열도 숫자로)
+  _corpPut(o, 'blockReason', _corpS(v.blockReason, 400));
+  if (v.budgetUsed != null) _corpPut(o, 'budgetUsed', (typeof v.budgetUsed === 'object') ? _corpObj(v.budgetUsed, 256) : (typeof v.budgetUsed === 'number' ? _corpN(v.budgetUsed) : _corpS(v.budgetUsed, 64)));
+  o.declaredBy = String(agentId); o.updatedAt = Date.now();   // 좌석 귀속 + 신선도 — 렌더가 stale 을 판정할 수 있게(부재 ≠ 유휴의 시간축)
+  wsRoleStates.set(role, o);
+  while (wsRoleStates.size > CORP_MAX.roles * 2) wsRoleStates.delete(wsRoleStates.keys().next().value);   // 좌석 맵 무한 성장 차단
+  if (_roleStT) return;
+  _roleStT = setTimeout(() => { _roleStT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(ROLESTATES, JSON.stringify(Object.fromEntries(wsRoleStates), null, 1)); } catch {} }, 1000);
+}
+// §13.33.4 권한 — CorporateChart 는 main 만(차트 = 조직 전체에 대한 주장), RoleState 는 그 좌석 본인 또는
+// main 대행만. 차트가 좌석↔agentId 매핑을 싣지 않으니 "본인"은 (a) 식별자 정합(agentId/agentName 정규화 비교)
+// 또는 (b) 그 좌석을 직전에 선언한 게 자기 자신인 경우로 판정해요. fail-closed + 거부 로그 (조용한 무시 금지).
+function _corpNorm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function wsCorpSeatOwn(conn, seat) {
+  const me = conn.meta.agentId;
+  if (!me) return false;
+  // ① 차트가 좌석↔agentId 를 선언했으면 그것이 권위 — 추측 앞에 둡니다.
+  const decl = (wsCorpChart && Array.isArray(wsCorpChart.roles)) ? wsCorpChart.roles.find((r) => r && r.role === seat) : null;
+  if (decl && decl.agentId) return decl.agentId === me;   // 선언이 있으면 그것만 인정 (fail-closed — 이름이 닮았다는 이유로 통과시키지 않아요)
+  // ② 선언이 없을 때만 식별자 정규화 휴리스틱
+  const n = _corpNorm(seat);
+  if (n && [me, conn.meta.agentName, String(me).replace(/-(agent|worker|bot|session)$/i, '')].some((c) => c && _corpNorm(c) === n)) return true;
+  const cur = wsRoleStates.get(seat);
+  return !!(cur && cur.declaredBy === me);
+}
+function wsCorpDeclAuthz(conn, msg) {
+  const v = (msg && msg.value && typeof msg.value === 'object') ? msg.value : {};
+  const isAgent = conn.meta.role === 'agent';
+  const arole = isAgent ? wsAgentRole(conn) : null;
+  const asMain = isAgent ? (arole === 'main') : wsOperatorAuthz(conn);   // board 표면은 §13.25.9 운영자 게이트(loopback/allowlist)로 판정
+  const who = conn.meta.agentId || conn.meta.ip || '?';
+  if (msg.name === 'CorporateChart') {
+    if (asMain) return true;
+    console.warn('[ws corp] CorporateChart 거부 — %s (role=%s) 는 main 이 아니에요 (§13.33.4: 차트는 조직 전체에 대한 주장이라 main 전용)', who, arole || conn.meta.role);
+    return false;
+  }
+  if (asMain) return true;
+  const seat = _corpS(v.role, 64);
+  if (seat && wsCorpSeatOwn(conn, seat)) return true;
+  console.warn('[ws corp] RoleState 거부 — %s (role=%s) 가 좌석 "%s" 를 대신 선언했어요 (§13.33.4: 본인 좌석 또는 main 대행만)', who, arole || conn.meta.role, seat || '(role 누락)');
+  return false;
+}
+const WS_CORP_DECL = new Set(['CorporateChart', 'RoleState']);   // 권한 게이트 + push 소음 제외 대상. 정본 push blocklist 는 push.cjs NOISE — 여기 가드는 그 목록이 낡은 배포에서도 tickle 이 새지 않게 하는 서버측 이중화예요.
 // v2.4.74 — SelectionPrompt 타임아웃 (§13.16.12 확장, Superscalar §4.1 극성 채택).
 // 발신 에이전트가 value.timeout{kind:'clarify'|'approval', seconds?} (+선택 expiresAt) 를 스탬프하면
 // 서버가 pending 을 영속 추적하고, 만료 시 SelectionExpired 를 보드 브로드캐스트 + 발신자에게 msgId 부여
@@ -974,7 +1163,7 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 events full + col
   // v2.4.89 (adopter observation C11b-부수): History 는 **활성 채널의 events + cold/archived 스텁**이라는 정책적 축약본인데,
   // 축약되었다는 신호가 없어 "이 보드 History 는 A2A 를 담지 않는다"는 오진을 유발했다. 정책을 페이로드에 명시한다.
   const scope = { policy: 'active-channels+stubs', activeEvents: events.length, coldChannels: cold.length, archivedChannels: wsArchivedList().length, note: 'cold/archived 채널 내용은 RequestChannelHistory 로 on-demand — 부재 ≠ 미기록' };
-  return { events, cold, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope 동봉
+  return { events, cold, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests), corporateChart: wsCorpChart || null, roleStates: Object.fromEntries(wsRoleStates) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope + v2.4.90 §13.33 조직 차트/좌석 상태 동봉
 }
 function wsLoadChannel(ck) {   // RequestChannelHistory 응답용 — 메모리(active) 우선, 없으면 archived(cold)에서 로드 + active 복귀
   let a = wsHistByChan.get(ck);
@@ -1208,7 +1397,7 @@ server.on('upgrade', (req, socket) => {
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
   conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
-  { const _h = wsHistoryPayload(); if (_h.events.length || _h.cold.length || _h.archived.length || Object.keys(_h.manifests).length) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand)
+  { const _h = wsHistoryPayload(); if (_h.events.length || _h.cold.length || _h.archived.length || Object.keys(_h.manifests).length || _h.corporateChart || Object.keys(_h.roleStates).length) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand). v2.4.90: 대화가 아직 없고 조직 선언만 있는 서버에서도 History 가 나가야 조직도 탭이 채워져요(무-이벤트 silent drop 방지)
   conn.onclose = () => {
     wsConns.delete(conn);
     keyOnConnClose(conn);                                       // v2.4.0 §4 REVOKED_PENDING 마지막 conn 종료 시 REVOKED 확정
@@ -1288,6 +1477,12 @@ server.on('upgrade', (req, socket) => {
       }
       // v2.4.77 — SelectionPrompt issuer 는 인증된 connection identity 로 기록 (envelope agentId 신뢰 금지 — 만료 타깃 하이재킹 차단)
       if (msg && msg.type === 'CUSTOM' && msg.name === 'SelectionPrompt' && msg.agentId !== conn.meta.agentId) { console.warn('[ws sel] SelectionPrompt agentId %s → authenticated %s 로 정정', msg.agentId, conn.meta.agentId); msg.agentId = conn.meta.agentId; }
+      // v2.4.90 §13.33.4 — 조직 선언 권한 게이트. envelope agentId 대신 **인증된 connection identity** 로 판정하고
+      // (위조 차단), 미달이면 relay·board·기록 전에 drop + 로그. room 태깅 우회를 막으려 room 분기보다 앞에 둬요.
+      if (msg && msg.type === 'CUSTOM' && WS_CORP_DECL.has(msg.name)) {
+        if (msg.agentId !== conn.meta.agentId) { console.warn('[ws corp] %s agentId %s → authenticated %s 로 정정', msg.name, msg.agentId, conn.meta.agentId); msg.agentId = conn.meta.agentId; }
+        if (!wsCorpDeclAuthz(conn, msg)) return;
+      }
       if (msg && msg.type === 'CUSTOM' && msg.name === 'ServerNotice') { wsToAll(msg); wsRecord(msg); return; }   // 재시작/오프라인/온라인 공지 → 모든 연결(에이전트+board) broadcast
       if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose', 'RequestRoomArtifacts', 'RoomArtifactsUpdate'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }   // §13.30 room lifecycle (agent 측)
       if (msg && msg.type === 'CUSTOM' && msg.roomId) { wsRoomMessage(conn, msg); return; }                        // §13.30 room 메시지 — 가드 + fan-out
@@ -1330,13 +1525,15 @@ server.on('upgrade', (req, socket) => {
           if (msg.type === 'RUN_FINISHED') _a2aPending.delete(conn.meta.agentId);          // 응답 완료 → 페어링 종료
         } else if (msg && !wsIsTelemetry(msg) && msg.type === 'CUSTOM' && msg.name !== 'ConnectionRestored') { const p = wsPrimaryAgent(); if (p && p !== conn && p.alive) p.send(msg); }   // 대상 미지정 CUSTOM(핸드오프 등) → 메인 우선. watcher telemetry 는 board broadcast 만.
       }
-      wsToBoards(msg);                                           // 모니터링: 항상 board 로 broadcast (A2A 도 대시보드가 관찰)
+      wsToBoards(msg);                                           // 모니터링: 항상 board 로 broadcast (A2A 도 대시보드가 관찰) — 선언 이벤트의 라이브 갱신 경로도 여기
       wsRecord(msg);                                             // 대화 기록 영속
-      try { push.maybePush(msg); } catch {}                      // #3b webpush — 의미있는 A2A(noise 제외)면 구독자에게 tickle (탭 닫혀도 도달)
+      if (!(msg && msg.type === 'CUSTOM' && WS_CORP_DECL.has(msg.name))) { try { push.maybePush(msg); } catch {} }   // #3b webpush — 의미있는 A2A(noise 제외)면 구독자에게 tickle (탭 닫혀도 도달). v2.4.90: §13.33 선언 2종은 기계 소비 전용이라 사람 알림 가치 0 → 제외
       return;
     }
     // 오케스트레이션 (board/사용자발 SetMain·RegisterUpstreamKey 등)
     if (wsHandleOrch(conn, msg)) return;
+    // v2.4.90 §13.33.4 — board 표면발 조직 선언도 같은 게이트(운영자 authz). 미달이면 relay·다른 board·기록 전에 drop + 로그.
+    if (msg && msg.type === 'CUSTOM' && WS_CORP_DECL.has(msg.name) && !wsCorpDeclAuthz(conn, msg)) return;
     // §13.30 room lifecycle + room 메시지 (board/사용자 측 — human soft-yield 경로)
     if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose', 'RequestRoomArtifacts', 'RoomArtifactsUpdate'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }
     if (msg && msg.type === 'CUSTOM' && msg.roomId) { wsRoomMessage(conn, msg); return; }
