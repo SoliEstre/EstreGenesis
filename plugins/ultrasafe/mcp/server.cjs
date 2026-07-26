@@ -18,7 +18,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const VERSION = "0.2.5";
+const VERSION = "0.2.6";
 const ADVISORY_MODE = true; // v0.2.x — flips to false in v0.3+ blocking cut.
 const BLOCKING_IN_V03 = true; // surfaced in all returns so consumers know what would happen under blocking mode.
 
@@ -763,6 +763,18 @@ const TOOLS = [
 
 // ----- MCP stdio JSON-RPC protocol -----
 
+// ----- MCP 응답 봉투 (프로토콜 규격) -----
+// `tools/call` 의 result 는 `{content:[{type:'text',…}]}` 여야 해요. 결과 객체를 그대로 반환하면
+// 프로토콜 «오류» 가 아니라 **렌더할 내용이 없는 성공**이 되어 호출자에게 «출력 없음» 으로 보여요 —
+// 오류보다 나쁜 조용한 실패예요 (v0.2.6: 서버 3종이 이 상태로 출시돼 있었고, 무응답을 도구 부재로
+// 오진하게 만들었어요). 봉투는 **디스패치 한 자리**에서만 씌워요 — 도구별로 씌우면 새 도구가 잊는
+// 순간 그 도구만 조용해지고, 그건 정확히 이 결함이 퍼진 방식이에요.
+function toolEnvelope(v) {
+  if (v && Array.isArray(v.content)) return v;   // 이미 규격이면 통과 — 멱등
+  const text = typeof v === 'string' ? v : v === undefined ? '' : JSON.stringify(v, null, 2);
+  return { content: [{ type: 'text', text }] };
+}
+
 const handlers = {
   initialize: async () => ({
     protocolVersion: "2024-11-05",
@@ -770,19 +782,21 @@ const handlers = {
     capabilities: { tools: {} },
   }),
   "tools/list": async () => ({ tools: TOOLS }),
-  "tools/call": async (params) => {
-    const { name, arguments: args } = params;
-    switch (name) {
-      case "ultrasafe_run_fanout":          return handleRunFanout(args || {});
-      case "ultrasafe_finding_aggregate":   return handleFindingAggregate(args || {});
-      case "ultrasafe_clean_signal_check":  return handleCleanSignalCheck(args || {});
-      case "ultrasafe_report_generate":     return handleReportGenerate(args || {});
-      case "ultrasafe_iteration_record":    return handleIterationRecord(args || {});
-      case "ultrasafe_release_gate":        return handleReleaseGate(args || {});
-      default: throw new Error("Unknown tool: " + name);
-    }
-  },
+  "tools/call": async (params) => toolEnvelope(await callTool(params.name, params.arguments || {})),
 };
+
+// 도구 분기는 **날 결과**를 돌려줘요 — 봉투는 위 한 자리에서만 씌워요.
+async function callTool(name, args) {
+  switch (name) {
+    case "ultrasafe_run_fanout":          return handleRunFanout(args);
+    case "ultrasafe_finding_aggregate":   return handleFindingAggregate(args);
+    case "ultrasafe_clean_signal_check":  return handleCleanSignalCheck(args);
+    case "ultrasafe_report_generate":     return handleReportGenerate(args);
+    case "ultrasafe_iteration_record":    return handleIterationRecord(args);
+    case "ultrasafe_release_gate":        return handleReleaseGate(args);
+    default: throw new Error("Unknown tool: " + name);
+  }
+}
 
 // ─── ultrasafe_iteration_record (v0.2.5 — it-1 meth-03) ──────────────────────
 // 없던 주체. 한 회차의 **측정된** 사실을 받아 `state.iterations` 에 append 해요. 계산은 소비자
@@ -908,7 +922,8 @@ if (process.argv.includes("--cli")) {
       process.exit(2);
     }
     try {
-      const result = await handlers["tools/call"]({ name: toolName, arguments: args });
+      // CLI 은 사람이 읽는 표면이라 봉투를 씌우지 않은 결과를 그대로 보여줘요 (봉투는 MCP 프로토콜 규격).
+      const result = await callTool(toolName, args);
       process.stdout.write(JSON.stringify(result, null, 2) + "\n");
       process.exit(0);
     } catch (e) {
