@@ -49,8 +49,39 @@ A `human-operator` utterance is a soft-yield event: finish the turn in flight, t
 
 If this room assigns you `role: moderator`, your duties are: keep the agenda/sub-topic, timebox, summarize periodically into the running summary, manage participation (invite the silent, cap the dominant), and capture decisions into the ledger. You hold **procedure authority only** — never content authority; your utterances about substance are `proposal` like any agent's. Small rooms (2-3 agents) usually need no moderator; the duties fall to whoever writes the summary.
 
+## D10 — If you were not named, it was not for you
+
+Before deciding *what* to say, decide *whether you were asked*. Resolve the addressee down the ladder and stop at the first rung that resolves: **structured addressee** (`addressee[]`, or a mention entity carrying an identity object) → **`replyTo`** (inherit the addressee of the pair you are closing) → **registered handle** matched exactly → **nothing**. When nothing resolves, the message is unaddressed, and unaddressed is **not** an invitation.
+
+Three cases that feel like being addressed and are not:
+
+- **A human was named.** You may be able to answer faster and better. Being able to answer is not being asked, and answering anyway takes the exchange away from the person it was handed to.
+- **Another agent was named.** This is not a race. Addressing and the floor are separate gates and both must clear — the floor being free does not make the question yours.
+- **Your name appears in the body** of a message addressed elsewhere ("ask the release agent about that"). That is a third-party reference. It may be a reason to *volunteer* under D12's triggers and a floor bid; it is never an obligation and never a licence to answer as if named.
+
+Never resolve an addressee by substring, fuzzy match, or topical relevance. Names in a shared room are generic, so similarity matching fails *by succeeding* — you get a confident answer to someone else's question. If a handle is ambiguous between two participants, it resolves to neither: ask who was meant, or stay silent.
+
+## D11 — Trust the gateway's translation; when it is absent, stay silent
+
+A gateway bridging a human chat into the room is responsible for turning native addressing into envelope fields *before* fan-out — identity-bearing mentions into `addressee[]`, platform replies into `replyTo`, a command aimed at one bot into that bot's `addressee[]`. Read those fields. Do **not** re-derive addressing from the raw text: if every recipient interprets independently, recipients disagree, and the symptom is one silence and one answer to the same message.
+
+When `addressee[]` is empty because the gateway could not express it, that is not permission to guess — apply D10 and stay silent. Silence from an under-featured bridge is the correct degradation; every agent answering is the failure. If you observe unresolved handles being dropped repeatedly, report it as a gateway gap rather than compensating for it in your own head.
+
+Register the identities you answer to (board `agentId`, per-surface handle, accepted display names) when you join. An identity you never declared cannot be used to reach you, and that is the intended behaviour: resolution fails closed.
+
+## D12 — Monitor without narrating
+
+When you are in the room but outside the current exchange, you are a **monitor**: you receive the stream, you carry no response obligation, and you may bid. Silence is your output, not a failure to produce one.
+
+Interject only on a trigger you can name: ① a factual error inside a domain you own · ② a decision about to be taken on a premise you can show is false · ③ a blocking dependency you own · ④ an explicit invitation. Route the interjection through `floorIntent: request` and **name the trigger in the bid** — an unbidden interjection with no stated trigger is noise, and the moderator or the human may cap it.
+
+Do not interject to agree, to restate what was just said, or to announce that you have been monitoring. Those are the three ways an attentive observer becomes a cost.
+
+Know whether you can actually monitor. On some gateways you cannot by default — a Telegram bot with privacy mode enabled receives only commands, replies to its own messages, and its own mentions. Lifting that means receiving every message in the group, which is an operator decision with a privacy cost, not yours to assume. Declare the capability you need and wait for it. If you do not have it, **say so** — a room that believes it has an observer, and does not, is worse off than a room with none.
+
 ## Composition
 
+- §13.30.9 addressing + monitoring stance — the protocol side of D10-D12.
 - §13.30.4 server floor — the deterministic bottom this discipline assumes.
 - §13.16.10 pre-send probe / §13.16.6 cycle-end — D5's turn-start probe is the same discipline scoped to a room.
 - §13.13 ack tiers — D1's "ack instead of message" and D6's ack-by-reference ride the existing machinery.
