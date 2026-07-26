@@ -285,6 +285,7 @@ const handlers = {
   "tools/list": async () => ({ tools: TOOLS }),
   "tools/call": async (params) => {
     const { name, arguments: args } = params;
+    L.assertStore();   // v0.2.9 — 저장소 미해소면 여기서 오류로 끊어요. 도구별로 넣으면 새 도구에서 «조용한 0건» 이 되살아나요.
     switch (name) {
       case "wiki_read": return wiki_read(args || {});
       case "wiki_search": return wiki_search(args || {});

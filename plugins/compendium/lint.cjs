@@ -15,10 +15,89 @@
 const fs = require('fs');
 const path = require('path');
 
-const HERE = __dirname;                          // EstreGenesis/plugins/compendium
-const INNER = path.resolve(HERE, '..', '..');    // EstreGenesis/
-const STORE = path.join(INNER, 'compendium');
+const HERE = __dirname;                          // 소스 레포에서는 EstreGenesis/plugins/compendium
+
+// v0.2.9 §10 — 저장소 위치를 «자기가 설치된 자리» 로부터 추측하면 안 돼요. 종전엔 `__dirname/../..` 하나
+//   였는데 그건 소스 레포 배치를 가정해요. 플러그인으로 설치되면 그 자리는 플러그인 캐시라, 두 단계 위의
+//   `compendium` 은 **버전 폴더 모음**(0.2.1 / 0.2.6 / …)이에요. 디렉터리가 실재하니 존재 검사는 통과하고
+//   하위 폴더만 없어서 **0건이 조용히** 나왔어요 — 오류가 아니라 «찾은 게 없음» 으로 보이는 실패였고,
+//   검사가 엉뚱한 이유로 통과한 사례예요. 그래서 판정을 «존재» 가 아니라 «내용» 으로 바꿔요.
 const SUBDIRS = ['glossary', 'concept', 'runbook'];
+
+function isDir(p) { try { return fs.statSync(p).isDirectory(); } catch { return false; } }
+function isFile(p) { try { return fs.statSync(p).isFile(); } catch { return false; } }
+
+// 내용 marker 로만 판정해요. 디렉터리가 있다는 사실은 근거가 아니에요 — 그게 정확히 이 버그였어요.
+function storeLooksReal(store) {
+  if (!isDir(store)) return false;
+  if (isFile(path.join(store, 'index.json')) || isFile(path.join(store, 'INDEX.md'))) return true;
+  return SUBDIRS.some((s) => {
+    const d = path.join(store, s);
+    if (!isDir(d)) return false;
+    try { return fs.readdirSync(d).some((f) => f.endsWith('.md')); } catch { return false; }
+  });
+}
+
+// 한 루트 아래의 저장소 후보: 루트 자신 + 바로 아래 한 겹. 한 겹을 보는 이유는 내부 repo 배치가 흔하고
+//   (EG 자신이 그 형태 — 워크스페이스 밑에 공개 repo 가 들어앉아 있어요) 그 경우 루트만 봐선 못 찾아요.
+function storesUnder(root) {
+  const out = [];
+  if (!isDir(root)) return out;
+  const self = path.join(root, 'compendium');
+  if (storeLooksReal(self)) out.push(self);
+  let kids = [];
+  try { kids = fs.readdirSync(root, { withFileTypes: true }); } catch { return out; }
+  for (const d of kids) {
+    if (!d.isDirectory() || d.name.startsWith('.') || d.name === 'node_modules') continue;
+    const s = path.join(root, d.name, 'compendium');
+    if (storeLooksReal(s)) out.push(s);
+  }
+  return out;
+}
+
+function resolveStore() {
+  const tried = [];
+  // ① 명시 지정이 최우선 — 운용자가 말한 것이 어떤 추측보다 세요. 지정했는데 내용이 없으면 **다른 데를
+  //    뒤지지 않고 즉시 거부**해요: 조용히 다른 저장소로 흘러가는 게 못 찾는 것보다 나빠요.
+  const envStore = process.env.COMPENDIUM_STORE;
+  if (envStore) {
+    const s = path.resolve(envStore);
+    tried.push('COMPENDIUM_STORE = ' + s);
+    if (storeLooksReal(s)) return { store: s, inner: path.dirname(s), via: 'COMPENDIUM_STORE', tried };
+    return { store: null, inner: null, via: null, tried, hardFail: 'COMPENDIUM_STORE 가 가리키는 곳에 저장소 내용이 없어요: ' + s };
+  }
+  // ② 모듈 상대 — 소스 레포 안에서 도는 경우. 종전 동작을 글자 그대로 보존해요(검증 축이 이 경로로 돌아요).
+  const legacy = path.join(path.resolve(HERE, '..', '..'), 'compendium');
+  tried.push('module-relative = ' + legacy);
+  if (storeLooksReal(legacy)) return { store: legacy, inner: path.dirname(legacy), via: 'module-relative', tried };
+  // ③④ 프로젝트 디렉터리 · cwd 상향 탐색. 각 단계에서 «루트 자신 + 한 겹 아래» 를 봐요.
+  const roots = [];
+  if (process.env.CLAUDE_PROJECT_DIR) roots.push(path.resolve(process.env.CLAUDE_PROJECT_DIR));
+  let cur = process.cwd();
+  for (let i = 0; i < 6; i++) { roots.push(cur); const up = path.dirname(cur); if (up === cur) break; cur = up; }
+  for (const r of roots) {
+    const found = storesUnder(r);
+    tried.push('search ' + r + ' → ' + (found.length ? found.join(' , ') : '없음'));
+    if (found.length === 1) return { store: found[0], inner: path.dirname(found[0]), via: 'search:' + r, tried };
+    // 여럿이면 **고르지 않아요**. 임의로 하나를 집으면 «왜 그 저장소를 읽었는지» 를 아무도 설명할 수 없어요.
+    if (found.length > 1) return { store: null, inner: null, via: null, tried, hardFail: '저장소 후보가 여럿이라 고를 수 없어요 — COMPENDIUM_STORE 로 지정해 주세요: ' + found.join(' , ') };
+  }
+  return { store: null, inner: null, via: null, tried, hardFail: '저장소를 못 찾았어요. COMPENDIUM_STORE 에 저장소 절대 경로를 지정해 주세요.' };
+}
+
+const STORE_RESOLUTION = resolveStore();
+const STORE = STORE_RESOLUTION.store;
+const INNER = STORE_RESOLUTION.inner;
+
+// 못 찾았으면 **빈 결과가 아니라 거부**. 침묵은 «항목이 없음» 과 구분되지 않고, 운용자에게 무엇을 설정해야
+//   하는지 알려주지 않아요 — 시도한 경로를 함께 실어서 «어디를 봤는지» 가 답에 남게 해요.
+function assertStore() {
+  if (STORE) return STORE;
+  const e = new Error('[compendium] ' + (STORE_RESOLUTION.hardFail || '저장소 미해소')
+    + '\n시도한 곳:\n  - ' + STORE_RESOLUTION.tried.join('\n  - '));
+  e.code = 'COMPENDIUM_STORE_UNRESOLVED';
+  throw e;
+}
 const INTERNAL_DEF_CAP = 300;                    // §9.2(3) no-competing-full-def: internal def.text is a one-line orientation gloss
 
 // GitHub-compatible heading slug: lowercase → drop non [word/space/hyphen] → each whitespace run → that many hyphens.
@@ -55,6 +134,7 @@ function defText(fm) {
 }
 
 function loadEntries() {
+  assertStore();
   const entries = [];
   for (const sub of SUBDIRS) {
     const dir = path.join(STORE, sub);
@@ -185,7 +265,7 @@ function obsidianProjection(entries) {
   return n;
 }
 
-module.exports = { runLint, ghSlug, headingSlugs, loadEntries, frontmatter, field, listField, defText, STORE, INNER, SUBDIRS, obsidianProjection };
+module.exports = { runLint, ghSlug, headingSlugs, loadEntries, frontmatter, field, listField, defText, STORE, INNER, SUBDIRS, obsidianProjection, assertStore, storeLooksReal, STORE_RESOLUTION };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
