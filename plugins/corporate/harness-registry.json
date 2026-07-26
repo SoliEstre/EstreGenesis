@@ -1,6 +1,6 @@
 {
   "$comment": "Corporate.md §9 — the perishable half of the module, deliberately a data file rather than spec prose so the spec does not rot on harness release cadence. THREE RULES govern this file: (1) a row requires a source — any flag, key, or path not confirmed verbatim against vendor documentation belongs in `caveats`, never in `harnesses`, because a plausible-looking flag is worse than a gap: it will be pasted into a launcher; (2) bind per invocation, never by a global pin — a pin can silently override an explicit per-seat choice, so the resolved value must travel with the invocation and actual application must be observed rather than assumed; (3) this file states its own expiry — `revisit` makes re-survey scheduled rather than reactive, and the `watch` seat (§3.2) is its executor.",
-  "asOf": "2026-07-25",
+  "asOf": "2026-07-26",
   "revisit": {
     "date": "2026-09-01",
     "graceDays": 45,
@@ -24,7 +24,8 @@
     "customEndpoint": "how to point the harness at a non-default endpoint (§9.1) — mechanism only; permission is the deployment's responsibility",
     "gotchas": "behaviours that break a naive desk/residency implementation",
     "confirmedBy": "REQUIRED — source URL(s) where the strings above were read verbatim",
-    "confirmedOn": "REQUIRED — date the source was read"
+    "confirmedOn": "REQUIRED — date the source was read",
+    "providerBind": "How (and whether) the harness can be pointed at a model endpoint other than its vendor default. Decides which seats an external or local API can staff at all, and at what config scope the choice lives — a scope narrower than the seat means the seat cannot carry its own provider."
   },
   "harnesses": [
     {
@@ -65,7 +66,8 @@
         "local measurement: claude.exe --help and claude.exe agents --help on the deployment host, 2026-07-25"
       ],
       "confirmedOn": "2026-07-25",
-      "backgroundMode": "--bg / --background starts the session as a background agent and returns immediately; `claude agents` manages the resulting sessions (its own flag set includes --add-dir, --agent, --effort, --cwd, --all, --json). The OS-service installation path around this remains undocumented — that gap is a Corporate contribution target, not a registry fact."
+      "backgroundMode": "--bg / --background starts the session as a background agent and returns immediately; `claude agents` manages the resulting sessions (its own flag set includes --add-dir, --agent, --effort, --cwd, --all, --json). The OS-service installation path around this remains undocumented — that gap is a Corporate contribution target, not a registry fact.",
+      "providerBind": "Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper via --settings (OAuth and keychain are never read in print mode); third-party providers are Bedrock / Vertex / Foundry, each with their own credentials. There is NO arbitrary OpenAI-compatible base_url: reaching one needs a shim that speaks the Anthropic wire, which puts the shim host inside the credential blast radius (Corporate §9.2) — so an arbitrary external endpoint is not a way to staff a claude-code seat, and the honest options are the operator subscription, an Anthropic key, or one of the three named clouds. MEASURED here 2026-07-26 (--help on the installed binary)."
     },
     {
       "harness": "codex-cli",
@@ -104,7 +106,8 @@
       "confirmedOn": "2026-07-25",
       "subcommands": "exec (alias e) · review · resume / archive / delete / unarchive (session lifecycle) · login / logout · mcp / mcp-server · plugin · app-server · remote-control · app · sandbox (run a command inside the Codex sandbox) · doctor (diagnose install, config, auth, runtime health) · update · completion · debug · apply (alias a)",
       "configOverride": "-c / --config key=value with dotted paths for nested values; the value is parsed as TOML and falls back to a literal string if it does not parse. Confirmed: `-c model=\"o3\"`, `-c 'sandbox_permissions=[\"disk-full-read-access\"]'`, `-c shell_environment_policy.inherit=all`.",
-      "stdinContract": "A bare PROMPT argument, or `-` to read from stdin. If stdin is piped AND a prompt argument is given, stdin is appended as a <stdin> block — so a supervisor can pass a charter as the argument and the inbound as the pipe without them colliding."
+      "stdinContract": "A bare PROMPT argument, or `-` to read from stdin. If stdin is piped AND a prompt argument is given, stdin is appended as a <stdin> block — so a supervisor can pass a charter as the argument and the inbound as the pipe without them colliding.",
+      "providerBind": "Custom providers are declared as [model_providers.<id>] with name / base_url / env_key / wire_api, and the model_provider key selects one. Three constraints decide whether a seat can use this: (1) wire_api MUST be \"responses\" — chat/completions was deprecated 2026-02 and a custom provider with wire_api=\"chat\" or with the field absent fails at startup, so an endpoint that only speaks chat/completions cannot back a codex seat at all; (2) the built-in ids openai / ollama / lmstudio are reserved and the openai base_url cannot be overridden, so an alternative vendor must be a new provider id; (3) model_provider and model_providers are honored only in the USER-level ~/.codex/config.toml and are ignored in a project-local .codex/config.toml with a startup warning — therefore a Corporate desk cannot carry its seat provider, and per-seat variation goes through profiles (-p <name>, layering $CODEX_HOME/<name>.config.toml) instead. Local models are first-class and need none of this: --oss with --local-provider lmstudio|ollama. Flags MEASURED here 2026-07-26 (--oss / --local-provider / -c / --profile / --strict-config present); the config-key semantics are WEB-SOURCED 2026-07-26 and not verified against a live custom provider on this deployment."
     },
     {
       "harness": "agy",
@@ -143,7 +146,8 @@
       "measuredVersion": "1.1.7",
       "subcommands": "agent/agents (list) · models (list) · plugin/plugins · changelog · update · install (\"Configure environment paths and shell settings\" — this is what writes the PATH entry) · help",
       "outputFormat": "NONE — print mode emits plain text. There is no --output-format or --json, so a supervisor parses prose or nothing. This is the sharpest constraint on using agy for a machine-consumed seat.",
-      "provenance": "docs + official changelog, then CONFIRMED against the installed binary on the deployment host"
+      "provenance": "docs + official changelog, then CONFIRMED against the installed binary on the deployment host",
+      "providerBind": "No provider or base-url surface in --help on this deployment (2026-07-26): the only model-facing entries are --model and a models subcommand. Treat as subscription-bound — an external endpoint cannot staff an agy seat until a provider surface is measured, and absence in --help is not proof of absence in the binary, only of absence in its documented surface."
     },
     {
       "harness": "gemini-cli",
@@ -174,7 +178,8 @@
         "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/docs/cli/settings.md",
         "https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/"
       ],
-      "confirmedOn": "2026-07-25"
+      "confirmedOn": "2026-07-25",
+      "providerBind": "Not surveyed. This row remains the deliberate warning row (see its other fields) rather than a recommendation."
     }
   ],
   "caveats": [
@@ -260,6 +265,20 @@
       "confirmedBy": [
         "local measurement: HKCU:\\Environment Path vs the live process PATH on the deployment host, 2026-07-25"
       ]
+    },
+    {
+      "id": "custom-endpoint-reach-is-not-uniform",
+      "fact": "Whether an external API can staff a seat is decided by the harness, not by the API. Of the three harnesses measured here, one accepts arbitrary OpenAI-compatible endpoints through a declared provider (codex-cli, and only over the Responses wire), one accepts only its vendor plus three named clouds (claude-code), and one exposes no provider surface at all (agy). So \"we have an API key\" is never by itself an assignment: the question is which seats the key can reach, and the answer can be none.",
+      "why": "A roster that assigns a model to a seat without checking the harness provider surface produces a seat that silently runs on the vendor default — the assignment appears in the chart and never happens in the process.",
+      "confirmedBy": "local --help measurement (claude-code, codex-cli, agy) + web-sourced config semantics (codex-cli)",
+      "confirmedOn": "2026-07-26"
+    },
+    {
+      "id": "provider-scope-can-be-narrower-than-the-seat",
+      "fact": "A per-seat provider choice is only expressible if the harness honors provider config at a scope the seat controls. Codex honors model_provider / model_providers exclusively in the user-level config and ignores them in a project-local one (with a startup warning), so a Corporate desk — which is a directory, i.e. project-local — cannot carry its own provider. The per-seat mechanism there is a named profile layered per invocation, not a file in the desk.",
+      "why": "Corporate §2 gives each seat a desk and expects desk-scoped configuration to be how a seat differs from its neighbours. Where the harness scopes a setting above the desk, that expectation silently fails to the user default, which is the same class as the §9.2 no-self-configuration invariant seen from the other side: the seat cannot configure itself even when it should.",
+      "confirmedBy": "web-sourced 2026-07-26 (codex config reference + multiple provider-setup writeups); not verified against a live project-local override on this deployment",
+      "confirmedOn": "2026-07-26"
     }
   ],
   "watchlist": [
@@ -300,6 +319,15 @@
       "item": "agy source availability",
       "why": "The CLI ships as a distributed binary with no source in its public repository. Version pinning and provenance checking therefore carry more weight here than for an open-source harness (§9.2).",
       "blocks": []
+    },
+    {
+      "id": "nvidia-build-free-api",
+      "what": "NVIDIA build.nvidia.com (NIM API catalog) free tier as a possible seat backer: 100+ hosted models (Nemotron, DeepSeek, Llama, Qwen, Mistral) behind an OpenAI-compatible endpoint, free through the Developer Program with no card.",
+      "measuredClaims": "Free rate limit reported as ~40 requests/minute (200 RPM by application). Signup grants ~1,000 inference credits, roughly one credit per call, with ~4,000 more attached to a 90-day AI Enterprise evaluation license. Production is priced per GPU-year. Numbers are WEB-SOURCED 2026-07-26 from secondary write-ups, not from an account of ours.",
+      "blocking": "Two unresolved items, either of which is disqualifying on its own. (1) DATA USE: public sources conflict — the NIM catalog terms are reported as not training on prompts and responses, while at least one write-up reads the privacy policy as recording inputs and outputs for training. Corporate §9.1 is deliberately asymmetric here: a free tier that may train on submitted content is never given a resident or production seat, so this must be resolved from the primary terms by the operator, not inferred. (2) WIRE: NIM is OpenAI chat/completions-shaped, and a codex custom provider now requires wire_api=\"responses\" or it fails at startup — so even with the data question settled, the endpoint may not be reachable from the one harness here that accepts custom providers.",
+      "verdict": "Not an assignment candidate for any resident seat as of 2026-07-26. Plausible for burst / on-demand work on non-sensitive content IF the operator resolves the data-use question against the primary terms and a wire-compatible path exists. The credit budget (~5k calls total) is a trial resource, not a seat budget.",
+      "confirmedBy": "web-sourced secondary write-ups 2026-07-26; no account created, nothing measured against the live endpoint",
+      "confirmedOn": "2026-07-26"
     }
   ]
 }
