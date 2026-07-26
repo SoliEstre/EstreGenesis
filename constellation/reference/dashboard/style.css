@@ -1045,6 +1045,10 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 @media (prefers-reduced-motion: reduce) { .org-dot.working { animation: none; } .org-node:hover { transform: none; } }
 
 /* 노드 내용 */
+/* 카드 머리줄 — 좌석명/방 주제(왼쪽)와 대화 버튼(오른쪽 위). 카드 높이가 달라도 버튼 줄이 맞아요 */
+.org-node-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.org-node-top > :first-child { flex: 1 1 auto; min-width: 0; }
+.org-node-top > .org-talk { flex: 0 0 auto; align-self: flex-start; }
 .org-name { display: flex; align-items: center; gap: 6px; font-family: ui-monospace, monospace; font-size: .82rem; font-weight: 700; color: var(--ink); word-break: break-all; min-width: 0; }
 .org-role-title { font-size: .76rem; color: var(--muted); line-height: 1.4; }
 .org-task { font-size: .8rem; color: var(--ink); line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

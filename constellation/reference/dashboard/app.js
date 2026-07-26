@@ -1190,9 +1190,49 @@ function orgHas(v) { return v != null && String(v) !== ''; }
 function orgRolesArr() { return (orgChart && Array.isArray(orgChart.roles)) ? orgChart.roles.filter(r => r && orgHas(r.role)) : []; }
 function orgRoleObj(role) { const w = String(role); return orgRolesArr().find(r => String(r.role) === w) || null; }
 function orgStateOf(role) { const s = roleStates.get(String(role)); return (s && typeof s === 'object') ? s : null; }
-// 불변식 1 — RoleState 부재 또는 미지 status 는 unknown. idle 로 접지 않아요.
-function orgStatusKey(role) { const s = orgStateOf(role); if (!s) return 'unknown'; const st = orgStr(s.status); return ORG_ST_KEYS.indexOf(st) >= 0 ? st : 'unknown'; }
+// 불변식 1 의 뒷면 — 부재를 idle 로 접지 않는 것과 같은 이유로, **낡은 선언을 현재값으로 그리지도 않아요**.
+// status 는 어떤 프로세스가 한 주장이고, 그 프로세스가 지금 붙어 있지 않으면 그건 현재가 아니라 마지막 값이에요.
+// 세션이 끝나면 working 이 영원히 남던 문제가 이것 — 특히 보드가 부팅 자동 시작이 된 뒤로는, 아무도 없는
+// 아침에 보드가 "작업 중"을 띄우게 돼요. 생존 판정은 **좌석 자신의 agentId**(그 상태가 서술하는 대상)로 해요.
+// declaredBy(대신 선언한 쪽)로 하면 안 돼요 — 메인이 내려가도 서기는 살아 있을 수 있으니까요.
+const ORG_STALE_MS = 12 * 60 * 60 * 1000;   // agentId 미선언이라 생존 확인이 불가능할 때만 쓰는 2차 그물
+function orgLiveness(role) {
+  const s = orgStateOf(role);
+  if (!s) return { fresh: false, why: 'none' };
+  let agentId = '';
+  try {
+    const d = (orgChart && Array.isArray(orgChart.roles)) ? orgChart.roles.find((r) => r && orgStr(r.role) === String(role)) : null;
+    agentId = d ? orgStr(d.agentId) : '';
+  } catch (e) {}
+  if (agentId) {
+    let present = false;
+    try { present = !!(wsState.present && wsState.present.has(agentId)); } catch (e) {}
+    return { fresh: present, why: present ? 'present' : 'absent', agentId, last: s };
+  }
+  const ts = (typeof s.updatedAt === 'number') ? s.updatedAt : ((typeof s.since === 'number') ? s.since : null);
+  if (ts == null) return { fresh: false, why: 'undated', last: s };
+  return { fresh: (Date.now() - ts) <= ORG_STALE_MS, why: (Date.now() - ts) <= ORG_STALE_MS ? 'recent' : 'aged', last: s };
+}
+// 낡은 선언은 unknown 으로 접어요 — offline 으로 접으면 안 돼요. offline 은 에이전트가 **스스로 선언**하는
+// 값이라, 추론으로 그걸 쓰면 하지 않은 선언을 지어내는 셈이에요 (불변식 2).
+function orgStatusKey(role) {
+  const s = orgStateOf(role); if (!s) return 'unknown';
+  if (!orgLiveness(role).fresh) return 'unknown';
+  const st = orgStr(s.status); return ORG_ST_KEYS.indexOf(st) >= 0 ? st : 'unknown';
+}
 function orgStatusLabel(role) { const k = orgStatusKey(role); return k === 'unknown' ? ORG_UNKNOWN : ORG_ST[k]; }
+// unknown 이 왜 unknown 인지 — 부재/낡음/미기재는 서로 다른 상황이라 한 낱말로 접지 않아요.
+function orgUnknownWhy(role) {
+  const lv = orgLiveness(role);
+  const s = lv.last, raw = s ? orgStr(s.status) : '';
+  const label = (ORG_ST_KEYS.indexOf(raw) >= 0) ? ORG_ST[raw] : raw;
+  const when = (s && orgHas(s.updatedAt)) ? relTime(s.updatedAt) : ((s && orgHas(s.since)) ? relTime(s.since) : '');
+  if (lv.why === 'none') return '이 좌석의 상태 선언을 받지 못했어요';
+  if (lv.why === 'absent') return '선언한 에이전트 "' + lv.agentId + '" 가 지금 보드에 없어요 — 마지막 선언은 ' + (label || '?') + (when ? ' (' + when + ')' : '') + ' 이라 현재값으로 볼 수 없어요';
+  if (lv.why === 'aged') return '마지막 선언이 ' + (when || '오래 전') + ' 이라 현재값으로 보기 어려워요 (' + (label || '?') + ')';
+  if (lv.why === 'undated') return '선언에 시각이 없어 최신인지 알 수 없어요 (' + (label || '?') + ')';
+  return '선언된 상태값(' + (raw || '-') + ')이 규약 밖이라 해석하지 않았어요';
+}
 function orgHostTitle(host) {
   if (!orgHas(host)) return '';
   const h = (orgChart && Array.isArray(orgChart.hosts) ? orgChart.hosts : []).find(x => x && String(x.host) === String(host));
@@ -1385,12 +1425,18 @@ function orgNodeEl(r, opt) {
   n.dataset.role = role; n.tabIndex = 0; n.title = '클릭하면 이 좌석의 상세를 열어요';
   const name = el('div', 'org-name');
   const dot = el('span', 'org-dot ' + k);
-  dot.title = '상태 ' + orgStatusLabel(role) + (st && orgHas(st.since) ? ' · ' + relTime(st.since) : (k === 'unknown' ? ' — 이 좌석의 RoleState 를 받지 못했어요' : ''));
+  dot.title = '상태 ' + orgStatusLabel(role) + (k === 'unknown' ? ' — ' + orgUnknownWhy(role) : (st && orgHas(st.since) ? ' · ' + relTime(st.since) : ''));
   const nm = el('span'); nm.textContent = role;
-  name.append(dot, nm); n.append(name);
+  name.append(dot, nm);
+  // 머리줄 = 좌석명(왼쪽) + 대화 버튼(오른쪽 위). 버튼을 카드 맨 아래가 아니라 여기 두면
+  // 카드 높이가 제각각이어도 버튼 위치가 한 줄로 정렬돼서 눈으로 찾는 비용이 사라져요.
+  const top = el('div', 'org-node-top');
+  top.append(name, orgTalkBtn(role, opt && opt.chan));
+  n.append(top);
   const ttl = el('div', 'org-role-title'); ttl.textContent = orgHas(r.title) ? String(r.title) : '직무 ' + ORG_UNDECLARED; n.append(ttl);
   const task = el('div', 'org-task');
-  if (!st) task.textContent = ORG_UNKNOWN + ' — 상태 선언을 받지 못했어요';
+  // 낡은 선언이면 작업 문구 대신 "왜 모르는지" — 지난 작업 제목을 그대로 두면 지금 그걸 하는 것처럼 읽혀요.
+  if (!st || k === 'unknown') task.textContent = ORG_UNKNOWN + ' — ' + orgUnknownWhy(role);
   else {
     const bits = [orgStatusLabel(role)];
     if (orgHas(st.task)) bits.push(String(st.task));
@@ -1426,7 +1472,6 @@ function orgNodeEl(r, opt) {
     o.title = '이 좌석이 쓸 수 있는 경로예요 (§6.7 쓰기 분할)';
     n.append(o);
   }
-  n.append(orgTalkBtn(role, opt && opt.chan));
   n.onclick = () => orgOpenDetail(role);
   n.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); orgOpenDetail(role); } };
   return n;
@@ -1469,7 +1514,8 @@ function orgRoomEl(rm) {
   const box = el('div', 'org-room'); box.dataset.roomId = roomId; box.tabIndex = 0;
   const top = el('div', 'org-room-topic');
   top.textContent = '🪑 ' + (orgHas(rm.topic) ? String(rm.topic) : roomId) + (orgHas(rm.mode) ? ' · ' + orgKo(ORG_ROOM_MODE_KO, rm.mode) : '');
-  box.append(top);
+  const head = el('div', 'org-node-top'); head.append(top);   // 좌석 카드와 같은 자리(오른쪽 위)에 버튼
+  box.append(head);
   const chips = el('div', 'org-room-chips');
   for (const p of (Array.isArray(rm.participants) ? rm.participants : [])) {
     const isObj = p && typeof p === 'object';
@@ -1487,7 +1533,7 @@ function orgRoomEl(rm) {
   talk.textContent = rhas ? '💬 방 대화' : '💬 방 대화 (미연결)';
   talk.title = rhas ? '이 방의 실시간 탭으로' : '이 방의 트래픽을 아직 받은 적이 없어요 — 열 탭이 없어요';
   talk.onclick = (e) => { e.stopPropagation(); orgOpenRoom(roomId); };
-  box.append(talk);
+  head.append(talk);
   box.onclick = () => orgOpenRoom(roomId);
   box.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); orgOpenRoom(roomId); } };
   return box;
@@ -1600,9 +1646,11 @@ function orgOpenDetail(role) {
   body.innerHTML = '';
   // ① 현재 작업 + 단계 타임라인 (taskRef 로 보드 current[] 항목을 참조 — 복제 아니라 참조)
   const s1 = orgSec('현재 작업');
-  if (!st) s1.append(orgRow('상태', ORG_UNKNOWN + ' — 이 좌석의 RoleState 를 받지 못했어요'));
+  if (!st) s1.append(orgRow('상태', ORG_UNKNOWN + ' — 이 좌석의 상태 선언을 받지 못했어요'));
   else {
-    s1.append(orgRow('상태', orgStatusLabel(orgPopRole)));
+    s1.append(orgRow('상태', orgStatusLabel(orgPopRole) + (k === 'unknown' ? ' — ' + orgUnknownWhy(orgPopRole) : '')));
+    // 상세 화면에서는 마지막 값을 지워버리지 않아요 — 카드에선 감추지만 여기선 "지금 값이 아님" 딱지를 붙여 보존해요.
+    if (k === 'unknown') s1.append(orgRow('마지막 선언', (ORG_ST[orgStr(st.status)] || orgStr(st.status) || null), '지금 값이 아니라 마지막으로 받은 값이에요'));
     s1.append(orgRow('작업', orgHas(st.task) ? String(st.task) : null));
     s1.append(orgRow('시작', orgHas(st.since) ? fmtDateTime(st.since) + ' (' + relTime(st.since) + ')' : null));
     if (k === 'blocked' || orgHas(st.blockReason)) s1.append(orgRow('막힌 이유', orgHas(st.blockReason) ? String(st.blockReason) : null));
