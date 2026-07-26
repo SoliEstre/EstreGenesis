@@ -3114,7 +3114,13 @@ function onWsEvent(m) {
   if (t === 'CUSTOM' && m.name === 'ServerNotice') {   // 브릿지/서버 재시작 등 시스템 공지 → 활성 채널 status 카드
     const v = m.value || {}; const icon = ({ restarting: '🔄', offline: '🔌', online: '🟢' })[v.kind] || 'ℹ️';
     const a = wsState.active;
-    if (a && !wsIsGroup(a)) wsPushRow(a, { kind: 'status', label: icon + ' 서버 공지', body: v.text || ((v.target || 'server') + ' ' + (v.kind || '')), dim: false, t: _t, ts: _ts });
+    // v2.4.99 §13.25.11 (Ultrasafe it-1 se-04, 렌더 절반) — 라벨이 발신자와 무관하게 «서버 공지» 로 하드코딩돼
+    //   있었어요. 그래서 아무 에이전트가 보낸 공지도 시스템 권위 announcement 로 읽혔어요 — 서버 측에서 source
+    //   위조를 막아도, 렌더가 «누가» 를 아예 안 보여주면 그 수정이 화면까지 오지 않아요. 서버가 실어주는 인증된
+    //   value.agentId 로 귀속을 표시하고, «서버 공지» 라벨은 source==='server' 에만 남겨요.
+    const _sysNotice = m.source === 'server' || !v.agentId;
+    const _noticeLabel = _sysNotice ? (icon + ' 서버 공지') : (icon + ' 공지 · ' + v.agentId + (v.senderRole ? ' (' + v.senderRole + ')' : ''));
+    if (a && !wsIsGroup(a)) wsPushRow(a, { kind: 'status', label: _noticeLabel, body: v.text || ((v.target || 'server') + ' ' + (v.kind || '')), dim: false, t: _t, ts: _ts });
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CloseChannel') {   // 다른 클라/✕ 로 채널 닫힘 → 동기
