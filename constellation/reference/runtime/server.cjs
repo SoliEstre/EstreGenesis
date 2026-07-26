@@ -466,7 +466,14 @@ const crypto = require('crypto');
 const WS_KEYS = path.join(DIR, 'ws-keys.json');
 let wsKeys = [];
 try { const k = JSON.parse(fs.readFileSync(WS_KEYS, 'utf8')); if (Array.isArray(k)) wsKeys = k; } catch {}
-function wsSaveKeys() { try { fs.writeFileSync(WS_KEYS, JSON.stringify(wsKeys)); } catch {} }
+// v2.4.100 (Ultrasafe it-1 crypto-03, critical) — 키 저장소는 소유자 전용 모드. ws-keys.json 은 A2A 키 문자열
+//   원문이고 key.json 은 그 메타이며 local-keys/*.key 는 워커 키 원문이에요. 셋 다 umask 에만 의존했어요.
+//   mode 는 **생성 시에만** 적용되므로 chmod 를 함께 걸어요 — 이미 0644 로 존재하는 파일은 덮어써도 안 좁혀져요.
+function wsWriteSecret(file, data) {
+  fs.writeFileSync(file, data, { mode: 0o600 });
+  try { fs.chmodSync(file, 0o600); } catch {}
+}
+function wsSaveKeys() { try { wsWriteSecret(WS_KEYS, JSON.stringify(wsKeys)); } catch {} }
 function wsIssueKey(label, role) { const r = role || 'upstream'; const prefix = r === 'collab' ? 'ck-' : r === 'local' ? 'lk-' : r === 'peer' ? 'pk-' : 'uk-'; const key = prefix + crypto.randomBytes(12).toString('hex'); wsKeys.push({ key, label: label || r, role: r, createdAt: new Date().toISOString() }); wsSaveKeys(); return key; }   // #168 role 메타(collab=ck- / upstream=uk- / v2.4.1 local=lk- / v2.4.52 peer=pk-)
 // v2.4.99 (Ultrasafe it-1 crypto-04) — 키 비교는 상수시간. 종전 `===` 는 첫 불일치 바이트에서 조기 반환해요.
 function wsKeyEq(a, b) {
@@ -530,7 +537,7 @@ function keyAdoptLegacy() {
 }
 function keySave() {   // §6 atomic write + fsync
   keyStore.updatedAt = Date.now();
-  try { const tmp = KEY_JSON + '.tmp'; const fd = fs.openSync(tmp, 'w'); fs.writeSync(fd, JSON.stringify(keyStore)); fs.fsyncSync(fd); fs.closeSync(fd); fs.renameSync(tmp, KEY_JSON); } catch {}
+  try { const tmp = KEY_JSON + '.tmp'; const fd = fs.openSync(tmp, 'w', 0o600); fs.writeSync(fd, JSON.stringify(keyStore)); fs.fsyncSync(fd); fs.closeSync(fd); fs.renameSync(tmp, KEY_JSON); try { fs.chmodSync(KEY_JSON, 0o600); } catch {} } catch {}   // v2.4.100 crypto-03 — tmp 를 좁게 만들어 rename 하고, 기존 파일 대비 chmod 도 걸어요
 }
 function keyFind(k) { return keyStore.keys.find((x) => x.key === k); }
 function keyIsExpired(k) { return k.ttl > 0 && Date.now() > k.issuedAt + k.ttl; }   // §4.1 lazy
@@ -610,9 +617,13 @@ function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (u
   keySave();
   if (kind === 'local') {   // v2.4.1 §3.6 — wire 응답에 키 자체 안 보냄
     const dirPath = path.join(DIR, 'local-keys');
-    try { fs.mkdirSync(dirPath, { recursive: true }); } catch {}
+    // v2.4.100 crypto-03 — 디렉터리도 소유자 전용(0700). 종전엔 0755 로 만들어져 목록 열람이 열려 있었고,
+    //   라벨을 알면 그 자체가 키 파일 경로였어요. 발견에는 이 두 경로(디렉터리 + *.key)가 없었는데,
+    //   같은 부류를 훑으라는 권고를 따라 찾은 지점이에요.
+    try { fs.mkdirSync(dirPath, { recursive: true, mode: 0o700 }); } catch {}
+    try { fs.chmodSync(dirPath, 0o700); } catch {}
     const filePath = path.join(dirPath, label + '.key');
-    try { const fd = fs.openSync(filePath, 'w'); fs.writeSync(fd, key); fs.fsyncSync(fd); fs.closeSync(fd); } catch (e) { return keyError(conn, msg, 'LOCAL_FILE_WRITE', 'failed to write local key file: ' + String(e.message || e)); }
+    try { const fd = fs.openSync(filePath, 'w', 0o600); fs.writeSync(fd, key); fs.fsyncSync(fd); fs.closeSync(fd); try { fs.chmodSync(filePath, 0o600); } catch {} } catch (e) { return keyError(conn, msg, 'LOCAL_FILE_WRITE', 'failed to write local key file: ' + String(e.message || e)); }
     const relFile = path.relative(DIR, filePath).replace(/\\/g, '/');
     const joinHint = `LOCAL_KEY_FILE=${relFile} WS_AGENT_ID=${label} node scripts/join-local.cjs`;
     wsKeyReply(conn, 'KeyIssued', { kind: 'local', label, roleDescription, ttl, issuedAt, joinFile: relFile, joinScript: 'scripts/join-local.cjs', joinHint }, msg);
