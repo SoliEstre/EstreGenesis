@@ -40,7 +40,9 @@ A local-model seat is only placeable on a host that can actually hold the model.
 Do this **before** proposing a roster from the reference table. A recorded practice is evidence that a seat is warranted: if work recurred enough to be codified, something recurring is being done by whoever happened to be available.
 
 - Read the project's practice store if it has one (Greatpractice `INDEX.md` and entry frontmatter; otherwise the repo's own recurring-work artifacts — release runbooks, checklists, repeated commit shapes).
+- **Separate a practice's target from its provenance before attributing anything.** A practice entry cites where it came from (research notes, the sibling entries it rolls up) as well as what it governs. Counting all of them attributes every practice to the practice store itself and the signal disappears — measured on this repo's own store, 26 of 30 entries resolved to `greatpractice/` and `reports/` until provenance was excluded, after which 5 entries pointed at a real uncovered surface. Exclude the evidence/dependency blocks and any path inside the practice store or the research archive.
 - Cluster by duty, not by file. Each cluster with two or more independent occurrences is a candidate seat; name the cluster's evidence.
+- **A seat with no declared boundary cannot be measured either way.** Coordination seats (`main`, `liaison`) own no files by design, so practice attribution can neither justify nor refute them. Report them as unmeasurable rather than as candidates for anything — a signal that structurally cannot come out positive must not be read as a negative.
 - Only then reconcile against the §3 reference roster, which is a **menu, not a checklist**.
 - Record each seat's justifying signal as `createdFor`. A seat whose reason cannot be restated is an eviction candidate by construction (§7.5-4).
 

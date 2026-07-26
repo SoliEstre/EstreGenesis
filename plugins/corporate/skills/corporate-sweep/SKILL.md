@@ -20,7 +20,7 @@ Spec SSoT: `Corporate.md` §7.4 (eviction procedure) and §7.5 (why a dynamic or
 
 Any one is sufficient to **raise** a candidate. None is sufficient to act.
 
-1. **No practice** — zero practice entries attributable to the seat over N cycles (§8.3: one signal read in both directions — practice implies a seat, absence of practice implies its removal).
+1. **No practice** — zero practice entries attributable to the seat over N cycles (§8.3: one signal read in both directions — practice implies a seat, absence of practice implies its removal). **Two exclusions, or this test manufactures candidates.** A seat that declares no `owns[]` boundary cannot be attributed practice at all, so its zero is a property of the measurement rather than of the seat; and a seat that has never been staffed has had no opportunity to accumulate, so its zero dates from the roster rather than from disuse. Both are reported as unmeasurable, and the N-cycle window for a staffed seat starts at staffing, not at declaration.
 2. **No delegations** — nothing routed to the seat over N cycles.
 3. **Covered elsewhere** — its duty falls entirely inside another seat's boundary. This is a **merge**, not a deletion: say which seat absorbs it.
 4. **Unaffordable** — the resource axis no longer funds its residency class even at the lowest rung.
