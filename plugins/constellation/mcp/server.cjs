@@ -100,6 +100,7 @@ const MEANINGFUL = new Set([
   'DeadlockProbe', 'ReviewSLAAck', 'PreemptRequest', 'PreemptForce',
   'MediationProposal', 'MediationAck', 'EscalationRequest',
   'ArtifactManifest', 'ArtifactChunk', 'ArtifactComplete',
+  'AgentText',   // §13.13.3 (v2.4.97) — bridge-coalesced utterance; the raw TEXT_MESSAGE_* frames carry no name, so a name-gated filter drops an utterance silently
 ]);
 
 // ----- WS proxy state -----

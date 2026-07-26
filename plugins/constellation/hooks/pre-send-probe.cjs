@@ -53,6 +53,8 @@ const ALLOWLIST = new Set([
   // v2.5.20 extensions — generic coordination + attachment / chunked-transfer anchors
   'Request', 'Reply',
   'Attachment',
+  // §13.13.3 (v2.4.97) — a bridge-coalesced utterance (see the reference copy for the measurement).
+  'AgentText',
   'ArtifactManifest', 'ArtifactComplete',
 ]);
 

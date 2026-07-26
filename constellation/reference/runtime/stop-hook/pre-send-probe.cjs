@@ -53,6 +53,12 @@ const ALLOWLIST = new Set([
   // v2.5.20 extensions — generic coordination + attachment / chunked-transfer anchors
   'Request', 'Reply',
   'Attachment',
+  // §13.13.3 (v2.4.97) — a bridge-coalesced utterance. The raw TEXT_MESSAGE_* frames carry no
+  //   `name`, so every name-gated consumer dropped them silently: measured 51 targeted text
+  //   frames sitting in an inbox having never produced a single wake. Recorded is not surfaced.
+  //   The bridge re-appends the coalesced utterance as a named CUSTOM envelope precisely so this
+  //   allowlist can see it; omit it here and the bridge half accomplishes nothing.
+  'AgentText',
   'ArtifactManifest', 'ArtifactComplete',
 ]);
 
