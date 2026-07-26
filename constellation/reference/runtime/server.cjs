@@ -618,6 +618,21 @@ function keyObserveHello(key, agentId) {   // §3.2/§4: HELLO 가 키 들고오
 //   해소됐어요. 불변식이 틀린 게 아니라 **불완전**했고, 빠진 층이 이거예요: 결속되기 전에 선언이 인증돼야 한다.
 //   구현은 TOFU(trust-on-first-use): 키는 처음 쓴 agentId 에 고정되고, 이후 다른 정체가 같은 키로 오면 거부.
 //   §3.6 의 로컬 키 설계가 이미 라벨 1:1 이고 실측상 어느 키도 두 정체를 오간 적이 없어요(공유 키는 오설정).
+// v2.4.104 §13.25.13 — 제시된 키가 유효기간이 지났는지 «허용 판단 자리에서» 물어봐요. 지금까지는
+//   선언만 있고 아무도 묻지 않아서, 관리 화면은 «폐기됨» 이라 그리는데 와이어는 통과시켰어요.
+//   lazy write: 지나간 사실을 여기서 상태에 굳혀요(read-time 파생과 저장 상태의 어긋남을 남기지 않게).
+//   명시 폐기(revokedAt)는 이미 wsValidKey 단계에서 걸러지므로 여기서 다루는 건 «기간» 뿐이에요.
+function keyExpiredRefusal(key) {
+  if (!key) return null;
+  const k = keyFind(key); if (!k) return null;   // keyStore 밖의 키(레거시 입양 전)는 ttl 개념이 없어요
+  if (!keyIsExpired(k)) return null;
+  if (k.state === 'ISSUED' || k.state === 'ACTIVE' || k.state === 'REVOKED_PENDING') {
+    k.state = 'REVOKED'; if (!k.revokedAt) k.expiredAt = k.expiredAt || Date.now();   // revokedAt 은 «운용자가 폐기함» 의 뜻이라 안 찍어요 — 연장 가능성 판정이 그 필드에 걸려 있어요
+    keySave();
+    console.warn('[server] §13.25.13 키 «%s» 유효기간 경과 — 접속 거부 (만료 %s)', k.label, new Date(keyExpiresAt(k)).toISOString());
+  }
+  return { label: k.label, expiresAt: keyExpiresAt(k) };
+}
 function keyPinViolation(key, agentId) {
   if (!key || !agentId) return null;
   const k = keyFind(key); if (!k || !k.boundAgent) return null;
@@ -1599,6 +1614,15 @@ server.on('upgrade', (req, socket) => {
   if (!conn) return;
   conn.meta.ip = normIp(req.socket.remoteAddress);   // v2.4.87 — 운영자 authz(§13.25.9) 가 주소를 봐야 하므로 upgrade 시 보관
   try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } else if (kr === 'local') { conn.meta.localKey = true; conn.meta.upstreamKey = k; }   /* v2.4.101 — local(lk-) 분기가 **이 자리에도** 없었어요. v2.4.99 는 HELLO 본문 경로만 고쳤는데, 레퍼런스 join-local 은 키를 URL 로만 보내요(?key=). 그래서 (a) 그 키는 관측되지 않아 state/lastAgent 가 초기값에 머물고 (b) 원격 local 키 거부 가드가 발동하지 않았어요 — 재기동 후 실측으로 드러난 구멍. 스모크가 두 경로에 다 키를 실어서 URL-only 경로를 시험하지 않았던 것도 같이 고쳤어요. */ if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
+  // v2.4.104 §13.25.13 — 기간 지난 키는 여기서 끊어요. 아래 SERVER_HELLO/AgentList/History 보다
+  //   **앞**이어야 해요: URL 로 키를 싣는 클라이언트는 HELLO 를 보내기 전에 이미 보드 내용을 받으니까요
+  //   (v2.4.41 이 IP 차단에 대해 같은 이유로 잡아둔 순서와 동일한 근거).
+  { const _exp = keyExpiredRefusal(conn.meta._urlKey);
+    if (_exp) {
+      try { conn.send(wscore.event('CUSTOM', { name: 'ConnectionRejected', value: { code: 'key-expired', reason: 'the presented key is past its validity window', label: _exp.label, expiresAt: _exp.expiresAt, hint: 'Constellation §13.25.12 — 보드 운용자가 🔑 관리 창에서 연장하면 같은 키로 다시 접속돼요(열쇠 문자열은 바뀌지 않아요).' } })); } catch {}
+      try { conn.close(4003, 'key expired'); } catch {}
+      return;
+    } }
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
   conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
@@ -1639,6 +1663,13 @@ server.on('upgrade', (req, socket) => {
           _reject('ip-not-allowlisted', `${_surface} surface: address not in allowlist`, 'Constellation §13.25 — access.json 의 ' + _surface + '.allowlist 에 이 주소를 추가하세요.');
           return;
         }
+        // v2.4.104 §13.25.13 — 본문으로 키를 싣는 경로. URL 경로는 upgrade 에서 이미 끊겨요. 종별 거부보다
+        //   앞에 둬요: 기간이 지난 키는 어느 종이든 무효라, 종을 먼저 따지면 «왜 거부됐나» 가 흐려져요.
+        { const _exp = keyExpiredRefusal(conn.meta.upstreamKey);
+          if (_exp) {
+            _reject('key-expired', 'the presented key is past its validity window', 'Constellation §13.25.12 — 보드 운용자가 🔑 관리 창에서 연장하면 같은 키로 다시 접속돼요(열쇠 문자열은 바뀌지 않아요).');
+            return;
+          } }
         // v2.4.99 §13.25.11 (Ultrasafe it-1 se-01 도달범위) — `local` 종 키를 **원격에서** 제시하면 거부.
         //   `lk-` 는 호스트-로컬 워커용인데, 그 종만 collab/peer/upstream 플래그를 안 세워서 위의 main 분기로
         //   흘러들 수 있는 유일한 종이었어요(측정된 사슬의 권한 획득 단계). 원격에서 온 «local» 은 범주 오류예요.
