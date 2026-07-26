@@ -18,7 +18,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const VERSION = "0.2.4";
+const VERSION = "0.2.5";
 const ADVISORY_MODE = true; // v0.2.x — flips to false in v0.3+ blocking cut.
 const BLOCKING_IN_V03 = true; // surfaced in all returns so consumers know what would happen under blocking mode.
 
@@ -52,6 +52,68 @@ function getValidator(schemaPath) {
 }
 
 // ----- Determinism helpers -----
+
+// v0.2.5 (Ultrasafe it-1 meth-03) — 이 서버는 지금까지 `.ultrasafe/state.json` 을 **한 번도 건드리지 않았어요.**
+//   PreToolUse 훅은 이벤트만 append 하고, Stop 훅은 `state.iterations` 를 **읽기만** 해요. 회차 이력을
+//   적을 주체가 출시되지 않아서, 60건이 넘는 감지 이벤트가 쌓인 상태에서도 `iterations` 는 계속 `[]` 였어요.
+//   그래서 v0.3 차단 모드의 «릴리스마다 증거 누적» 조건은 **한 번도 충족된 적이 없고**, 그런데도 충족처럼
+//   보였어요 — 증가하지 않는 카운터는 충족된 조건과 구분이 안 돼요.
+//   앵커 규칙은 Stop 훅(ultrasafe-clean-signal.cjs)과 **글자 그대로 같아야** 해요. 다르면 한쪽이 쓰고
+//   다른 쪽이 못 읽는, 지금과 증상이 똑같은 상태로 되돌아가요.
+function usfRepoRoot(startDir) {
+  let dir = startDir || process.cwd();
+  for (let i = 0; i < 16; i++) {
+    if (fs.existsSync(path.join(dir, '.git')) || fs.existsSync(path.join(dir, '.ultrasafe'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir || process.cwd();
+}
+const USF_REPO_ROOT = usfRepoRoot(process.cwd());
+const USF_STATE_DIR = process.env.ULTRASAFE_STATE_DIR || path.join(USF_REPO_ROOT, '.ultrasafe');
+const USF_STATE_PATH = path.join(USF_STATE_DIR, 'state.json');
+
+function usfReadState() {
+  try { return JSON.parse(fs.readFileSync(USF_STATE_PATH, 'utf8')); } catch { return null; }
+}
+function usfWriteState(state) {
+  fs.mkdirSync(USF_STATE_DIR, { recursive: true });
+  const tmp = USF_STATE_PATH + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
+  fs.renameSync(tmp, USF_STATE_PATH);   // 원자적 교체 — 훅이 반쯤 쓰인 파일을 읽지 않게
+}
+
+// ─── 발견 신원 키 (it-1 §5 / §8 ⑦) ─────────────────────────────────────────────
+// 종전 키는 `file::line::pattern_id` 였고 52건에서 교차-축 일치가 **0건** 나왔어요. 두 원인 다 여기예요.
+//   (a) **경로 기준이 에이전트마다 달라요** — 어떤 건 바깥 워크스페이스 기준, 어떤 건 inner repo 기준이라
+//       같은 파일이 같지 않게 비교됐어요. 정규화로 닫혀요.
+//   (b) **줄 번호가 들어 있어요.** 이게 더 나빠요 — 파일을 한 줄만 고쳐도 그 파일의 모든 발견이 **새 키**가
+//       되고, 그러면 `new_findings_above_threshold` 가 0이 될 수 없어서 `regression_free` 조건이
+//       실제 개선과 무관하게 영원히 거짓이 돼요. 게이트가 진전을 «회귀» 로 읽는 거예요.
+//   그래서 키에서 줄 번호를 **뺐어요.** 대신 제목 지문을 넣어요 — 한 파일 안에서 같은 pattern_id 를 가진
+//   서로 다른 발견 둘이 하나로 합쳐지는 것(과소집계 → 게이트가 쉬워짐)을 막기 위해서예요.
+//   **닫지 않은 것**: 제목이 다른 «의미상 같은» 발견(한 결함을 두 호출지점에서 본 경우)은 여전히 안 합쳐져요.
+//   그건 기계 키의 능력 밖이고, it-1 리포트도 그렇게 적었어요. 여기서 고친 건 (a) 전부 + (b) 전부예요.
+function usfNormPath(p) {
+  let v = String(p || '').trim().replace(/\\/g, '/');
+  if (!v) return '';
+  v = v.replace(/^[a-zA-Z]:\//, '/');                       // 드라이브 문자 제거 (대소문자 차이 흡수)
+  v = v.replace(/\/+/g, '/').replace(/^\.\//, '');
+  // 저장소 이름이 경로에 몇 번 나오든 **마지막** 등장 이후를 취해요 — outer/inner 중첩 체크아웃에서
+  // 같은 파일이 서로 다른 접두사로 보고되던 것을 하나로 접습니다 (예: .../EstreGenesis/EstreGenesis/x → x).
+  const repo = (process.env.ULTRASAFE_REPO_NAME || 'EstreGenesis') + '/';
+  const last = v.toLowerCase().lastIndexOf(repo.toLowerCase());
+  if (last >= 0) v = v.slice(last + repo.length);
+  return v.replace(/^\/+/, '');
+}
+function usfFindingKey(f) {
+  const file = usfNormPath((f && (f.file || (f.location && f.location.file))) || '');
+  const pid = String((f && (f.pattern_id || f.rule_id)) || '');
+  const title = String((f && (f.title || f.summary)) || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const fp = title ? sha256(title).slice(0, 8) : '';
+  return file + '#' + pid + '#' + fp;
+}
 
 function sha256(s) {
   return crypto.createHash("sha256").update(s, "utf8").digest("hex");
@@ -163,14 +225,10 @@ async function handleFindingAggregate(args = {}) {
   if (!Array.isArray(finding_set_from_7_attackers)) throw new Error("finding_set_from_7_attackers must be array");
   if (!agent_roster_snapshot_hash) throw new Error("agent_roster_snapshot_hash is required");
 
-  // Dedup algorithm: (file × line × pattern_id) 3-tuple match → merge.
-  // Per Ultrasafe.md §16.2 deterministic guarantee.
-  const dedupKeyOf = (f) => {
-    const file = f.file || f.location?.file || "";
-    const line = f.line || f.location?.line || 0;
-    const pid = f.pattern_id || f.rule_id || "";
-    return `${file}::${line}::${pid}`;
-  };
+  // Dedup key: normalized-path × pattern_id × title-fingerprint (v0.2.5).
+  //   종전 3-tuple 은 줄 번호와 정규화되지 않은 경로를 써서, iteration 1 실측에서 52건 중 교차-축
+  //   일치가 **0건** 나왔어요. 근거와 남은 한계는 usfFindingKey 주석에 있어요.
+  const dedupKeyOf = usfFindingKey;
 
   const buckets = new Map();
   for (const f of finding_set_from_7_attackers) {
@@ -308,7 +366,7 @@ async function handleCleanSignalCheck(args = {}) {
   // a) sealed_verification — no regression_baseline finding in current_findings.
   // b) prior_findings_retest — all prior findings retest result attached.
   // c) secondary_surface_absence — no new findings in scopes already deemed clean.
-  const findingKey = (f) => `${f.file || ""}::${f.line || 0}::${f.pattern_id || f.rule_id || ""}`;
+  const findingKey = usfFindingKey;   // v0.2.5 — 회귀 판정도 같은 정규화 키를 써요. 여기에 줄 번호가 남아 있으면 «한 줄 편집 = 전부 새 발견» 이 되어 sealed_verification 이 실제 개선과 무관하게 흔들려요.
   const currentKeys = new Set(current_findings.map(findingKey));
   const baselineKeys = new Set(regression_baseline.map(findingKey));
   const sealed_verification = ![...baselineKeys].some((k) => currentKeys.has(k));
@@ -666,6 +724,26 @@ const TOOLS = [
     },
   },
   {
+    name: "ultrasafe_iteration_record",
+    description: "Append a measured assessment iteration to .ultrasafe/state.json — the writer that did not exist. The Stop hook's 4-condition clean-signal gate reads state.iterations; nothing wrote it, so the v0.3 blocking-mode criterion 'advisory evidence accumulated per release' read as satisfied while the count had never moved. Derives coverage (attackers_run / attackers_configured), new_findings_above_threshold (a real diff against the previous iteration's stored finding-key set, or null when that set is absent rather than a false zero), and clean (derived, never caller-declared). Idempotent by iteration_id. Advisory in v0.2.x.",
+    inputSchema: {
+      type: "object",
+      required: ["iteration_id", "attackers_configured", "attackers_run", "findings"],
+      properties: {
+        iteration_id: { type: "string", description: "Stable id for this iteration (idempotency key)." },
+        target_ref: { type: "string", description: "Commit/tag the iteration assessed." },
+        tier: { type: "integer", description: "Tier 1|2|3." },
+        attackers_configured: { type: "integer", description: "Attackers the tier declares — the coverage denominator. Measured, not estimated." },
+        attackers_run: { type: "integer", description: "Attackers actually dispatched." },
+        findings: { type: "array", description: "This iteration's findings (severity + file + pattern_id + title used for keying)." },
+        severity_threshold: { type: "string", description: "Threshold for new_findings_above_threshold (default 'high')." },
+        roster_snapshot_hash: { type: "string" },
+        report_path: { type: "string" },
+        notes: { type: "string" },
+      },
+    },
+  },
+  {
     name: "ultrasafe_release_gate",
     description: "Release-gate state query + Hyperbrief 4-score routing input emit. Deterministic verdict: release_advisory (clean_signal AND severity_max < 4) | hold_advisory | escalate (severity_max >= 4). Grading: minimal | standard | high via (severityMax × externalImpactMax × tier) lexicographic. Methodology 4-tuple default: NIST + OSSTMM + OWASP + PTES. v0.2.x advisory mode — verdict does NOT block publish. Consumer MUST treat as informational only.",
     inputSchema: {
@@ -699,11 +777,121 @@ const handlers = {
       case "ultrasafe_finding_aggregate":   return handleFindingAggregate(args || {});
       case "ultrasafe_clean_signal_check":  return handleCleanSignalCheck(args || {});
       case "ultrasafe_report_generate":     return handleReportGenerate(args || {});
+      case "ultrasafe_iteration_record":    return handleIterationRecord(args || {});
       case "ultrasafe_release_gate":        return handleReleaseGate(args || {});
       default: throw new Error("Unknown tool: " + name);
     }
   },
 };
+
+// ─── ultrasafe_iteration_record (v0.2.5 — it-1 meth-03) ──────────────────────
+// 없던 주체. 한 회차의 **측정된** 사실을 받아 `state.iterations` 에 append 해요. 계산은 소비자
+// (Stop 훅의 4조건 게이트)가 읽는 필드에 맞춰요 — 쓰는 쪽이 읽는 쪽 계약을 따라야 하고, 그 반대가
+// 아니에요. 필드: open_findings · new_findings_above_threshold · coverage · clean.
+//   · `new_findings_above_threshold` 는 **직전 회차의 발견 키 집합과 실제로 비교**해서 세요. 그래서
+//     회차마다 키 집합을 함께 저장해요 — 저장하지 않으면 다음 회차가 이 값을 «주장» 할 수밖에 없고,
+//     그게 지금 고치고 있는 그 부류의 결함이에요.
+//   · `clean` 은 호출자가 선언하는 값이 아니라 여기서 **파생**해요(임계 이상 신규 0 + 커버리지 하한 충족).
+//     선언을 받으면 낙관적 자기보고가 게이트를 통과시켜요.
+//   · id 멱등 — 같은 iteration_id 가 다시 오면 덮어쓰지 않고 skip 하고 그렇다고 알려요.
+function handleIterationRecord(a) {
+  const {
+    iteration_id, target_ref, tier,
+    attackers_configured, attackers_run,
+    findings = [], severity_threshold = "high",
+    roster_snapshot_hash = null, report_path = null, notes = null,
+  } = a;
+
+  if (!iteration_id) throw new Error("iteration_id is required (멱등 키 — 같은 회차를 두 번 세지 않으려면 필요해요)");
+  if (!Number.isFinite(Number(attackers_configured)) || Number(attackers_configured) <= 0) {
+    throw new Error("attackers_configured must be a positive number (coverage 의 분모예요 — 추정 금지)");
+  }
+  if (!Number.isFinite(Number(attackers_run))) throw new Error("attackers_run is required (실제로 돌린 수)");
+  if (!Array.isArray(findings)) throw new Error("findings must be an array");
+
+  const state = usfReadState();
+  if (!state) {
+    // 상태 파일이 없으면 **만들지 않아요.** 그 파일은 훅이 초기화하는 것이고, 여기서 새로 만들면
+    // 앵커가 어긋난 두 번째 파일이 생겨서 (실측된) cwd-분할 기록 사고를 되풀이해요.
+    return { ok: false, recorded: false, reason: "state file not found at " + USF_STATE_PATH + " — Ultrasafe 훅이 먼저 초기화해야 해요 (여기서 만들면 앵커가 갈라져요)", state_path: USF_STATE_PATH, advisory_mode: ADVISORY_MODE };
+  }
+  if (!Array.isArray(state.iterations)) state.iterations = [];
+
+  const existing = state.iterations.find((it) => it && it.iteration_id === iteration_id);
+  if (existing) {
+    return { ok: true, recorded: false, idempotent_skip: true, iteration_id, iterations_total: state.iterations.length, advisory_mode: ADVISORY_MODE };
+  }
+
+  const RANK = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
+  const thr = RANK[String(severity_threshold).toLowerCase()];
+  if (thr == null) throw new Error("severity_threshold '" + severity_threshold + "' unknown (critical|high|medium|low|info)");
+  const sevOf = (f) => { const r = RANK[String((f && f.severity) || "info").toLowerCase()]; return r == null ? 0 : r; };
+
+  const keys = [...new Set(findings.map(usfFindingKey))];
+  const aboveThreshold = findings.filter((f) => sevOf(f) >= thr);
+  const aboveKeys = new Set(aboveThreshold.map(usfFindingKey));
+
+  const prior = state.iterations.length ? state.iterations[state.iterations.length - 1] : null;
+  const priorKeys = new Set(Array.isArray(prior && prior.finding_keys) ? prior.finding_keys : []);
+  // 직전 회차가 키를 안 남겼으면(이 도구 이전에 기록된 회차) diff 가 불가능해요. 0 으로 채우지 않고
+  // null 로 둬요 — 소비자가 null 을 «아직 판정 불가» 로 다루게 설계돼 있고, 0 은 «회귀 없음» 이라는
+  // 거짓 주장이에요. 첫 회차(prior 없음)는 비교 대상이 없으니 신규 = 임계 이상 전부예요.
+  const newAbove = (prior && !Array.isArray(prior.finding_keys))
+    ? null
+    : [...aboveKeys].filter((k) => !priorKeys.has(k)).length;
+
+  const coverage = Number(attackers_run) / Number(attackers_configured);
+  const COVERAGE_FLOOR = 0.8;   // Stop 훅과 같은 값 — 여기서 다르게 두면 두 판정이 갈라져요
+  const clean = newAbove === 0 && coverage >= COVERAGE_FLOOR;
+
+  const counts = findings.reduce((acc, f) => {
+    const s = String((f && f.severity) || "info").toLowerCase();
+    acc[s] = (acc[s] || 0) + 1; return acc;
+  }, {});
+
+  const record = {
+    iteration_id,
+    at: new Date().toISOString(),
+    target_ref: target_ref || null,
+    tier: tier == null ? null : Number(tier),
+    attackers_configured: Number(attackers_configured),
+    attackers_run: Number(attackers_run),
+    coverage,
+    open_findings: findings.length,
+    findings_by_severity: counts,
+    severity_threshold,
+    new_findings_above_threshold: newAbove,
+    clean,
+    finding_keys: keys,
+    roster_snapshot_hash,
+    report_path: report_path || null,
+    notes: notes || null,
+    recorded_by: "ultrasafe_iteration_record/" + VERSION,
+  };
+
+  state.iterations.push(record);
+  state.latest_iteration_boundary = record.at;
+  usfWriteState(state);
+
+  let consecutive = 0;
+  for (let i = state.iterations.length - 1; i >= 0; i--) { if (state.iterations[i].clean === true) consecutive++; else break; }
+
+  return {
+    ok: true, recorded: true, iteration_id,
+    iterations_total: state.iterations.length,
+    record,
+    // 게이트가 이 회차로 어디까지 왔는지 — 주장이 아니라 계산값이에요.
+    gate_progress: {
+      iterations_run: state.iterations.length,
+      consecutive_clean: consecutive,
+      note: newAbove === null
+        ? "직전 회차에 발견 키 집합이 없어서 regression_free 는 이번엔 판정 불가(null)예요 — 다음 회차부터 실제 diff 가 가능해요."
+        : null,
+    },
+    state_path: USF_STATE_PATH,
+    advisory_mode: ADVISORY_MODE,
+  };
+}
 
 // ----- Non-MCP CLI fallback (for testing without an MCP host) -----
 // Usage: node server.cjs --cli <tool_name> <json_args>
@@ -757,4 +945,4 @@ if (process.argv.includes("--cli")) {
   });
 }
 
-module.exports = { handlers, TOOLS, VERSION, ADVISORY_MODE };
+module.exports = { handlers, TOOLS, VERSION, ADVISORY_MODE, usfFindingKey, usfNormPath, USF_STATE_PATH, handleIterationRecord };   // v0.2.5 — 키 함수와 기록기를 검사에서 직접 호출할 수 있게 노출
