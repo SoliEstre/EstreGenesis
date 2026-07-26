@@ -111,6 +111,42 @@ function _dedupCheck(msgId) {
   return false;
 }
 
+// §13.13.3 (v2.4.96) — inbound text intake. A party that speaks without a `targetAgentId` used to
+//   vanish here: `onInbound` returned on every non-CUSTOM frame, so an utterance the server had
+//   relayed reached the board and stopped. The three-frame stream is coalesced into ONE inbox
+//   record so the agent sees an utterance rather than fragments (one wake per utterance, matching
+//   the server's own history aggregation). A CONTENT frame with no preceding START is appended
+//   immediately as `partial` — a bridge that connects mid-utterance must not silently drop it,
+//   which is the same store-immediately fallback the server's history buffer uses.
+const _TEXT_FRAMES = new Set(['TEXT_MESSAGE_START', 'TEXT_MESSAGE_CONTENT', 'TEXT_MESSAGE_END']);
+const _textBuf = new Map();       // messageId → { from, text, at }
+const _TEXT_BUF_MAX = 64;         // bounded: a dropped END must not leak a buffer entry forever
+function _textAppend(u) {
+  const rec = { at: u.at, name: 'AgentText', value: { agentId: u.from, messageId: u.messageId, text: u.text, partial: u.partial || undefined }, source: u.source || 'agent' };
+  try { fs.appendFileSync(INBOX, JSON.stringify(rec) + '\n'); } catch (e) { console.log('[bridge] inbox write fail', String(e)); }
+  console.log('[bridge] inbound AgentText from', u.from, JSON.stringify(String(u.text).slice(0, 120)));
+}
+function _textInbound(m) {
+  const key = String(m.messageId || m.id || '_');
+  const from = m.agentId || m.source || 'unknown';
+  if (m.type === 'TEXT_MESSAGE_START') {
+    if (_textBuf.size >= _TEXT_BUF_MAX) _textBuf.delete(_textBuf.keys().next().value);   // evict oldest (insertion order)
+    _textBuf.set(key, { from, text: '', at: new Date().toISOString() });
+    return;
+  }
+  if (m.type === 'TEXT_MESSAGE_CONTENT') {
+    const b = _textBuf.get(key);
+    if (b) { b.text += String(m.delta || ''); return; }
+    if (String(m.delta || '').trim()) _textAppend({ from, text: String(m.delta), at: new Date().toISOString(), messageId: key, partial: true, source: m.source });
+    return;
+  }
+  const b = _textBuf.get(key);            // TEXT_MESSAGE_END
+  if (!b) return;
+  _textBuf.delete(key);
+  if (!String(b.text).trim()) return;     // empty utterance = nothing said
+  _textAppend({ from: b.from, text: b.text, at: b.at, messageId: key, source: m.source });
+}
+
 function send(type, extra) {
   if (!ws || ws.readyState !== 1) return false;
   const msg = Object.assign({ type, id: 'l-' + now().toString(36) + '-' + (++seq), seq, runId, threadId: THREAD_ID, timestamp: now(), source: 'agent', agentId: AGENT_ID }, extra);
@@ -120,6 +156,7 @@ function send(type, extra) {
 // ---- inbound → inbox.jsonl (에이전트가 읽음) ----
 function onInbound(m) {
   if (m.type === 'SERVER_HELLO') { console.log('[bridge] SERVER_HELLO proto', m.protocolVersion); return; }
+  if (_TEXT_FRAMES.has(m.type)) { _textInbound(m); return; }                                 // §13.13.3 — 텍스트 발화는 coalesce 후 AgentText 1건으로 적재
   if (m.type !== 'CUSTOM') return;
   if (m.name === 'AgentList' || m.name === 'History' || m.name === 'CloseChannel') return;   // server→board 용 — 브릿지 무시
   // §13.13.2 v0.4 receiver-side dedup with AckProcessed{dedupHit:true} emit.
