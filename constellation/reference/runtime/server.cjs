@@ -148,6 +148,23 @@ function sendJson(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(obj));
 }
+// v2.4.99 §13.25.11 (Ultrasafe it-1 web-01) — 상태변경 POST 의 CSRF 가드. 종전 게이트는 isLoopbackIp() **단독**이었고,
+//   그 조건은 «같은 기계의 브라우저» 도 만족해요 — 어느 페이지의 JS 가 쐈든 무관하게. 그래서 운영자가 방문한 임의의
+//   페이지가 access.json 을 다시 쓰고(allowlist 비우기 · requireKey 해제) 곧바로 /api/restart 로 적용까지 할 수
+//   있었어요: «loopback 바인드라 기본 안전» 이 무인증 키관리 표면으로 뒤집히는 경로.
+//   원칙 — 브라우저가 보내는 출처 신호(Sec-Fetch-Site · Origin)가 «다른 출처» 라고 말하면 거부. 신호가 아예 없으면
+//   비-브라우저 클라이언트(curl · node · 스크립트)이므로 통과해요. 브라우저는 이 두 헤더를 억제할 수 없으니 이
+//   완화가 CSRF 를 되열지 않아요 — 반대로 여기서 Origin 부재를 거부하면 운영 스크립트가 전부 깨져요.
+function sameOriginPost(req) {
+  const site = req.headers['sec-fetch-site'];
+  if (site && site !== 'same-origin' && site !== 'none') return false;   // 최신 브라우저: cross-site/same-site 거부
+  const origin = req.headers.origin;
+  if (!origin) return true;                                              // 비-브라우저
+  if (origin === 'null') return false;                                   // opaque origin(sandbox iframe·data:)
+  let h; try { h = new URL(origin).host; } catch { return false; }
+  return !!h && h === String(req.headers.host || '');
+}
+const CSRF_403 = { ok: false, error: '거부 — 이 요청의 출처(Origin/Sec-Fetch-Site)가 보드와 달라요. 상태를 바꾸는 POST 는 대시보드 자신 또는 비-브라우저 클라이언트에서만 받아요. (Constellation §13.25.11)' };
 
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
@@ -165,6 +182,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET') return sendJson(res, 200, { ok: true, access: accessCfg, exposed: !_isLoopback, bind: WS_BIND });
     if (req.method === 'POST') {
       if (!isLoopbackIp(req.socket.remoteAddress)) return sendJson(res, 403, { ok: false, error: 'access.json 변경은 로컬(loopback)에서만 가능해요.' });
+      if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/access POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
       let body = '';
       req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
       req.on('end', () => {
@@ -185,6 +203,7 @@ const server = http.createServer((req, res) => {
 
   if (url === '/api/restart' && req.method === 'POST') {   // #5a-4 self-restart — 저장한 expose(bind) 적용. loopback 전용.
     if (!isLoopbackIp(req.socket.remoteAddress)) return sendJson(res, 403, { ok: false, error: '재시작은 로컬(loopback)에서만 가능해요.' });
+    if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/restart POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
     sendJson(res, 200, { ok: true, restarting: true });
     console.log('[server] #5a-4 /api/restart — restart-self-board.ps1 스폰 후 self-exit (새 서버가 access.json expose 로 bind)');
     try {
@@ -209,7 +228,10 @@ const server = http.createServer((req, res) => {
   if (url === '/api/events') {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
-      Connection: 'keep-alive', 'Access-Control-Allow-Origin': '*',
+      Connection: 'keep-alive',
+      // v2.4.99 (Ultrasafe it-1 web-03) — `Access-Control-Allow-Origin: '*'` 제거. 이 스트림은 보드 **전체 상태**
+      //   (예정·완료·검토사안·프로젝트)를 밀어주는데, ACAO:* 는 아무 제3자 페이지의 JS 가 그걸 **읽게** 해줬어요
+      //   (web-01 과 합치면 읽고 **다시 쓰기**까지). 대시보드는 같은 서버가 서브하므로 same-origin — 헤더가 필요 없어요.
     });
     res.write(`event: state\ndata: ${readState().replace(/\n/g, ' ')}\n\n`);
     sseClients.add(res);
@@ -219,6 +241,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (url === '/api/feedback' && req.method === 'POST') {
+    if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/feedback POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
     req.on('end', () => {
@@ -276,6 +299,18 @@ const server = http.createServer((req, res) => {
     if (group === 'local') {   // v2.4.1 §3.6 — label 만 받음 (키는 URL 노출 안 함)
       const label = new URL(req.url, 'http://x').searchParams.get('label');
       if (!label || !keyValidateLabelSafe(label)) { res.writeHead(400, { 'Content-Type': 'text/markdown; charset=utf-8' }); res.end('# 잘못된 라벨\n\n로컬 키 라벨은 `[a-zA-Z0-9_-]+` 패턴이어야 해요. (URL 형식: `/join/local?label=worker-1`)'); return; }
+      // v2.4.99 §13.25.11 (Ultrasafe it-1 후속 실측, 2026-07-26) — 이 엔드포인트는 **호스트-로컬 전용**이에요.
+      //   /join/* 는 «키-게이트 agent-facing» 이라는 이유로 UI IP allowlist 에서 통째로 제외돼 있는데(위 §5a 가드),
+      //   `local` 분기만은 **키를 안 받아요** — 라벨만 맞으면 200. 그리고 응답 본문에 WS_PRIMARY_ID 가 두 번,
+      //   메인이 워커에 부여한 roleDescription 이 그대로 실려요. 즉 라벨(`board-observer` 처럼 추측 가능한 이름)
+      //   하나로 **무인증 원격** 당사자가 «끊기지 않는 사슬» 1단계(정찰)를 공짜로 얻었어요 — 라이브 보드에서 실측
+      //   (200 / 4.6KB / agentId 노출 확인). local 워커는 정의상 호스트-로컬이라 원격이 이 문서를 받을 이유가 없어요.
+      if (!isLoopbackIp(req.socket.remoteAddress)) {
+        console.warn('[server] §13.25.11 /join/local 원격 거부 ip=%s label=%s', normIp(req.socket.remoteAddress) || '?', label);
+        res.writeHead(403, { 'Content-Type': 'text/markdown; charset=utf-8' });
+        res.end('# 접속 거부\n\n로컬(local) 워커 온보딩은 보드를 띄운 호스트 자신에서만 조회할 수 있어요. (Constellation §13.25.11)');
+        return;
+      }
       const k = keyStore.keys.find((x) => x.kind === 'local' && x.label === label && x.state !== 'REVOKED' && x.state !== 'DELETED');
       if (!k) { res.writeHead(404, { 'Content-Type': 'text/markdown; charset=utf-8' }); res.end(`# 알 수 없는 로컬 키\n\n라벨 \`${label}\` 의 활성 로컬 키가 없어요.`); return; }
       res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
@@ -396,7 +431,15 @@ function wsIsAckable(msg) {   // §13.13 A2A delivered ack 대상: ack/ping류·
 // 메인(main) 에이전트 — 대상(targetAgentId) 미지정 inbound/CUSTOM 의 우선 수신자(오케스트레이터). 핸드오프로 변경 가능.
 let WS_PRIMARY_ID = process.env.WS_PRIMARY_AGENT || 'main-agent';   // generic default (dashboard WS_LOCAL 과 일관); 다운스트림이 자기 환경 메인 agentId 를 env 로 주입
 function wsPrimaryAgent() { const p = wsAgents.get(WS_PRIMARY_ID); if (p && p.alive) return p; for (const c of wsAgents.values()) if (c.alive) return c; return null; }
-function wsAgentRole(c) { return c.meta.collab ? 'collab' : (c.meta.peer ? 'peer' : (c.meta.upstream ? 'upstream' : (c.meta.agentId === WS_PRIMARY_ID ? 'main' : 'local'))); }   // v0.3 오케스트레이션 role (+collab #168, +peer v2.4.52 — peer-main ≠ 자율 upstream)
+// v2.4.99 §13.25.11 (Ultrasafe it-1 tml-01/se-01) — `main` 은 **호스트-로컬** 지위예요. 종전엔 `agentId === WS_PRIMARY_ID`
+//   **문자열 일치** 하나로 main 이 됐고(선언과 제시된 키 사이에 아무 결속이 없음), main 은 곧 wsOperatorAuthz()=true —
+//   키 발급·폐기·SetMain·§13.33.4 조직 선언 권한 전부. 그래서 `local` 종 키 하나만 있으면(collab/peer/upstream 플래그가
+//   안 서는 유일한 종) 원격 당사자가 HELLO 한 줄로 진짜 main 을 evict 하고 그 자리를 차지할 수 있었어요 — 측정된
+//   «끊기지 않는 사슬». WS_PRIMARY_ID 는 비밀이 아니고 온보딩 텍스트에 그대로 실려요(아래 /join/local 참고).
+//   main 은 정의상 보드를 띄운 호스트의 오케스트레이터이므로, 원격 연결은 어떤 선언을 해도 main 이 되지 않아요.
+//   지원되는 원격 «다른 프로젝트의 main» 은 `peer` 종(pk-)이고 그 경로는 이 분기를 타지 않아요.
+function wsConnIsHostLocal(c) { return !!(c && (isLoopbackIp(c.remoteAddr) || isLoopbackIp(c.meta && c.meta.ip))); }
+function wsAgentRole(c) { return c.meta.collab ? 'collab' : (c.meta.peer ? 'peer' : (c.meta.upstream ? 'upstream' : ((c.meta.agentId === WS_PRIMARY_ID && wsConnIsHostLocal(c)) ? 'main' : 'local'))); }   // v0.3 오케스트레이션 role (+collab #168, +peer v2.4.52 — peer-main ≠ 자율 upstream · v2.4.99 main=호스트-로컬)
 // §13.13.3 (v2.4.96) — target-unspecified *text* intake. An external party that speaks with no
 //   `targetAgentId` is addressing the room, and the main is the room's orchestrator: it must hear
 //   it. Pre-fix the untargeted fallback below was CUSTOM-only, so such an utterance reached the
@@ -425,7 +468,14 @@ let wsKeys = [];
 try { const k = JSON.parse(fs.readFileSync(WS_KEYS, 'utf8')); if (Array.isArray(k)) wsKeys = k; } catch {}
 function wsSaveKeys() { try { fs.writeFileSync(WS_KEYS, JSON.stringify(wsKeys)); } catch {} }
 function wsIssueKey(label, role) { const r = role || 'upstream'; const prefix = r === 'collab' ? 'ck-' : r === 'local' ? 'lk-' : r === 'peer' ? 'pk-' : 'uk-'; const key = prefix + crypto.randomBytes(12).toString('hex'); wsKeys.push({ key, label: label || r, role: r, createdAt: new Date().toISOString() }); wsSaveKeys(); return key; }   // #168 role 메타(collab=ck- / upstream=uk- / v2.4.1 local=lk- / v2.4.52 peer=pk-)
-function wsValidKey(key) { return !!key && wsKeys.some((k) => k.key === key); }
+// v2.4.99 (Ultrasafe it-1 crypto-04) — 키 비교는 상수시간. 종전 `===` 는 첫 불일치 바이트에서 조기 반환해요.
+function wsKeyEq(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const A = Buffer.from(a), B = Buffer.from(b);
+  if (A.length !== B.length) return false;              // 길이는 어차피 관측 가능(프리픽스+16진 고정폭)
+  try { return crypto.timingSafeEqual(A, B); } catch { return false; }
+}
+function wsValidKey(key) { return !!key && wsKeys.some((k) => wsKeyEq(k.key, key)); }
 function wsKeyRole(key) { const k = wsKeys.find((x) => x.key === key); return k ? (k.role || 'upstream') : null; }   // #168 키 role 조회(collab/upstream)
 function wsRevokeKey(key) { const n = wsKeys.length; wsKeys = wsKeys.filter((k) => k.key !== key); if (wsKeys.length !== n) wsSaveKeys(); }
 function wsJoinUrl(group, key, host) { return `http://${host || process.env.WS_PUBLIC_HOST || ('localhost:' + PORT)}/join/${group}?key=${encodeURIComponent(key)}`; }   // #168 그룹별 접속 URL(키 포함 → /join 온보딩 md)
@@ -506,8 +556,20 @@ function keyError(conn, msg, code, message) { const ev = wscore.event('CUSTOM', 
 function keyObserveHello(key, agentId) {   // §3.2/§4: HELLO 가 키 들고오면 lastAgent/lastSeenAt + ISSUED→ACTIVE
   if (!key) return; const k = keyFind(key); if (!k) return;
   k.lastAgent = agentId || k.lastAgent; k.lastSeenAt = Date.now();
+  if (!k.boundAgent && agentId) k.boundAgent = agentId;   // v2.4.99 TOFU — 최초 사용 시 정체 고정(아래 keyPinViolation 가 판정)
   if (k.state === 'ISSUED') k.state = 'ACTIVE';   // §4 invariant 1: 일방
   keySave();
+}
+// v2.4.99 §13.25.11 (Ultrasafe it-1 se-01) — **선언은 결속되기 전엔 신뢰할 수 없어요.** §13.30.9 의 지목 불변식
+//   («정체는 선언으로 결속되고, 닮음으로는 결속되지 않는다») 은 그 선언이 진실하다고 **말없이 가정**했어요.
+//   가정은 틀렸고 — HELLO 의 agentId 는 제시된 키와 아무 관계가 없었어요 — 그래서 사다리는 «정확하게 위조자에게»
+//   해소됐어요. 불변식이 틀린 게 아니라 **불완전**했고, 빠진 층이 이거예요: 결속되기 전에 선언이 인증돼야 한다.
+//   구현은 TOFU(trust-on-first-use): 키는 처음 쓴 agentId 에 고정되고, 이후 다른 정체가 같은 키로 오면 거부.
+//   §3.6 의 로컬 키 설계가 이미 라벨 1:1 이고 실측상 어느 키도 두 정체를 오간 적이 없어요(공유 키는 오설정).
+function keyPinViolation(key, agentId) {
+  if (!key || !agentId) return null;
+  const k = keyFind(key); if (!k || !k.boundAgent) return null;
+  return k.boundAgent === agentId ? null : k.boundAgent;
 }
 function keyAgentNameChanged(key, oldLabel, newLabel) {   // §3.5 라벨 변경 → 해당 키 보유 live conn 에 unicast 통보
   for (const c of wsAgents.values()) {
@@ -1425,7 +1487,7 @@ server.on('upgrade', (req, socket) => {
       conn.meta.agentId = _hadId ? msg.agentId : ('agent-' + conn.id.slice(0, 4));
       conn.meta.clientId = msg.clientId;
       conn.meta.agentName = msg.agentName || conn.meta.agentId;
-      { const k = msg.key || msg.peerKey || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } }   // #168 HELLO 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
+      { const k = msg.key || msg.peerKey || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } else if (kr === 'local') { conn.meta.localKey = true; conn.meta.upstreamKey = k; } }   // #168 HELLO 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기 · v2.4.99 local(lk-) 분기 신설 — 아래 참조
       conn.meta.roleHint = msg.role || '';                       // local/upstream 힌트(최종 판정은 키·main)
       // #5a-3 표면별 접근 판정 — HELLO 에서 agent/MCP 구분(capabilities mcp-proxy) 후 그 표면의 IP allowlist + (둘 다) requireKey 적용.
       { const _ip = conn.remoteAddr;
@@ -1434,7 +1496,10 @@ server.on('upgrade', (req, socket) => {
         // 파이프라인된 후속 프레임이 전송 계층에서 사라지고 클라이언트는 "SERVER_HELLO 받고 정상 종료 = 전송 성공"으로
         // 오인했다 (어댑터가 리포트를 보냈다고 믿었는데 보드에 없던 실사례). ConnectionRejected 이벤트 + close code 4403.
         const _reject = (code, reason, hint) => {
-          try { conn.send(wscore.event('CUSTOM', { name: 'ConnectionRejected', value: { reason, surface: _surface, ip: normIp(_ip), agentId: conn.meta.agentId, hint } })); } catch {}
+          // v2.4.99 — `code` 를 **본문에도** 싣습니다. 종전엔 기계가 읽을 코드가 close frame(4403, code) 에만 있어서,
+          //   ConnectionRejected 를 받은 어댑터는 사람용 문장을 문자열 매칭하는 수밖에 없었어요. 거부 사유에 따라
+          //   분기(키 재발급 vs 로컬에서 재시도 vs 다른 종 키)해야 하는데 그 분기를 코드로 쓸 수가 없었던 거예요.
+          try { conn.send(wscore.event('CUSTOM', { name: 'ConnectionRejected', value: { code, reason, surface: _surface, ip: normIp(_ip), agentId: conn.meta.agentId, hint } })); } catch {}
           setTimeout(() => { try { conn.close(4403, code); } catch {} }, 50);   // 이벤트가 flush 될 틈을 준 뒤 close
         };
         if (!surfaceAllowed(_surface, _ip)) {
@@ -1442,6 +1507,22 @@ server.on('upgrade', (req, socket) => {
           _reject('ip-not-allowlisted', `${_surface} surface: address not in allowlist`, 'Constellation §13.25 — access.json 의 ' + _surface + '.allowlist 에 이 주소를 추가하세요.');
           return;
         }
+        // v2.4.99 §13.25.11 (Ultrasafe it-1 se-01 도달범위) — `local` 종 키를 **원격에서** 제시하면 거부.
+        //   `lk-` 는 호스트-로컬 워커용인데, 그 종만 collab/peer/upstream 플래그를 안 세워서 위의 main 분기로
+        //   흘러들 수 있는 유일한 종이었어요(측정된 사슬의 권한 획득 단계). 원격에서 온 «local» 은 범주 오류예요.
+        //   위의 main=호스트-로컬 가드와 이중 방어 — 둘 중 하나만 남아도 사슬이 끊기게.
+        if (conn.meta.localKey && !isLoopbackIp(_ip)) {
+          console.warn('[ws HELLO] §13.25.11 원격 local 키 거부 ip=%s agent=%s', normIp(_ip) || '?', conn.meta.agentId);
+          _reject('local-key-remote', 'a local-kind key (lk-) may only be presented from the board host itself', 'Constellation §13.25.11 — 원격 합류는 collab(ck-) · peer(pk-) · upstream(uk-) 키를 쓰세요. 이 연결로 보낸 후속 메시지는 relay 되지 않아요.');
+          return;
+        }
+        // v2.4.99 §13.25.11 (se-01) — 키↔정체 TOFU 결속 위반 거부. 키는 처음 쓴 agentId 의 것이에요.
+        { const _pinK = conn.meta.upstreamKey; const _bound = keyPinViolation(_pinK, conn.meta.agentId);
+          if (_bound) {
+            console.warn('[ws HELLO] §13.25.11 키-정체 불일치 거부 key=%s bound=%s claimed=%s ip=%s', String(_pinK).slice(0, 14) + '…', _bound, conn.meta.agentId, normIp(_ip) || '?');
+            _reject('key-identity-mismatch', 'this key is bound to a different agentId', 'Constellation §13.25.11 — 키는 최초 사용 시 그 agentId 에 결속돼요(TOFU). 워커마다 별도 키를 발급하세요. 결속을 바꾸려면 운영자가 키를 폐기하고 재발급해야 해요.');
+            return;
+          } }
         if (accessCfg.agent.requireKey && !_isLoopback && !isLoopbackIp(_ip)) {
           const _k = msg.key || msg.peerKey || msg.upstreamKey || msg.collabKey || conn.meta._urlKey;
           if (!wsValidKey(_k)) {
@@ -1475,8 +1556,23 @@ server.on('upgrade', (req, socket) => {
       if (conn.meta.anonymous) return;                           // 익명 클라(agentId 누락) 메시지 무시 — relay/기록/탭 일절 안 함
       if (wsHandleOrch(conn, msg)) return;                       // 오케스트레이션 CUSTOM(RegisterUpstreamKey/RevokeUpstreamKey/SetMain/HandoffReady)
       if (msg && msg.type === 'CUSTOM' && (msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // liveness/transient — relay·board·기록 안 함
-      if (msg && msg.agentId == null) msg.agentId = conn.meta.agentId;
-      if (msg && msg.source == null) msg.source = 'agent';        // v2.2.4 source_stamp_truth (server.eux derive) — client-set 우선, server 폴백(backward compat)
+      // v2.4.99 §13.25.11 (Ultrasafe it-1 se-02/se-04) — envelope 의 `agentId`·`source` 는 **인증된 연결 정체로
+      //   덮어써요.** 종전엔 `== null` 일 때만 채웠고 값이 있으면 **검증 없이 통과**시켜, 남의 이름으로 보낸 메시지가
+      //   그대로 relay 되고 ws-history 에 영속됐어요. `source` 는 더 나빴어요 — 주석이 "client-set 우선" 이라
+      //   에이전트가 `source:'server'` 를 claim 하면 보드가 **시스템 권위 공지**로 렌더했어요(ServerNotice 위조).
+      //   서버가 스스로 만드는 이벤트는 이 경로를 안 타니(wscore.event + ev.source='server') 강제해도 안전하고,
+      //   실측상 정상 클라이언트 3종(collab-client ×2 · local-bridge)은 이미 전부 `source:'agent'` 를 보내요.
+      //   이 두 줄이 아래의 개별 정정(SelectionPrompt · 조직 선언)을 일반화해요 — 그 셋은 같은 결함의 지역 처방이었어요.
+      if (msg && typeof msg === 'object') {
+        if (msg.agentId !== conn.meta.agentId) {
+          if (msg.agentId != null) console.warn('[ws] §13.25.11 envelope agentId %s → 인증된 %s 로 정정 (type=%s name=%s)', msg.agentId, conn.meta.agentId, msg.type, msg.name || '-');
+          msg.agentId = conn.meta.agentId;
+        }
+        if (msg.source !== 'agent') {
+          if (msg.source != null) console.warn('[ws] §13.25.11 envelope source %s → agent 로 정정 (agent 연결은 server/board 를 claim 할 수 없어요) agent=%s name=%s', msg.source, conn.meta.agentId, msg.name || '-');
+          msg.source = 'agent';   // v2.2.4 source_stamp_truth — v2.4.99 부터 client-set 을 **신뢰하지 않아요**
+        }
+      }
       // v2.4.77 — Selection reserved-name 가드 (§13.16.12, 어댑터 리뷰 지적): Expired/Resolved = 서버
       // 전용 발신, Answer = 사람(board) 전용 → agent 발신은 전부 위조로 drop. Cancel 은 인증된
       // 발신자 자신의 pending 프롬프트에 한해 허용 (남의 선택지 철회/응답 위조 차단).
@@ -1494,7 +1590,15 @@ server.on('upgrade', (req, socket) => {
         if (msg.agentId !== conn.meta.agentId) { console.warn('[ws corp] %s agentId %s → authenticated %s 로 정정', msg.name, msg.agentId, conn.meta.agentId); msg.agentId = conn.meta.agentId; }
         if (!wsCorpDeclAuthz(conn, msg)) return;
       }
-      if (msg && msg.type === 'CUSTOM' && msg.name === 'ServerNotice') { wsToAll(msg); wsRecord(msg); return; }   // 재시작/오프라인/온라인 공지 → 모든 연결(에이전트+board) broadcast
+      // v2.4.99 §13.25.11 (Ultrasafe it-1 se-04) — ServerNotice 는 role 로 막지 않아요: 워커 브릿지의 online/offline
+      //   공지도 정당한 용도라(local-bridge.cjs 재연결 broadcast) main 전용으로 좁히면 어댑터가 깨져요. 위조를
+      //   가능케 한 건 verb 가 아니라 `source` 를 claim 할 수 있었다는 것이고, 그건 위에서 닫혔어요. 여기서는
+      //   **인증된 발신자를 본문에 못박아** 보드가 "누가 말했나" 를 잃지 않게 해요(대시보드가 라벨을 그에 맞춰 렌더).
+      if (msg && msg.type === 'CUSTOM' && msg.name === 'ServerNotice') {
+        if (!msg.value || typeof msg.value !== 'object') msg.value = {};
+        msg.value.agentId = conn.meta.agentId; msg.value.senderRole = wsAgentRole(conn);
+        wsToAll(msg); wsRecord(msg); return;
+      }   // 재시작/오프라인/온라인 공지 → 모든 연결(에이전트+board) broadcast
       if (msg && msg.type === 'CUSTOM' && ['RoomCreate', 'RoomJoin', 'RoomLeave', 'RoomClose', 'RequestRoomArtifacts', 'RoomArtifactsUpdate'].includes(msg.name)) { if (wsRoomOp(conn, msg)) return; }   // §13.30 room lifecycle (agent 측)
       if (msg && msg.type === 'CUSTOM' && msg.roomId) { wsRoomMessage(conn, msg); return; }                        // §13.30 room 메시지 — 가드 + fan-out
       // v2.2.4 targetFallback + WARN (silent-disable 원칙 정합): top-level 누락 시 value.targetAgentId 폴백, 발견 통보
