@@ -211,6 +211,18 @@ const TOOLS = [
 
 // ----- MCP stdio protocol -----
 
+// ----- MCP 응답 봉투 (프로토콜 규격) -----
+// `tools/call` 의 result 는 `{content:[{type:'text',…}]}` 여야 해요. 결과 객체를 그대로 반환하면
+// 프로토콜 «오류» 가 아니라 **렌더할 내용이 없는 성공**이 되어 호출자에게 «출력 없음» 으로 보여요 —
+// 오류보다 나쁜 조용한 실패예요 (v0.7.3: 서버 3종이 이 상태로 출시돼 있었고, 무응답을 도구 부재로
+// 오진하게 만들었어요). 봉투는 **디스패치 한 자리**에서만 씌워요 — 도구별로 씌우면 새 도구가 잊는
+// 순간 그 도구만 조용해지고, 그건 정확히 이 결함이 퍼진 방식이에요.
+function toolEnvelope(v) {
+  if (v && Array.isArray(v.content)) return v;   // 이미 규격이면 통과 — 멱등
+  const text = typeof v === 'string' ? v : v === undefined ? '' : JSON.stringify(v, null, 2);
+  return { content: [{ type: 'text', text }] };
+}
+
 const handlers = {
   initialize: async () => ({
     protocolVersion: "2024-11-05",
@@ -218,17 +230,19 @@ const handlers = {
     capabilities: { tools: {} },
   }),
   "tools/list": async () => ({ tools: TOOLS }),
-  "tools/call": async (params) => {
-    const { name, arguments: args } = params;
-    switch (name) {
-      case "hyperbrief_render": return handleHyperbriefRender(args || {});
-      case "hyperbrief_validate": return handleHyperbriefValidate(args || {});
-      case "decision_ledger_append": return handleDecisionLedgerAppend(args || {});
-      case "decision_ledger_query": return handleDecisionLedgerQuery(args || {});
-      default: throw new Error("Unknown tool: " + name);
-    }
-  },
+  "tools/call": async (params) => toolEnvelope(await callTool(params.name, params.arguments || {})),
 };
+
+// 도구 분기는 **날 결과**를 돌려줘요 — 봉투는 위 한 자리에서만 씌워요.
+async function callTool(name, args) {
+  switch (name) {
+    case "hyperbrief_render": return handleHyperbriefRender(args);
+    case "hyperbrief_validate": return handleHyperbriefValidate(args);
+    case "decision_ledger_append": return handleDecisionLedgerAppend(args);
+    case "decision_ledger_query": return handleDecisionLedgerQuery(args);
+    default: throw new Error("Unknown tool: " + name);
+  }
+}
 
 let buffer = "";
 process.stdin.setEncoding("utf8");

@@ -280,25 +280,39 @@ const TOOLS = [
   { name: "compendium_lint", description: "Run the §9.1 four gardening lints + the §9.2 pointer-resolution check over the store. reindex=true regenerates INDEX.md. Returns hard failures + soft warnings.", inputSchema: { type: "object", properties: { reindex: { type: "boolean", default: false } } } },
 ];
 
+// ----- MCP 응답 봉투 (프로토콜 규격) -----
+// `tools/call` 의 result 는 `{content:[{type:'text',…}]}` 여야 해요. 결과 객체를 그대로 반환하면
+// 프로토콜 «오류» 가 아니라 **렌더할 내용이 없는 성공**이 되어 호출자에게 «출력 없음» 으로 보여요 —
+// 오류보다 나쁜 조용한 실패예요 (v0.2.10: 서버 3종이 이 상태로 출시돼 있었고, 무응답을 도구 부재로
+// 오진하게 만들었어요). 봉투는 **디스패치 한 자리**에서만 씌워요 — 도구별로 씌우면 새 도구가 잊는
+// 순간 그 도구만 조용해지고, 그건 정확히 이 결함이 퍼진 방식이에요.
+function toolEnvelope(v) {
+  if (v && Array.isArray(v.content)) return v;   // 이미 규격이면 통과 — 멱등
+  const text = typeof v === 'string' ? v : v === undefined ? '' : JSON.stringify(v, null, 2);
+  return { content: [{ type: 'text', text }] };
+}
+
 const handlers = {
   initialize: async () => ({ protocolVersion: "2024-11-05", serverInfo: { name: "compendium-mcp", version: require("./package.json").version }, capabilities: { tools: {} } }),
   "tools/list": async () => ({ tools: TOOLS }),
-  "tools/call": async (params) => {
-    const { name, arguments: args } = params;
-    L.assertStore();   // v0.2.9 — 저장소 미해소면 여기서 오류로 끊어요. 도구별로 넣으면 새 도구에서 «조용한 0건» 이 되살아나요.
-    switch (name) {
-      case "wiki_read": return wiki_read(args || {});
-      case "wiki_search": return wiki_search(args || {});
-      case "wiki_upsert": return wiki_upsert(args || {});
-      case "term_define": return term_define(args || {});
-      case "term_frequency_scan": return term_frequency_scan(args || {});
-      case "term_promote": return term_promote(args || {});
-      case "compendium_backlinks": return compendium_backlinks(args || {});
-      case "compendium_lint": return compendium_lint(args || {});
-      default: throw new Error("Unknown tool: " + name);
-    }
-  },
+  "tools/call": async (params) => toolEnvelope(await callTool(params.name, params.arguments || {})),
 };
+
+// 도구 분기는 **날 결과**를 돌려줘요 — 봉투는 위 한 자리에서만 씌워요.
+async function callTool(name, args) {
+  L.assertStore();   // v0.2.9 — 저장소 미해소면 여기서 오류로 끊어요. 도구별로 넣으면 새 도구에서 «조용한 0건» 이 되살아나요.
+  switch (name) {
+    case "wiki_read": return wiki_read(args);
+    case "wiki_search": return wiki_search(args);
+    case "wiki_upsert": return wiki_upsert(args);
+    case "term_define": return term_define(args);
+    case "term_frequency_scan": return term_frequency_scan(args);
+    case "term_promote": return term_promote(args);
+    case "compendium_backlinks": return compendium_backlinks(args);
+    case "compendium_lint": return compendium_lint(args);
+    default: throw new Error("Unknown tool: " + name);
+  }
+}
 
 // v0.2.8 — stdio 루프는 **엔트리포인트일 때만** 돌아요. 종전엔 require 하는 순간 stdin 리스너가 붙어서
 //   이 파일의 도구 함수를 밖에서 호출할 방법이 없었어요(검사 스크립트가 «미실행» 으로 끝남). MCP 호스트가
@@ -306,6 +320,7 @@ const handlers = {
 module.exports = {
   wiki_read, wiki_search, wiki_upsert, term_define, term_frequency_scan, term_promote,
   compendium_backlinks, compendium_lint, TOOLS, handlers, SAFE_SLUG, assertInside,
+  toolEnvelope, callTool,
 };
 
 if (require.main !== module) { /* 검사/도구 적재 — stdio 루프 미기동 */ } else {
