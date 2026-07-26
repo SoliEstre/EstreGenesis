@@ -39,6 +39,14 @@ function _deriveAppKey(jwk) {
   return b64url(Buffer.concat([Buffer.from([4]), x, y]));   // 0x04 || X(32) || Y(32) = 65B
 }
 
+// v2.4.100 (Ultrasafe it-1 crypto-03, critical) — 비밀 자료는 소유자 전용 모드로 씁니다. 종전엔 세 파일
+//   (.vapid.json 의 비공개 JWK 'd' · .push-subs.json 의 구독 토큰 · 아래 server.cjs 의 키 저장소)이 전부
+//   프로세스 umask 에만 의존했고, 흔한 POSIX 기본값 022 에서는 0644 = **world-readable** 이 됐어요.
+function _writeSecret(file, data) {
+  fs.writeFileSync(file, data, { mode: 0o600 });
+  try { fs.chmodSync(file, 0o600); } catch {}   // mode 는 생성 시에만 적용 — 이미 넓게 존재하던 파일을 좁히는 건 이 줄
+}
+
 function _loadOrGenVapid() {
   try {
     const j = JSON.parse(fs.readFileSync(_vapidFile, 'utf8'));
@@ -47,7 +55,7 @@ function _loadOrGenVapid() {
   const { privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   _jwk = privateKey.export({ format: 'jwk' });   // {kty:'EC',crv:'P-256',x,y,d}
   _appKey = _deriveAppKey(_jwk);
-  try { fs.writeFileSync(_vapidFile, JSON.stringify({ privateJwk: _jwk, publicKey: _appKey, createdAt: new Date().toISOString() }, null, 2) + '\n'); } catch (e) { console.warn('[push] .vapid.json 저장 실패:', e.message); }
+  try { _writeSecret(_vapidFile, JSON.stringify({ privateJwk: _jwk, publicKey: _appKey, createdAt: new Date().toISOString() }, null, 2) + '\n'); } catch (e) { console.warn('[push] .vapid.json 저장 실패:', e.message); }
   console.log('[push] VAPID 키쌍 신규 생성 → %s (publicKey %s…)', path.basename(_vapidFile), _appKey.slice(0, 16));
 }
 
@@ -58,7 +66,7 @@ function _loadSubs() {
   } catch {}
 }
 function _saveSubs() {
-  try { fs.writeFileSync(_subsFile, JSON.stringify([..._subs.values()], null, 2) + '\n'); }
+  try { _writeSecret(_subsFile, JSON.stringify([..._subs.values()], null, 2) + '\n'); }
   catch (e) { console.warn('[push] subs 저장 실패:', e.message); }
 }
 
