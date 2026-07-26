@@ -811,6 +811,9 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-key-state.issued { color: var(--accent); border-color: var(--accent); }
 .ws-key-state.revoked_pending { color: var(--active, #d49a3a); border-color: var(--active, #d49a3a); }
 .ws-key-state.revoked, .ws-key-state.deleted { color: var(--ws-danger, #e0455e); border-color: var(--ws-danger, #e0455e); }
+.ws-key-exp { flex: 0 0 auto; font-size: .62rem; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+.ws-key-exp.soon { color: var(--active, #d49a3a); border-color: var(--active, #d49a3a); }
+.ws-key-exp.lapsed { color: var(--ws-danger, #e0455e); border-color: var(--ws-danger, #e0455e); }
 .ws-key-sub { font-size: .66rem; color: var(--muted); font-family: ui-monospace, monospace; word-break: break-all; }
 .ws-key-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .ws-key-act { background: var(--panel); border: 1px solid var(--line); color: var(--ink); padding: 3px 9px; border-radius: 6px; cursor: pointer; font: inherit; font-size: .7rem; }

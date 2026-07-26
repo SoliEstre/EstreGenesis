@@ -3150,7 +3150,7 @@ function onWsEvent(m) {
     if (wsKeyMgmt) wsKeyMgmt.setList((m.value || {}).keys || []);
     return;
   }
-  if (t === 'CUSTOM' && (m.name === 'KeyRevoked' || m.name === 'KeyLabeled' || m.name === 'KeyRevokePending')) {   // v2.4.0 키 상태 변경 → 모달 목록 새로고침
+  if (t === 'CUSTOM' && (m.name === 'KeyRevoked' || m.name === 'KeyLabeled' || m.name === 'KeyRevokePending' || m.name === 'KeyRenewed')) {   // v2.4.0 키 상태 변경 → 모달 목록 새로고침 (v2.4.103 KeyRenewed 포함)
     if (wsKeyMgmt) wsKeyMgmt.onMutated();
     return;
   }
@@ -3903,6 +3903,20 @@ function setupWsKeyMgmt() {
   }
   const CONN_DOT = { connected: ['on', '연결됨'], disconnected: ['off', '끊김'], never: ['never', '미사용'] };
   const STATE_LABEL = { ISSUED: '발급됨', ACTIVE: '활성', REVOKED_PENDING: '폐기 대기', REVOKED: '폐기됨', DELETED: '삭제됨' };
+  // v2.4.103 §13.25.12 — 남은 기간 배지. 서버가 실어주는 expiresAt 을 **그대로** 써요. `issuedAt + ttl` 로 다시
+  //   계산하면 연장된 키에서 틀린 값이 나와요(갱신은 issuedAt 을 건드리지 않고 renewedAt 을 씁니다) — 파생
+  //   계산이 원본과 조용히 갈라지는 부류라, 권위값을 실어 보내고 여기선 읽기만 해요.
+  function expiryBadge(k) {
+    if (!k.expiresAt) return null;                             // ttl=0 = 만료 없음
+    if (k.revokedAt || k.state === 'DELETED') return null;      // 명시 폐기·삭제된 키는 기간이 무의미
+    const rem = k.expiresAt - Date.now();
+    const days = Math.round(Math.abs(rem) / 86400000 * 10) / 10;
+    const el = document.createElement('span');
+    el.className = 'ws-key-exp' + (rem < 0 ? ' lapsed' : (rem <= 259200000 ? ' soon' : ''));
+    el.textContent = rem < 0 ? ('⛔ ' + days + '일 지남') : ((rem <= 259200000 ? '⚠ ' : '⏳ ') + days + '일 남음');
+    el.title = '만료 ' + new Date(k.expiresAt).toLocaleString() + (k.renewCount ? (' · 연장 ' + k.renewCount + '회') : '');
+    return el;
+  }
   function renderTable() {
     const tbl = $('#ws-key-tbl'); if (!tbl) return;
     tbl.innerHTML = '';
@@ -3919,6 +3933,7 @@ function setupWsKeyMgmt() {
       const lab = document.createElement('span'); lab.className = 'ws-key-label'; lab.textContent = k.label || '(무라벨)';
       const st = document.createElement('span'); st.className = 'ws-key-state ' + (k.state || '').toLowerCase(); st.textContent = STATE_LABEL[k.state] || k.state;
       top.append(dot, kindIcon, lab, st);
+      const expEl = expiryBadge(k); if (expEl) top.append(expEl);
       const sub = document.createElement('div'); sub.className = 'ws-key-sub';
       const ag = k.lastAgent ? ('에이전트: ' + k.lastAgent) : '미접속';
       const seen = k.lastSeenAt ? (' · ' + new Date(k.lastSeenAt).toLocaleString()) : '';
@@ -3927,24 +3942,40 @@ function setupWsKeyMgmt() {
       if (k.roleDescription) { const rd = document.createElement('div'); rd.className = 'ws-key-roledesc'; rd.textContent = '🎭 ' + k.roleDescription; rowEl.append(top, sub, rd); }
       else { rowEl.append(top, sub); }
       const acts = document.createElement('div'); acts.className = 'ws-key-acts';
+      // v2.4.103 §13.25.12 — «기간이 지나서» 폐기로 읽히는 키와 «운용자가 폐기한» 키를 갈라요. 앞쪽은 연장으로
+      //   되살릴 수 있고(서버가 revokedAt == null 로 판정), 뒤쪽은 종단이에요. 버튼 구성은 서버가 실제로 허용하는
+      //   동작과 정확히 같아야 해요 — 눌렀는데 거부되는 버튼은 없는 버튼보다 나빠요.
+      const renewable = k.expiresAt > 0 && !k.revokedAt && k.state !== 'DELETED';
       const terminal = k.state === 'REVOKED' || k.state === 'DELETED';
+      if (renewable) { const rw = document.createElement('button'); rw.className = 'ws-key-act'; rw.type = 'button'; rw.textContent = '🔄 연장'; rw.title = '유효기간을 지금부터 다시 시작해요 (열쇠 문자열은 그대로 — 상대에게 다시 전달할 필요 없어요)'; rw.onclick = () => renew(k); acts.append(rw); }
       if (!terminal) {
         const ren = document.createElement('button'); ren.className = 'ws-key-act'; ren.type = 'button'; ren.textContent = '✏️ 라벨'; ren.onclick = () => relabel(k); acts.append(ren);
         const rvImm = document.createElement('button'); rvImm.className = 'ws-key-act danger'; rvImm.type = 'button'; rvImm.textContent = '🗑 즉시 삭제'; rvImm.title = '연결된 에이전트 즉시 차단'; rvImm.onclick = () => revoke(k, 'immediate'); acts.append(rvImm);
         if (k.connectionStatus === 'connected') { const rvEnd = document.createElement('button'); rvEnd.className = 'ws-key-act'; rvEnd.type = 'button'; rvEnd.textContent = '⏳ 세션 유지 삭제'; rvEnd.title = '현재 세션은 유지, 신규 접속 차단'; rvEnd.onclick = () => revoke(k, 'sessionEnd'); acts.append(rvEnd); }
-      } else { const note = document.createElement('span'); note.className = 'ws-key-term'; note.textContent = STATE_LABEL[k.state] || k.state; acts.append(note); }
+      } else if (!renewable) { const note = document.createElement('span'); note.className = 'ws-key-term'; note.textContent = STATE_LABEL[k.state] || k.state; acts.append(note); }
       rowEl.append(acts); tbl.append(rowEl);
     }
+  }
+  // v2.4.103 §13.25.12 — 연장. keyRef 로 지목해요: local 종 키는 목록 응답에 열쇠 문자열이 안 실려서(§3.6)
+  //   key 로는 애초에 가리킬 수 없었어요 — 그게 유효기간이 35일 지난 워커 키에 손이 닿지 않던 이유예요.
+  async function renew(k) {
+    const lapsed = k.expiresAt > 0 && k.expiresAt < Date.now();
+    const days = Math.round(Math.abs(k.expiresAt - Date.now()) / 86400000 * 10) / 10;
+    const msg = lapsed
+      ? ("'" + (k.label || '무라벨') + "' 열쇠는 유효기간이 " + days + "일 지났어요. 지금부터 다시 " + Math.round((k.ttl || 0) / 86400000) + "일 유효하게 연장할까요? 열쇠 문자열은 그대로라 상대에게 다시 전달하지 않아도 돼요.")
+      : ("'" + (k.label || '무라벨') + "' 열쇠의 유효기간을 지금부터 다시 " + Math.round((k.ttl || 0) / 86400000) + "일로 연장할까요?");
+    if (!(await wsConfirm(msg, { title: '유효기간 연장', okLabel: '연장' }))) return;
+    wsSendOrch({ type: 'CUSTOM', name: 'KeyRenew', value: { keyRef: k.keyRef, key: k.key } });
   }
   async function relabel(k) {
     const nv = await wsPrompt('새 라벨 (1~64자):', k.label || '', { title: '키 라벨 변경' }); if (nv == null) return;
     const v = nv.trim(); if (!v || v === k.label) return;
-    wsSendOrch({ type: 'CUSTOM', name: 'KeyLabel', value: { key: k.key, newLabel: v } });
+    wsSendOrch({ type: 'CUSTOM', name: 'KeyLabel', value: { keyRef: k.keyRef, key: k.key, newLabel: v } });
   }
   async function revoke(k, mode) {
     const msg = mode === 'immediate' ? `'${k.label || k.key.slice(0, 12)}' 키를 즉시 삭제할까요? 연결된 에이전트가 바로 차단돼요.` : `'${k.label || k.key.slice(0, 12)}' 키를 세션 유지 삭제할까요? 현재 세션은 끝까지 유지되고 신규 접속만 막아요.`;
     if (!(await wsConfirm(msg, { title: '키 삭제 확인', danger: true, okLabel: '삭제' }))) return;
-    wsSendOrch({ type: 'CUSTOM', name: 'KeyRevoke', value: { key: k.key, mode } });
+    wsSendOrch({ type: 'CUSTOM', name: 'KeyRevoke', value: { keyRef: k.keyRef, key: k.key, mode } });
   }
   function requestList() { wsSendOrch({ type: 'CUSTOM', name: 'KeyList', value: { includeRevoked: true } }); }
   function openManager() { buildModal(); modal.hidden = false; renderTable(); requestList(); }   // v2.4.2 즉시 placeholder 렌더 (응답 대기 동안 빈 화면 방지)
