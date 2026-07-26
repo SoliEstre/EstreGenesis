@@ -522,6 +522,21 @@ const _keyGraceTimers = new Map();   // key → grace setTimeout (REVOKED_PENDIN
 // KeyList/KeyRevoke 로는 보이지도 폐기되지도 않았다 — 관리 불가능한 유효 크레덴셜. 발급 시점 등록(위)은 앞으로를
 // 막고, 이 입양은 이미 생긴 것을 관리 표면으로 끌어온다. 상태는 ISSUED 로 두고 adoptedFromLegacy 로 출처를 남긴다
 // (자동 폐기하지 않음 — 폐기는 운용자 판단이고, 조용한 크레덴셜 무효화가 더 나쁜 실패다).
+// v2.4.101 (Ultrasafe it-1 crypto-03 나머지 절반) — 기동 시 **이미 존재하는** 비밀 파일의 권한을 좁혀요.
+//   v2.4.100 은 쓰기 경로에만 mode/chmod 를 걸었는데, 이 파일들은 자주 안 써져요(키 변경 시에만).
+//   그래서 이미 0644/0666 으로 있는 배포는 다음 키 변경까지 그대로 열려 있었어요 — 재기동 후
+//   실측으로 확인(4파일 전부 종전 모드). 발견 권고의 "on first run, also chmodSync" 가 이 부분이에요.
+//   존재하지 않는 파일은 조용히 넘어가고, chmod 를 무시하는 플랫폼(Windows)에서도 실패하지 않아요.
+function keySecretsHardenAtRest() {
+  const targets = [WS_KEYS, KEY_JSON, path.join(DIR, '.vapid.json'), path.join(DIR, '.push-subs.json')];
+  try { const d = path.join(DIR, 'local-keys');
+    if (fs.existsSync(d)) { try { fs.chmodSync(d, 0o700); } catch {} for (const f of fs.readdirSync(d)) if (f.endsWith('.key')) targets.push(path.join(d, f)); } } catch {}
+  let n = 0;
+  for (const f of targets) { try { if (fs.existsSync(f)) { fs.chmodSync(f, 0o600); n++; } } catch {} }
+  if (n) console.log('[server] §13.25.11 crypto-03 — 기존 비밀 파일 %d 개 권한 0600 확인', n);
+}
+try { keySecretsHardenAtRest(); } catch {}
+
 function keyAdoptLegacy() {
   const have = new Set(keyStore.keys.map((k) => k.key));
   let added = 0;
@@ -1477,7 +1492,7 @@ server.on('upgrade', (req, socket) => {
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
   conn.meta.ip = normIp(req.socket.remoteAddress);   // v2.4.87 — 운영자 authz(§13.25.9) 가 주소를 봐야 하므로 upgrade 시 보관
-  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
+  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } else if (kr === 'local') { conn.meta.localKey = true; conn.meta.upstreamKey = k; }   /* v2.4.101 — local(lk-) 분기가 **이 자리에도** 없었어요. v2.4.99 는 HELLO 본문 경로만 고쳤는데, 레퍼런스 join-local 은 키를 URL 로만 보내요(?key=). 그래서 (a) 그 키는 관측되지 않아 state/lastAgent 가 초기값에 머물고 (b) 원격 local 키 거부 가드가 발동하지 않았어요 — 재기동 후 실측으로 드러난 구멍. 스모크가 두 경로에 다 키를 실어서 URL-only 경로를 시험하지 않았던 것도 같이 고쳤어요. */ if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
   conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
