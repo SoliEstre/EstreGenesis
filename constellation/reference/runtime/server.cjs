@@ -513,6 +513,9 @@ const KEY_JSON = path.join(DIR, 'key.json');
 const KEY_TTL_DEFAULT = 1209600000;   // §3.1 기본 14일 (msec)
 const KEY_MAX_ACTIVE = Number(process.env.WS_KEY_MAX_ACTIVE) || 32;   // §3.1 활성 키 캡
 const KEY_REVOKE_PENDING_GRACE_MS = Number(process.env.WS_KEY_REVOKE_PENDING_GRACE_MS) || 300000;   // §4 grace 5분 (sessionEnd live conn 후)
+const KEY_EXPIRY_WARN_MS = Number(process.env.WS_KEY_EXPIRY_WARN_MS) || 259200000;        // v2.4.103 §13.25.12 만료 3일 전부터 경고
+const KEY_EXPIRY_SWEEP_MS = Number(process.env.WS_KEY_EXPIRY_SWEEP_MS) || 21600000;       // 6시간마다 훑기 (unref — 프로세스를 붙잡지 않아요)
+const KEY_EXPIRY_WARN_REPEAT_MS = Number(process.env.WS_KEY_EXPIRY_WARN_REPEAT_MS) || 86400000;   // 같은 키는 하루 1회까지 (경고가 소음이 되면 안 읽혀요)
 let keyStore = { version: 1, updatedAt: 0, keys: [] };
 try { const j = JSON.parse(fs.readFileSync(KEY_JSON, 'utf8')); if (j && Array.isArray(j.keys)) keyStore = j; }
 catch (e) { try { if (fs.existsSync(KEY_JSON)) fs.renameSync(KEY_JSON, KEY_JSON + '.corrupt-' + Date.now()); } catch {} }   // §6 손상 파일 보존(forensic), fresh 시작
@@ -551,11 +554,38 @@ function keyAdoptLegacy() {
   return added;
 }
 function keySave() {   // §6 atomic write + fsync
+  for (const k of keyStore.keys) if (!k.ref) k.ref = keyNewRef();   // v2.4.103 §13.25.12 — ref 부여는 여기 한 곳(신규·소급 공통)
   keyStore.updatedAt = Date.now();
   try { const tmp = KEY_JSON + '.tmp'; const fd = fs.openSync(tmp, 'w', 0o600); fs.writeSync(fd, JSON.stringify(keyStore)); fs.fsyncSync(fd); fs.closeSync(fd); fs.renameSync(tmp, KEY_JSON); try { fs.chmodSync(KEY_JSON, 0o600); } catch {} } catch {}   // v2.4.100 crypto-03 — tmp 를 좁게 만들어 rename 하고, 기존 파일 대비 chmod 도 걸어요
 }
 function keyFind(k) { return keyStore.keys.find((x) => x.key === k); }
-function keyIsExpired(k) { return k.ttl > 0 && Date.now() > k.issuedAt + k.ttl; }   // §4.1 lazy
+// v2.4.103 §13.25.12 — keyRef: 비밀이 아닌 안정 핸들. **local 종 키를 관리 표면에서 지목할 수 있게** 해요.
+//   왜 필요한가: §3.6 설계상 local 키는 wire 응답에 키 문자열을 안 실어요(KeyList 가 `key: null`). 그래서
+//   대시보드는 그 키를 폐기·라벨변경·연장 어느 것도 **지목할 수 없었어요** — v2.4.87 이 고친 «관리 불가능한
+//   유효 크레덴셜» 과 같은 부류가 kind 하나에 남아 있었던 거예요(실측: 이 보드에서 유효기간이 35일 지난 키가
+//   바로 그 local 종이라, 갱신 절차를 만들어도 손이 닿지 않았어요). ref 는 무작위라 비밀을 유도할 수 없어요.
+function keyNewRef() { return 'kr-' + crypto.randomBytes(6).toString('hex'); }
+function keyEnsureRefs() {   // 기존 항목 소급 부여 — 실제 할당은 keySave() 가 하고 여기선 보고만 (writer 는 한 곳)
+  const n = keyStore.keys.filter((k) => !k.ref).length;
+  if (n) { keySave(); console.log('[server] §13.25.12 keyRef %d 건 소급 부여 — local 종 키도 관리 표면에서 지목 가능해졌어요', n); }
+  return n;
+}
+function keyResolve(v) {   // keyRef 우선, key 는 하위호환 (기존 클라이언트 무변경 동작)
+  if (!v) return null;
+  if (v.keyRef) return keyStore.keys.find((x) => x.ref === v.keyRef) || null;
+  if (v.key) return keyFind(v.key) || null;
+  return null;
+}
+// v2.4.103 §13.25.12 — 만료의 기준점이 «발급» 에서 «현재 창의 시작» 으로 바뀌어요 (갱신 도입).
+//   issuedAt 은 불변으로 남겨요: 처음 언제 발급됐는지는 사후 추적에 필요한 사실이고, 갱신이 그걸 덮어쓰면
+//   «이 크레덴셜이 얼마나 오래 살아 있었나» 를 더 이상 물을 수 없어요. 그래서 renewedAt 을 따로 둡니다.
+//   **소비자 주의**: 만료 시각을 `issuedAt + ttl` 로 다시 계산하면 갱신된 키에서 틀린 값이 나와요 —
+//   keyExpiresAt() 또는 KeyList 가 실어주는 expiresAt 을 쓰세요. (파생 계산이 조용히 뒤처지는 부류라
+//   KeyList 에 expiresAt 을 실어 보내는 이유가 이거예요: 클라이언트가 다시 계산할 필요를 없앰.)
+function keyWindowStart(k) { return (k.renewedAt && k.renewedAt > k.issuedAt) ? k.renewedAt : k.issuedAt; }
+function keyExpiresAt(k) { return k.ttl > 0 ? keyWindowStart(k) + k.ttl : 0; }   // 0 = 만료 없음
+function keyIsExpired(k) { const e = keyExpiresAt(k); return e > 0 && Date.now() > e; }   // §4.1 lazy
+function keyMsRemaining(k) { const e = keyExpiresAt(k); return e > 0 ? e - Date.now() : Infinity; }
 function keyConnStatus(k) {   // §3.2 connected/disconnected/never
   for (const c of wsAgents.values()) if (c.alive && c.meta.upstreamKey === k.key) return 'connected';
   return k.lastSeenAt ? 'disconnected' : 'never';
@@ -630,6 +660,7 @@ function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (u
   const issuedAt = Date.now();
   keyStore.keys.push({ key, label, state: 'ISSUED', kind, issuedAt, ttl, roleDescription, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null });
   keySave();
+  const keyRef = (keyFind(key) || {}).ref || null;   // v2.4.103 §13.25.12 — 발급자가 이후 연장·폐기로 지목할 핸들
   if (kind === 'local') {   // v2.4.1 §3.6 — wire 응답에 키 자체 안 보냄
     const dirPath = path.join(DIR, 'local-keys');
     // v2.4.100 crypto-03 — 디렉터리도 소유자 전용(0700). 종전엔 0755 로 만들어져 목록 열람이 열려 있었고,
@@ -641,14 +672,14 @@ function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (u
     try { const fd = fs.openSync(filePath, 'w', 0o600); fs.writeSync(fd, key); fs.fsyncSync(fd); fs.closeSync(fd); try { fs.chmodSync(filePath, 0o600); } catch {} } catch (e) { return keyError(conn, msg, 'LOCAL_FILE_WRITE', 'failed to write local key file: ' + String(e.message || e)); }
     const relFile = path.relative(DIR, filePath).replace(/\\/g, '/');
     const joinHint = `LOCAL_KEY_FILE=${relFile} WS_AGENT_ID=${label} node scripts/join-local.cjs`;
-    wsKeyReply(conn, 'KeyIssued', { kind: 'local', label, roleDescription, ttl, issuedAt, joinFile: relFile, joinScript: 'scripts/join-local.cjs', joinHint }, msg);
+    wsKeyReply(conn, 'KeyIssued', { kind: 'local', label, roleDescription, ttl, issuedAt, keyRef, expiresAt: keyExpiresAt(keyFind(key) || { ttl: 0, issuedAt }), joinFile: relFile, joinScript: 'scripts/join-local.cjs', joinHint }, msg);
     return;
   }
   const urlParam = kind === 'collab' ? 'key' : kind === 'peer' ? 'peerKey' : 'upstreamKey';   // v2.4.52 peer 전용 파라미터 — upstream 파라미터에 편승 금지 (kind 혼동 방지)
   const mkWs = (host) => `ws://${host}/ws?${urlParam}=${encodeURIComponent(key)}`;
   const joinUrls = wsJoinUrls(mkWs);   // v2.4.85 §13.25.8 — 주소별 전수. joinUrl 은 종전 의미(공개호스트 우선, 없으면 loopback) 그대로 유지 = 무변경 소비자 호환.
   const joinUrl = (joinUrls.find((u) => u.scope === 'public') || joinUrls[0] || {}).url || mkWs('localhost:' + PORT);
-  wsKeyReply(conn, 'KeyIssued', { key, joinUrl, joinUrls, bind: WS_BIND, exposed: !_isLoopback, label, kind, roleDescription, ttl, issuedAt }, msg);
+  wsKeyReply(conn, 'KeyIssued', { key, joinUrl, joinUrls, bind: WS_BIND, exposed: !_isLoopback, label, kind, roleDescription, ttl, issuedAt, keyRef, expiresAt: keyExpiresAt(keyFind(key) || { ttl: 0, issuedAt }) }, msg);
 }
 function wsKeyList(conn, msg, v) {   // §3.2 전체 키 enumerate (상태 + connectionStatus + lastAgent + TTL)
   const incRevoked = !!v.includeRevoked, incDeleted = !!v.includeDeleted;
@@ -658,12 +689,12 @@ function wsKeyList(conn, msg, v) {   // §3.2 전체 키 enumerate (상태 + con
     if (state === 'DELETED' && !incDeleted) continue;
     if (state === 'REVOKED' && !incRevoked) continue;
     const isLocal = (k.kind || 'upstream') === 'local';
-    keys.push({ key: isLocal ? null : k.key, label: k.label, kind: k.kind || 'upstream', roleDescription: k.roleDescription || null, lastAgent: k.lastAgent || null, lastSeenAt: k.lastSeenAt || null, connectionStatus: keyConnStatus(k), ttl: k.ttl, issuedAt: k.issuedAt, state, adoptedFromLegacy: !!k.adoptedFromLegacy });   // v2.4.1 local 키는 wire 응답에 키 자체 미포함, roleDescription 포함 · v2.4.87 adoptedFromLegacy 출처 표기(입양 키는 발급 이력이 레거시 파일뿐)
+    keys.push({ key: isLocal ? null : k.key, keyRef: k.ref || null, expiresAt: keyExpiresAt(k), renewedAt: k.renewedAt || null, renewCount: k.renewCount || 0, revokedAt: k.revokedAt || null, lapsed: (keyIsExpired(k) && !k.revokedAt), label: k.label, kind: k.kind || 'upstream', roleDescription: k.roleDescription || null, lastAgent: k.lastAgent || null, lastSeenAt: k.lastSeenAt || null, connectionStatus: keyConnStatus(k), ttl: k.ttl, issuedAt: k.issuedAt, state, adoptedFromLegacy: !!k.adoptedFromLegacy });   // v2.4.1 local 키는 wire 응답에 키 자체 미포함, roleDescription 포함 · v2.4.87 adoptedFromLegacy 출처 표기(입양 키는 발급 이력이 레거시 파일뿐)
   }
   wsKeyReply(conn, 'KeyListResult', { keys }, msg);
 }
 function wsKeyRevoke(conn, msg, v) {   // §3.3 immediate(즉시 kick) / sessionEnd(세션 유지 후 폐기)
-  const k = keyFind(v.key); if (!k) return keyError(conn, msg, 'KEY_NOT_FOUND', 'unknown key');
+  const k = keyResolve(v); if (!k) return keyError(conn, msg, 'KEY_NOT_FOUND', 'unknown key');
   const eff = keyEffectiveState(k);
   if (eff === 'REVOKED' || eff === 'DELETED') return keyError(conn, msg, 'ALREADY_REVOKED', 'key already revoked');
   const mode = v.mode === 'sessionEnd' ? 'sessionEnd' : (v.mode === 'immediate' ? 'immediate' : null);
@@ -684,7 +715,7 @@ function wsKeyRevoke(conn, msg, v) {   // §3.3 immediate(즉시 kick) / session
   }
 }
 function wsKeyLabel(conn, msg, v) {   // §3.4 라벨 변경 + AgentNameChanged 통보
-  const k = keyFind(v.key); if (!k) return keyError(conn, msg, 'KEY_NOT_FOUND', 'unknown key');
+  const k = keyResolve(v); if (!k) return keyError(conn, msg, 'KEY_NOT_FOUND', 'unknown key');
   const eff = keyEffectiveState(k);
   if (eff === 'REVOKED' || eff === 'DELETED') return keyError(conn, msg, 'KEY_NOT_FOUND', 'key terminal');
   const newLabel = String(v.newLabel == null ? '' : v.newLabel);
@@ -696,6 +727,80 @@ function wsKeyLabel(conn, msg, v) {   // §3.4 라벨 변경 + AgentNameChanged 
   wsKeyReply(conn, 'KeyLabeled', { key: k.key, oldLabel, newLabel }, msg);
   keyAgentNameChanged(k.key, oldLabel, newLabel);
 }
+// v2.4.103 §13.25.12 — 열쇠 «연장». TTL 강제(§13.25.13)를 켜기 **전에** 이게 있어야 해요: 검사를 먼저 켜면
+//   이미 기간이 지난 키를 쥔 상대가 예고 없이 끊기고, 보안 수정이 장애로 읽혀요. 실측 근거 — 이 보드에서
+//   TTL 검사를 그냥 켰다면 그 순간 유효기간이 지난 키 3개(자기 보드 워커 1 + 협업 상대 2)가 함께 끊겼어요.
+//   **불변식은 그대로예요**: 명시적 폐기는 여전히 종단이에요. 연장이 되살릴 수 있는 건 «기간이 지나서»
+//   REVOKED 로 읽히는 키뿐이고(revokedAt == null), 운용자가 «이 키는 끝» 이라고 말한 것을 되살리는 문은
+//   만들지 않아요. 그 문이 열리면 폐기가 폐기가 아니게 되고, 그건 TTL 이 안 걸리는 것보다 나쁜 결함이에요.
+function wsKeyRenew(conn, msg, v) {
+  const k = keyResolve(v); if (!k) return keyError(conn, msg, 'KEY_NOT_FOUND', 'unknown key');
+  if (k.state === 'DELETED' || k.deletedAt) return keyError(conn, msg, 'NOT_RENEWABLE', 'key deleted');
+  if (k.revokedAt) return keyError(conn, msg, 'NOT_RENEWABLE', 'explicitly revoked keys stay terminal — 새로 발급하세요');
+  if (!(k.ttl > 0)) return keyError(conn, msg, 'NO_EXPIRY', 'key has no expiry (ttl=0) — 연장할 기간이 없어요');
+  const ttl = (v.ttl == null) ? k.ttl : Number(v.ttl);
+  if (!Number.isFinite(ttl) || ttl <= 0) return keyError(conn, msg, 'INVALID_TTL', 'ttl must be > 0 (0 은 «만료 없음» 이라 연장이 아니라 보호 해제예요)');
+  const wasLapsed = keyIsExpired(k);
+  const prevExpiresAt = keyExpiresAt(k);
+  k.renewedAt = Date.now(); k.ttl = ttl;
+  k.renewCount = (k.renewCount || 0) + 1;
+  k.lastExpiryWarnAt = null;   // 새 창 → 만료 경고 재무장
+  keySave();
+  const expiresAt = keyExpiresAt(k);
+  console.log('[server] §13.25.12 KeyRenew label=%s kind=%s wasLapsed=%s 만료 %s → %s (누적 %d회)',
+    k.label, k.kind || 'upstream', wasLapsed, new Date(prevExpiresAt).toISOString(), new Date(expiresAt).toISOString(), k.renewCount);
+  wsKeyReply(conn, 'KeyRenewed', { key: (k.kind === 'local' ? null : k.key), keyRef: k.ref, label: k.label, kind: k.kind || 'upstream', ttl, issuedAt: k.issuedAt, renewedAt: k.renewedAt, expiresAt, wasLapsed, renewCount: k.renewCount }, msg);
+  for (const c of wsAgents.values()) {   // 보유자에게도 통보 (KeyRevokePending 선례 — 상대가 자기 기간을 알 수 있게)
+    if (c.alive && c !== conn && c.meta.upstreamKey === k.key) {
+      const ev = wscore.event('CUSTOM', { name: 'KeyRenewed', value: { keyRef: k.ref, label: k.label, expiresAt, ttl, wasLapsed } });
+      ev.source = 'server'; ev.targetAgentId = c.meta.agentId; c.send(ev);
+    }
+  }
+}
+// v2.4.103 §13.25.12 — 만료 임박 경고. A안(«갱신 절차를 먼저 만들고 그다음 켜기») 의 나머지 절반이에요:
+//   연장할 수 있게 만드는 것만으론 부족하고, 만료가 다가온다는 사실이 **누가 화면을 보고 있지 않아도**
+//   드러나야 해요. 세 표면으로 내보내요 — 서버 로그(재기동 때 눈에 들어오는 자리) · ServerNotice 브로드캐스트
+//   (ws-history 에 남아 채널에서 되짚을 수 있음) · 보유자에게 직접 unicast(협업 상대가 스스로 갱신을 요청할 수
+//   있게). 대시보드 행 배지는 별도(관리 창).
+//   **일부러 안 한 것**: main 에이전트를 깨우지 않아요. §13.16.9 의 4-군 분류에서 이건 notice 군이고
+//   (ServerNotice 와 같은 자리), 그 군은 meaningful 에서 제외돼요 — 여기에 슬쩍 끼워 넣으면 그 분류가
+//   무의미해져요. 운용자 표면은 로그 + 관리 창이에요.
+function keyExpirySweep() {
+  const now = Date.now();
+  const due = [];
+  for (const k of keyStore.keys) {
+    if (k.deletedAt || k.revokedAt) continue;                 // 종단 키는 대상 아님
+    if (!(k.ttl > 0)) continue;                                // 만료 없음
+    const rem = keyMsRemaining(k);
+    if (rem > KEY_EXPIRY_WARN_MS) continue;                    // 창 밖
+    if (k.lastExpiryWarnAt && now - k.lastExpiryWarnAt < KEY_EXPIRY_WARN_REPEAT_MS) continue;   // 하루 1회 상한
+    k.lastExpiryWarnAt = now; due.push({ k, rem });
+  }
+  if (!due.length) return 0;
+  keySave();
+  for (const d of due) {
+    const k = d.k, rem = d.rem;
+    const days = Math.round(Math.abs(rem) / 86400000 * 10) / 10;
+    const lapsed = rem < 0;
+    const kindTxt = k.kind || 'upstream';
+    const text = lapsed
+      ? ('열쇠 «' + k.label + '» (' + kindTxt + ') 의 유효기간이 ' + days + '일 지났어요 — 🔑 관리 창에서 연장하거나 새로 발급하세요.')
+      : ('열쇠 «' + k.label + '» (' + kindTxt + ') 이 ' + days + '일 뒤 만료돼요 — 🔑 관리 창에서 연장할 수 있어요.');
+    console.warn('[server] §13.25.12 %s', text);
+    const notice = wscore.event('CUSTOM', { name: 'ServerNotice', value: { kind: 'key-expiry', text, label: k.label, keyKind: kindTxt, keyRef: k.ref, expiresAt: keyExpiresAt(k), lapsed } });
+    notice.source = 'server';
+    wsToAll(notice); wsRecord(notice);
+    for (const c of wsAgents.values()) {
+      if (c.alive && c.meta.upstreamKey === k.key) {
+        const ev = wscore.event('CUSTOM', { name: 'KeyExpiringSoon', value: { keyRef: k.ref, label: k.label, expiresAt: keyExpiresAt(k), msRemaining: rem, lapsed } });
+        ev.source = 'server'; ev.targetAgentId = c.meta.agentId; c.send(ev);
+      }
+    }
+  }
+  return due.length;
+}
+setTimeout(() => { try { keyExpirySweep(); } catch (e) { console.warn('[server] key expiry sweep 실패: %s', e && e.message); } }, 5000).unref();
+setInterval(() => { try { keyExpirySweep(); } catch (e) { console.warn('[server] key expiry sweep 실패: %s', e && e.message); } }, KEY_EXPIRY_SWEEP_MS).unref();
 // v2.3.23 — 메시지 채널 구분 (A2A relay vs 보드 broadcast) 공용 가이드. 합류 에이전트가 라우팅 의도 명시하도록 안내.
 function wsChannelGuideMd() {
   return [
@@ -837,7 +942,7 @@ function wsHandleOrch(conn, msg) {
   // 세팅된다 → HELLO 를 아예 안 보내는 연결은 board(운영자)로 취급돼 canonical 게이트조차 통과했다. 노출된 보드에서는
   // 도달 가능한 누구나 무-HELLO 연결로 키 발급/폐기·SetMain 이 가능했던 것(requireKey 도 HELLO 시점 검사라 무효).
   // 판정을 "무엇을 안 보냈나"가 아니라 "어느 표면의 신뢰된 운영자인가"로 바꾼다.
-  const KEY_VERBS = ['RegisterUpstreamKey', 'RegisterCollabKey', 'RevokeCollabKey', 'RevokeUpstreamKey', 'KeyIssue', 'KeyList', 'KeyRevoke', 'KeyLabel', 'SetMain'];
+  const KEY_VERBS = ['RegisterUpstreamKey', 'RegisterCollabKey', 'RevokeCollabKey', 'RevokeUpstreamKey', 'KeyIssue', 'KeyList', 'KeyRevoke', 'KeyLabel', 'KeyRenew', 'SetMain'];
   if (KEY_VERBS.includes(n) && !wsOperatorAuthz(conn)) {
     const why = conn.meta.role === 'agent' ? 'only main may manage keys' : 'operator surface not permitted from this address (Constellation §13.25 ui allowlist)';
     keyError(conn, msg, 'PERMISSION_DENIED', why);
@@ -855,11 +960,12 @@ function wsHandleOrch(conn, msg) {
   if (n === 'RegisterCollabKey') { const key = wsIssueKey(v.label, 'collab'); const clabel = v.label || 'collab'; const joinUrl = wsJoinUrl('collab', key); keyStore.keys.push({ key, label: clabel, state: 'ISSUED', kind: 'collab', issuedAt: Date.now(), ttl: KEY_TTL_DEFAULT, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null }); keySave(); conn.send(wscore.event('CUSTOM', { name: 'CollabKeyIssued', value: { key, label: clabel, joinUrl, joinUrls: wsJoinUrls((h) => wsJoinUrl('collab', key, h)), bind: WS_BIND, exposed: !_isLoopback } })); return true; }   // #168 외부협업 키+접속 URL (v2.4.0 KEY-MGMT 통합: keyStore 등록 kind=collab)
   if (n === 'RevokeCollabKey' || n === 'RevokeUpstreamKey') { wsRevokeKey(v.key); const _k = keyFind(v.key); if (_k) { keyTransition(_k, 'REVOKED'); } return true; }   // v2.4.87: 레거시 경로도 keyStore 상태를 함께 내린다 (두 스토어 분기 방지)
   // === KEY-MGMT (v2.4.0 — WS-PROTOCOL-KEY-MGMT.md v0.2) ===
-  if (n === 'KeyIssue' || n === 'KeyList' || n === 'KeyRevoke' || n === 'KeyLabel') {
+  if (n === 'KeyIssue' || n === 'KeyList' || n === 'KeyRevoke' || n === 'KeyLabel' || n === 'KeyRenew') {
     if (n === 'KeyIssue') wsKeyIssue(conn, msg, v);
     else if (n === 'KeyList') wsKeyList(conn, msg, v);
     else if (n === 'KeyRevoke') wsKeyRevoke(conn, msg, v);
     else if (n === 'KeyLabel') wsKeyLabel(conn, msg, v);
+    else if (n === 'KeyRenew') wsKeyRenew(conn, msg, v);   // v2.4.103 §13.25.12
     return true;
   }
   if (n === 'SetMain') { wsSetMain(v.agentId, v.reason); return true; }
@@ -1719,6 +1825,7 @@ server.on('upgrade', (req, socket) => {
 // 할 수 있는 trusted-operator 전제라, 네트워크 노출은 명시 opt-in 이어야 함 (secure-by-default).
 // LAN/원격 노출이 필요하면 WS_BIND=0.0.0.0 (또는 특정 인터페이스 IP) 를 명시 주입 + 그땐 token 게이트 권장.
 // (WS_BIND/_isLoopback 정의는 상단 config 블록으로 이동 — #5a access-gating 이 모듈 로드시 노출 판정을 사용.)
+keyEnsureRefs();    // v2.4.103 §13.25.12 — 기존 키에 관리 핸들 소급 부여 (멱등)
 keyAdoptLegacy();   // v2.4.87 — 기동 시 레거시-only 키를 keyStore 로 입양 (멱등: 이미 있으면 무동작)
 server.listen(PORT, WS_BIND, () => {
   console.log(`Constellation live dashboard → http://localhost:${PORT}/  (state: ${STATE})  [WS: /ws]  [bind: ${WS_BIND}]`);
