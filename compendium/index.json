@@ -1,6 +1,6 @@
 {
   "generated": "compendium/lint.cjs --reindex",
-  "count": 27,
+  "count": 34,
   "entries": [
     {
       "id": "a2a-intent-family",
@@ -144,6 +144,30 @@
       ]
     },
     {
+      "id": "charter",
+      "title": "Charter",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Corporate.md#22-charter-specificity--precedence-not-load-order-must",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "desk",
+        "durable-role"
+      ],
+      "definition": "A role’s written contract, living in its desk. Specificity comes from precedence, not load order: discovery runs root-to-cwd, so the charter wins by being merged last. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "per-role instruction file in the desk; nearest-wins by precedence (root→cwd discovery, charter merged last), never by a claimed reversed load order"
+        },
+        {
+          "register": "plain",
+          "text": "역할에게 주는 «직무 지시서» — 프로젝트 공통 본문과 부딪힐 땐 이 지시서가 이기지만, 남보다 먼저 읽혀서가 아니에요"
+        }
+      ]
+    },
+    {
       "id": "collab-key",
       "title": "Collab Key (ck-)",
       "type": "glossary",
@@ -282,6 +306,31 @@
       ]
     },
     {
+      "id": "desk",
+      "title": "Desk",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Corporate.md#2-the-desk--two-space-contract",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "locker",
+        "charter",
+        "durable-role"
+      ],
+      "definition": "A role’s private, gitignored working directory holding its charter, memory, and session. The harness runs here, which is how the charter gets nearest-wins precedence. Paired with the locker, the public half. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "gitignored per-role cwd holding charter/memory/session; running the harness here is how charter precedence is obtained (discovery ends at cwd)"
+        },
+        {
+          "register": "plain",
+          "text": "역할마다 하나씩 갖는 «자기 책상» — 그 역할의 지시서·기억·진행상황이 들어있고 공유되지 않아요"
+        }
+      ]
+    },
+    {
       "id": "deterministic-hook",
       "title": "Deterministic Hook",
       "type": "glossary",
@@ -331,6 +380,33 @@
       ]
     },
     {
+      "id": "durable-role",
+      "title": "Durable Role",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Corporate.md#1-concept--the-three-orchestration-axes-and-the-durable-role",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "desk",
+        "charter",
+        "residency-class",
+        "roster",
+        "liaison"
+      ],
+      "definition": "Corporate’s unit — a named seat outliving any session or process, which is what lets it accumulate practice, be addressed across time, and own units. Not a Superscalar lane (anonymous, one fan-out) nor a Constellation agent (a process, not a job). See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "the organization-layer unit — a named seat outliving its processes; accumulation + addressability + ownership + auditability follow from that durability"
+        },
+        {
+          "register": "plain",
+          "text": "사람이 바뀌어도 남는 «자리» — 세션이나 프로세스 하나가 아니라 직책에 가까운 개념이에요"
+        }
+      ]
+    },
+    {
       "id": "four-score-escalation",
       "title": "4-Score Escalation",
       "type": "glossary",
@@ -376,6 +452,54 @@
         {
           "register": "plain",
           "text": "how many tasks are run at the same time — chosen deliberately, not just as many as possible"
+        }
+      ]
+    },
+    {
+      "id": "liaison",
+      "title": "Liaison",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Corporate.md#103-liaison-as-a-duty-profile",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "durable-role",
+        "board-worker"
+      ],
+      "definition": "The user-facing IDE or desktop seat, declared as a duty profile and deliberately **not** the organization’s main: intake and consultation only, no worklist ownership, no external voice. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "duty profile (§13.9.3 sense) for the IDE/desktop seat: intake + consultation only; not the org main, no worklist ownership, no external voice"
+        },
+        {
+          "register": "plain",
+          "text": "사용자와 직접 이야기하는 자리 — 조직의 대표가 아니에요. 상담과 요청을 받지만 작업 목록을 갖거나 밖에 대해 말하지는 않아요"
+        }
+      ]
+    },
+    {
+      "id": "locker",
+      "title": "Locker",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Corporate.md#2-the-desk--two-space-contract",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "desk",
+        "durable-role"
+      ],
+      "definition": "A role’s tracked public directory — the sharing channel: write a document there and pass the path. Also the cross-host exchange, since a desk does not span hosts. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "tracked per-role public dir; default sharing is write-a-document-and-pass-the-path, and it is the cross-host exchange since desks are host-local"
+        },
+        {
+          "register": "plain",
+          "text": "역할의 «공개 사물함» — 내용을 메시지로 밀지 않고 여기 문서를 쓴 다음 경로만 넘기는 게 기본이에요"
         }
       ]
     },
@@ -499,6 +623,30 @@
       ]
     },
     {
+      "id": "residency-class",
+      "title": "Residency Class",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Corporate.md#71-residency-classes",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "durable-role",
+        "roster"
+      ],
+      "definition": "How long a role’s model process lives: resident, on-wake, on-demand (default), scheduled. A class is a cost commitment, so resident is top-tier-only apart from main and liaison. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "resident | on-wake | on-demand (default) | scheduled; resident is T4-only apart from main/liaison because the class is a cost commitment"
+        },
+        {
+          "register": "plain",
+          "text": "역할의 모델이 «언제까지 살아있는가» — 상주·깨울 때·부를 때(기본)·정해진 시간. 상주로 올리는 건 반복 비용을 약속하는 일이에요"
+        }
+      ]
+    },
+    {
       "id": "retire-axis",
       "title": "Retire Axis",
       "type": "glossary",
@@ -520,6 +668,30 @@
         {
           "register": "plain",
           "text": "a practice can be marked active, on probation, or retired — so stale rules get demoted instead of lingering forever"
+        }
+      ]
+    },
+    {
+      "id": "roster",
+      "title": "Roster",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Corporate.md#101-corporatechart--structure-emitted-by-main",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "durable-role",
+        "residency-class"
+      ],
+      "definition": "The organization’s declared structure — seats, hosts, groups, links, rooms — projected to a board as a chart. Declaring a seat is not staffing it. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "the local declaration of seats/hosts/groups/links/rooms; projected as a chart. Declaration ≠ staffing, and an unstaffed seat’s missing state is information"
+        },
+        {
+          "register": "plain",
+          "text": "조직을 적어둔 «명단» — 여기 이름이 있다는 것이 그 자리가 지금 돌아가고 있다는 뜻은 아니에요"
         }
       ]
     },
