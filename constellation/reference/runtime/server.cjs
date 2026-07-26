@@ -397,6 +397,17 @@ function wsIsAckable(msg) {   // §13.13 A2A delivered ack 대상: ack/ping류·
 let WS_PRIMARY_ID = process.env.WS_PRIMARY_AGENT || 'main-agent';   // generic default (dashboard WS_LOCAL 과 일관); 다운스트림이 자기 환경 메인 agentId 를 env 로 주입
 function wsPrimaryAgent() { const p = wsAgents.get(WS_PRIMARY_ID); if (p && p.alive) return p; for (const c of wsAgents.values()) if (c.alive) return c; return null; }
 function wsAgentRole(c) { return c.meta.collab ? 'collab' : (c.meta.peer ? 'peer' : (c.meta.upstream ? 'upstream' : (c.meta.agentId === WS_PRIMARY_ID ? 'main' : 'local'))); }   // v0.3 오케스트레이션 role (+collab #168, +peer v2.4.52 — peer-main ≠ 자율 upstream)
+// §13.13.3 (v2.4.96) — target-unspecified *text* intake. An external party that speaks with no
+//   `targetAgentId` is addressing the room, and the main is the room's orchestrator: it must hear
+//   it. Pre-fix the untargeted fallback below was CUSTOM-only, so such an utterance reached the
+//   boards + history and stopped there — measured twice, worst case six hours of a peer's
+//   substantive replies visible on the dashboard while the main sat silent until the operator
+//   said "check it". Gated on the sender's **declared role**, not on frame shape: a `local`
+//   sender (own workers, echo-mode mirror) reflects our own content back, and relaying that to
+//   main is the false-wake flood already measured on the worker's own log (fixed 2026-07-04 with
+//   a CUSTOM-only guard on the poller — the guard stays; this opens only the external lane).
+const _WS_TEXT_FRAMES = new Set(['TEXT_MESSAGE_START', 'TEXT_MESSAGE_CONTENT', 'TEXT_MESSAGE_END']);
+const _WS_EXTERNAL_ROLES = new Set(['collab', 'peer', 'upstream']);   // parties whose untargeted speech is genuinely inbound (never 'local'/'main')
 // v2.4.87 §13.25.9 — 키 관리·SetMain 권한 판정. 에이전트 표면은 main 만. board 연결(무-HELLO 대시보드/운영자
 // 클라이언트)은 loopback 이거나 **ui 표면 allowlist** 를 통과하는 주소만 — 대시보드 HTTP 를 여는 권한과 보드를
 // 조작하는 권한을 같은 경계로 묶는다. access.json 부재/allowlist 없음 = 종전 fail-open 유지(파괴적 변경 회피)이며,
@@ -1523,7 +1534,10 @@ server.on('upgrade', (req, socket) => {
           if (msg.parentId == null && rp.parentId) msg.parentId = rp.parentId;
           const d = wsAgents.get(rp.from); if (d && d.alive && d !== conn) d.send(msg);   // 원 요청자에게도 A2A relay
           if (msg.type === 'RUN_FINISHED') _a2aPending.delete(conn.meta.agentId);          // 응답 완료 → 페어링 종료
-        } else if (msg && !wsIsTelemetry(msg) && msg.type === 'CUSTOM' && msg.name !== 'ConnectionRestored') { const p = wsPrimaryAgent(); if (p && p !== conn && p.alive) p.send(msg); }   // 대상 미지정 CUSTOM(핸드오프 등) → 메인 우선. watcher telemetry 는 board broadcast 만.
+        } else if (msg && !wsIsTelemetry(msg) && (
+          (msg.type === 'CUSTOM' && msg.name !== 'ConnectionRestored')                                  // 대상 미지정 CUSTOM(핸드오프 등) → 메인 우선. watcher telemetry 는 board broadcast 만.
+          || (_WS_TEXT_FRAMES.has(msg.type) && _WS_EXTERNAL_ROLES.has(wsAgentRole(conn)))                // §13.13.3 대상 미지정 텍스트 — 외부 당사자(collab/peer/upstream)만. local 미러는 제외(false-wake)
+        )) { const p = wsPrimaryAgent(); if (p && p !== conn && p.alive) p.send(msg); }
       }
       wsToBoards(msg);                                           // 모니터링: 항상 board 로 broadcast (A2A 도 대시보드가 관찰) — 선언 이벤트의 라이브 갱신 경로도 여기
       wsRecord(msg);                                             // 대화 기록 영속
