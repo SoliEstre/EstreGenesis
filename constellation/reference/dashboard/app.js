@@ -1595,12 +1595,31 @@ function renderOrg() {
 }
 // ---- 상세 팝업 (§13.33.3-5: 새 위젯 클래스가 아니라 한 좌석으로 좁힌 모니터) ----
 function orgSec(title) { const s = el('div', 'org-sec'); const h = el('div', 'org-sec-h'); h.textContent = title; s.append(h); return s; }
-function orgRow(k, v, title) {
+function orgRow(k, v, title, extra) {
   const row = el('div', 'org-row');
   const kk = el('span', 'org-k'); kk.textContent = orgStr(k);
   const vv = el('span', 'org-v'); vv.textContent = orgHas(v) ? String(v) : ORG_UNDECLARED;
   if (title) row.title = title;
-  row.append(kk, vv); return row;
+  row.append(kk, vv);
+  if (extra) vv.append(document.createTextNode(' '), extra);
+  return row;
+}
+// §8.4 — 조직 어휘를 편람(Compendium) 항목으로 잇는 다리. **항목이 실재할 때만** 링크를 만들어요:
+// 없는 곳으로 가는 링크는 오늘 고친 «닮음으로 붙기»와 같은 부류의 거짓 어포던스예요.
+// 정의는 여기서 복제하지 않아요 — 편람 항목 자체가 스펙을 가리키는 포인터고(pointer-not-paraphrase),
+// 이 링크는 그 포인터로 가는 길일 뿐이에요.
+function orgWikiHas(id) { try { return !!(wikiData && (wikiData.entries || []).some((e) => e && String(e.id) === String(id))); } catch (e) { return false; } }
+function orgWikiLink(id, label) {
+  if (!orgWikiHas(id)) return null;
+  const a = el('a', 'org-wiki-link');
+  a.href = '#'; a.textContent = label || ('용어 ' + id);
+  a.title = '편람 항목 "' + id + '" 을 열어요 — 정의 원본은 스펙(owner_spec)이 SSoT 예요';
+  a.onclick = (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    try { setPanes('wiki'); } catch (e) {}
+    try { wikiOpenAside(String(id)); } catch (e) {}
+  };
+  return a;
 }
 function orgFindCurrent(ref) {
   if (!orgHas(ref) || !ui.state) return null;
@@ -1637,6 +1656,9 @@ function orgOpenDetail(role) {
     head.querySelectorAll('[data-org-owned="1"]').forEach(n => n.remove());
     const add = [];
     if (!popTitle) { const t = el('span', 'org-title'); t.dataset.orgOwned = '1'; t.textContent = headTitle; add.push(t); }
+    // 좌석 이름 자체가 편람 항목인 경우(liaison 처럼 어휘로 등재된 duty profile)에만 용어 링크를 붙여요.
+    const seatTerm = orgWikiLink(orgPopRole, '📖 용어');
+    if (seatTerm) { seatTerm.dataset.orgOwned = '1'; add.push(seatTerm); }
     const talk = orgTalkBtn(orgPopRole, ch); talk.dataset.orgOwned = '1';
     add.push(talk);
     const x = $('#org-pop-x');
@@ -1707,10 +1729,11 @@ function orgOpenDetail(role) {
   s5.append(orgRow('하네스', orgHas(r.harness) ? String(r.harness) : null));
   s5.append(orgRow('호스트', orgHas(r.host) ? String(r.host) + (orgHostTitle(r.host) ? ' — ' + orgHostTitle(r.host) : '') : null));
   s5.append(orgRow('레인', orgHas(r.lane) ? orgKo(ORG_LANE_KO, r.lane) : null));
+  s5.append(orgRow('잔류 등급', orgHas(r.residency) ? orgKo(ORG_RES_KO, r.residency) : null, '이 좌석의 모델 프로세스 수명 등급이에요', orgWikiLink('residency-class', '용어')));
   s5.append(orgRow('트레이스', orgHas(r.traceMode) ? orgKo(ORG_TRACE_KO, r.traceMode) : null));
   s5.append(orgRow('그룹', orgHas(r.group) ? orgGroupTitle(r.group) : null));
   s5.append(orgRow('생성 근거 (createdFor)', orgHas(r.createdFor) ? String(r.createdFor) : null));
-  s5.append(orgRow('책상 라벨 (deskRef)', orgHas(r.deskRef) ? String(r.deskRef) : null, '불투명 라벨이에요 — 파일 경로가 아니에요'));
+  s5.append(orgRow('책상 라벨 (deskRef)', orgHas(r.deskRef) ? String(r.deskRef) : null, '불투명 라벨이에요 — 파일 경로가 아니에요', orgWikiLink('desk', '용어')));
   if (ch && ch.exact) {
     let ops = null; try { ops = wsOpsStates.get(ch.id) || null; } catch {}
     if (ops) {
