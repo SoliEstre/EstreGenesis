@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * scripts/join-collab.cjs — collab / peer 합류 레퍼런스 클라이언트 (deps-0, v2.4.107).
+ * scripts/join-collab.cjs — collab / peer 합류 레퍼런스 클라이언트 (deps-0, v2.4.108).
  *
  * 왜 있나: `join-local.cjs` 는 **local 워커용** 레퍼런스인데, **collab/peer 합류용은 없었어요.**
  * 그래서 어댑터는 스펙만 보고 클라이언트를 손으로 만들었고, 채택 사례 하나에서 **프로토콜 계약
@@ -22,9 +22,16 @@
  * 그래서 이 파일은 새 발명이 아니라 **local 레퍼런스의 계약을 collab/peer 표면으로 옮긴 것**이고,
  * 5·6·7·8(아래)을 더한 것이에요.
  *
- * 사용:
- *   WS_AGENT_ID=my-agent COLLAB_KEY=ck-… COLLAB_HOST=host:27878 node scripts/join-collab.cjs
- *   WS_AGENT_ID=my-agent COLLAB_KEY_FILE=./my.key WS_ROLE=peer PARENT_PID=$$ node scripts/join-collab.cjs
+ * 사용 (권장 — 감시 셸 없이):
+ *   하네스/서비스가 이 node 프로세스를 **직접 소유**하는 백그라운드 태스크로 띄우세요. 이 클라이언트는
+ *   close 에서 스스로 재연결하니 감시 셸 루프가 애초에 불필요하고, 소유자가 프로세스면 §5 의 고아 경로가
+ *   **성립하지 않아요** (채택 실측: 폭주의 기제가 정확히 «셸만 죽고 node 가 남는» 것이었어요).
+ *     WS_AGENT_ID=my-agent COLLAB_KEY=ck-… COLLAB_HOST=host:27878 node scripts/join-collab.cjs
+ *
+ * 사용 (차선 — 셸이 스포너일 수밖에 없을 때):
+ *     WS_AGENT_ID=my-agent COLLAB_KEY_FILE=./my.key WS_ROLE=peer PARENT_PID=<Windows pid> node scripts/join-collab.cjs
+ *   ⚠ Git Bash/MSYS 에서 `$$` 는 **MSYS pid** 라 Windows pid 와 달라요 — 그대로 넘기면 부모가 멀쩡한데
+ *     고아로 오판해요. `ps -W` 의 **WINPID** 열을 넘기세요 (아래 §5 가 시작 시 1회 검사해 이름을 대요).
  *
  * env:
  *   WS_AGENT_ID*    합류 agentId (필수)
@@ -34,7 +41,9 @@
  *   WS_AGENT_NAME   표시명 (기본 WS_AGENT_ID)
  *   COLLAB_OUTBOX   발신 큐 파일 (기본 <dir>/<agentId>-outbox.jsonl) — §6 참조
  *   COLLAB_STORE    수신 저장 파일 (기본 <dir>/<agentId>-inbox.log) — §7 참조
- *   PARENT_PID      이 pid 가 사라지면 스스로 종료 (§5 고아 방지 — 켜는 걸 권장)
+ *   COLLAB_OUT_CURSOR  발신 커서 파일 (기본 <outbox>.cursor) — §6.1 참조
+ *   COLLAB_SHARED_OUTBOX_OK=1  두 보드가 발신 큐를 공유하는 배치를 **의도적으로** 허용 (§6.1 기본은 거부)
+ *   PARENT_PID      이 pid 가 사라지면 스스로 종료 (§5 고아 방지 — 위 «권장» 구성이면 불필요)
  */
 const fs = require('fs');
 const path = require('path');
@@ -63,8 +72,25 @@ if (!KIND) { console.error('[join-collab] 키 접두사를 알 수 없어요 (ck
 const ROLE = process.env.WS_ROLE || (KIND === 'upstream' ? 'upstream' : KIND);
 const PARAM = KIND === 'peer' ? 'peerKey' : KIND === 'upstream' ? 'upstreamKey' : 'key';
 
-const HOST = process.env.COLLAB_HOST || ('localhost:' + (process.env.PORT || '7878'));
-const BASE = process.env.CONSTELLATION_WS_URL || ('ws://' + HOST + '/ws');
+// v2.4.111 — 보드 지정이 **둘 다 있는데 어긋나면 거부**해요. 종전엔 `CONSTELLATION_WS_URL` 이 조건 없이
+//   이겼는데, 그건 호출자가 인자로 **명시한** COLLAB_HOST 보다 **환경에 떠 있는** 값이 세다는 뜻이에요.
+//   실측: 격리 보드를 띄우고 COLLAB_HOST 로 지목한 스모크가 세션 환경에 있던 URL 때문에 **운영 보드에**
+//   붙어 시험 메시지를 거기 남겼어요. 여기서도 증상은 오류가 아니라 «엉뚱한 수신자» 라 조용해요 —
+//   §6.1 의 공유 발신 큐와 같은 부류라 같은 처방(추측하지 말고 멈추기)을 씁니다.
+const _URL_ENV = process.env.CONSTELLATION_WS_URL || '';
+const _HOST_ENV = process.env.COLLAB_HOST || '';
+if (_URL_ENV && _HOST_ENV) {
+  let _u = null; try { _u = new URL(_URL_ENV); } catch {}
+  if (_u && _u.host && _u.host !== _HOST_ENV) {
+    console.error('[join-collab] 보드 지정이 둘인데 서로 달라요 — 어느 쪽을 뜻하는지 추측하지 않고 멈춰요.');
+    console.error(`[join-collab]   CONSTELLATION_WS_URL=${_URL_ENV}   (host=${_u.host})`);
+    console.error(`[join-collab]   COLLAB_HOST=${_HOST_ENV}`);
+    console.error('[join-collab]   하나만 두세요. 스크립트가 COLLAB_HOST 로 지목했는데 환경에 URL 이 떠 있으면 조용히 다른 보드로 갑니다.');
+    process.exit(1);
+  }
+}
+const HOST = _HOST_ENV || ('localhost:' + (process.env.PORT || '7878'));
+const BASE = _URL_ENV || ('ws://' + HOST + '/ws');
 const WS_URL = BASE + (BASE.includes('?') ? '&' : '?') + PARAM + '=' + encodeURIComponent(key);
 
 // ── §4 single-instance — agentId **×  보드** 단위 ────────────────────────────
@@ -77,7 +103,40 @@ require('../single-instance.cjs').acquire(path.join(DIR, `.join-collab.${AGENT_I
 const STORE = process.env.COLLAB_STORE || path.join(DIR, AGENT_ID + '-inbox.log');
 const UNDELIVERED = process.env.COLLAB_UNDELIVERED || path.join(DIR, AGENT_ID + '-undelivered.jsonl');
 const OUTBOX = process.env.COLLAB_OUTBOX || path.join(DIR, AGENT_ID + '-outbox.jsonl');
-const OUT_CURSOR = path.join(DIR, '.' + AGENT_ID + '-outbox-cursor');
+
+// ── §6.1 발신 커서 — **OUTBOX 를 따라가요** (채택 실측 ME-CST-13) ─────────────
+// 종전엔 넷 중 커서만 `DIR + agentId` 파생이라 env 로 못 옮겼어요. 그래서 OUTBOX 를 보드별로 갈라도
+//   **커서는 공유**됐고, 두 클라이언트가 같은 파일을 1.5초마다 read-modify-write 했어요.
+// 기본값을 OUTBOX 에서 파생하면 갈라짐이 따라와요. 단 경로가 바뀌면 새 커서가 없어 **0 으로 읽히고
+//   outbox 전체가 재발신**돼요 — 이 파일에서 가장 비싼 실패라, 레거시 경로를 한 번 읽어 승계해요.
+const OUT_CURSOR_DEFAULT = OUTBOX + '.cursor';
+const OUT_CURSOR = process.env.COLLAB_OUT_CURSOR || OUT_CURSOR_DEFAULT;
+const OUT_CURSOR_LEGACY = path.join(DIR, '.' + AGENT_ID + '-outbox-cursor');   // v2.4.107 이전 기본값
+
+// §6.1 — «락만 갈라지고 상태는 공유» 배치 거부. §4 락은 (agentId × 보드) 단위라 같은 agentId 로 두 보드에
+//   붙는 정상 구성에서 **두 인스턴스가 나란히 뜨는데**, COLLAB_DIR 이 하나면 OUTBOX 도 하나예요. 그러면
+//   A 보드로 보내려던 줄을 B 보드 클라이언트가 먼저 드레인해요 — **수신자가 바뀌는데 아무 신호가 없어요.**
+//   락 단위가 두 보드를 전제하면서 상태 파일 기본값이 보드를 구분하지 않는 게 원인이고, 그 배치를 흡수하면
+//   그 지점이 영구히 조용해져요. 그래서 감지하면 이름을 대고 멈춰요.
+if (!process.env.COLLAB_OUTBOX && process.env.COLLAB_SHARED_OUTBOX_OK !== '1') {
+  const { pidAlive } = require('../single-instance.cjs');
+  const prefix = `.join-collab.${AGENT_ID}.`, mine = `${prefix}${boardTag}.pid`;
+  let clash = null;
+  let entries = []; try { entries = fs.readdirSync(DIR); } catch {}
+  for (const f of entries) {
+    if (f === mine || !f.startsWith(prefix) || !f.endsWith('.pid')) continue;
+    let pid = 0; try { pid = parseInt(fs.readFileSync(path.join(DIR, f), 'utf8').trim(), 10); } catch {}
+    if (pid && pidAlive(pid)) { clash = { file: f, pid, board: f.slice(prefix.length, -4) }; break; }
+  }
+  if (clash) {
+    console.error(`[join-collab] 같은 agentId(${AGENT_ID}) 가 다른 보드(${clash.board}, pid=${clash.pid})에 이미 붙어 있는데`);
+    console.error(`[join-collab]   발신 큐가 기본값이라 **공유**돼요: ${OUTBOX}`);
+    console.error('[join-collab]   그러면 이 보드로 보내려던 줄을 저쪽 클라이언트가 먼저 가져가요 — 수신자가 조용히 바뀌어요.');
+    console.error('[join-collab]   보드별로 COLLAB_DIR 을 나누거나, COLLAB_OUTBOX(+COLLAB_STORE) 를 명시하세요.');
+    console.error('[join-collab]   공유가 의도라면 COLLAB_SHARED_OUTBOX_OK=1 로 명시하세요.');
+    process.exit(1);
+  }
+}
 
 const ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);   // §13.13 — 서버 pending 비추적이라 여기에 ack 하면 스톰이 돼요
 
@@ -109,7 +168,20 @@ function send(type, extra) {
 // 발신마다 새 연결을 여는 one-shot 방식은 같은 agentId 라 상주 리스너를 kick 하고, 리스너가 backoff
 //   재접속하며 발신자를 되받아 kick 해요. 그 사이 고정 지연 송신이 **죽은 소켓으로 나가 무음 유실**
 //   돼요(실측). 파일 append → 상주 연결이 drain 하면 그 레이스가 **성립하지 않아요.**
-let outCursor = (() => { try { return parseInt(fs.readFileSync(OUT_CURSOR, 'utf8'), 10) || 0; } catch { return 0; } })();
+let outCursor = (() => {
+  const read = (p) => { try { const v = parseInt(fs.readFileSync(p, 'utf8').trim(), 10); return Number.isFinite(v) && v >= 0 ? v : null; } catch { return null; } };
+  const v = read(OUT_CURSOR);
+  if (v !== null) return v;
+  // 새 경로가 없을 때만 레거시를 봐요 — 명시 지정(COLLAB_OUT_CURSOR)에는 끼어들지 않아요.
+  if (OUT_CURSOR === OUT_CURSOR_DEFAULT) {
+    const legacy = read(OUT_CURSOR_LEGACY);
+    if (legacy !== null) {
+      console.error(`[join-collab] 발신 커서를 레거시 경로에서 승계했어요: ${OUT_CURSOR_LEGACY} → ${OUT_CURSOR} (${legacy}). outbox 전체 재발신을 막았어요.`);
+      return legacy;
+    }
+  }
+  return 0;
+})();
 function drainOutbox() {
   if (!connected) return;
   let data = ''; try { data = fs.readFileSync(OUTBOX, 'utf8'); } catch { return; }
@@ -189,11 +261,24 @@ function connect() {
 //   판단하면 안 돼요** — 셸 파이프라인은 중간 프로세스가 먼저 빠져서 «정상 자식» 도 부모가 죽은 것처럼
 //   보여요(Windows 실측). 그래서 추측하지 않고 **스포너가 자기 pid 를 PARENT_PID 로 넘기게** 해요.
 //   넘어오지 않으면 이 보호는 꺼진 상태이고, 그 사실을 시작할 때 말해요.
+// v2.4.108 (채택 실측 ME-CST-13) — 그런데 **넘어온 값이 이 프로세스에서 의미가 없을 수도** 있어요.
+//   Git Bash/MSYS 의 `$$` 는 MSYS pid 라 Windows pid 와 다르고, 문서가 `PARENT_PID=$$` 를 처방했어요.
+//   그러면 부모가 멀쩡히 살아있는데 첫 5초 tick 이 「사라짐」을 찍고 종료해요 — 고아 방지가 **정상 세션을
+//   죽이는** 쪽으로 뒤집혀요. 게다가 문구가 부모를 의심하게 만들어서 원인(pid 공간 불일치)에 단서가 없었어요.
+//   그래서 「처음부터 안 보임」과 「돌다가 사라짐」을 **다른 사건으로** 말해요. 앞의 것은 보호를 걸 수 없다는
+//   뜻이라 조용히 계속하지 않고 멈춰요 — 꺼진 보호를 켜진 것처럼 두는 게 이 파일이 막으려는 결함이에요.
 if (PARENT_PID) {
   const { pidAlive } = require('../single-instance.cjs');
+  if (!pidAlive(PARENT_PID)) {
+    console.error(`[join-collab] PARENT_PID=${PARENT_PID} 가 이 프로세스에서 **처음부터 보이지 않아요** (사라진 게 아니에요).`);
+    console.error('[join-collab]   ① 이미 종료됐거나, ② pid 공간이 달라요 — Git Bash/MSYS 의 `$$` 는 MSYS pid 예요.');
+    console.error('[join-collab]   MSYS 라면 `ps -W` 의 **WINPID** 열을 넘기세요. 예: PARENT_PID=$(ps -W | awk -v m=$$ \'$1==m{print $4}\')');
+    console.error('[join-collab]   더 나은 답: 감시 셸을 없애고 하네스가 이 node 프로세스를 직접 소유하게 하세요 — 고아 경로가 성립하지 않아요.');
+    process.exit(1);
+  }
   setInterval(() => {
     if (!pidAlive(PARENT_PID)) {
-      console.error(`[join-collab] PARENT_PID=${PARENT_PID} 사라짐 — 고아로 남지 않기 위해 종료해요.`);
+      console.error(`[join-collab] PARENT_PID=${PARENT_PID} 사라짐 (시작 시엔 살아 있었어요) — 고아로 남지 않기 위해 종료해요.`);
       log({ ev: 'parent-gone', parentPid: PARENT_PID });
       try { ws && ws.close(); } catch {}
       process.exit(0);

@@ -1616,6 +1616,14 @@ function wsRoomMessage(conn, msg) {                          // roomId 실린 CU
   wsToBoards(msg); wsRecord(msg);                             // 대시보드 관찰 + room:<id> 채널 영속 (wsMsgChan roomId 분기)
   try { push.maybePush(msg); } catch {}
 }
+// v2.4.111 §13.25.14 — 보드 상태 1회 전달. 접속 직후(무키) 또는 HELLO 통과 직후(유키) 중 **한 번만** 불려요.
+//   `_stateSent` 이 그 «한 번» 을 지켜요 — 재호출이 History 를 두 벌 보내면 어댑터 저장소가 다시 곱해져요(§7).
+function wsSendInitialState(conn) {
+  if (!conn || conn.meta._stateSent) return;
+  conn.meta._stateSent = true;
+  conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
+  { const _h = wsHistoryPayload(); if (_h.events.length || _h.cold.length || _h.archived.length || Object.keys(_h.manifests).length || _h.corporateChart || Object.keys(_h.roleStates).length) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand). v2.4.90: 대화가 아직 없고 조직 선언만 있는 서버에서도 History 가 나가야 조직도 탭이 채워져요(무-이벤트 silent drop 방지)
+}
 // ──────────────────────────────────────────────────────────────────────────────────────────
 server.on('upgrade', (req, socket) => {
   if (req.url.split('?')[0] !== '/ws') { socket.destroy(); return; }
@@ -1640,8 +1648,15 @@ server.on('upgrade', (req, socket) => {
     } }
   wsConns.add(conn);
   conn.send(wscore.event('SERVER_HELLO', { sessionId: conn.id, protocolVersion: '0.3', serverTime: new Date().toISOString() }));
-  conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
-  { const _h = wsHistoryPayload(); if (_h.events.length || _h.cold.length || _h.archived.length || Object.keys(_h.manifests).length || _h.corporateChart || Object.keys(_h.roleStates).length) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand). v2.4.90: 대화가 아직 없고 조직 선언만 있는 서버에서도 History 가 나가야 조직도 탭이 채워져요(무-이벤트 silent drop 방지)
+  // v2.4.111 §13.25.14 (adopter-reported ME-CST-13) — **보드 상태는 정체 판정 뒤에.** 종전엔 여기서 무조건
+  //   나갔는데, TOFU 위반 거부(key-identity-mismatch)는 HELLO 에서야 나요. 그래서 **유출된 키를 든 쪽이
+  //   거부되기 전에 AgentList 와 History 전체를 받았어요** — 어댑터가 자기 보조 도구로 실측 확인해줬어요
+  //   («도구는 결과를 다 얻어요»). TOFU 는 se-01 보안 수정이었는데 targeted relay 만 지키고 보드 내용은
+  //   못 지킨 거예요. v2.4.104 가 key-expired 에 대해 세운 순서 규칙(거부는 상태 전송 앞)을 TOFU 는 지킬 수
+  //   **없어요** — 판정에 필요한 agentId 가 HELLO 에만 있으니까요. 그래서 위치를 옮기는 대신 상태를 미뤄요.
+  //   가르는 기준은 **IP 가 아니라 키 제시 여부**예요: 역프록시 뒤에서는 원격도 전부 loopback 으로 보여서
+  //   IP 기준은 조용히 무력화돼요. 무키 연결(대시보드 — HELLO 를 아예 안 보내요)은 종전 그대로예요.
+  if (!conn.meta._urlKey) wsSendInitialState(conn);
   conn.onclose = () => {
     wsConns.delete(conn);
     keyOnConnClose(conn);                                       // v2.4.0 §4 REVOKED_PENDING 마지막 conn 종료 시 REVOKED 확정
@@ -1670,7 +1685,11 @@ server.on('upgrade', (req, socket) => {
           // v2.4.99 — `code` 를 **본문에도** 싣습니다. 종전엔 기계가 읽을 코드가 close frame(4403, code) 에만 있어서,
           //   ConnectionRejected 를 받은 어댑터는 사람용 문장을 문자열 매칭하는 수밖에 없었어요. 거부 사유에 따라
           //   분기(키 재발급 vs 로컬에서 재시도 vs 다른 종 키)해야 하는데 그 분기를 코드로 쓸 수가 없었던 거예요.
-          try { conn.send(wscore.event('CUSTOM', { name: 'ConnectionRejected', value: { code, reason, surface: _surface, ip: normIp(_ip), agentId: conn.meta.agentId, hint } })); } catch {}
+          // v2.4.111 §13.25.14 — «이 연결로 이미 받은 상태는 무효» 를 **기계가 읽을 수 있게** 실어요 (adopter 제안 ME-CST-13).
+          //   유키 연결은 이제 상태를 HELLO 뒤로 미루니 보통 false 지만, 키를 URL 이 아니라 HELLO 본문으로만
+          //   보내는 클라이언트는 접속 시점에 키가 안 보여서 상태가 이미 나가 있어요 — 그 경우를 숨기지 않아요.
+          //   (그래서 키는 URL 파라미터로 싣는 게 권장이에요 — 서버가 상태 전송 전에 판단할 수 있어요.)
+          try { conn.send(wscore.event('CUSTOM', { name: 'ConnectionRejected', value: { code, reason, surface: _surface, ip: normIp(_ip), agentId: conn.meta.agentId, hint, priorStateDelivered: !!conn.meta._stateSent, priorStateHint: conn.meta._stateSent ? '이 연결로 앞서 받은 AgentList/History 는 무효예요 — 인가되지 않은 연결의 전송분이라 버리세요.' : undefined } })); } catch {}
           setTimeout(() => { try { conn.close(4403, code); } catch {} }, 50);   // 이벤트가 flush 될 틈을 준 뒤 close
         };
         if (!surfaceAllowed(_surface, _ip)) {
@@ -1698,7 +1717,12 @@ server.on('upgrade', (req, socket) => {
         { const _pinK = conn.meta.upstreamKey; const _bound = keyPinViolation(_pinK, conn.meta.agentId);
           if (_bound) {
             console.warn('[ws HELLO] §13.25.11 키-정체 불일치 거부 key=%s bound=%s claimed=%s ip=%s', String(_pinK).slice(0, 14) + '…', _bound, conn.meta.agentId, normIp(_ip) || '?');
-            _reject('key-identity-mismatch', 'this key is bound to a different agentId', 'Constellation §13.25.11 — 키는 최초 사용 시 그 agentId 에 결속돼요(TOFU). 워커마다 별도 키를 발급하세요. 결속을 바꾸려면 운영자가 키를 폐기하고 재발급해야 해요.');
+            // v2.4.111 — hint 교정 (adopter 질문 ME-CST-13 §3). 종전 문구(«워커마다 별도 키를 발급하세요»)가
+            //   **별도 키를 기본값처럼** 읽히게 했어요. 별도 키는 «정체가 실제로 다를 때» 의 답이에요 — 로스터에
+            //   따로 서고 독립적으로 폐기하고 싶은 워커. 읽기 전용 보조 도구는 정체가 다른 게 아니라 **같은 정체의
+            //   다른 창구**라서, 키를 더 발급하면 로스터에 유령이 서고 폐기면만 늘어요. §6 이 발신에 대해 세운
+            //   규율(«새 연결을 열지 말고 상주 큐를 드레인») 이 수신에도 그대로 적용돼요.
+            _reject('key-identity-mismatch', 'this key is bound to a different agentId', 'Constellation §13.25.11 — 키는 최초 사용 시 그 agentId 에 결속돼요(TOFU). 보조 도구·워커가 **같은 정체**의 다른 창구라면 키를 더 발급하지 말고 상주 연결(그 클라이언트의 저장소/발신 큐)을 재사용하세요. 로스터에 따로 서야 하는 **다른 정체**일 때만 별도 키를 발급하세요. 결속을 바꾸려면 운영자가 키를 폐기하고 재발급해야 해요.');
             return;
           } }
         if (accessCfg.agent.requireKey && !_isLoopback && !isLoopbackIp(_ip)) {
@@ -1728,6 +1752,10 @@ server.on('upgrade', (req, socket) => {
           historyScope: 'active-channels+stubs',
         } }));
       } catch {}
+      // v2.4.111 §13.25.14 — 유키 연결은 여기까지 와야 보드 상태를 받아요 (위 upgrade 핸들러의 유예분).
+      //   여기 도달 = TOFU·requireKey·allowlist·local-key-remote 게이트를 전부 통과했다는 뜻이에요.
+      //   `_stateSent` 가드 덕에 무키 연결(접속 시 이미 받음)에는 두 번 나가지 않아요.
+      wsSendInitialState(conn);
       return;
     }
     if (conn.meta.role === 'agent') {                           // 에이전트 outbound
