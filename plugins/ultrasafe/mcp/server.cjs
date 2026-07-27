@@ -18,7 +18,9 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const VERSION = "0.2.7";
+// 버전은 package.json 에서 읽어요. 여기 상수로 두면 컷마다 **두 번 적어야** 하고, 실제로 이 컷에서
+//   0.2.7 로 동결된 채 pkg 만 올라가 N-way 축이 잡았어요 — 자매 서버들은 이미 동적으로 읽고 있었어요.
+const VERSION = require("./package.json").version;
 const ADVISORY_MODE = true; // v0.2.x — flips to false in v0.3+ blocking cut.
 const BLOCKING_IN_V03 = true; // surfaced in all returns so consumers know what would happen under blocking mode.
 
@@ -366,8 +368,10 @@ async function handleCleanSignalCheck(args = {}) {
   }
 
   // Condition 3: coverage floor per tier — Tier 1: 50% / Tier 2: 75% / Tier 3: 90%.
-  const floors = { 1: 50, 2: 75, 3: 90 };
-  const tierFloor = floors[Number(tier)];
+  // 표는 lib/coverage-floor.cjs 하나에만 있어요 — hook 이 여기와 다른 값(0.85, tier 무관)을
+  //   쓰고 있었고, 그래서 게이트 문턱이 «어디에 물어보느냐» 에 따라 달랐어요.
+  const { floorPctForTier } = require("../lib/coverage-floor.cjs");
+  const tierFloor = floorPctForTier(tier);
   const coverageValues = Object.values(coverage_pct);
   const avgCoverage = coverageValues.length
     ? coverageValues.reduce((s, v) => s + Number(v || 0), 0) / coverageValues.length
