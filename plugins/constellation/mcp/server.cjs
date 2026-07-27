@@ -101,6 +101,8 @@ const MEANINGFUL = new Set([
   'MediationProposal', 'MediationAck', 'EscalationRequest',
   'ArtifactManifest', 'ArtifactChunk', 'ArtifactComplete',
   'AgentText',   // §13.13.3 (v2.4.97) — bridge-coalesced utterance; the raw TEXT_MESSAGE_* frames carry no name, so a name-gated filter drops an utterance silently
+  // v2.6.25 — 전달-실패 + 선택 요청 (probe 허용목록과 동일 사유).
+  'RelayUnreachable', 'Response', 'SelectionPrompt', 'SelectionExpired',
 ]);
 
 // ----- WS proxy state -----
