@@ -152,17 +152,51 @@ const NOISE = new Set([
   'CommandManifest', 'OpsState', 'CapabilityManifest', 'CorporateChart', 'RoleState',   // v2.4.71/76 — 선언-갱신 이벤트 (변경-트리거·기계 소비 전용 — 사람 알림 가치 0)
 ]);
 
+// v2.4.110 (Ultrasafe it-1 se-05) — 발송 제한. 종전엔 조건 맞는 CUSTOM **마다** 기기 알림이 울려서,
+//   한 에이전트가 반복 emit 만으로 사용자 기기를 계속 두드릴 수 있었어요(재접속 루프 하나로도 충분해요 —
+//   이 저장소는 AgentHello 폭주를 실측한 적이 있어요).
+//   제한은 두 층이에요: 발신자별 쿨다운(같은 발신자의 연속 알림 간 최소 간격) + 전역 분당 상한.
+//   **조용히 버리지 않아요** — 억제 건수를 세고, 다음 발송 때 그 수를 함께 알려요. 억제된 알림이
+//   0건인 것과 억제기가 안 도는 것이 같아 보이면 안 되니까요.
+const PUSH_MIN_INTERVAL_MS = parseInt(process.env.PUSH_MIN_INTERVAL_MS || '', 10) || 10000;   // 발신자별 10s
+const PUSH_MAX_PER_MIN = parseInt(process.env.PUSH_MAX_PER_MIN || '', 10) || 20;              // 전역 20/분
+const _lastPushAt = new Map();      // who → ms
+let _windowStart = 0, _windowCount = 0, _suppressed = 0;
+
+function _pushAllowed(who, now) {
+  if (now - _windowStart >= 60000) { _windowStart = now; _windowCount = 0; }
+  if (_windowCount >= PUSH_MAX_PER_MIN) { _suppressed++; return false; }
+  const last = _lastPushAt.get(who) || 0;
+  if (now - last < PUSH_MIN_INTERVAL_MS) { _suppressed++; return false; }
+  _lastPushAt.set(who, now);
+  _windowCount++;
+  if (_lastPushAt.size > 512) { for (const [k, t] of _lastPushAt) if (now - t > 600000) _lastPushAt.delete(k); }
+  return true;
+}
+function pushSuppressedCount() { return _suppressed; }
+// 검사용 이음새 — 제한 판정만 노출해요. 검증 안 된 제한기는 «있는 척하는 가드» 라서, 이 함수가
+//   없으면 검사가 형태만 보고 통과해요. 시각을 인자로 받으니 기다리지 않고 시험돼요.
+function pushRateAllow(who, now) { return _pushAllowed(who, now); }
+function pushRateReset() { _lastPushAt.clear(); _windowStart = 0; _windowCount = 0; _suppressed = 0; }
+
 function maybePush(msg) {
   if (!_subs.size) return;                              // 구독 0 → 발송 안 함
   if (!msg || msg.type !== 'CUSTOM') return;            // 의미있는 A2A intent(CUSTOM)만 — RUN/STEP/TEXT delta/TOOL 스트림 제외
   const name = msg.name || '';
   if (!name || NOISE.has(name)) return;
   const v = (msg.value && typeof msg.value === 'object') ? msg.value : {};
+  // 신원은 서버가 재스탬프한 필드에서만 가져와요. `agentName` 은 v2.4.110 부터 인증된 연결값이거나
+  //   아예 없어요(server.cjs 재스탬프) — 그 전에는 클라이언트 선언값이라 제목이 위조 가능했어요.
   const who = msg.agentName || msg.agentId || msg.source || 'agent';
+  const now = Date.now();
+  if (!_pushAllowed(who, now)) return;                  // 제한 — 억제 건수는 아래에서 함께 실려요
+  const held = _suppressed;
+  _suppressed = 0;
   const title = `${who} · ${name}`;
   const bodyRaw = v.re || v.summary || v.text || v.title || v.context || msg.text || name;
-  const body = String(bodyRaw || '').slice(0, 140);
+  let body = String(bodyRaw || '').slice(0, 140);
+  if (held > 0) body += ` (+${held} 건 억제)`;            // 억제를 침묵으로 두지 않아요
   pushAll({ title, body, name: who }).catch(() => {});
 }
 
-module.exports = { init, publicKey, latest, count, subscribe, unsubscribe, pushAll, maybePush };
+module.exports = { init, publicKey, latest, count, subscribe, unsubscribe, pushAll, maybePush, pushSuppressedCount, pushRateAllow, pushRateReset };

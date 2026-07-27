@@ -483,7 +483,15 @@ function wsKeyEq(a, b) {
   try { return crypto.timingSafeEqual(A, B); } catch { return false; }
 }
 function wsValidKey(key) { return !!key && wsKeys.some((k) => wsKeyEq(k.key, key)); }
-function wsKeyRole(key) { const k = wsKeys.find((x) => x.key === key); return k ? (k.role || 'upstream') : null; }   // #168 키 role 조회(collab/upstream)
+// v2.4.110 crypto-04 재시험 — wsValidKey 만 상수시간으로 바뀌어 있었고 **이 함수는 `===` 였어요**.
+//   여기가 /join/collab|upstream|peer 의 유일한 게이트이고, upgrade 와 HELLO 양쪽에서 권한을 정해요.
+//   조기 반환을 버려요: 일치를 찾아도 순회를 끝까지 돌아야 «몇 번째에서 갈렸는가» 가 새지 않아요.
+function wsKeyRole(key) {
+  if (typeof key !== 'string' || !key) return null;
+  let role = null;
+  for (const x of wsKeys) if (wsKeyEq(x.key, key)) role = x.role || 'upstream';
+  return role;
+}
 function wsRevokeKey(key) { const n = wsKeys.length; wsKeys = wsKeys.filter((k) => k.key !== key); if (wsKeys.length !== n) wsSaveKeys(); }
 function wsJoinUrl(group, key, host) { return `http://${host || process.env.WS_PUBLIC_HOST || ('localhost:' + PORT)}/join/${group}?key=${encodeURIComponent(key)}`; }   // #168 그룹별 접속 URL(키 포함 → /join 온보딩 md)
 // v2.4.85 §13.25.8 — 접속 URL 후보 host 전수 열거. 다중 NIC/IP 호스트에서 "어느 주소로 붙어야 하나"를 발급자가 추측하지 않게, 서버가 아는 주소를 모두 싣는다.
@@ -558,7 +566,14 @@ function keySave() {   // §6 atomic write + fsync
   keyStore.updatedAt = Date.now();
   try { const tmp = KEY_JSON + '.tmp'; const fd = fs.openSync(tmp, 'w', 0o600); fs.writeSync(fd, JSON.stringify(keyStore)); fs.fsyncSync(fd); fs.closeSync(fd); fs.renameSync(tmp, KEY_JSON); try { fs.chmodSync(KEY_JSON, 0o600); } catch {} } catch {}   // v2.4.100 crypto-03 — tmp 를 좁게 만들어 rename 하고, 기존 파일 대비 chmod 도 걸어요
 }
-function keyFind(k) { return keyStore.keys.find((x) => x.key === k); }
+// v2.4.110 crypto-04 — keyFind 도 접속 승인 경로예요(keyExpiredRefusal / keyPinViolation 이 이걸 씀).
+//   같은 이유로 조기 반환 없는 상수시간 조회로 바꿔요.
+function keyFind(k) {
+  if (typeof k !== 'string' || !k) return undefined;
+  let found;
+  for (const x of keyStore.keys) if (wsKeyEq(x.key, k)) found = x;
+  return found;
+}
 // v2.4.103 §13.25.12 — keyRef: 비밀이 아닌 안정 핸들. **local 종 키를 관리 표면에서 지목할 수 있게** 해요.
 //   왜 필요한가: §3.6 설계상 local 키는 wire 응답에 키 문자열을 안 실어요(KeyList 가 `key: null`). 그래서
 //   대시보드는 그 키를 폐기·라벨변경·연장 어느 것도 **지목할 수 없었어요** — v2.4.87 이 고친 «관리 불가능한
@@ -1727,6 +1742,12 @@ server.on('upgrade', (req, socket) => {
       //   실측상 정상 클라이언트 3종(collab-client ×2 · local-bridge)은 이미 전부 `source:'agent'` 를 보내요.
       //   이 두 줄이 아래의 개별 정정(SelectionPrompt · 조직 선언)을 일반화해요 — 그 셋은 같은 결함의 지역 처방이었어요.
       if (msg && typeof msg === 'object') {
+        // v2.4.110 (Ultrasafe it-1 se-05 재시험) — `agentName` 도 함께 못박아요. `agentId`·`source` 만
+        //   덮어쓰던 동안 **표시 이름은 여전히 클라이언트 선언값**이었고, 기기 푸시 알림의 제목이
+        //   그 이름을 우선 사용해서(`agentName || agentId || source`) 남의 이름으로 알림을 띄울 수
+        //   있었어요. 인증된 이름이 없으면 필드를 **지워요** — 위조된 값을 남기는 것보다 없는 게 정확해요.
+        if (conn.meta.agentName) { if (msg.agentName !== conn.meta.agentName) msg.agentName = conn.meta.agentName; }
+        else if (msg.agentName != null) delete msg.agentName;
         if (msg.agentId !== conn.meta.agentId) {
           if (msg.agentId != null) console.warn('[ws] §13.25.11 envelope agentId %s → 인증된 %s 로 정정 (type=%s name=%s)', msg.agentId, conn.meta.agentId, msg.type, msg.name || '-');
           msg.agentId = conn.meta.agentId;
