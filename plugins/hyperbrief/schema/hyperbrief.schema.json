@@ -61,10 +61,12 @@
           "description": "Playful copy on the HTML re-render button."
         },
         "trigger_phrases_md": {
-          "type": "array",
-          "items": { "type": "string" },
+          "anyOf": [
+            { "type": "array", "items": { "type": "string" } },
+            { "type": "string" }
+          ],
           "default": ["뭔 소리", "안 읽혀", "무슨 말", "이해 안", "더 쉽게", "너무 어렵", "다시 풀어", "쉽게 다시", "한국어로", "한국말로", "level 2 라고", "L2 라고", "이게 level", "이게 L"],
-          "description": "When the user response after a MD brief contains any of these substrings, regenerate at {1,1,1}."
+          "description": "When the user response after a MD brief contains any of these substrings, regenerate at {1,1,1}. v0.7.7 — accepts **either** a string array **or** a markdown string, because the `_md` suffix reads as 'a markdown blob goes here' while the schema demanded an array, and the name is what an implementer trusts: this repository's own ultrasafe MCP shipped `trigger_phrases_md: \"\"`, which the array-only form made invalid. Normalization is defined once, in the renderer engine's exported `normalizeTriggerPhrases` — a string yields its markdown list items (`- x` / `* x` / `1. x`) when any are present, else its non-empty lines; an array is trimmed and emptied of blanks; non-string array elements are DROPPED rather than coerced, since a stringified number is a phrase that can never match and would sit in the list looking like coverage. Consumers MUST use that one normalizer: N independent readings of this field produce N different phrase lists, and the symptom — 'the plain-language escape hatch does not respond on one surface' — is silent. An empty result means *no phrases*, never *the default list*; the default is declared here and MUST NOT be re-copied into consumers."
         },
         "telemetry": {
           "type": "object",

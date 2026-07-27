@@ -905,10 +905,36 @@ function renderHtml(ir, opts = {}) {
   };
 }
 
+// ── v0.7.7 §5.6.7 — `trigger_phrases_md` 정규화 (단일 구현) ────────────────────
+// 이 칸의 이름은 `_md` 로 끝나요. 그 접미사는 «여기엔 마크다운 글이 들어간다» 로 읽히는데, 규격은
+//   **배열**을 요구했어요. 이름이 요구와 어긋나면 처음 쓰는 쪽은 이름을 믿어요 — 실제로 이 저장소의
+//   `ultrasafe` MCP 가 `trigger_phrases_md: ""` (문자열) 을 실어 출시됐어요. 그래서 규격을 넓혀 **둘 다**
+//   받게 하고, 정규화를 **한 곳에** 둬요. N 곳이 각자 해석하면 서로 다른 목록을 갖게 되고, 그 증상은
+//   «어떤 표면에서는 되돌리기 문구가 안 먹힘» 이라 조용해요 (§13.13.3(h) 와 같은 부류).
+//
+// 받아들이는 형태와 규칙:
+//   · string[]  → 그대로 (공백 제거 · 빈 항목 제거)
+//   · string    → 마크다운 목록 항목(`- x` / `* x` / `1. x`)이 하나라도 있으면 **그 항목만** 취해요.
+//                 없으면 줄 단위로 나눠요. 어느 쪽이든 trim + 빈 줄 제거.
+//   · 그 밖 / 부재 → `[]`. **문자열이 아닌 원소는 조용히 문자열로 만들지 않고 버려요** — 숫자를 문구로
+//                 바꾸면 «절대 매칭되지 않는 문구» 가 목록에 앉아서, 있는데 없는 것과 같아져요.
+// 빈 결과는 «문구 없음» 이고 «기본 목록» 이 아니에요. 기본값은 규격이 선언해요 — 여기서 기본 목록을
+//   복제하면 그게 N+1 번째 사본이 되고, 이 파일이 막으려는 드리프트가 됩니다.
+function normalizeTriggerPhrases(value) {
+  if (Array.isArray(value)) {
+    return value.filter((x) => typeof x === 'string').map((x) => x.trim()).filter(Boolean);
+  }
+  if (typeof value !== 'string') return [];
+  const items = [...value.matchAll(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+(.+)$/gm)].map((m) => m[1].trim()).filter(Boolean);
+  if (items.length) return items;
+  return value.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+}
+
 module.exports = {
   renderMd,
   renderHtml,
   canonicalIrHash,
   DEFAULT_PROFILE,
   estimateSurfaceProfile,   // v0.7.0 — post-response tone-estimate hook 재사용 (additive export)
+  normalizeTriggerPhrases,  // v0.7.7 — §5.6.7 `_md` 칸의 두 형태를 한 곳에서 해석 (additive export)
 };
