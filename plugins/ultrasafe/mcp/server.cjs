@@ -500,7 +500,11 @@ async function handleReportGenerate(args = {}) {
       ir_pending: true, // orchestrator wires the hyperbrief skill chain to emit full 9-section IR.
       finding_id: f.finding_id || f.id,
       escalation_score: severityRank(f),
-      audience_profile_fallback: { button_label: "심층 결정 보기", trigger_phrases_md: "" },
+      // v0.2.9 — `trigger_phrases_md: ""` 를 실어 보내고 있었어요. 그 칸은 문구 **목록**이고, 빈 문자열은
+      //   «문구 없음» 이라 MD 표면의 「쉽게 다시」 탈출구가 아무 말에도 반응하지 않아요. 칸을 아예 빼면
+      //   규격이 선언한 기본 목록이 적용돼요 — 여기서 목록을 복제하면 N+1 번째 사본이 되니까요.
+      //   (`_md` 접미사가 문자열을 쓰게 유도한 자리 — Hyperbrief v0.7.7 이 규격을 둘 다 받게 넓혔어요.)
+      audience_profile_fallback: { button_label: "심층 결정 보기" },
       advisory: true,
     }));
 

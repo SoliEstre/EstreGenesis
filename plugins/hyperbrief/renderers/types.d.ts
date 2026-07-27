@@ -11,7 +11,11 @@ export interface AudienceProfile {
 export interface AudienceProfileFallback {
   enabled?: boolean;
   button_label?: string;
-  trigger_phrases_md?: string[];
+  /**
+   * v0.7.7 — either form. The `_md` suffix reads as a markdown blob, so implementers write one;
+   * normalize with `normalizeTriggerPhrases` from the renderer engine rather than branching here.
+   */
+  trigger_phrases_md?: string[] | string;
 }
 
 export interface HyperbriefIR {
