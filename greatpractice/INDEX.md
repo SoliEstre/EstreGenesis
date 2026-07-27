@@ -9,9 +9,10 @@
 - `communication-discipline` (v0.1.1+ shipped) — A2A · bridge · outbox · inbox cursor 계열의 macro parent. mezzo: outbox-json-validation, pre-send-inbound-check, n-way-sync-registry, session-resume-bridge-spawn, watcher-liveness, a2a-relay-reliability.
 - `release-cadence` (v2.5.55 ratified, N=1 user steering) — Pre-publish 11-item checklist (9 hub-validated + 2 conditional) + N-way sync discipline. mezzo decomposition (8 candidates) scheduled v2.5.56+. enforcement_level: recommended.
 
-## Mezzo Tier (v0.3.1 — 9 entries)
+## Mezzo Tier (v0.3.5 — 10 entries)
 
 - `outbox-json-validation` (v2.5.50 ratified, mandatory) — outbox.jsonl append 는 eg_outbox_push 경유 + roundtrip 검증.
+- `nested-repo-write-routing` (v2.6.28 ratified, recommended) — 겹치는 쓰기 대상이 있으면 명령이 대상을 이름으로 지목할 것(`git -C <abs>`). 잘못된 대상이 «유효» 하면 조심으로는 신호가 안 나오므로, 상대 규약 커밋 메시지를 거절하는 commit-msg 훅으로 신호를 만든다.
 - release-cadence 계열 8종 (v2.5.61 batch ratified): `n-way-sync-registry` · `package-files-validate` · `bin-entry-validate` · `link-integrity-check` · `dry-run-smoke-test` · `pre-publish-user-gate` · `naming-hygiene-grep` · `auth-2fa-discipline`.
 
 ## Micro Tier (v0.3.1 — 20 atoms)
