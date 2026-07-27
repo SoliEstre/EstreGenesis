@@ -155,11 +155,11 @@
       "properties": {
         "audience": {
           "$ref": "#/$defs/tone_level_1_5",
-          "description": "Estimated effective audience level from rendered surface (e.g., english-noun-ratio + acronym density + first-use-gloss presence)."
+          "description": "Estimated effective audience level from the rendered surface, driven by english_noun_ratio. v0.7.6 correction: this description previously also named acronym density and first-use-gloss presence, which the renderer never fed into this axis — those are abbreviation-axis inputs and now drive that axis instead."
         },
         "abbreviation": {
-          "$ref": "#/$defs/tone_level_1_5",
-          "description": "Estimated effective abbreviation level from rendered surface (e.g., avg sentence length + bullet density + symbolic-operator usage)."
+          "anyOf": [{ "$ref": "#/$defs/tone_level_1_5" }, { "type": "null" }],
+          "description": "v0.7.6 — Estimated effective abbreviation level from the rendered surface, driven by abbreviation content: the share of distinct abbreviations left BARE at first use (abbrev_bare_ratio), damped by absolute density (abbrevs_per_1000_tokens). Level 1 = expanded on first use, 5 = bare. Until v0.7.5 this description named avg sentence length, and the renderer implemented exactly that — so the axis measured sentence length and never looked at an abbreviation: a text of short plain sentences with no acronyms at all scored 5 (bare), and two texts with identical abbreviation content scored 5 vs 1 purely because one used longer sentences. Sentence length remains reported in raw_metrics for calibration; it is not this axis. **null = not measurable** — a text carrying no abbreviations has not expanded them all, there was nothing to expand, and a declared-vs-estimate gap MUST NOT be computed from a null."
         },
         "jargon": {
           "$ref": "#/$defs/tone_level_1_5",
@@ -172,7 +172,12 @@
             "english_noun_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
             "avg_sentence_length_chars": { "type": "number", "minimum": 0 },
             "jargon_terms_per_1000_tokens": { "type": "number", "minimum": 0 },
-            "first_use_gloss_present": { "type": "boolean" },
+            "gloss_pattern_present": { "type": "boolean", "description": "v0.7.6 rename of first_use_gloss_present — the old name claimed more than the expression tested (any parenthetical anywhere satisfied it, related to an abbreviation or not). Abbreviation-specific glossing is abbrev_first_use_glossed / abbrev_bare_ratio." },
+            "abbrev_occurrences": { "type": "integer", "minimum": 0 },
+            "abbrev_distinct": { "type": "integer", "minimum": 0 },
+            "abbrevs_per_1000_tokens": { "type": "number", "minimum": 0 },
+            "abbrev_first_use_glossed": { "type": "integer", "minimum": 0, "description": "Count of distinct abbreviations expanded at their FIRST occurrence — later expansions do not count, because the axis is about what a reader meeting the term for the first time was given." },
+            "abbrev_bare_ratio": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "(abbrev_distinct - abbrev_first_use_glossed) / abbrev_distinct. null when abbrev_distinct is 0 — see the abbreviation axis note on why that is not 0 or 1." },
             "bullet_density": { "type": "number", "minimum": 0, "maximum": 1 },
             "epistemic_tag_form": { "type": "string", "enum": ["bracket", "korean", "superscript", "mixed"] }
           }
