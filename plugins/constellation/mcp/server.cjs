@@ -103,6 +103,8 @@ const MEANINGFUL = new Set([
   'AgentText',   // §13.13.3 (v2.4.97) — bridge-coalesced utterance; the raw TEXT_MESSAGE_* frames carry no name, so a name-gated filter drops an utterance silently
   // v2.6.25 — 전달-실패 + 선택 요청 (probe 허용목록과 동일 사유).
   'RelayUnreachable', 'Response', 'SelectionPrompt', 'SelectionExpired',
+  // v2.6.26 — 어댑터 내용성 6종 (probe 허용목록과 동일 사유).
+  'SpecGapReport', 'SpecGapCode', 'Proposal', 'ReturnPackage', 'PhaseBScopeShare', 'TaskEnvelope',
 ]);
 
 // ----- WS proxy state -----
