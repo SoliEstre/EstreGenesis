@@ -1,4 +1,4 @@
-<!-- module: Ultrasafe; layer: pre-release-security-verification; part-of: EstreGenesis 2.5.x; version: v0.2.6; date: 2026-07-26; status: runtime activation cut v0.2.x — v0.2.6 MCP response-envelope fix (§16.6 — `tools/call` results are wrapped at a single dispatch choke point, the CLI surface deliberately excepted; a bare result object is a protocol success with nothing to render, which reads as an absent tool) — v0.2.4 hook state-anchor fix (both hooks anchor `.ultrasafe/` to a stable root — `CLAUDE_PROJECT_DIR` / `ULTRASAFE_REPO_ROOT` / cwd-walk — instead of the tool call's cwd, which split one session's evidence across a nested repo's second state file and undercounted it on read; measured on the EG self-dogfood 2026-07-11) (advisory mode runtime — 8 attacker skills + 2 hooks PreToolUse/Stop + MCP server 5 tools over stdio JSON-RPC + Constellation §13.16 5 intents integrated ULTRASAFE_FINDING/ULTRASAFE_ITERATION_BOUNDARY/ULTRASAFE_RELEASE_GATE/SECURITY_DISCLOSURE_INTAKE/MPCVD_COORDINATION + Workflow fan-out applied evidence; v0.1.0 design draft body preserved; blocking mode v0.3+ follow-on — transitions upon clean-signal-gate 4-condition AND-gate reached + user gate + ≥3 iteration consecutive clean); depends-on: none (optional synergy: Constellation §13 A2A — 5 new intents wire-integrated; Superscalar §3 fan-out — direct host; Hyperbrief §1 escalation routing — auto-mapping; Greatpractice §5 tree promotion — bidirectional feed); license: Apache-2.0 -->
+<!-- module: Ultrasafe; layer: pre-release-security-verification; part-of: EstreGenesis 2.5.x; version: v0.2.7; date: 2026-07-27; status: runtime activation cut v0.2.x — v0.2.7 죽은 ajv 선언 퇴출 (검사기 팩토리 호출부 0 + `../schemas/` 부재 → 선언만 남은 거짓 표지를 걷어내고 주장 표면 5곳 동반 정정) on top of v0.2.6 MCP response-envelope fix (§16.6 — `tools/call` results are wrapped at a single dispatch choke point, the CLI surface deliberately excepted; a bare result object is a protocol success with nothing to render, which reads as an absent tool) — v0.2.4 hook state-anchor fix (both hooks anchor `.ultrasafe/` to a stable root — `CLAUDE_PROJECT_DIR` / `ULTRASAFE_REPO_ROOT` / cwd-walk — instead of the tool call's cwd, which split one session's evidence across a nested repo's second state file and undercounted it on read; measured on the EG self-dogfood 2026-07-11) (advisory mode runtime — 8 attacker skills + 2 hooks PreToolUse/Stop + MCP server 5 tools over stdio JSON-RPC + Constellation §13.16 5 intents integrated ULTRASAFE_FINDING/ULTRASAFE_ITERATION_BOUNDARY/ULTRASAFE_RELEASE_GATE/SECURITY_DISCLOSURE_INTAKE/MPCVD_COORDINATION + Workflow fan-out applied evidence; v0.1.0 design draft body preserved; blocking mode v0.3+ follow-on — transitions upon clean-signal-gate 4-condition AND-gate reached + user gate + ≥3 iteration consecutive clean); depends-on: none (optional synergy: Constellation §13 A2A — 5 new intents wire-integrated; Superscalar §3 fan-out — direct host; Hyperbrief §1 escalation routing — auto-mapping; Greatpractice §5 tree promotion — bidirectional feed); license: Apache-2.0 -->
 
 # Ultrasafe — Pre-Release Multi-Perspective Simulated Penetration Testing with ≥3 Iteration Clean-Signal Gate (v0.2.1 runtime activation — advisory mode)
 
@@ -2223,7 +2223,7 @@ The 5 new surfaces of the v0.2.0 runtime — each surface's location / role / ad
 > - **aggregator role** = the synthesizer skill (agent 8, §15.8) + the MCP tool `ultrasafe_finding_aggregate` (§16.2).
 > - **clean-signal-gate role** = the deterministic implementation of the MCP tool `ultrasafe_clean_signal_check` (§16.3) + the self-contained evaluation of the Stop hook (§17.2).
 >
-> Likewise, the `schemas/{finding,iteration-boundary,release-gate}.schema.json` files and the separated `mcp/tools/*.cjs` modules are not shipped in v0.2.x — the canonical source of the 3 contracts is **the spec body** (§4 finding output contract + §8.1 intent value schema), and the ajv validator of the MCP server (`mcp/server.cjs`) performs a graceful skip when schema files are absent. Shipping separated files is a v0.3+ candidate. Do not read role names as if they were file paths.
+> Likewise, the `schemas/{finding,iteration-boundary,release-gate}.schema.json` files and the separated `mcp/tools/*.cjs` modules are not shipped in v0.2.x — the canonical source of the 3 contracts is **the spec body** (§4 finding output contract + §8.1 intent value schema), and as of v0.2.7 the MCP server carries **no schema validator at all** — the ajv factory it used to hold had no call sites and resolved against a directory that does not exist, so it was removed rather than left as a declaration implying validation that could never run. If schema validation is wanted, the validator, the schema files and the call sites belong in one cut. Shipping separated files is a v0.3+ candidate. Do not read role names as if they were file paths.
 
 ### §14.2 Runtime flow — v0.2.0 wire activation of the 5-stage operational pipeline
 
@@ -2284,7 +2284,7 @@ plugins/ultrasafe/
 │   └── hooks.json                                   # Claude Code hooks registration
 └── mcp/
     ├── server.cjs                                   # MCP server entry — all 5 tools inline in a single file
-    └── package.json                                 # MCP server dependencies (ajv, 1 dep)
+    └── package.json                                 # MCP server manifest (0 npm deps — v0.2.7)
 ```
 
 **Not shipped in v0.2.x (exists only as logical role/contract — see the §14.1 mapping note)**: `runtime/{orchestrator,aggregator,clean-signal-gate}.cjs` · `schemas/{finding,iteration-boundary,release-gate}.schema.json` · `mcp/tools/*.cjs`. The operational state is recorded in the adopter repo's `.ultrasafe/` working dir (`state.json` + finding/audit JSONL) — runtime data, not part of the plugin tree. Shipping separated files is a v0.3+ candidate.
@@ -2634,8 +2634,7 @@ const BLOCKING_IN_V03 = true;      // encloses a future blocking hint in every r
 // (each handler directly encloses advisory_mode: ADVISORY_MODE in the return)
 const TOOLS = [ /* name + description + inputSchema of run_fanout / finding_aggregate / clean_signal_check / report_generate / release_gate */ ];
 
-// ajv lazy validator — returns null when schemas/*.schema.json files are absent (graceful skip, §14.3 note)
-function getValidator(schemaPath) { /* ajv compile or null */ }
+// v0.2.7 — 스키마 검사기 없음. 종전의 ajv 팩토리는 호출부가 0곳이고 `../schemas/` 도 부재해서 걷어냈어요.
 
 const handlers = {
   "tools/list": async () => ({ tools: TOOLS }),
@@ -2645,7 +2644,7 @@ process.stdin.setEncoding("utf8");
 process.stdin.on("data", /* line-delimited JSON-RPC parse → handlers dispatch → stdout response */);
 ```
 
-The npm dependency is ajv only (1 dep). Determinism is enforced by an input-hash → output-binding contract (canonical JSON sha256) — a cache hit on the same key returns the same aggregate.
+There are no npm dependencies as of v0.2.7 (the unused ajv declaration was removed). Determinism is enforced by an input-hash → output-binding contract (canonical JSON sha256) — a cache hit on the same key returns the same aggregate.
 
 ---
 
