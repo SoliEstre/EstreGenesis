@@ -60,6 +60,15 @@ const ALLOWLIST = new Set([
   'RelayUnreachable',
   'Response',
   'SelectionPrompt', 'SelectionExpired',
+  // v2.6.26 — 직전 컷(v2.6.25)이 4종만 넣고 **후보를 남겼어요.** 그 결과가 같은 세션 안에서 나왔어요:
+  //   어댑터의 `SpecGapReport`(와이어 실측 11건 — 스펙 갭 리포트, 제품 제안 포함)가 걸러져서,
+  //   미처리 제안이 수신함에 있는 동안 turn-end probe 는 «의미 있는 것 없음» 이라고 답했어요.
+  //   불완전한 수정은 고치지 않은 것과 같은 자리에서 다시 물어요. 아래는 전부 **와이어 실측 근거**예요.
+  'SpecGapReport', 'SpecGapCode',     // 어댑터가 보고하는 스펙 갭 + 그에 딸린 코드 근거
+  'Proposal',                          // 피어가 우리에게 내는 제안
+  'ReturnPackage',                     // 위탁 산출물의 반환
+  'PhaseBScopeShare',                  // 협업 단계의 범위 공유
+  'TaskEnvelope',                      // 우리에게 넘어온 작업 봉투
   // v2.5.20 extensions — generic coordination + attachment / chunked-transfer anchors
   'Request', 'Reply',
   'Attachment',
