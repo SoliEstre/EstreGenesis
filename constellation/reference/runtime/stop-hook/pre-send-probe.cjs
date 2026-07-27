@@ -50,6 +50,16 @@ const ALLOWLIST = new Set([
   'DeadlockProbe', 'ReviewSLAAck', 'PreemptRequest',
   'PreemptForce', 'MediationProposal', 'MediationAck',
   'EscalationRequest',
+  // v2.6.25 — 전달-실패와 선택-요청이 여기 없었어요. **드러난 방식이 성격을 말해줘요**: 어댑터가
+  //   «회신이 오지 않았다» 고 알려줘서 찾았고, 그 시점에 서버가 이미 보낸
+  //   `RelayUnreachable{msgId,targetAgentId,attemptCount,lastError}` 22건이 수신함에 **읽히지 않은 채**
+  //   쌓여 있었어요. 내 발신이 끝내 닿지 않았다는 통지는 인바운드 중 **가장 조치 가능한** 것인데
+  //   «의미 없음» 으로 걸러졌어요 — 통지가 와도 읽는 경로가 없으면 통지가 없는 것과 같아요.
+  //   `Reply`(와이어 실측 0건)는 있는데 실제로 오는 `Response`(3건)가 빠져 있던 것도 같은 계열이에요:
+  //   아무도 보내지 않는 이름을 지키는 가드는 작동하는 가드와 구분이 안 돼요.
+  'RelayUnreachable',
+  'Response',
+  'SelectionPrompt', 'SelectionExpired',
   // v2.5.20 extensions — generic coordination + attachment / chunked-transfer anchors
   'Request', 'Reply',
   'Attachment',
