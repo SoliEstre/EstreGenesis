@@ -215,8 +215,51 @@ function estimateSurfaceProfile(text, declaredProfile) {
   const bulletLines = lines.filter((l) => /^\s*[-*•]/.test(l)).length;
   const bullet_density = lines.length ? bulletLines / lines.length : 0;
 
-  // first_use_gloss_present: heuristic — at least one "X(설명)" or "X — gloss" pattern
-  const first_use_gloss_present = /\([^)]{2,}\)/.test(text) || / — [가-힣A-Za-z]+/.test(text);
+  // gloss_pattern_present: heuristic — the text glosses *something* anywhere ("X(설명)" / "X — gloss").
+  //   v0.7.6 rename: this was called `first_use_gloss_present`, which claimed far more than it tested —
+  //   any parenthetical anywhere satisfied it, including one unrelated to any abbreviation. The name is now
+  //   what the expression measures; the abbreviation-specific measurement is the ratio below.
+  const gloss_pattern_present = /\([^)]{2,}\)/.test(text) || / — [가-힣A-Za-z]+/.test(text);
+
+  // ── abbreviation metrics (v0.7.6) ──────────────────────────────────────────
+  // The abbreviation axis had no abbreviation metric at all — it was estimated from
+  //   `avg_sentence_length_chars`, so a text of short plain sentences scored as "uses bare
+  //   abbreviations" and a long-sentenced text full of bare acronyms scored as "expands them".
+  //   Sentence length is a real metric; it is just not this axis. Level semantics: **1 = expanded
+  //   on first use (plainest), 5 = bare**. So the driver is «how often is an abbreviation left
+  //   bare», not «how long are the sentences».
+  const ABBREV_RE = /^[A-Z][A-Z0-9]{1,7}$/;
+  const abbrevTokens = tokens
+    .map((t) => t.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, ""))
+    .filter((t) => ABBREV_RE.test(t));
+  const abbrev_occurrences = abbrevTokens.length;
+  const abbrevDistinct = [...new Set(abbrevTokens)];
+  const abbrev_distinct = abbrevDistinct.length;
+  const abbrevs_per_1000_tokens = Number(((abbrev_occurrences / tokenCount) * 1000).toFixed(2));
+
+  // Glossed at first use? Two shapes, checked at the **first** occurrence only:
+  //   "ABBR (expansion)"  ·  "expansion (ABBR)". Later expansions do not count — the axis is about
+  //   whether a reader meeting the term for the first time was given its meaning.
+  let glossedFirstUse = 0;
+  for (const a of abbrevDistinct) {
+    const re = new RegExp("(^|[^A-Za-z0-9])" + a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^A-Za-z0-9]|$)");
+    const m = re.exec(text);
+    if (!m) continue;
+    const at = m.index + m[1].length;
+    const after = text.slice(at + a.length, at + a.length + 80);
+    const before = text.slice(Math.max(0, at - 80), at);
+    const followedByParen = /^\s*[（(][^)）]{3,}[)）]/.test(after);
+    const wrappedInParen = /[（(]\s*$/.test(before) && /^\s*[)）]/.test(text.slice(at + a.length))
+      && /[A-Za-z가-힣][^（(]{2,}[（(]\s*$/.test(before);
+    if (followedByParen || wrappedInParen) glossedFirstUse++;
+  }
+  const abbrev_first_use_glossed = glossedFirstUse;
+  // 3-valued on purpose: a text with no abbreviations has not "expanded them all" — there was
+  //   nothing to expand. Reporting 0 or 1 there would make «not measurable» look like a measurement
+  //   and drive a declared-vs-estimate gap warning off nothing.
+  const abbrev_bare_ratio = abbrev_distinct
+    ? Number(((abbrev_distinct - glossedFirstUse) / abbrev_distinct).toFixed(3))
+    : null;
 
   // epistemic_tag_form
   let epistemic_tag_form = "mixed";
@@ -236,13 +279,20 @@ function estimateSurfaceProfile(text, declaredProfile) {
   else if (english_noun_ratio >= 0.10) audience_est = 2;
   else audience_est = 1;
 
-  // abbreviation: avg_sentence_length_chars (shorter → higher level)
-  let abbreviation_est = 2;
-  if (avg_sentence_length_chars >= 200) abbreviation_est = 1;
-  else if (avg_sentence_length_chars >= 120) abbreviation_est = 2;
-  else if (avg_sentence_length_chars >= 70) abbreviation_est = 3;
-  else if (avg_sentence_length_chars >= 40) abbreviation_est = 4;
-  else abbreviation_est = 5;
+  // abbreviation: bare-abbreviation ratio, weighted by density (v0.7.6 — was sentence length).
+  //   null when the text carries no abbreviations: nothing to expand is not the same as expanding
+  //   everything, and the gap check below skips a null rather than scoring it.
+  let abbreviation_est = null;
+  if (abbrev_bare_ratio !== null) {
+    if (abbrev_bare_ratio >= 0.8) abbreviation_est = 5;
+    else if (abbrev_bare_ratio >= 0.6) abbreviation_est = 4;
+    else if (abbrev_bare_ratio >= 0.35) abbreviation_est = 3;
+    else if (abbrev_bare_ratio > 0) abbreviation_est = 2;
+    else abbreviation_est = 1;
+    // A single bare acronym in a long plain document is not a level-5 surface. Density pulls the
+    //   estimate back toward plain when bare terms are rare in absolute terms.
+    if (abbreviation_est >= 4 && abbrevs_per_1000_tokens < 3) abbreviation_est -= 1;
+  }
 
   // jargon: jargon_terms_per_1000_tokens
   let jargon_est = 2;
@@ -252,10 +302,13 @@ function estimateSurfaceProfile(text, declaredProfile) {
   else if (jargon_terms_per_1000_tokens >= 2) jargon_est = 2;
   else jargon_est = 1;
 
+  // v0.7.6 — a null axis is «not measurable on this surface», never a gap. Comparing against null
+  //   would coerce to 0 and manufacture a 2-level gap out of an absent measurement.
+  const gapOn = (declared, est) => est !== null && typeof declared === "number" && Math.abs(declared - est) >= 2;
   const declared_vs_estimate_gap_warning =
-    Math.abs(declaredProfile.audience - audience_est) >= 2 ||
-    Math.abs(declaredProfile.abbreviation - abbreviation_est) >= 2 ||
-    Math.abs(declaredProfile.jargon - jargon_est) >= 2;
+    gapOn(declaredProfile.audience, audience_est) ||
+    gapOn(declaredProfile.abbreviation, abbreviation_est) ||
+    gapOn(declaredProfile.jargon, jargon_est);
 
   return {
     audience: audience_est,
@@ -265,7 +318,12 @@ function estimateSurfaceProfile(text, declaredProfile) {
       english_noun_ratio: Number(english_noun_ratio.toFixed(3)),
       avg_sentence_length_chars,
       jargon_terms_per_1000_tokens: Number(jargon_terms_per_1000_tokens.toFixed(2)),
-      first_use_gloss_present,
+      gloss_pattern_present,
+      abbrev_occurrences,
+      abbrev_distinct,
+      abbrevs_per_1000_tokens,
+      abbrev_first_use_glossed,
+      abbrev_bare_ratio,
       bullet_density: Number(bullet_density.toFixed(3)),
       epistemic_tag_form,
     },
