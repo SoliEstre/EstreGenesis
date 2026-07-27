@@ -1,4 +1,4 @@
-<!-- module: Ultrasafe; layer: pre-release-security-verification; part-of: EstreGenesis 2.5.x; version: v0.2.7; date: 2026-07-27; status: runtime activation cut v0.2.x — v0.2.7 죽은 ajv 선언 퇴출 (검사기 팩토리 호출부 0 + `../schemas/` 부재 → 선언만 남은 거짓 표지를 걷어내고 주장 표면 5곳 동반 정정) on top of v0.2.6 MCP response-envelope fix (§16.6 — `tools/call` results are wrapped at a single dispatch choke point, the CLI surface deliberately excepted; a bare result object is a protocol success with nothing to render, which reads as an absent tool) — v0.2.4 hook state-anchor fix (both hooks anchor `.ultrasafe/` to a stable root — `CLAUDE_PROJECT_DIR` / `ULTRASAFE_REPO_ROOT` / cwd-walk — instead of the tool call's cwd, which split one session's evidence across a nested repo's second state file and undercounted it on read; measured on the EG self-dogfood 2026-07-11) (advisory mode runtime — 8 attacker skills + 2 hooks PreToolUse/Stop + MCP server 5 tools over stdio JSON-RPC + Constellation §13.16 5 intents integrated ULTRASAFE_FINDING/ULTRASAFE_ITERATION_BOUNDARY/ULTRASAFE_RELEASE_GATE/SECURITY_DISCLOSURE_INTAKE/MPCVD_COORDINATION + Workflow fan-out applied evidence; v0.1.0 design draft body preserved; blocking mode v0.3+ follow-on — transitions upon clean-signal-gate 4-condition AND-gate reached + user gate + ≥3 iteration consecutive clean); depends-on: none (optional synergy: Constellation §13 A2A — 5 new intents wire-integrated; Superscalar §3 fan-out — direct host; Hyperbrief §1 escalation routing — auto-mapping; Greatpractice §5 tree promotion — bidirectional feed); license: Apache-2.0 -->
+<!-- module: Ultrasafe; layer: pre-release-security-verification; part-of: EstreGenesis 2.5.x; version: v0.2.8; date: 2026-07-27; status: runtime activation cut v0.2.x — v0.2.7 죽은 ajv 선언 퇴출 (검사기 팩토리 호출부 0 + `../schemas/` 부재 → 선언만 남은 거짓 표지를 걷어내고 주장 표면 5곳 동반 정정) on top of v0.2.6 MCP response-envelope fix (§16.6 — `tools/call` results are wrapped at a single dispatch choke point, the CLI surface deliberately excepted; a bare result object is a protocol success with nothing to render, which reads as an absent tool) — v0.2.4 hook state-anchor fix (both hooks anchor `.ultrasafe/` to a stable root — `CLAUDE_PROJECT_DIR` / `ULTRASAFE_REPO_ROOT` / cwd-walk — instead of the tool call's cwd, which split one session's evidence across a nested repo's second state file and undercounted it on read; measured on the EG self-dogfood 2026-07-11) (advisory mode runtime — 8 attacker skills + 2 hooks PreToolUse/Stop + MCP server 5 tools over stdio JSON-RPC + Constellation §13.16 5 intents integrated ULTRASAFE_FINDING/ULTRASAFE_ITERATION_BOUNDARY/ULTRASAFE_RELEASE_GATE/SECURITY_DISCLOSURE_INTAKE/MPCVD_COORDINATION + Workflow fan-out applied evidence; v0.1.0 design draft body preserved; blocking mode v0.3+ follow-on — transitions upon clean-signal-gate 4-condition AND-gate reached + user gate + ≥3 iteration consecutive clean); depends-on: none (optional synergy: Constellation §13 A2A — 5 new intents wire-integrated; Superscalar §3 fan-out — direct host; Hyperbrief §1 escalation routing — auto-mapping; Greatpractice §5 tree promotion — bidirectional feed); license: Apache-2.0 -->
 
 # Ultrasafe — Pre-Release Multi-Perspective Simulated Penetration Testing with ≥3 Iteration Clean-Signal Gate (v0.2.1 runtime activation — advisory mode)
 
@@ -241,6 +241,21 @@ The DSP graduated enforcement ladder (advisory → soft → hard) and the PTE st
   3. `(soft-mandatory, cannot-evaluate)` → Hyperbrief 4-score gate (user decision — auto-deferral prohibited).
   4. `(hard-mandatory, cannot-evaluate)` → block (strict mode applied), opt-out requires passing a Hyperbrief MUST-trigger.
   5. The opt-out utterance itself is a *Greatpractice mezzo promotion trigger* — if repeated, the evaluation tool deficiency is promoted as a structural problem (Cluster C5 bidirectional feed).
+
+
+> **Where this number lives (v0.2.8).** The per-Tier floor above is the declared source, and the code
+> must agree with it: `plugins/ultrasafe/lib/coverage-floor.cjs` holds the table and both consumers
+> (the Stop-hook clean-signal evaluator and the MCP `ultrasafe_clean_signal_check`) read it from
+> there. They did not, once — the hook hardcoded **0.85** tier-blind, a value stated here for no tier,
+> while the MCP used this table. The gate's threshold therefore depended on which surface you asked.
+> The units diverged with it: the MCP compares percent (`75`) and the hook compared a fraction
+> (`0.85`), so a fraction handed to the MCP (`0.538 >= 75`) always fails and a percent handed to the
+> hook (`53.8 >= 0.85`) **always passes** — the gate inverts silently, in the permissive direction.
+> Three consequences are now enforced rather than documented: the unit is **declared by the caller**
+> and never inferred, an **undeclared tier throws** instead of defaulting to a floor nothing was
+> measured against, and an **unmeasurable coverage returns `null`** rather than a verdict, because an
+> unobservable condition is not a satisfied one. A checker asserts that the table in code equals the
+> numbers written here, so this paragraph and that module cannot drift apart quietly.
 
 ### §2.3 v0.2-v0.4 axis expansion roadmap (path to reaching all 17 axes)
 

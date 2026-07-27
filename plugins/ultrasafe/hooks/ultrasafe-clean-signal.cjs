@@ -68,7 +68,10 @@ const STATE_PATH = path.join(STATE_DIR, "state.json");
 
 // ─── Floors / thresholds (overridable via env) ───────────────────────────────
 
-const COVERAGE_FLOOR = parseFloat(process.env.ULTRASAFE_COVERAGE_FLOOR || "0.85"); // 85%
+// 커버리지 하한은 **tier 에서 나와요**. 여기 있던 0.85 는 tier 를 무시했고 스펙에 없는 값이었어요
+// (MCP 는 같은 조건에 스펙의 tier 표를 쓰고 있었어요 — 한 게이트가 두 문턱을 갖고 있었어요).
+// 단위도 여기서만 분수였어요: 퍼센트 값이 들어오면 53.8 >= 0.85 로 **항상 통과**했어요.
+const { meetsFloor, floorPctForTier } = require("../lib/coverage-floor.cjs");
 const MONOTONIC_WINDOW = parseInt(process.env.ULTRASAFE_MONOTONIC_WINDOW || "3", 10);
 const CONSECUTIVE_CLEAN_MIN = parseInt(process.env.ULTRASAFE_CONSECUTIVE_CLEAN_MIN || "2", 10);
 
@@ -140,7 +143,17 @@ function evaluateCleanSignal(state) {
   // Condition 3: coverage_floor
   //   latest.coverage = attackers_run / attackers_configured ∈ [0, 1]
   const coverage = (latest.coverage == null) ? null : Number(latest.coverage);
-  const coverageOk = coverage == null ? null : (coverage >= COVERAGE_FLOOR);
+  // tier 가 기록에 없으면 하한을 **고를 수 없어요** → 조건은 null(미관측). 임의 tier 로 기본값을
+  //   메우면 측정한 적 없는 문턱을 통과시켜요.
+  let coverageOk = null, coverageFloorPct = null;
+  if (latest.tier != null) {
+    try {
+      coverageFloorPct = floorPctForTier(latest.tier);
+      coverageOk = meetsFloor({ coverage, unit: "fraction", tier: latest.tier });
+    } catch (e) {
+      coverageOk = null;   // 선언되지 않은 tier — 미관측으로 남겨요
+    }
+  }
 
   // Condition 4: consecutive_clean_iterations
   //   count contiguous trailing iterations where iter.clean === true.
@@ -176,7 +189,9 @@ function evaluateCleanSignal(state) {
       latest_new_findings_above_threshold: newAboveThresh,
       latest_open_findings: typeof latest.open_findings === "number" ? latest.open_findings : null,
       latest_coverage: coverage,
-      coverage_floor: COVERAGE_FLOOR,
+      coverage_floor: coverageFloorPct == null ? null : coverageFloorPct / 100,   // 분수 기록 유지 (기존 상태 파일 호환)
+      coverage_floor_pct: coverageFloorPct,
+      coverage_floor_source: "Ultrasafe.md §1.4d tier table via lib/coverage-floor.cjs",
       monotonic_window: MONOTONIC_WINDOW,
       consecutive_clean_min: CONSECUTIVE_CLEAN_MIN
     },
