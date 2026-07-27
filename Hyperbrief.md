@@ -1,4 +1,4 @@
-<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.7.4; date: 2026-07-27; status: design draft v0.7.4 (부품 부재를 통과로 보고하던 자리 — `hyperbrief_validate` 가 ajv 부재에서 `ok: true` 를 돌려주던 것을 부품 이름을 대는 거부로 교체; 계산하지 않은 판정은 내놓지 않아요) on top of v0.7.3 (MCP response-envelope fix — the 4 decision tools' `tools/call` results are wrapped at a single dispatch choke point; a bare result object is a protocol success with nothing to render, which reads as an absent tool; §5.6.9 setup-flow choice default unchanged) (§5.6.9 setup-flow choice default — first-contact structured choices MUST default to the plain floor band L1.1.1–L1.2.2 with per-option costs/benefits + recommendation + §5.6.7 fallback affordance, MUST-22; 직전 v0.7.0 = post-response tone-estimate Stop hook — deferred candidate #5 landed via host-hook equivalence + estimateSurfaceProfile re-export + skill MUST-20 active-profile arming; 직전 v0.6.2 = §5.6.7 live-board decisions-panel fallback surface — Constellation composition, board card button + fallback-rerender feedback contract; 직전 v0.6.0 = substantive 4-slot additive cut — `recommended_methodology[]` (§8) + `evaluation_lenses[]` (§0) + `maturity_anchor` (FullBrief top-level) + `term_pairing` (§0 AudienceProfileFallback extension with mode E/I/N + scope C/D/B/R + retroactive_apply + I-mode low-frequency override + C-scope auto-non-retroactive + short-command form Lx.M.S+S! / Lx.M.S?); back-compat preserved — all 4 slots optional, existing v0.5.6 IRs validate against v0.6 schema; Workflow fan-out mezzo batch ratification pattern applied (7-agent parallel implementation: schema + renderer + 4 templates + 3 skills); v0.5.6 §5.6.7 auto-localize discipline preserved; v0.5.5 §11.5 v1.0 readiness rubric Lens A 5.3/4.9 + Lens B 5.5/5.1 — both sub-threshold — unchanged, candidates pending count v0.6 → 3 (v0.7+ register)); depends-on: none (optional synergy: Constellation §13 A2A — active, Superscalar §3.1 decision-delegation interlock — active); license: Apache-2.0 -->
+<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.7.5; date: 2026-07-27; status: design draft v0.7.4 (부품 부재를 통과로 보고하던 자리 — `hyperbrief_validate` 가 ajv 부재에서 `ok: true` 를 돌려주던 것을 부품 이름을 대는 거부로 교체; 계산하지 않은 판정은 내놓지 않아요) on top of v0.7.3 (MCP response-envelope fix — the 4 decision tools' `tools/call` results are wrapped at a single dispatch choke point; a bare result object is a protocol success with nothing to render, which reads as an absent tool; §5.6.9 setup-flow choice default unchanged) (§5.6.9 setup-flow choice default — first-contact structured choices MUST default to the plain floor band L1.1.1–L1.2.2 with per-option costs/benefits + recommendation + §5.6.7 fallback affordance, MUST-22; 직전 v0.7.0 = post-response tone-estimate Stop hook — deferred candidate #5 landed via host-hook equivalence + estimateSurfaceProfile re-export + skill MUST-20 active-profile arming; 직전 v0.6.2 = §5.6.7 live-board decisions-panel fallback surface — Constellation composition, board card button + fallback-rerender feedback contract; 직전 v0.6.0 = substantive 4-slot additive cut — `recommended_methodology[]` (§8) + `evaluation_lenses[]` (§0) + `maturity_anchor` (FullBrief top-level) + `term_pairing` (§0 AudienceProfileFallback extension with mode E/I/N + scope C/D/B/R + retroactive_apply + I-mode low-frequency override + C-scope auto-non-retroactive + short-command form Lx.M.S+S! / Lx.M.S?); back-compat preserved — all 4 slots optional, existing v0.5.6 IRs validate against v0.6 schema; Workflow fan-out mezzo batch ratification pattern applied (7-agent parallel implementation: schema + renderer + 4 templates + 3 skills); v0.5.6 §5.6.7 auto-localize discipline preserved; v0.5.5 §11.5 v1.0 readiness rubric Lens A 5.3/4.9 + Lens B 5.5/5.1 — both sub-threshold — unchanged, candidates pending count v0.6 → 3 (v0.7+ register)); depends-on: none (optional synergy: Constellation §13 A2A — active, Superscalar §3.1 decision-delegation interlock — active); license: Apache-2.0 -->
 
 # Hyperbrief — Decision-Delegation Gating Discipline
 
@@ -714,6 +714,48 @@ The triage doc carries per-candidate spec sketches (schema proposal, rationale, 
 **Adopter installation note — host self-config approval gate (v0.5.4, bundle 008 002 reflection)**: registering the hook with the running Claude Code session requires editing `.claude/settings.json` (or equivalent host config), which the host's auto-mode classifier treats as **agent-runtime self-modification** and blocks without explicit user approval. This is a separate gate from the general migration / file-edit flow — an adopter agent running an EG migration script CANNOT silently install the hook on the user's behalf; the user must explicitly approve the settings.json change (or the adopter project owner must commit the settings update). Adopters integrating Hyperbrief should surface this gate in their installation runbook so the operator understands that "hyperbrief plugin installed" and "hyperbrief hook connected" are two distinct steps. **`$CLAUDE_PROJECT_DIR` vs `${CLAUDE_PLUGIN_ROOT}`**: when Hyperbrief is installed as a Claude Code plugin via the marketplace, `hooks.json` references the wrapper scripts via `${CLAUDE_PLUGIN_ROOT}` (the plugin's install directory). When Hyperbrief is **vendored as a sidecar** (copy of the EG `plugins/hyperbrief/` tree into the adopter's own repo), the wrapper scripts live under the adopter's project tree, not the plugin install path; the hook command should then use `$CLAUDE_PROJECT_DIR/.hyperbrief/hooks/trigger-advise.cjs` (or wherever the adopter placed the vendored copy) for portability. The plugin-tier `hooks.json` ships with the `${CLAUDE_PLUGIN_ROOT}` form; vendored adopters MUST rewrite this when staging.
 
 ---
+
+### 11.6 The validator is carried, not requested (v0.7.5)
+
+Hyperbrief's schema validation had a dependency (`ajv`) that was declared and never present: plugins
+are distributed as a code copy with no install step, so the validator was absent in every adopter
+configuration. v0.7.4 stopped that absence from reading as success — `hyperbrief_validate` refuses and
+names the package instead of answering `ok: true`. An honest refusal is still a module whose central
+discipline does not run, so the part is now carried in-tree.
+
+Unlike the transport part (`Constellation.md §13.27.7`), there is no platform equivalent to prefer, so
+the choice was between carrying it and asking for it. It is carried, and three properties keep that
+from decaying:
+
+1. **Generated, not hand-maintained.** `plugins/hyperbrief/vendor.manifest.json` pins exact versions;
+   `scripts/sync-vendored-deps.mjs --write` produces the tree. A hand-kept copy lags with no signal,
+   and the symptom of a lagging copy is a plausible wrong conclusion, not an error.
+2. **Pruned by what a runtime cannot load — not by what this repository exercises.** The measured
+   require-closure of the validator path is 88 files / 257KB, but the shipped tree is 173 files /
+   430KB (from 546 / 1351KB unpruned): type declarations, source maps, TypeScript sources, tests,
+   benchmarks and CI config are removed, and **every** `.js` / `.json` / license file is kept,
+   including paths this module never takes (`ajv` standalone codegen, `$data` references, async
+   schemas). A tree tuned to the measured closure breaks the first adopter who takes another path.
+3. **Licenses retained and disclosed.** MIT ×4 + BSD-3-Clause ×1, all permissive, each package's own
+   license file kept in place, with a generated `THIRD-PARTY-NOTICES.md` naming package, version,
+   license and notice path. The checker fails the build when the notice and the tree disagree.
+
+Two things this changes about what the module can claim. The declaration `dependencies: {"ajv": …}` is
+now pinned to the exact carried version rather than a caret range — a range is ambiguous about which
+copy is in the tree. And the validation path is asserted **end-to-end in the shipped layout**: the
+checker calls the tool as a host would and requires `skipped: false` plus a response that changes when
+the input changes, because "the file is present" is not the same claim as "validation ran".
+
+The first run of that assertion is the argument for it. Validation had been skipping silently, and the
+three decision briefs emitted the day before went out unvalidated. Turning it on reported **36
+violations across them** — including `coupling_delta.new_dependencies` holding a sentence where the
+schema requires an integer, and `section_7_decision_tree.root_nodes.*` holding strings where objects
+are required. A hand-written check had run over those same IRs and passed them, because it was written
+from the same reading of §2 that produced them: **a check derived from the author's own understanding
+re-derives the author's own mistakes.** §2's field list names the fields without stating their types,
+which is a documentation gap this section records rather than excuses; `trigger_phrases_md` requiring
+an array despite its `_md` suffix is a naming defect on the same list, and renaming it is a breaking
+schema change that needs its own decision.
 
 ## 12. Versioning
 

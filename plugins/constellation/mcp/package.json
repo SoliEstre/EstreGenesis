@@ -1,9 +1,12 @@
 {
   "name": "constellation-mcp",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Constellation MCP server — Phase 2 full impl (WS proxy + 5 tools + 3-tier ack + chunked transfer + §13.13.2 dedup) + v0.2.4 Hyperbrief tier='decided' application-tier extension (resolves on DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING).",
   "main": "server.cjs",
-  "dependencies": {
+  "engines": {
+    "node": ">=22"
+  },
+  "optionalDependencies": {
     "ws": "^8.18.0"
   },
   "license": "Apache-2.0"

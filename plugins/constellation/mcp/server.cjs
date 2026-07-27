@@ -16,7 +16,8 @@
 //   - Auth via env: CONSTELLATION_TOKEN / CONSTELLATION_PEER_KEY /
 //     CONSTELLATION_UPSTREAM_KEY / CONSTELLATION_COLLAB_KEY (NEVER tool args per §13.14)
 //
-// Deps: ws (npm install — see package.json). Plugin install will resolve.
+// Deps: none required. The WebSocket client comes from the platform (Node >= 22 global `WebSocket`);
+//   `ws` is an optionalDependencies fallback for runtimes without it. See §13.27.7.
 
 'use strict';
 
@@ -25,17 +26,82 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-// ----- Optional ws dependency (re-required on demand — see loadWs) -----
-// v0.3.32 (adopter-reported C8): a single module-load require whose failure is swallowed made a
-// missing-at-boot `ws` permanently missing for the whole session — measured: `npm install ws`
-// completed 41s BEFORE the session spawned and the process still reported it absent until /mcp
-// re-spawn. The old comment claimed lazy loading that the code never did. Retry at each use.
-let WebSocket = null;
-function loadWs() {
-  if (!WebSocket) { try { WebSocket = require('ws'); } catch (_) { /* still absent — caller reports */ } }
-  return WebSocket;
+// ----- WebSocket transport: platform-native first, `ws` package as fallback -----
+// v0.3.39: the previous `let WebSocket = null` **shadowed the built-in global WebSocket**, so this
+// server could not connect at all without the `ws` package even on runtimes that already ship a
+// client. Node has had a global WebSocket since 22 — and the reference runtime in this same repo
+// uses it at all 10 of its connect sites, which is why those clients never had a missing-part
+// problem to begin with. So the fix is not to carry a copy of `ws`: it is to use the part the
+// platform already provides, and keep `ws` only for runtimes that lack the global.
+// Refuse only when BOTH are absent, and name both remedies in the refusal.
+//
+// v0.3.32 (adopter-reported C8) still holds for the fallback: a single module-load require whose
+// failure was swallowed made a missing-at-boot `ws` permanently missing for the whole session —
+// measured: `npm install ws` completed 41s BEFORE the session spawned and the process still
+// reported it absent until /mcp re-spawn. So the fallback re-requires at each use.
+let wsPackage = null;
+function loadWsPackage() {
+  if (!wsPackage) { try { wsPackage = require('ws'); } catch (_) { /* still absent — caller reports */ } }
+  return wsPackage;
 }
-loadWs();
+function transportKind() {
+  if (typeof globalThis.WebSocket === 'function') return 'native';
+  if (loadWsPackage()) return 'ws-package';
+  return null;
+}
+
+// The call sites below are written against the `ws` package's EventEmitter surface (on/send/close).
+// The built-in is WHATWG (addEventListener/event.data). Adapt in one place rather than rewriting
+// every call site — widening the difference would spread two APIs across the whole file.
+/**
+ * Normalize a built-in-WebSocket error event into an Error that says something.
+ * The built-in routes connection failures through undici, where the error is typically an
+ * AggregateError whose own `message` is empty and whose causes sit in `.errors`. Rejecting with it
+ * as-is produced a JSON-RPC error with `message: ""` — measured against a closed port. A failure
+ * that reports nothing is the same defect shape as a success that renders nothing, so flatten the
+ * cause chain into the message instead of passing the empty envelope through.
+ */
+function transportError(ev, endpoint) {
+  const raw = ev && ev.error;
+  const at = endpoint ? ' (' + endpoint + ')' : '';
+  if (raw instanceof Error && raw.message) return raw;
+  const parts = [];
+  const collect = (e, depth) => {
+    if (!e || depth > 3) return;
+    if (Array.isArray(e.errors)) for (const x of e.errors) collect(x, depth + 1);
+    if (e.code) parts.push(String(e.code));
+    if (e.message) parts.push(String(e.message));
+    if (e.cause) collect(e.cause, depth + 1);
+  };
+  collect(raw, 0);
+  const detail = [...new Set(parts)].join(' · ');
+  return new Error('WebSocket connect failed' + at + (detail ? ': ' + detail : ' — the runtime reported no detail'));
+}
+
+function nativeAdapter(sock, endpoint) {
+  return {
+    on(ev, fn) {
+      if (ev === 'message') sock.addEventListener('message', (e) => fn(typeof e.data === 'string' ? e.data : Buffer.from(e.data)));
+      else if (ev === 'error') sock.addEventListener('error', (e) => fn(transportError(e, endpoint)));
+      else sock.addEventListener(ev, () => fn());
+      return this;
+    },
+    send(data) { sock.send(data); },
+    // The built-in throws InvalidStateError on close() while CONNECTING; the `ws` package allows it.
+    // The handshake-timeout path closes in exactly that state, so swallow it there.
+    close(...args) { try { sock.close(...args); } catch (_) { /* CONNECTING — drop */ } },
+    get readyState() { return sock.readyState; },
+  };
+}
+function openSocket(url) {
+  const kind = transportKind();
+  // Endpoint for diagnostics only — origin without the query string, because the auth key travels
+  // as a query parameter and an error message is exactly the wrong place for it.
+  const endpoint = String(url).split('?')[0];
+  if (kind === 'native') return nativeAdapter(new globalThis.WebSocket(url), endpoint);
+  if (kind === 'ws-package') { const WS = loadWsPackage(); return new WS(url); }
+  return null;
+}
 
 // ----- Config from env -----
 function getBoardEndpoint() {
@@ -145,7 +211,13 @@ function makeMsgId() {
 
 async function connectWS() {
   if (wsState.ready) return wsState.socket;
-  if (!loadWs()) throw new Error('ws npm package not installed — run `npm install ws` in plugin dir');
+  if (!transportKind()) {
+    throw new Error(
+      'No WebSocket transport available. This runtime has no built-in global WebSocket (Node >= 22 ' +
+      'provides one) and the `ws` package is not installed either. Either run this plugin on Node >= 22, ' +
+      'or run `npm install ws` in the plugin mcp dir.'
+    );
+  }
   const baseUrl = getBoardEndpoint();
   const auth = getAuth();
   const agentId = getAgentIdentity();
@@ -157,7 +229,7 @@ async function connectWS() {
   else if (auth.kind === 'token') url += (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(auth.key);
 
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(url);
+    const ws = openSocket(url);
     wsState.socket = ws;
     let serverHelloReceived = false;
     const timeout = setTimeout(() => {
