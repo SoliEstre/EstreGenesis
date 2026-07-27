@@ -77,6 +77,65 @@ const ALLOWLIST = new Set([
   'ArtifactManifest', 'ArtifactComplete',
 ]);
 
+// ── §13.16.9 CLASSIFY BEGIN — 사본 간 **바이트 동일**해야 해요 (verify-meaningful-set-parity 가 단정) ──
+// 열거된 이름만 의미 있다고 보면 어댑터가 발명한 이름은 «없는 메시지» 예요. 실측: hermes 의
+// `Handshake` 1건이 실제 작업 요청인데 걸러졌고, 방에서 우리를 이름으로 호명한 `Say` 8건도
+// 보이지 않았어요. 그래서 판정은 **합집합**이에요 — 열거는 하한으로 남고, 그 위에
+// «나에게 왔고 전송/telemetry 가 아니면 의미 있음» 이 더해져요.
+//
+// 대체가 아니라 합집합인 게 핵심이에요. 반전만으로 갈아치우면 60일 창 실측 **-16%** 였고, 잃는 것
+// 안에 `Report` 148 · `UserPrompt` 57 · `RelayUnreachable` 22 가 있었어요 — 마지막 것은
+// v2.6.25 가 정확히 그걸 잃지 않으려고 넣은 이름이에요.
+//
+// 「에이전트-작성」 술어는 쓰지 않아요. 와이어의 `source` 는 `agent` 만이 아니라 `board`(사용자
+// 발화 — `UserPrompt`) · `server`(전달 실패 — `RelayUnreachable`) 로도 와요. 그 둘이 **가장 조치
+// 가능한 작성자**예요. 기준은 누가 썼는지가 아니라 **나에게 온 것인지**예요.
+//
+// 실측 비용: 60.2일 창에서 +10건 (하루 0.17건, +2%) — 9건이 실질. 수치 문턱은 두지 않아요:
+// 재보지 않은 값을 규칙에 넣으면 그게 계약이 돼요 (문턱 「회당 10건」은 그렇게 만들려던 값이었어요).
+const SELF_AGENT_ID = process.env.SELF_AGENT_ID || process.env.CONSTELLATION_AGENT_ID || null;
+const EXCLUDE_NAMES = new Set([
+  'Ack', 'AckProcessed', 'AgentHello', 'AgentList', 'History', 'ConnectionInfo',
+  'SERVER_HELLO', 'HELLO', 'Heartbeat', 'Ping', 'Pong', 'ArtifactChunk',
+  'StateSync', 'StateUpdate', 'BoardState', 'CursorAdvance', 'Presence',
+  'OnboardAck',            // 합류 환영 + 가이드 + 모드 선언 (실측 139건, 전부 우리 앞) — 의례
+  'UserPromptAccepted',    // promptId + 큐 모드만 (실측 19건) — telemetry
+]);
+const EXCLUDE_TYPE_PREFIX = ['TEXT_MESSAGE_', 'RUN_', 'STEP_', 'TOOL_CALL_'];
+let _selfIdentityWarned = false;
+function classifyMeaningful(o) {
+  // v2.5.44 자기 발신 에코 제외 — 브릿지는 outbound(ev:"sent")도 같은 파일에 적어요. 사본 두 벌에
+  //   이 게이트가 **없었고**(플러그인 사본 포함), 이름 집합만 대조하던 검사는 그걸 통과시켰어요.
+  if (o && o.ev === 'sent') return null;
+  const msg = (o && o.msg) || o || {};
+  // v2.5.20 이중 봉투 — 바깥 name 에 리터럴 "CUSTOM", 실제 MessageName 이 value.name 에 오는 형태.
+  const outerName = msg.name || null;
+  const innerName = (msg.value && msg.value.name) || null;
+  const listed = (outerName && ALLOWLIST.has(outerName)) ? outerName
+               : (innerName && ALLOWLIST.has(innerName) && (outerName === 'CUSTOM' || !outerName)) ? innerName
+               : null;
+  if (listed) return { name: listed, why: 'listed' };
+  // 정체를 모르면 «나에게 왔는가» 를 판정할 수 없어요. 그때는 두 번째 가지를 끄되 **조용히 끄지
+  //   않아요** — 관측 불가를 통과로 세지 않는 규율의 런타임 판이에요.
+  if (!SELF_AGENT_ID) {
+    if (!_selfIdentityWarned) {
+      _selfIdentityWarned = true;
+      console.error('[probe] NOTE: SELF_AGENT_ID / CONSTELLATION_AGENT_ID unset — the addressed-envelope branch is INACTIVE, so only enumerated names can wake this agent. Set it to enable §13.16.9 union classification.');
+    }
+    return null;
+  }
+  // 지목은 그 자체로 근거. 1:1 지목과 방 안의 호명(value.addressee[]) 둘 다 — 방 발화는
+  //   targetAgentId 만 보면 안 보여요.
+  const addressed = msg.targetAgentId === SELF_AGENT_ID
+    || (msg.value && Array.isArray(msg.value.addressee) && msg.value.addressee.includes(SELF_AGENT_ID));
+  if (!addressed) return null;
+  const eff = (outerName && outerName !== 'CUSTOM') ? outerName : (innerName || outerName);
+  if (eff && EXCLUDE_NAMES.has(eff)) return null;
+  if (msg.type && EXCLUDE_TYPE_PREFIX.some((p) => String(msg.type).startsWith(p))) return null;
+  return { name: eff || ('(unnamed type=' + (msg.type || '?') + ')'), why: 'addressed' };
+}
+// ── §13.16.9 CLASSIFY END ──
+
 function readCursor() {
   if (process.env.LAST_SURFACED_CURSOR) {
     return Number(process.env.LAST_SURFACED_CURSOR);
@@ -109,18 +168,9 @@ function probe(cursor) {
     const l = newLines[i];
     let o;
     try { o = JSON.parse(l); } catch { continue; }
-    // v2.5.20: also check value.name for doubly-wrapped envelopes where outer
-    // name field carries the literal "CUSTOM" instead of the MessageName
-    // (observed in 2026-06-02 Hermes meta-ack at inbox 22856 — Hermes-side
-    // envelope construction stamps type literal at outer name level + actual
-    // MessageName at value.name). Without the fallback the probe misses these.
-    const outerName = o?.msg?.name || o?.name;
-    const innerName = o?.msg?.value?.name || o?.value?.name;
-    const name = (outerName && ALLOWLIST.has(outerName)) ? outerName
-               : (innerName && ALLOWLIST.has(innerName) && (outerName === 'CUSTOM' || !outerName)) ? innerName
-               : null;
-    if (name) {
-      meaningful.push({ idx: cursor + i + 1, name, body: o });
+    const hit = classifyMeaningful(o);
+    if (hit) {
+      meaningful.push({ idx: cursor + i + 1, name: hit.name, why: hit.why, body: o });
     }
   }
   return { total: totalCount, newCount: newLines.length, meaningful };
