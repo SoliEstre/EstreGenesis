@@ -29,4 +29,4 @@ startup_timeout_sec = 15
 command = "node"
 args = ["__EG_REPO_ROOT__/plugins/ultrasafe/mcp/server.cjs"]
 startup_timeout_sec = 15
-  # requires: npm install (ajv) in plugins/ultrasafe/mcp/
+  # deps-0

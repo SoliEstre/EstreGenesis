@@ -18,38 +18,15 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-const VERSION = "0.2.6";
+const VERSION = "0.2.7";
 const ADVISORY_MODE = true; // v0.2.x — flips to false in v0.3+ blocking cut.
 const BLOCKING_IN_V03 = true; // surfaced in all returns so consumers know what would happen under blocking mode.
 
-// ----- Schema paths (lazy-loaded) -----
-
-const SCHEMA_DIR = path.resolve(__dirname, "..", "schemas");
-const FINDING_SCHEMA_PATH = path.join(SCHEMA_DIR, "finding.schema.json");
-const ITERATION_BOUNDARY_SCHEMA_PATH = path.join(SCHEMA_DIR, "iteration-boundary.schema.json");
-const RELEASE_GATE_SCHEMA_PATH = path.join(SCHEMA_DIR, "release-gate.schema.json");
-
-// Lazy ajv validator factory (graceful fallback when ajv not installed or schema missing).
-let _validators = {};
-let _validatorErr = null;
-function getValidator(schemaPath) {
-  if (_validators[schemaPath] !== undefined) return _validators[schemaPath];
-  try {
-    const Ajv = require("ajv/dist/2020");
-    const ajv = new (Ajv.default || Ajv)({ strict: false, allErrors: true });
-    if (!fs.existsSync(schemaPath)) {
-      _validators[schemaPath] = null;
-      return null;
-    }
-    const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
-    _validators[schemaPath] = ajv.compile(schema);
-    return _validators[schemaPath];
-  } catch (e) {
-    _validatorErr = e;
-    _validators[schemaPath] = null;
-    return null;
-  }
-}
+// v0.2.7 — 스키마 검사기 팩토리를 걷어냈어요. **호출부가 하나도 없었고**, 가리키던 `../schemas/`
+//   디렉터리도 존재하지 않았어요. 그런데 그 코드 때문에 package.json 이 `ajv` 를 의존성으로 선언하고
+//   있었어요 — 쓰지 않는 부품을 선언하면 «이 모듈은 스키마를 검사한다» 는 신호를 공짜로 주는데, 검사할
+//   스키마도 부르는 곳도 없었어요. 없는 기능을 선언으로만 갖고 있는 건 가지치기 대상이에요(북극성 3축).
+//   실제로 스키마 검사가 필요해지면 검사기와 스키마와 호출부를 **같은 컷에** 들이는 게 맞아요.
 
 // ----- Determinism helpers -----
 

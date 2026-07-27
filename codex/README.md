@@ -107,6 +107,6 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 | `compendium` | `plugins/compendium/mcp/server.cjs` | — (deps-0) |
 | `constellation` | `plugins/constellation/mcp/server.cjs` | ws |
 | `hyperbrief` | `plugins/hyperbrief/mcp/server.cjs` | ajv |
-| `ultrasafe` | `plugins/ultrasafe/mcp/server.cjs` | ajv |
+| `ultrasafe` | `plugins/ultrasafe/mcp/server.cjs` | — (deps-0) |
 
 <!-- END AUTO-INVENTORY -->

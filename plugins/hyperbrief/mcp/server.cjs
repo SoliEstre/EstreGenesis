@@ -80,13 +80,17 @@ async function handleHyperbriefValidate({ ir } = {}) {
   if (!ir || typeof ir !== "object") throw new Error("ir is required (object)");
   const v = getValidator();
   if (!v) {
-    return {
-      ok: true,
-      skipped: true,
-      reason: `ajv not installed (${_validatorErr ? _validatorErr.message : "unknown"}); schema validation skipped — install ajv ^8.17.0 to enable.`,
-      ir_hash: canonicalIrHash(ir),
-      errors: [],
-    };
+    // v0.7.4 — 여기는 `ok: true` 를 돌려주던 자리예요. `skipped`/`reason` 을 함께 실었지만 호출자가
+    //   실제로 게이트하는 필드는 `ok` 라서, **검사한 적 없는 IR 이 «유효함» 으로 읽혔어요.** 부품이
+    //   없으면 이 도구는 계산하지 않은 판정을 내놓지 않아요 — 관측 불가는 통과가 아니라 거부예요.
+    //   같은 저장소의 보드 도구가 `ws` 부재에서 이미 이렇게 해요(부재를 이름으로 말하며 거부). 기능을
+    //   못 하는 것보다 «못 한다고 말하지 않는 것» 이 나쁘고, 조용한 초록이 정확히 그 경우예요.
+    throw new Error(
+      "ajv npm package not installed — run `npm install ajv` in the plugin dir " +
+      "(plugins/hyperbrief/mcp). Schema validation cannot run, and this tool does not report a " +
+      "verdict it did not compute" +
+      (_validatorErr ? ` (${String(_validatorErr.message).split("\n")[0]})` : "") + "."
+    );
   }
   const ok = v(ir);
   return {
