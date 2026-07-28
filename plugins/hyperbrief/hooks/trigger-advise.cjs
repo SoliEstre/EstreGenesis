@@ -22,6 +22,14 @@
 //   - .hyperbrief/config.json {auto_generate_review_doc: "on"|"off"|"ask"}
 //   - default = "ask"
 //
+// v0.8.0 — brief tier floor (Hyperbrief.md §2.5). Every route below now names the RESOLVED FLOOR
+// instead of offering a full brief, because the offer was the two-valued vocabulary this release
+// replaced. Sources (first wins):
+//   - HYPERBRIEF_BRIEF_TIER env (off | summary | full)
+//   - .hyperbrief/config.json {brief_tier: "off"|"summary"|"full"}
+//   - default = "summary"
+// Unreadable file / unrecognized value → "summary" AND the reason is stated, never silently coerced.
+//
 // Per Hyperbrief.md §11.1 v0.5.3 and Constellation §13.16.9 (DECISION_REQUEST family
 // already in the A2A allowlist since v2.5.27).
 
@@ -111,6 +119,58 @@ function readAutoGeneratePref() {
     } catch (_) { /* malformed → default */ }
   }
   return "ask";
+}
+
+// ─── Brief tier (v0.8.0 — Hyperbrief.md §2.5) ───────────────────────────────
+//
+// This is the toggle's only mechanical enforcement point. Every route below used to end by
+// telling the agent it could "request a full brief" — the two-valued vocabulary of §2.1, spoken
+// at exactly the moment the agent decides what to emit. Naming the resolved FLOOR instead is the
+// difference between a policy and a suggestion: a floor that lives only in the spec is applied
+// when the agent remembers to.
+//
+// Precedence (session-level HB.<tier> commands are resolved by the skill, not visible here):
+//   HYPERBRIEF_BRIEF_TIER env  →  .hyperbrief/config.json {brief_tier}  →  "summary"
+//
+// A malformed file or unrecognized value resolves to the default AND says so. Silent coercion is
+// indistinguishable from the setting having been honored, which matters most to the operator who
+// pinned "full" and never got it.
+
+const TIERS = ["off", "summary", "full"];
+
+function readBriefTier() {
+  const env = process.env.HYPERBRIEF_BRIEF_TIER;
+  if (TIERS.includes(env)) return { tier: env, source: "env", note: null };
+
+  const configPath = path.join(REPO_ROOT, ".hyperbrief", "config.json");
+  if (fs.existsSync(configPath)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      const v = cfg && cfg.brief_tier;
+      if (TIERS.includes(v)) return { tier: v, source: "config", note: null };
+      if (v !== undefined) {
+        return { tier: "summary", source: "default", note: `config.json 의 brief_tier 값 ${JSON.stringify(v)} 을 못 알아봤어요 (off|summary|full)` };
+      }
+    } catch (e) {
+      return { tier: "summary", source: "default", note: `config.json 을 읽지 못했어요 (${e.message})` };
+    }
+  }
+  return { tier: "summary", source: "default", note: null };
+}
+
+// One sentence naming the floor, appended to whichever route fires.
+function briefTierAdvice() {
+  const { tier, source, note } = readBriefTier();
+  const src = { env: "env", config: ".hyperbrief/config.json", default: "기본값" }[source] || source;
+  let line;
+  if (tier === "full") {
+    line = `브리핑 바닥: full (${src}) — 이 결정은 escalation 점수와 무관하게 9섹션 전체 브리핑이에요.`;
+  } else if (tier === "summary") {
+    line = `브리핑 바닥: summary (${src}) — 하한 미달이어도 최소 요약 브리핑이에요 (1줄 통보 아님). 되돌릴 수 없는 결정은 이 설정과 무관하게 계속 전체 브리핑이에요.`;
+  } else {
+    line = `브리핑 바닥: off (${src}) — 하한 미달이면 1줄 통보예요 (v0.7.x 거동). 요약을 기본으로 켜려면 .hyperbrief/config.json 에 "brief_tier": "summary".`;
+  }
+  return note ? `${line} ⚠ ${note} — summary 로 진행해요.` : line;
 }
 
 // ─── Constellation detection ────────────────────────────────────────────────
@@ -237,7 +297,7 @@ function main() {
       emitDecisionRequestToOutbox(constellation.outboxPath, decisionId, TOOL, input);
       process.stderr.write(
         `[hyperbrief] 결정 시점 감지 (${TOOL}) — 검토 사안이 Constellation 보드에 등록되었습니다 (id: ${decisionId}). ` +
-        `보드의 검토 사안 패널에서 확인 가능. 지금 전체 브리핑을 받으려면 에이전트에게 요청, 나중에 검토하려면 보드의 검토 사안으로 두면 됩니다.\n`
+        `보드의 검토 사안 패널에서 확인 가능. ${briefTierAdvice()}\n`
       );
     } catch (e) {
       process.stderr.write(`[hyperbrief] 알림 emit 실패 (${e.message}); fallback 알림: ${TOOL} 호출 직전 결정 시점 감지.\n`);
@@ -252,7 +312,7 @@ function main() {
       const file = writeStandaloneReviewPlaceholder(decisionId, TOOL, input);
       const relFile = path.relative(REPO_ROOT, file);
       process.stderr.write(
-        `[hyperbrief] 결정 시점 감지 (${TOOL}) — 검토 사안 문서 자동 생성됨: ${relFile}. 지금 전체 브리핑을 받으려면 에이전트에게 요청, 나중에 검토하려면 본 파일을 검토 큐로 사용.\n`
+        `[hyperbrief] 결정 시점 감지 (${TOOL}) — 검토 사안 문서 자동 생성됨: ${relFile}. ${briefTierAdvice()}\n`
       );
     } catch (e) {
       process.stderr.write(`[hyperbrief] 검토 사안 문서 생성 실패 (${e.message}); fallback 알림: ${TOOL} 호출 직전 결정 시점 감지.\n`);
@@ -261,10 +321,10 @@ function main() {
     process.stderr.write(
       `[hyperbrief] 결정 시점 감지 (${TOOL}). ` +
       `검토 사안 문서 자동 생성을 켜시려면 .hyperbrief/config.json의 auto_generate_review_doc를 "on"으로 설정하세요. ` +
-      `현재 설정: "ask" (Constellation 사용 시 자동 보드 등록). 지금 전체 브리핑을 받으려면 에이전트에게 요청.\n`
+      `현재 설정: "ask" (Constellation 사용 시 자동 보드 등록). ${briefTierAdvice()}\n`
     );
   } else {
-    process.stderr.write(`[hyperbrief] 결정 시점 감지 (${TOOL}). (auto_generate_review_doc=off)\n`);
+    process.stderr.write(`[hyperbrief] 결정 시점 감지 (${TOOL}). (auto_generate_review_doc=off) ${briefTierAdvice()}\n`);
   }
 
   process.exit(0);

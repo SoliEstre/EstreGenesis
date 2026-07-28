@@ -6,6 +6,7 @@
   "type": "object",
   "oneOf": [
     { "$ref": "#/$defs/FullBrief" },
+    { "$ref": "#/$defs/SummaryBrief" },
     { "$ref": "#/$defs/BlockedStub" }
   ],
 
@@ -250,9 +251,202 @@
       }
     },
 
+    "MetaBranch": {
+      "type": "object",
+      "description": "§7 voluntariness affordance — the four branches always open to the reader. Extracted to a $def in v0.8.0 so the SummaryBrief tier references this exact shape rather than carrying a copy. A duplicated meta-branch is the first thing to drift, and what a drifted copy loses is the reader's right to refuse the question.",
+      "required": ["accept", "reject_framing", "defer", "request_investigation"],
+      "properties": {
+        "accept": { "type": "string" },
+        "reject_framing": { "$ref": "#/$defs/tagged_text" },
+        "defer": { "$ref": "#/$defs/tagged_text" },
+        "request_investigation": { "$ref": "#/$defs/tagged_text" }
+      }
+    },
+
+    "DecisionPrompt": {
+      "type": "object",
+      "description": "§6 Decision Prompt. Extracted to a $def in v0.8.0 and referenced by both FullBrief and SummaryBrief — §6 is already specified as sufficient on its own to route a decision, which makes it the one section the summary tier cannot compress.",
+      "required": [
+        "question_to_user",
+        "essence_one_line",
+        "core_tradeoff_one_line",
+        "recommendation_with_confidence_one_line"
+      ],
+      "properties": {
+        "question_to_user": {
+          "type": "string",
+          "pattern": "\\?\\s*$",
+          "description": "MUST end with '?'"
+        },
+        "essence_one_line": { "$ref": "#/$defs/tagged_text" },
+        "core_tradeoff_one_line": { "$ref": "#/$defs/tagged_text" },
+        "recommendation_with_confidence_one_line": { "$ref": "#/$defs/tagged_text" },
+        "ai_view_vs_devils_advocate": {
+          "type": "object",
+          "properties": {
+            "ai_view": { "$ref": "#/$defs/tagged_text" },
+            "devils_advocate": { "$ref": "#/$defs/tagged_text" }
+          }
+        }
+      }
+    },
+
+    "DecisionCaptureStub": {
+      "type": "object",
+      "description": "§9 Decision Capture. Extracted to a $def in v0.8.0 and referenced by both FullBrief and SummaryBrief — a decision made off a summary is still a decision that can turn out wrong, so revisit_date registers at every tier.",
+      "required": ["revisit_date", "ledger_pointer"],
+      "properties": {
+        "revisit_date": {
+          "type": "string",
+          "description": "ISO8601 date when hyperbrief-revisit should fire."
+        },
+        "ledger_pointer": {
+          "type": "string",
+          "description": ".agent/_decisions/<id>.json (standalone) or constellation ledger SSE id."
+        },
+        "outcome_actual": { "type": ["string", "null"] },
+        "outcome_vs_decision_quality_delta": { "type": ["string", "null"] },
+        "archive_config": { "$ref": "#/$defs/ArchiveConfig" }
+      }
+    },
+
+    "FullBriefFallback": {
+      "type": "object",
+      "description": "§5.6.10 escalation affordance (v0.8.0) — AudienceProfileFallback's sibling pointed the other way: one action from a summary up to the full evidence, where that one goes down to maximal plainness. Same auto-localize discipline (MUST-19 / MUST-25) and the same single `normalizeTriggerPhrases` normalizer; only the direction differs. Mandatory on every SummaryBrief, because a summary asks the reader to accept the agent's compression of the reasoning and must therefore keep the reasoning one action away (AF-30).",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "button_label": {
+          "type": "string",
+          "default": "풀 브리핑으로 보여줘 (근거까지)",
+          "description": "Copy on the escalate-to-full-brief button. The skill MUST populate this in the user's prevailing conversation language at IR-emit time (MUST-25); this default is the last-resort value for IR-direct / programmatic / test invocations only. Reference literals: EN \"Show me the full brief.\" · KO \"풀 브리핑으로 보여줘 (근거까지)\" · JA \"詳しいブリーフを見せて。\""
+        },
+        "trigger_phrases_md": {
+          "anyOf": [
+            { "type": "array", "items": { "type": "string" } },
+            { "type": "string" }
+          ],
+          "default": ["풀 브리핑", "자세히", "근거", "더 자세", "전체 브리핑", "너무 간략", "짧아", "상세하게"],
+          "description": "When the user's response to a summary contains any of these substrings, generate the FullBrief for the SAME decision_id before attempting any other answer (MUST-25). Accepts either a string array or a markdown string, and MUST be read through the renderer engine's exported `normalizeTriggerPhrases` — the same one AudienceProfileFallback.trigger_phrases_md uses, for the same reason: N independent readings produce N different phrase lists and the failure is silent on every surface but one. An empty result means *no phrases*, never *the default list*; the default is declared here and MUST NOT be re-copied into consumers. The Korean default includes \"너무 간략\" because the complaint that a surface is too terse is itself the most reliable request to go deeper."
+        }
+      }
+    },
+
+    "SummaryBrief": {
+      "type": "object",
+      "description": "v0.8.0 SUMMARY_BRIEF tier (§2.5 + §4 SummaryBrief body) — the tier between a one-line post-notify and nine sections, and the default floor. Every entry in `required` below is load-bearing for a named debiasing property rather than for completeness: options carrying both gain and loss preserve framing balance (§5a), no_action_cost preserves the null option (§5f), meta_branch preserves voluntariness (§7), key_unknowns preserves epistemic honesty (§5), section_8_summary.switch_if keeps the recommendation conditional rather than a request for consent (§8), and full_brief_fallback keeps the reader one action from the evidence this tier omits (§5.6.10). A summary missing any of them is not a shorter brief; it is a nudge, which is the failure mode the whole module exists to block (AF-30). What a summary MAY omit is evidence — MCDA, pre-mortem, Toulmin CIs, blast-radius enumeration, the node tree — and only evidence.",
+      "required": [
+        "status",
+        "decision_id",
+        "section_0_summary",
+        "section_6_decision_prompt",
+        "summary_core",
+        "section_8_summary",
+        "full_brief_fallback",
+        "section_9_decision_capture_stub"
+      ],
+      "properties": {
+        "status": { "const": "summary" },
+        "decision_id": { "$ref": "#/$defs/decision_id" },
+        "brief_tier_resolved": {
+          "type": "string",
+          "enum": ["off", "summary", "full"],
+          "description": "The brief_tier setting in force when this summary was emitted (§2.5 precedence order). Recorded so a reader can distinguish a summary that was the configured floor from one produced by explicit request — and so an operator who pinned `full` can see that they did not get it. A setting that cannot be observed in the output is a setting nobody can verify."
+        },
+        "section_0_summary": {
+          "type": "object",
+          "description": "The §0 classifier, reduced to what routes attention: the same escalation arithmetic a full brief would report (a summary does not get to skip justifying its own tier), the reversibility class, the domain, and the tone declaration.",
+          "required": [
+            "escalation",
+            "reversibility_class",
+            "reversibility_badge_color",
+            "cynefin_domain",
+            "deadline",
+            "audience_profile"
+          ],
+          "properties": {
+            "escalation": { "$ref": "#/$defs/EscalationHeader" },
+            "reversibility_class": {
+              "enum": ["two_way", "one_way_with_migration_path", "one_way"]
+            },
+            "reversibility_badge_color": {
+              "enum": ["green", "yellow", "red"]
+            },
+            "cynefin_domain": {
+              "enum": ["clear", "complicated", "complex", "chaotic", "confused"]
+            },
+            "rapid_decider": {
+              "type": "string",
+              "description": "Who holds formal authority for this decision. The full RAPID quintet is a FullBrief field; a summary carries the Decider alone, because that is the part the reader needs to know whether the question is even theirs to answer."
+            },
+            "deadline": { "type": "string" },
+            "recommended_reading_minutes": { "type": "integer" },
+            "audience_profile": { "$ref": "#/$defs/AudienceProfile" },
+            "audience_profile_fallback": { "$ref": "#/$defs/AudienceProfileFallback" },
+            "surface_profile_estimate": { "$ref": "#/$defs/SurfaceProfileEstimate" }
+          }
+        },
+        "section_6_decision_prompt": { "$ref": "#/$defs/DecisionPrompt" },
+        "summary_core": {
+          "type": "object",
+          "required": ["options", "no_action_cost", "meta_branch", "key_unknowns"],
+          "properties": {
+            "options": {
+              "type": "array",
+              "minItems": 2,
+              "description": "minItems is 2 rather than 1 on purpose: a one-option list is a recommendation wearing an option list, and the compressed tier is exactly where that substitution is easiest to make and hardest to notice.",
+              "items": {
+                "type": "object",
+                "required": ["label", "gain", "loss"],
+                "properties": {
+                  "label": { "type": "string" },
+                  "gain": { "$ref": "#/$defs/tagged_text" },
+                  "loss": { "$ref": "#/$defs/tagged_text" }
+                }
+              }
+            },
+            "no_action_cost": {
+              "$ref": "#/$defs/tagged_text",
+              "description": "What doing nothing costs. Required rather than optional because the most frequently omitted alternative is the null option, and omitting it is the mechanism by which a decision gets manufactured out of a non-decision."
+            },
+            "meta_branch": { "$ref": "#/$defs/MetaBranch" },
+            "key_unknowns": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/tagged_text" },
+              "description": "At least one. A summary in which nothing is unknown is a summary that stopped looking; an all-[verified] compressed surface is the signature of that."
+            }
+          }
+        },
+        "section_8_summary": {
+          "type": "object",
+          "description": "Derived FROM summary_core.options, never before it (§7 pipeline). A recommendation composed ahead of the option set is AF-9 at reduced size, and reduced size does not make it acceptable.",
+          "required": ["recommended", "confidence", "switch_if"],
+          "properties": {
+            "recommended": { "$ref": "#/$defs/tagged_text" },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Numeric. Natural-language probability words are forbidden at every tier (MUST-7)."
+            },
+            "switch_if": {
+              "$ref": "#/$defs/tagged_text",
+              "description": "Which option wins if the recommendation's assumption fails. This field is what makes the output a recommendation rather than a request for consent, so it is required even though the assumption list itself is not."
+            },
+            "escalate_note": {
+              "type": "string",
+              "description": "Optional one-liner naming what the full brief would add for THIS decision (e.g. the MCDA table over these options, the pre-mortem). Helps the reader judge whether escalating is worth it instead of guessing."
+            }
+          }
+        },
+        "full_brief_fallback": { "$ref": "#/$defs/FullBriefFallback" },
+        "section_9_decision_capture_stub": { "$ref": "#/$defs/DecisionCaptureStub" }
+      }
+    },
+
     "BlockedStub": {
       "type": "object",
-      "description": "Returned when escalation_sum < 4 and no MUST-trigger fires. Agent decided autonomously; one-line post-notify required.",
+      "description": "The one-line post-notify shape. Emitted when the rubric asks for nothing (escalation_sum < threshold and no MUST-trigger) AND the brief tier floor is `off` (§2.5). Before v0.8.0 the tier condition did not exist and this was the unconditional sub-threshold output, which is what made the rubric two-valued; from v0.8.0 the default floor is `summary`, so a project that sets nothing gets a SummaryBrief here instead. Agent decided autonomously; one-line post-notify required.",
       "required": ["status", "decision_id", "escalation_header", "autonomous_action_taken"],
       "properties": {
         "status": { "const": "blocked_low_escalation" },
@@ -648,47 +842,13 @@
           }
         },
 
-        "section_6_decision_prompt": {
-          "type": "object",
-          "required": [
-            "question_to_user",
-            "essence_one_line",
-            "core_tradeoff_one_line",
-            "recommendation_with_confidence_one_line"
-          ],
-          "properties": {
-            "question_to_user": {
-              "type": "string",
-              "pattern": "\\?\\s*$",
-              "description": "MUST end with '?'"
-            },
-            "essence_one_line": { "$ref": "#/$defs/tagged_text" },
-            "core_tradeoff_one_line": { "$ref": "#/$defs/tagged_text" },
-            "recommendation_with_confidence_one_line": { "$ref": "#/$defs/tagged_text" },
-            "ai_view_vs_devils_advocate": {
-              "type": "object",
-              "properties": {
-                "ai_view": { "$ref": "#/$defs/tagged_text" },
-                "devils_advocate": { "$ref": "#/$defs/tagged_text" }
-              }
-            }
-          }
-        },
+        "section_6_decision_prompt": { "$ref": "#/$defs/DecisionPrompt" },
 
         "section_7_decision_tree": {
           "type": "object",
           "required": ["meta_branch", "root_nodes", "domain_format", "nodes", "pruned_options"],
           "properties": {
-            "meta_branch": {
-              "type": "object",
-              "required": ["accept", "reject_framing", "defer", "request_investigation"],
-              "properties": {
-                "accept": { "type": "string" },
-                "reject_framing": { "$ref": "#/$defs/tagged_text" },
-                "defer": { "$ref": "#/$defs/tagged_text" },
-                "request_investigation": { "$ref": "#/$defs/tagged_text" }
-              }
-            },
+            "meta_branch": { "$ref": "#/$defs/MetaBranch" },
             "root_nodes": {
               "type": "object",
               "required": ["reversibility", "blast_radius", "time_pressure"],
@@ -836,22 +996,12 @@
           }
         },
 
-        "section_9_decision_capture_stub": {
-          "type": "object",
-          "required": ["revisit_date", "ledger_pointer"],
-          "properties": {
-            "revisit_date": {
-              "type": "string",
-              "description": "ISO8601 date when hyperbrief-revisit should fire."
-            },
-            "ledger_pointer": {
-              "type": "string",
-              "description": ".agent/_decisions/<id>.json (standalone) or constellation ledger SSE id."
-            },
-            "outcome_actual": { "type": ["string", "null"] },
-            "outcome_vs_decision_quality_delta": { "type": ["string", "null"] },
-            "archive_config": { "$ref": "#/$defs/ArchiveConfig" }
-          }
+        "section_9_decision_capture_stub": { "$ref": "#/$defs/DecisionCaptureStub" },
+
+        "escalated_from_tier": {
+          "type": "string",
+          "enum": ["summary"],
+          "description": "v0.8.0 — present when this FullBrief was produced by escalating a SummaryBrief (§5.6.10). The decision_id is REUSED, not regenerated, and the two MUST NOT be linked through decision_lineage.parent_decision_ids: that field means supersession, and a tier escalation supersedes nothing (MUST-25). The reader asked one question once."
         },
 
         "epistemic_distribution": {
