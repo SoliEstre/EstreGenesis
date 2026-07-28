@@ -26,13 +26,14 @@ if (!SELF) {
   process.exit(1);
 }
 
-let role = null, registryPath = null, unregister = false;
+let role = null, registryPath = null, unregister = false, force = false;
 const inboxes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--unregister') unregister = true;
   else if (a === '--inbox') inboxes.push(path.resolve(args[++i]));
   else if (a === '--registry') registryPath = path.resolve(args[++i]);
+  else if (a === '--force') force = true;
   else if (!a.startsWith('--') && !role) role = a;
 }
 
@@ -56,6 +57,38 @@ if (unregister) {
 }
 
 if (!role) { console.error('[register-session] role 인자 필요. 예: node register-session.cjs board-observer --inbox <path>'); process.exit(1); }
+
+// v2.4.112 — **소유는 조용히 넘어가지 않아요.** pre-send-probe 의 소유 판정은 «마지막 등재자 승»
+//   (ownerOf Map 덮어쓰기) 이에요. 그래서 다른 세션이 같은 inbox 를 나중에 등재하면 원래 주인의
+//   probe 가 그 순간부터 SKIP 으로 떨어져요 — 그 세션은 인바운드를 **못 보는 상태가 되는데 아무도
+//   그 사실을 말해주지 않아요.**
+//   이게 이론이 아니라 실측이에요 (2026-07-28): 이 워크스페이스에서 서브에이전트 팬아웃을 돌렸더니
+//   서브에이전트가 프로젝트 지침의 «boot 의례 first-action» 을 그대로 따라 자기를 role=main 으로
+//   등재했고, 진짜 main 세션이 inbox 소유를 잃었어요. 서브에이전트를 쓰는 어느 채택자에게나 나요.
+//   그래서 **이미 다른 세션이 소유한 inbox 를 가져가려면 --force 를 요구**해요. 거절이 기본인 이유는
+//   조용한 탈취의 증상이 «메시지가 없다» 라서, 고장으로 보이지 않기 때문이에요.
+{
+  const norm = (p) => path.resolve(String(p)).replace(/\\/g, '/').toLowerCase();
+  const mine = new Set(inboxes.map(norm));
+  const conflicts = [];
+  for (const [sid, w] of Object.entries(reg.workers)) {
+    if (sid === SELF) continue;
+    for (const ib of (Array.isArray(w.ownInboxes) ? w.ownInboxes : [])) {
+      if (mine.has(norm(ib))) conflicts.push({ sid, role: w.role, inbox: ib, at: w.registeredAt });
+    }
+  }
+  if (conflicts.length && !force) {
+    console.error('[register-session] 거부 — 아래 inbox 는 이미 다른 세션이 소유해요. 그대로 등재하면 그 세션의');
+    console.error('                   pre-send-probe 가 조용히 SKIP 으로 떨어져서 인바운드를 못 보게 돼요.');
+    for (const c of conflicts) console.error(`                     · ${c.inbox}\n                       ← ${c.sid.slice(0, 8)}(role=${c.role || '?'}, 등재 ${c.at || '?'})`);
+    console.error('[register-session] 서브에이전트라면 애초에 role=main 으로 등재하지 마세요 — 소유는 세션 하나만 가져요.');
+    console.error('[register-session] 앞 세션이 정말 끝났다면: 그 세션에서 --unregister, 또는 여기서 --force.');
+    process.exit(2);
+  }
+  if (conflicts.length && force) {
+    console.warn(`[register-session] ⚠ --force — ${conflicts.length}건의 기존 소유를 넘겨받아요: ${conflicts.map((c) => c.sid.slice(0, 8)).join(', ')}`);
+  }
+}
 
 reg.workers[SELF] = { role, ownInboxes: inboxes, registeredAt: new Date().toISOString() };
 save(reg);

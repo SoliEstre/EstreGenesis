@@ -1633,6 +1633,37 @@ server.on('upgrade', (req, socket) => {
     if (!_isLoopback && !isLoopbackIp(_ip) && !(surfaceAllowed('agent', _ip) || surfaceAllowed('mcp', _ip))) {
       console.warn('[ws upgrade] #5a-3 차단 IP 거부 (agent·MCP 둘 다 allowlist 밖) ip=%s', _ip || '?'); socket.destroy(); return;
     } }
+  // v2.4.112 §13.25.15 (Ultrasafe 회차 2 — web-09 / se-09 / tml-09, critical) — **CSWSH.**
+  //   upgrade 는 Origin 을 아예 안 봤어요. HTTP POST 면에는 CSRF 게이트를 걸어뒀는데(web-01 에서
+  //   닫은 그 계열) 훨씬 강한 WS 면에는 없었어요. 결과: 운영자가 브라우저로 여는 **아무 페이지**나
+  //   이 보드에 붙을 수 있고, 무키 연결은 HELLO 없이 «대시보드» 로 분류돼 AgentList + History 전체를
+  //   즉시 받아요(v2.4.111 이 남겨둔 무키 표면). 거기서 KeyList·SetMain·이력 삭제·메인 프롬프트
+  //   주입까지 이어져요. `requireKey:true` 도 HELLO 시점 검사라 **HELLO 를 안 보내면 안 걸려요.**
+  //
+  //   판정 기준은 «브라우저가 보냈는가» 예요. Origin 은 브라우저만 붙여요 — ws 라이브러리로 붙는
+  //   에이전트·MCP 클라이언트는 안 보내요. 그래서 **Origin 이 있으면 같은 출처여야 하고, 없으면
+  //   비-브라우저로 보고 통과**시켜요(그 뒤 키/HELLO 게이트가 종전대로 걸려요). 반대로 하면
+  //   — 없을 때 거부 — 모든 에이전트가 끊겨요.
+  { const origin = req.headers.origin;
+    if (origin) {
+      let allowed = false;
+      try {
+        const o = new URL(origin);
+        // 같은 출처: 대시보드는 이 서버가 서빙해요. LAN 노출 배포에서 LAN 주소로 열어도 host 가 같아요.
+        if (req.headers.host && o.host === req.headers.host) allowed = true;
+        // loopback 페이지(포트가 다른 로컬 개발 서버 등)는 명시 허용.
+        else if (isLoopbackIp(o.hostname) || o.hostname === 'localhost') allowed = true;
+      } catch { /* 파싱 불가 Origin → 거부 */ }
+      // 운영자가 별도 출처를 쓰는 배포용 탈출구. 비우면 위 두 규칙만 적용돼요.
+      if (!allowed) {
+        const extra = String(process.env.WS_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
+        if (extra.includes(origin)) allowed = true;
+      }
+      if (!allowed) {
+        console.warn('[ws upgrade] CSWSH 거부 — 교차출처 Origin=%s (host=%s)', origin, req.headers.host || '?');
+        socket.destroy(); return;
+      }
+    } }
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
   conn.meta.ip = normIp(req.socket.remoteAddress);   // v2.4.87 — 운영자 authz(§13.25.9) 가 주소를 봐야 하므로 upgrade 시 보관
