@@ -8,7 +8,7 @@
 # 보안: cwd=/data/hub 라 config/(시크릿) 는 접근 경로 밖. 허용 도구는 Read/Edit/Write 뿐(셸 불가)
 #       → 셸 탈출/exfil 불가. add-dir 로 board(state) 와 문서 repo(읽기)만 확장.  [§13.27 invariant 4]
 #
-# provenance: MangoEdu hub-peer dogfood 실배치 검증본(2026-07-09) 업스트림.
+# provenance: 채택자 hub-peer dogfood 실배치 검증본(2026-07-09) 업스트림.
 # 업스트림 시 정합 조정 2건(원본 대비): ① NOISE 에 AgentHello 추가(§13.16.9 handshake 그룹 —
 # v2.4.47 watcher 정렬과 동일) ② tier 리스트를 §13.16.9 tier 컬럼(SSoT)과 정렬 + fail-safe 를
 # 스펙대로 unknown non-noise → escalation 으로 (원본은 unknown→routine 이었음). SSoT 변경 시 lockstep 갱신.

@@ -66,7 +66,7 @@
 1. **brew 미수행** — reference 마스터 `.cjs`/dashboard 가 완성형이라 UI 컴포넌트 brew 없이 복사 배치. brew 는 커스터마이즈 시로 연기. (decision #4 "fastest path" 충족 — 단 fastest path 는 plugin 도 brew 도 아닌 *reference 복사* 였음)
 2. **`estreux-engine/` gitignore** — EstreUX(별도 Apache-2.0 리포)의 re-fetchable 산출물 → 사이드카 추적 제외, README 에 재취득 명령 기록. (사이드카 tracked = 자체 런타임 배치물로 SSoT 경계 유지)
 3. **plugin 설치는 사용자 액션으로 분리** — `/plugin` 슬래시 커맨드는 에이전트가 직접 실행 불가. 직접-WS 브릿지가 이미 동작하므로 MCP 는 옵션으로 남김.
-4. **agentId = `mangoclass-main`**, 포트 17878 (§3.12 박제값).
+4. **agentId = `adopter-main`**, 포트 17878 (§3.12 박제값).
 
 ---
 
@@ -83,16 +83,16 @@
 
 ```
 # 서버 (detached)
-PORT=17878 WS_PRIMARY_AGENT=mangoclass-main node .constellation/server.cjs
+PORT=17878 WS_PRIMARY_AGENT=adopter-main node .constellation/server.cjs
   → boot: "Live dashboard → http://localhost:17878/ (state: …\state.json) [WS: /ws]"
 # HTTP
 GET /            → 200, 8361 bytes, <title>Constellation 라이브보드</title>
-GET /api/state   → 200, {modes.liveBoard:true, projects:[testclass-class-mangoedu,sidecar], done:1, planned:1}
+GET /api/state   → 200, {modes.liveBoard:true, projects:[testclass-class-adopter,sidecar], done:1, planned:1}
 GET /api/events  → SSE "event: state\ndata: {…}"
 # 브릿지
-WS_URL=ws://127.0.0.1:17878/ws WS_AGENT_ID=mangoclass-main node .constellation/local-bridge.cjs
-  → "connected → HELLO as mangoclass-main" / "SERVER_HELLO proto 0.3"
-  → lockfile .mangoclass-main-bridge.lock
+WS_URL=ws://127.0.0.1:17878/ws WS_AGENT_ID=adopter-main node .constellation/local-bridge.cjs
+  → "connected → HELLO as adopter-main" / "SERVER_HELLO proto 0.3"
+  → lockfile .adopter-main-bridge.lock
 # watcher
 WS_INBOX=inbox.jsonl bash .constellation/self-wake-watcher.sh
   → "[ws-wait] armed: … interval=5s max=588"  (standby:false → 즉시 WAKE, 설계대로)
