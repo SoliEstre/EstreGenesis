@@ -1,11 +1,12 @@
 ---
 name: hyperbrief
-description: Use AFTER hyperbrief-trigger-check returns FULL_HYPERBRIEF or MINIMAL_BRIEF. Generates the 8-section decision-delegation brief (JSON IR + deterministic MD/HTML render) and emits a paired Constellation DECISION_REQUEST + HyperbriefCard envelope. MUST run when (a) escalation_sum >= 4, (b) any MUST-trigger fires (irreversibility>=2 / cross-module blast radius / external-party notification / resource threshold / supersedes prior decision), (c) Superscalar fan-out gate just opened a write/deploy/send lane, (d) Constellation A2A DECISION_REQUEST is inbound for response. SKIP when trigger-check returned AUTONOMOUS_DECIDE or BLOCK_FRAMING.
+version: 0.8.0
+description: Use AFTER hyperbrief-trigger-check returns FULL_HYPERBRIEF, SUMMARY_BRIEF, or MINIMAL_BRIEF. v0.8 adds the SUMMARY_BRIEF tier (Hyperbrief.md §2.5 + §4 SummaryBrief body) — a 3-stage brief that is the DEFAULT floor for sub-threshold decisions, carrying the debiasing set (≥2 options with both gain and loss, no_action_cost, meta_branch, ≥1 key_unknowns, conditional §8 with switch_if) plus a mandatory full_brief_fallback escalation affordance; it omits evidence (MCDA / pre-mortem / Toulmin CIs / node tree) and only evidence. Generates the 8-section decision-delegation brief (JSON IR + deterministic MD/HTML render) and emits a paired Constellation DECISION_REQUEST + HyperbriefCard envelope. MUST run when (a) escalation_sum >= 4, (b) any MUST-trigger fires (irreversibility>=2 / cross-module blast radius / external-party notification / resource threshold / supersedes prior decision), (c) Superscalar fan-out gate just opened a write/deploy/send lane, (d) Constellation A2A DECISION_REQUEST is inbound for response. SKIP when trigger-check returned AUTONOMOUS_DECIDE or BLOCK_FRAMING.
 ---
 
 # Hyperbrief — 8-section decision brief generation
 
-You are about to produce a Hyperbrief because `hyperbrief-trigger-check` returned `FULL_HYPERBRIEF` (or `MINIMAL_BRIEF` for Cynefin chaotic). Follow this pipeline strictly.
+You are about to produce a Hyperbrief because `hyperbrief-trigger-check` returned `FULL_HYPERBRIEF`, `SUMMARY_BRIEF` (v0.8 — the default floor, §0.5 below), or `MINIMAL_BRIEF` (Cynefin chaotic). **Read the verdict first and take the matching pipeline** — §0 for a full brief, §0.5 for a summary. Running the 9-section pipeline on a `SUMMARY_BRIEF` verdict is not a safe over-delivery: the tier exists because a brief cheap enough to always emit is what closes the gap, and spending full-brief cost on every decision is the alert-fatigue failure §2.4 guards against.
 
 > **Core invariant**: you emit **JSON IR only**. The renderers (or the templates as fallback) produce MD and HTML. Do NOT write MD or HTML directly — it causes representation drift and turns the 8 sections into markdown cosplay.
 
@@ -27,6 +28,35 @@ You are about to produce a Hyperbrief because `hyperbrief-trigger-check` returne
 ```
 
 Single-shot 8-section generation is **discouraged** — sections downstream of §5 collapse to hand-waving when the LLM holds all 8 in working memory simultaneously.
+
+## 0.5 SUMMARY_BRIEF pipeline (v0.8.0) — 3 stages, `status: "summary"`
+
+```
+1. carry the escalation 4-score + reversibility + Cynefin + RAPID Decider into section_0_summary
+2. draft §6 (decision prompt) + summary_core   ← the question, then the option set
+3. derive section_8_summary FROM summary_core.options   ← never before them
+4. attach full_brief_fallback + section_9_decision_capture_stub → validate → render
+```
+
+**What you are allowed to omit, and nothing else.** Drop the evidence: §2's blast-radius enumeration, §3's incremental path, §4's four blocks, §5's MCDA table / pre-mortem / stakeholder restatement / Toulmin CIs, §7's node tree, §8's methodology and artifact bodies. Keep everything that makes the output a *brief* rather than a *nudge*:
+
+| Field | Do not drop, because |
+|---|---|
+| `summary_core.options[]` — ≥ 2, each with **both** `gain` and `loss` | One option is a recommendation wearing an option list. Gain-only is a pitch. |
+| `summary_core.no_action_cost` | Doing nothing is the alternative most often left out, and leaving it out is how a non-decision becomes a decision. |
+| `summary_core.meta_branch` | accept · reject_framing · defer · request_investigation. The reader's right to refuse does not shrink with the brief. |
+| `summary_core.key_unknowns[]` — ≥ 1 | An all-`[verified]` summary is a summary that stopped looking. |
+| `section_8_summary.switch_if` | This is the difference between recommending and asking for consent. |
+| `full_brief_fallback` | The reader must stay one action from the evidence you compressed. |
+| epistemic tags on every assertion | MUST-4 is tier-independent. Shorter surface, more weight per tag. |
+
+**Derivation order is normative even here.** Compose the option set before the recommendation. Writing §8 first and then listing options that justify it is AF-9 at reduced size, and the reduced size makes it *easier* to do and *harder* to see.
+
+**Populate `full_brief_fallback` in the user's language** at emit time, exactly as MUST-19 requires for `audience_profile_fallback` — same auto-localize rule, same `normalizeTriggerPhrases` normalizer, opposite direction. Reference literals: EN `"Show me the full brief."`; KO `"풀 브리핑으로 보여줘 (근거까지)"`; JA `"詳しいブリーフを見せて。"`. Also set `brief_tier_resolved` to the tier you resolved, so an operator who pinned `full` can see whether they got it.
+
+**When the reader escalates** (their response matches `full_brief_fallback.trigger_phrases_md`, or they press the button): generate the FullBrief **before answering anything else**, with the **same `decision_id`**, set `escalated_from_tier: "summary"`, and reuse the summary's §6 verbatim — the question did not change. Do **not** add a `decision_lineage.parent_decision_ids` link (that field means supersession; a tier escalation supersedes nothing), do **not** record the escalation as a decision outcome, and do **not** re-ask the question as though the summary had not happened. A reader asking for the evidence has not agreed to anything (AF-29).
+
+**Also write `.hyperbrief/active-profile.json`** at summary-emit time, same as for a full brief (MUST-20) — the tone-drift Stop hook is tier-independent, and a compressed surface is where declared-vs-effective drift is most likely.
 
 **v0.6 pipeline insertion**: between steps 6 and 7, run the **v0.6 slot scan** (§1.v06 below) — check each of the 4 triggers and populate any slot whose trigger fires. Slots are cross-referential (`evaluation_lenses[].methodology_ref` → `recommended_methodology[].id`; `maturity_anchor.anchor_methodology` → `recommended_methodology[].id`), so populate `recommended_methodology` first when multiple v0.6 slots fire together.
 

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>{{decision_id}} · 결정 요약 · Hyperbrief</title>
+  <!-- SummaryBrief template — status === 'summary' (Hyperbrief.md §2.5 + §4 SummaryBrief body).
+       Contains ZERO block helpers: the mini-engine substitutes dot-paths only. Lists and conditionals
+       are built in mini-engine.cjs (buildSummaryBlocks) and injected at the sentinel comments. -->
+  <style>
+    :root { --accept:#16a34a; --reject:#b91c1c; --defer:#a16207; --investigate:#1d4ed8; }
+    body { font: 14px/1.65 ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", "Pretendard", sans-serif; max-width: 820px; margin: 32px auto; padding: 0 16px; color: #1f2933; }
+    .card { border: 1px solid #cfd6df; border-left: 4px solid #0f766e; border-radius: 8px; padding: 20px 24px; background: #f0fdfa; }
+    h1 { font-size: 19px; margin: 0 0 10px; color: #134e4a; }
+    h2 { font-size: 15px; margin: 22px 0 8px; color: #134e4a; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 12px; }
+    .chip { font: 11px/1.4 ui-monospace, "SFMono-Regular", monospace; color: #465160; padding: 4px 9px; background: #fff; border: 1px solid #cfd6df; border-radius: 999px; }
+    .chip.green { border-color:#86efac; background:#f0fdf4; color:#14532d; }
+    .chip.yellow { border-color:#fde68a; background:#fffbeb; color:#78350f; }
+    .chip.red { border-color:#fca5a5; background:#fef2f2; color:#7f1d1d; }
+    .voluntary { font-size: 12px; color: #5b6573; font-style: italic; margin: 0 0 6px; }
+    table { border-collapse: collapse; width: 100%; margin: 6px 0 2px; display:block; overflow-x:auto; }
+    th, td { border: 1px solid #d9e2ec; padding: 7px 10px; text-align: left; vertical-align: top; font-size: 13px; }
+    th { background: #f6f8fa; font-weight: 600; }
+    .gain { color:#14532d; } .loss { color:#7f1d1d; }
+    ul { margin: 6px 0; padding-left: 20px; }
+    code { font-family: ui-monospace, "SFMono-Regular", monospace; background: #fff; padding: 1px 5px; border-radius: 3px; border: 1px solid #e2e8f0; }
+    .meta-branch { display:flex; flex-wrap:wrap; gap:8px; margin: 8px 0; }
+    .meta-branch .mb { flex:1 1 210px; border:1px solid #d9e2ec; border-radius:6px; padding:8px 10px; background:#fff; font-size:12.5px; }
+    .meta-branch .mb b { display:block; margin-bottom:3px; }
+    .mb.accept b { color: var(--accept); } .mb.reject b { color: var(--reject); }
+    .mb.defer b { color: var(--defer); } .mb.investigate b { color: var(--investigate); }
+    .affordances { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+    .affordances button { padding:6px 12px; border:1px solid #cfd6df; border-radius:6px; font-size:13px; cursor:pointer; }
+    #tone-floor-btn { background:#fffbe6; color:#7a5a00; }
+    #full-brief-btn { background:#eef2ff; color:#1e3a8a; }
+    .footer { margin-top: 22px; font-size: 12px; color: #5b6573; }
+    .footer p { margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <header class="affordances">
+    <!-- ===== §5.6.7 tone-floor fallback (down) and §5.6.10 full-brief fallback (up).
+             Two directions, one mechanism — see Hyperbrief.md §5.6.10 comparison table. ===== -->
+    <span class="chip" id="tone-profile-chip">A{{section_0_summary.audience_profile.audience}}·B{{section_0_summary.audience_profile.abbreviation}}·J{{section_0_summary.audience_profile.jargon}}</span>
+    <!--SUMMARY_TONE_BTN-->
+    <!--SUMMARY_FULL_BTN-->
+  </header>
+
+  <div class="card">
+    <h1>📋 결정 요약 · <code>{{decision_id}}</code></h1>
+
+    <div class="chips">
+      <span class="chip">escalation <b>{{section_0_summary.escalation.sum}}</b> / 12</span>
+      <!--SUMMARY_REVERSIBILITY_CHIP-->
+      <span class="chip">영역 {{section_0_summary.cynefin_domain}}</span>
+      <span class="chip">결정권 {{section_0_summary.rapid_decider}}</span>
+      <span class="chip">기한 {{section_0_summary.deadline}}</span>
+      <span class="chip">티어 바닥 {{brief_tier_resolved}}</span>
+    </div>
+
+    <p class="voluntary">이 질문에 답하지 않아도 됩니다 — 거부 / 보류 / 조사 요청이 아래 「다른 길」에 있습니다.</p>
+
+    <h2>질문</h2>
+    <p><b>{{section_6_decision_prompt.question_to_user}}</b></p>
+    <ul>
+      <li><b>핵심</b> — {{section_6_decision_prompt.essence_one_line}}</li>
+      <li><b>맞바꾸는 것</b> — {{section_6_decision_prompt.core_tradeoff_one_line}}</li>
+    </ul>
+
+    <h2>선택지</h2>
+    <!--SUMMARY_OPTIONS-->
+
+    <h2>아무것도 안 하면</h2>
+    <p>{{summary_core.no_action_cost}}</p>
+
+    <h2>아직 모르는 것</h2>
+    <!--SUMMARY_UNKNOWNS-->
+
+    <h2>다른 길 — 답하지 않을 자유</h2>
+    <!--SUMMARY_METABRANCH-->
+
+    <h2>권고</h2>
+    <p>{{section_8_summary.recommended}}</p>
+    <!--SUMMARY_REC_META-->
+
+    <div class="footer">
+      <p><code>SummaryBrief</code> IR — <a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Hyperbrief.md">Hyperbrief.md</a> §2.5. 재검토 {{section_9_decision_capture_stub.revisit_date}} · 원장 <code>{{section_9_decision_capture_stub.ledger_pointer}}</code>.</p>
+      <p>이 티어가 생략한 것은 <b>근거</b>예요 — MCDA 표 · 사전 부검 · 신뢰구간 · 파급 범위 열거 · 결정 트리. 생략한 건 그것뿐이고, 선택지 · 아무것도-안-하는-비용 · 다른 길 · 모르는 것은 전체 브리핑과 같은 내용이에요. 위 버튼으로 전체 브리핑을 요구하면 <b>같은 결정 번호</b>로 근거까지 나오고, 요구 자체가 답으로 기록되지는 않아요.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{{!-- SummaryBrief template — rendered when status === 'summary' (Hyperbrief.md §2.5 tier floor + §4 SummaryBrief body).
+
+     DELIBERATELY CONTAINS ZERO BLOCK HELPERS. The mini-engine substitutes dot-paths only; it has no
+     if / each / unless / ifEquals implementation. Every list and every conditional in this file is built
+     in mini-engine.cjs (buildSummaryBlocks) and injected at the HTML-comment sentinels below. Writing
+     block syntax here would emit conditional bodies unconditionally and loop bodies exactly once with
+     empty values, which is a silent surface defect rather than an error.
+--}}
+# 결정 요약 · {{decision_id}}
+
+> 📋 **요약 브리핑** — escalation **{{section_0_summary.escalation.sum}}** / 12 (되돌릴 수 없음 {{section_0_summary.escalation.irreversibility}} · 파급 {{section_0_summary.escalation.blast_radius}} · 기간 {{section_0_summary.escalation.time_horizon}} · 되돌리는 비용 {{section_0_summary.escalation.reversal_cost}})
+> 되돌림 **{{section_0_summary.reversibility_class}}** · 영역 {{section_0_summary.cynefin_domain}} · 결정권 {{section_0_summary.rapid_decider}} · 기한 {{section_0_summary.deadline}} · 읽는 시간 {{section_0_summary.recommended_reading_minutes}}분
+>
+> 이 질문에 답하지 않아도 됩니다 — 거부 / 보류 / 조사 요청이 아래 「다른 길」에 있습니다.
+
+## 질문
+
+**{{section_6_decision_prompt.question_to_user}}**
+
+- **핵심**: {{section_6_decision_prompt.essence_one_line}}
+- **맞바꾸는 것**: {{section_6_decision_prompt.core_tradeoff_one_line}}
+
+## 선택지
+
+<!--SUMMARY_OPTIONS-->
+
+## 아무것도 안 하면
+
+{{summary_core.no_action_cost}}
+
+## 아직 모르는 것
+
+<!--SUMMARY_UNKNOWNS-->
+
+## 다른 길 — 답하지 않을 자유
+
+<!--SUMMARY_METABRANCH-->
+
+## 권고
+
+{{section_8_summary.recommended}}
+
+<!--SUMMARY_REC_META-->
+
+<!--SUMMARY_FALLBACK-->
+
+---
+
+*`SummaryBrief` IR — Hyperbrief.md §2.5, 티어 바닥 `{{brief_tier_resolved}}`. 재검토 {{section_9_decision_capture_stub.revisit_date}} · 원장 `{{section_9_decision_capture_stub.ledger_pointer}}`.*
+
+*이 티어가 생략한 것은 **근거**예요 — MCDA 표 · 사전 부검 · 신뢰구간 · 파급 범위 열거 · 결정 트리. 생략한 건 그것뿐이고, 선택지·아무것도-안-하는-비용·다른 길·모르는 것은 전체 브리핑과 같은 내용이에요. 근거까지 보시려면 위 문구 중 하나로 요구하시면 돼요 — **같은 결정 번호**로 전체 브리핑이 나오고, 요구 자체가 답으로 기록되지는 않아요.*

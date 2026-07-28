@@ -1,7 +1,7 @@
 ---
 name: hyperbrief-trigger-check
-version: 0.6.0
-description: ALWAYS run BEFORE composing any message that asks the user for a decision, approval, or choice. Cheap escalation rubric (4-score + 5 MUST-trigger conditions) that returns one of {AUTONOMOUS_DECIDE, FULL_HYPERBRIEF, MINIMAL_BRIEF, BLOCK_FRAMING}. Triggered by message-intent patterns ('괜찮을까요','할까요','should we','which option','approve','confirm','choose between','OK to') OR by Superscalar opening a write/deploy/send lane OR by inbound Constellation DECISION_REQUEST. Also routes audience-profile commands (tone L<n>.<n>.<n> + term_pairing L<n>.{E|I|N}.{C|D|B|R|A}[!|?]) to the hyperbrief skill for AudienceProfileFallback population. Invokes the full hyperbrief skill ONLY when outcome != AUTONOMOUS_DECIDE. Skip for pure read-only fan-outs.
+version: 0.8.0
+description: ALWAYS run BEFORE composing any message that asks the user for a decision, approval, or choice. Cheap escalation rubric (4-score + 5 MUST-trigger conditions) that returns one of {AUTONOMOUS_DECIDE, SUMMARY_BRIEF, FULL_HYPERBRIEF, MINIMAL_BRIEF, BLOCK_FRAMING}. v0.8 adds the brief-tier toggle (Hyperbrief.md §2.5) — the sub-threshold output is no longer always a one-liner; the tier floor (off | summary | full, default summary, set via HB.<tier> command / HYPERBRIEF_BRIEF_TIER env / .hyperbrief/config.json brief_tier) is resolved and the verdict is max(rubric_tier, floor) over BLOCKED_STUB < SUMMARY_BRIEF < FULL_HYPERBRIEF, so no setting can ever lower the tier the rubric demands. Triggered by message-intent patterns ('괜찮을까요','할까요','should we','which option','approve','confirm','choose between','OK to') OR by Superscalar opening a write/deploy/send lane OR by inbound Constellation DECISION_REQUEST. Also routes audience-profile commands (tone L<n>.<n>.<n> + term_pairing L<n>.{E|I|N}.{C|D|B|R|A}[!|?]) to the hyperbrief skill for AudienceProfileFallback population. Invokes the full hyperbrief skill ONLY when outcome != AUTONOMOUS_DECIDE. Skip for pure read-only fan-outs.
 ---
 
 # Hyperbrief Trigger Check — the escalation gate
@@ -104,14 +104,49 @@ any_must_trigger = (
     OR supersedes_prior_decision
 )
 
-if escalation_sum >= 4 OR any_must_trigger:
+# --- what the RUBRIC asks for, on its own ---
+rubric_tier = FULL_HYPERBRIEF if (escalation_sum >= threshold OR any_must_trigger) else BLOCKED_STUB
+
+# --- what the TIER FLOOR asks for (v0.8.0, Hyperbrief.md §2.5) ---
+floor = {off: BLOCKED_STUB, summary: SUMMARY_BRIEF, full: FULL_HYPERBRIEF}[brief_tier]
+
+# --- resolve as a MAX over the lattice. never min, never assignment ---
+#     BLOCKED_STUB  <  SUMMARY_BRIEF  <  FULL_HYPERBRIEF
+verdict = max(rubric_tier, floor)
+
+if verdict == FULL_HYPERBRIEF:
     return FULL_HYPERBRIEF
-    # Invoke the `hyperbrief` skill with the staged generation pipeline.
+    # Invoke the `hyperbrief` skill with the staged 9-section generation pipeline.
+
+if verdict == SUMMARY_BRIEF:
+    return SUMMARY_BRIEF
+    # Invoke the `hyperbrief` skill with the 3-stage summary pipeline.
+    # The summary MUST carry full_brief_fallback so the reader can escalate in one action.
 
 return AUTONOMOUS_DECIDE
+    # Only reachable at brief_tier == "off".
     # Decide autonomously + post-notify in ONE line (no brief, no question).
     # Format: "[decided autonomously, sum=<n>] <one-line summary of action + reversal path>"
 ```
+
+### 6.1 Resolving `brief_tier` (v0.8.0)
+
+Read it in this order and stop at the first hit:
+
+1. **This session's in-conversation setting** — `HB.off` / `HB.summary` / `HB.full`, or an explicit instruction to that effect. Distinguished from the §1.5 tone commands by the `HB.` prefix; the two are orthogonal and may both be in force.
+2. **`HYPERBRIEF_BRIEF_TIER` env** — `off` | `summary` | `full`.
+3. **`.hyperbrief/config.json` → `brief_tier`** — the project's pinned policy. The PreToolUse hook resolves this same value and names the resolved floor in its advisory line, so when you see that line you already have the answer.
+4. **Default `summary`.**
+
+If the file is unreadable or the value unrecognized, use `summary` **and say so once** in the surface you emit. A silent fallback is indistinguishable from the setting having been honored, which matters most for the operator who pinned `full` and did not get it.
+
+### 6.2 What the max is protecting
+
+`max` — not assignment, not min. `brief_tier` raises the floor and can never lower the tier the rubric asked for: an irreversible or cross-module decision gets the nine sections at `off`, `summary`, and `full` alike. If you find yourself emitting a summary for something that fired a MUST-trigger because the setting said `summary`, you have inverted the feature into a bypass (AF-27), and the correct output is the full brief.
+
+The §7 anti-triggers below short-circuit **ahead** of this resolution and are not overridden by any setting — `confused` still blocks framing and `chaotic` still gets the single action card at `full`. A frame nobody can classify does not become classifiable at greater length, and a chaotic domain's constraint is elapsed time, which a long brief spends.
+
+One consequence worth stating because it is easy to implement wrongly: at `brief_tier: full` the §7 self-throttle's lever does nothing (raising the threshold 4→5 cannot matter when the floor is already full), but it MUST still emit its self-warning card and name `summary` as the remedy. A fatigue guard that stops speaking because it lost its lever looks exactly like one that found nothing wrong (AF-28).
 
 ## 7. Anti-trigger / suppression rules
 
@@ -125,7 +160,11 @@ Return a structured handoff to the caller:
 
 ```jsonc
 {
-  "verdict": "AUTONOMOUS_DECIDE" | "FULL_HYPERBRIEF" | "MINIMAL_BRIEF" | "BLOCK_FRAMING",
+  "verdict": "AUTONOMOUS_DECIDE" | "SUMMARY_BRIEF" | "FULL_HYPERBRIEF" | "MINIMAL_BRIEF" | "BLOCK_FRAMING",
+  "brief_tier": "off" | "summary" | "full",              // v0.8: resolved per §6.1
+  "brief_tier_source": "session" | "env" | "config" | "default" | "default-after-parse-failure",
+  "rubric_tier": "BLOCKED_STUB" | "FULL_HYPERBRIEF",     // v0.8: what the rubric alone asked for, before the floor
+
   "escalation_sum": <int 0-12>,
   "scores": { "irreversibility": <0-3>, "blast_radius": <0-3>, "time_horizon": <0-3>, "reversal_cost": <0-3> },
   "must_triggers_fired": [ /* names of any conditions in §3 that fired */ ],
@@ -137,7 +176,7 @@ Return a structured handoff to the caller:
 }
 ```
 
-If `verdict == FULL_HYPERBRIEF` or `MINIMAL_BRIEF`, immediately invoke the `hyperbrief` skill with this handoff as context. If `verdict == AUTONOMOUS_DECIDE`, proceed with the decision and emit the one-line post-notify. If `verdict == BLOCK_FRAMING`, surface domain confusion to the user before any option enumeration. If `audience_profile_command != null`, the `hyperbrief` skill must also be invoked for command parsing + AudienceProfileFallback population (orthogonal to the verdict path).
+If `verdict == FULL_HYPERBRIEF` or `MINIMAL_BRIEF` or `SUMMARY_BRIEF`, immediately invoke the `hyperbrief` skill with this handoff as context — it selects the 9-section or 3-stage pipeline from the verdict. If `verdict == AUTONOMOUS_DECIDE`, proceed with the decision and emit the one-line post-notify (reachable only at `brief_tier: off`). Emitting `rubric_tier` alongside `verdict` is what makes AF-27 auditable after the fact: `verdict` below `rubric_tier` is always a defect, and the pair is the only place that comparison is recoverable. If `verdict == BLOCK_FRAMING`, surface domain confusion to the user before any option enumeration. If `audience_profile_command != null`, the `hyperbrief` skill must also be invoked for command parsing + AudienceProfileFallback population (orthogonal to the verdict path).
 
 ## 9. Back-compat (v0.6 cut)
 

@@ -121,9 +121,14 @@ const JARGON_GLOSS = {
 function applyAudienceTransform(text, level) {
   if (level <= 2) {
     // L1-L2: epistemic bracket tags → 한국어 단어형 (prose flow 보존)
+    // The replacement string already ends in "— ", so the tag's own trailing whitespace must be
+    // consumed too; a plain split/join left "추론 —  텍스트" with a doubled space in every brief
+    // rendered at L1-L2. The L4-L5 branch below already used \s* — this is the same rule, applied
+    // symmetrically rather than in one of the two places.
     let out = text;
     for (const [bracket, korean] of Object.entries(EPISTEMIC_TAG_KO)) {
-      out = out.split(bracket).join(korean);
+      const re = new RegExp(bracket.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*", "g");
+      out = out.replace(re, () => korean);
     }
     return out;
   }
@@ -728,7 +733,10 @@ function buildV06SectionsHtml(ir) {
 
 function resolveProfile(ir, opts) {
   const fromOpts = opts && opts.audience_profile_override;
-  const fromIr = ir && ir.section_0_decision_header && ir.section_0_decision_header.audience_profile;
+  // v0.8.0: headerOf() so a SummaryBrief's section_0_summary is read too. Before this, a summary's
+  // declared tone silently fell through to DEFAULT_PROFILE — a declaration nobody honored.
+  const hdr = headerOf(ir);
+  const fromIr = hdr && hdr.audience_profile;
   const p = fromOpts || fromIr || DEFAULT_PROFILE;
   const clamp = (n) => Math.max(1, Math.min(5, Number.isFinite(n) ? Math.round(n) : 2));
   return {
@@ -756,10 +764,133 @@ function stripHeadingEpistemicTag(ir) {
 
 // v0.5.2 H2: status-based template selection. BlockedStub gets the compact stub template; FullBrief
 // gets the full brief template. Per bundle 008 H2.
+// v0.8.0: SummaryBrief (status 'summary') gets its own pair — the §2.5 tier between the two.
 function selectTemplate(ir, surface) {
-  const isStub = ir && ir.status === "blocked_low_escalation";
-  if (surface === "html") return isStub ? "brief-stub.html.template" : "brief.html.template";
-  return isStub ? "brief-stub.md.template" : "brief.md.template";
+  const status = ir && ir.status;
+  const html = surface === "html";
+  if (status === "summary") return html ? "brief-summary.html.template" : "brief-summary.md.template";
+  if (status === "blocked_low_escalation") return html ? "brief-stub.html.template" : "brief-stub.md.template";
+  return html ? "brief.html.template" : "brief.md.template";
+}
+
+// v0.8.0 — the §0 header lives at a different key per tier: `section_0_decision_header` on a FullBrief,
+// `section_0_summary` on a SummaryBrief. Everything that reads the header (tone profile, term-pairing
+// policy) goes through here, so adding the tier did not require teaching each reader about both keys —
+// which is the shape in which one reader gets missed and silently falls back to a default.
+function headerOf(ir) {
+  if (!ir) return undefined;
+  return ir.section_0_summary || ir.section_0_decision_header;
+}
+
+// ─── SummaryBrief block builders (v0.8.0) ───────────────────────────────────
+//
+// The mini-engine substitutes dot-paths only — no if / each. Lists and conditionals for the summary
+// tier are therefore built here and injected at sentinel comments in the template. Values are escaped
+// per surface at build time, because `substitute` only escapes what IT substitutes.
+//
+// Every `.replace` below uses a FUNCTION replacement. A string replacement would treat `$` in the
+// built block as a substitution escape (`$&`, `$1`, `$$`) and silently mangle any content containing
+// it — the same trap that collapsed a `$` to nothing in a CHANGELOG entry once already.
+
+function injectSummaryBlocks(template, ir, surface) {
+  const html = surface === "html";
+  const esc = html ? escapeHtml : (s) => String(s == null ? "" : s);
+  const core = (ir && ir.summary_core) || {};
+  const put = (tpl, sentinel, block) => tpl.replace(sentinel, () => block);
+
+  // ── options: ≥2, each with BOTH directions. Gain-only would be a pitch (§4 MUST-carry table).
+  const options = Array.isArray(core.options) ? core.options : [];
+  let optionsBlock;
+  if (!options.length) {
+    optionsBlock = html
+      ? '<p><b>⚠ 선택지가 비어 있어요</b> — SummaryBrief 스키마는 ≥2 를 요구해요 (AF-30).</p>'
+      : "> ⚠ **선택지가 비어 있어요** — SummaryBrief 스키마는 ≥2 를 요구해요 (AF-30).";
+  } else if (html) {
+    optionsBlock =
+      "<table><thead><tr><th>선택지</th><th>얻는 것</th><th>잃는 것</th></tr></thead><tbody>" +
+      options.map((o) =>
+        `<tr><td><b>${esc(o.label)}</b></td>` +
+        `<td class="gain">${esc(o.gain)}</td>` +
+        `<td class="loss">${esc(o.loss)}</td></tr>`
+      ).join("") +
+      "</tbody></table>";
+  } else {
+    optionsBlock =
+      "| 선택지 | 얻는 것 | 잃는 것 |\n|---|---|---|\n" +
+      options.map((o) => `| **${o.label}** | ${o.gain} | ${o.loss} |`).join("\n");
+  }
+
+  // ── key unknowns: ≥1. An all-[verified] summary is a summary that stopped looking.
+  const unknowns = Array.isArray(core.key_unknowns) ? core.key_unknowns : [];
+  const unknownsBlock = unknowns.length
+    ? (html
+        ? "<ul>" + unknowns.map((u) => `<li>${esc(u)}</li>`).join("") + "</ul>"
+        : unknowns.map((u) => `- ${u}`).join("\n"))
+    : (html
+        ? '<p><b>⚠ 모르는 것이 하나도 없다고 적혀 있어요</b> — 스키마는 ≥1 을 요구해요.</p>'
+        : "> ⚠ **모르는 것이 하나도 없다고 적혀 있어요** — 스키마는 ≥1 을 요구해요.");
+
+  // ── meta branch: the reader's right to refuse, identical shape to §7's (shared $def).
+  const mb = core.meta_branch || {};
+  const MB = [
+    ["accept", "받아들이기", mb.accept],
+    ["reject", "질문 자체를 거부", mb.reject_framing],
+    ["defer", "보류", mb.defer],
+    ["investigate", "조사 먼저", mb.request_investigation],
+  ];
+  const metaBlock = html
+    ? '<div class="meta-branch">' +
+      MB.map(([cls, ko, txt]) => `<div class="mb ${cls}"><b>${esc(ko)}</b>${esc(txt || "—")}</div>`).join("") +
+      "</div>"
+    : MB.map(([, ko, txt]) => `- **${ko}** — ${txt || "—"}`).join("\n");
+
+  // ── recommendation metadata: confidence + switch_if (+ optional escalate_note).
+  const s8 = (ir && ir.section_8_summary) || {};
+  const recRows = [["신뢰도", s8.confidence == null ? "—" : String(s8.confidence)], ["뒤집히는 조건", s8.switch_if || "—"]];
+  if (s8.escalate_note) recRows.push(["전체 브리핑이 더 주는 것", s8.escalate_note]);
+  const recBlock = html
+    ? "<ul>" + recRows.map(([k, v]) => `<li><b>${esc(k)}</b> — ${esc(v)}</li>`).join("") + "</ul>"
+    : recRows.map(([k, v]) => `- **${k}**: ${v}`).join("\n");
+
+  // ── §5.6.10 escalation affordance. Phrases go through the ONE normalizer (MUST-25); an empty
+  //    result means no phrases, never the default list, so an empty list is surfaced as a defect.
+  const fbf = (ir && ir.full_brief_fallback) || {};
+  const phrases = normalizeTriggerPhrases(fbf.trigger_phrases_md);
+  const label = fbf.button_label || "풀 브리핑으로 보여줘 (근거까지)";
+  let fallbackBlock;
+  if (html) {
+    fallbackBlock = "";
+  } else if (fbf.enabled === false) {
+    fallbackBlock = "> ⚠ **전체 브리핑 어포던스가 꺼져 있어요** — 요약은 근거를 압축한 것이라, 근거로 가는 길이 없으면 브리핑이 아니라 주장이에요 (AF-30).";
+  } else {
+    const list = phrases.length
+      ? phrases.map((p) => `\`${p}\``).join(" · ")
+      : "**(문구 목록이 비어 있어요 — 스키마 기본값이 대신 적용되지 않아요, AF-30)**";
+    fallbackBlock = `> 🔎 **근거까지 보시려면**: “${label}” — 또는 이 중 아무 말이나 하시면 돼요: ${list}\n>\n> 같은 결정 번호로 전체 브리핑을 드려요. 요구하신 것 자체는 답으로 기록되지 않아요.`;
+  }
+
+  // HTML surface: the two affordance buttons + the reversibility chip.
+  const toneBtn = '<button id="tone-floor-btn" type="button" data-default-label="' +
+    escapeHtml(((headerOf(ir) || {}).audience_profile_fallback || {}).button_label || "뭔 소리야? 한국어로 번역해줘 (내가 알아들을 수 있는 말로)") + '">' +
+    escapeHtml(((headerOf(ir) || {}).audience_profile_fallback || {}).button_label || "뭔 소리야? 한국어로 번역해줘 (내가 알아들을 수 있는 말로)") + "</button>";
+  const fullBtn = fbf.enabled === false
+    ? '<span class="chip red">전체 브리핑 어포던스 꺼짐 (AF-30)</span>'
+    : '<button id="full-brief-btn" type="button" data-decision-id="' + escapeHtml((ir && ir.decision_id) || "") +
+      '" data-trigger-phrases="' + escapeHtml(phrases.join("|")) + '">' + escapeHtml(label) + "</button>";
+  const h = headerOf(ir) || {};
+  const color = ["green", "yellow", "red"].includes(h.reversibility_badge_color) ? h.reversibility_badge_color : "";
+  const revChip = `<span class="chip ${color}">되돌림 ${escapeHtml(h.reversibility_class || "?")}</span>`;
+
+  let out = template;
+  out = put(out, "<!--SUMMARY_OPTIONS-->", optionsBlock);
+  out = put(out, "<!--SUMMARY_UNKNOWNS-->", unknownsBlock);
+  out = put(out, "<!--SUMMARY_METABRANCH-->", metaBlock);
+  out = put(out, "<!--SUMMARY_REC_META-->", recBlock);
+  out = put(out, "<!--SUMMARY_FALLBACK-->", fallbackBlock);
+  out = put(out, "<!--SUMMARY_TONE_BTN-->", toneBtn);
+  out = put(out, "<!--SUMMARY_FULL_BTN-->", fullBtn);
+  out = put(out, "<!--SUMMARY_REVERSIBILITY_CHIP-->", revChip);
+  return out;
 }
 
 function renderMd(ir, opts = {}) {
@@ -794,7 +925,11 @@ function renderMd(ir, opts = {}) {
   const renderIr = JSON.parse(JSON.stringify(ir));
   stripHeadingEpistemicTag(renderIr);
 
-  const template = loadTemplate(selectTemplate(ir, "md"));
+  // v0.8.0: summary-tier list/conditional blocks are injected into the template BEFORE substitution,
+  // so injected content still flows through the tone-axis transforms that follow (epistemic-tag
+  // rewriting in particular). No-op for the other two tiers.
+  let template = loadTemplate(selectTemplate(ir, "md"));
+  if (ir && ir.status === "summary") template = injectSummaryBlocks(template, renderIr, "md");
   const substituted = substitute(template, renderIr, "md");
 
   // v0.6: append optional v0.6 sections (evaluation_lenses / recommended_methodology /
@@ -806,7 +941,7 @@ function renderMd(ir, opts = {}) {
 
   // v0.6: term_pairing post-process — applies to document surface ('D') when policy
   // declares it. Deterministic dictionary; no-op on mode 'N' or scope without 'D'.
-  const tpPolicy = renderIr?.section_0_decision_header?.audience_profile_fallback?.term_pairing;
+  const tpPolicy = headerOf(renderIr)?.audience_profile_fallback?.term_pairing;
   output = applyTermPairing(output, tpPolicy, "D", warnings);
 
   // v0.5: surface_profile_estimate + AF-18 declared-vs-estimate gap warning
@@ -858,12 +993,21 @@ function renderHtml(ir, opts = {}) {
 
   let template = loadTemplate(selectTemplate(ir, "html"));
 
-  // §5.6.7 tone-floor fallback button label resolution from IR or default.
-  const fallback = (ir.section_0_decision_header && ir.section_0_decision_header.audience_profile_fallback) || {};
+  // v0.8.0: summary-tier blocks injected before substitution (see renderMd for the ordering rationale).
+  if (ir && ir.status === "summary") template = injectSummaryBlocks(template, renderIr, "html");
+
+  // §5.6.7 tone-floor fallback button label resolution from IR or default. headerOf() so the summary
+  // tier's section_0_summary is read too.
+  const fallback = (headerOf(ir) && headerOf(ir).audience_profile_fallback) || {};
   const buttonLabel = fallback.button_label || "뭔 소리야? 한국어로 번역해줘 (내가 알아들을 수 있는 말로)";
+  // FUNCTION replacements, not strings: `String.prototype.replace` reads `$&` / `$'` / `$1` / `$$` in a
+  // string replacement as substitution escapes. The IR_JSON payload is the dangerous one — a `$` inside
+  // any IR string (`$ref`, a price, a regex) silently rewrote the inlined JSON, and the corruption
+  // surfaces as a client-side parse failure far from its cause. The label has the same exposure.
+  const irJson = JSON.stringify(renderIr).replace(/<\/script>/gi, "<\\/script>");
   template = template
-    .replace(/\{\{button_label\}\}/g, escapeHtml(buttonLabel))
-    .replace(/\{\{IR_JSON\}\}/g, JSON.stringify(renderIr).replace(/<\/script>/gi, "<\\/script>"));
+    .replace(/\{\{button_label\}\}/g, () => escapeHtml(buttonLabel))
+    .replace(/\{\{IR_JSON\}\}/g, () => irJson);
 
   // Inline the IR_JSON before regular substitution so {{...}} markers inside the IR string don't recurse.
   const substituted = substitute(template, renderIr, "html");
@@ -878,7 +1022,7 @@ function renderHtml(ir, opts = {}) {
   // rewrites; since HTML escaping already happened for IR placeholders, we operate
   // on the assembled string and trust that pairing inserts plain parentheses (no
   // angle-bracket injection).
-  const tpPolicy = renderIr?.section_0_decision_header?.audience_profile_fallback?.term_pairing;
+  const tpPolicy = headerOf(renderIr)?.audience_profile_fallback?.term_pairing;
   output = applyTermPairing(output, tpPolicy, "D", warnings);
 
   if (opts.self_contained_assets) {

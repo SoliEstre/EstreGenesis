@@ -1,10 +1,10 @@
-<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.7.7; date: 2026-07-28; status: design draft v0.7.6 (약어 수준 추정이 문장 길이를 재던 자리 — 축의 지표를 약어 내용(첫 뒱장에서 펼치지 않은 약어의 버지)으로 교안하고, 상태가 «재지 못함»이면 null — 결함의 출처는 렌더러가 아니라 이 문서와 스키마였어요) on top of v0.7.4 (부품 부재를 통과로 보고하던 자리 — `hyperbrief_validate` 가 ajv 부재에서 `ok: true` 를 돌려주던 것을 부품 이름을 대는 거부로 교체; 계산하지 않은 판정은 내놓지 않아요) on top of v0.7.3 (MCP response-envelope fix — the 4 decision tools' `tools/call` results are wrapped at a single dispatch choke point; a bare result object is a protocol success with nothing to render, which reads as an absent tool; §5.6.9 setup-flow choice default unchanged) (§5.6.9 setup-flow choice default — first-contact structured choices MUST default to the plain floor band L1.1.1–L1.2.2 with per-option costs/benefits + recommendation + §5.6.7 fallback affordance, MUST-22; 직전 v0.7.0 = post-response tone-estimate Stop hook — deferred candidate #5 landed via host-hook equivalence + estimateSurfaceProfile re-export + skill MUST-20 active-profile arming; 직전 v0.6.2 = §5.6.7 live-board decisions-panel fallback surface — Constellation composition, board card button + fallback-rerender feedback contract; 직전 v0.6.0 = substantive 4-slot additive cut — `recommended_methodology[]` (§8) + `evaluation_lenses[]` (§0) + `maturity_anchor` (FullBrief top-level) + `term_pairing` (§0 AudienceProfileFallback extension with mode E/I/N + scope C/D/B/R + retroactive_apply + I-mode low-frequency override + C-scope auto-non-retroactive + short-command form Lx.M.S+S! / Lx.M.S?); back-compat preserved — all 4 slots optional, existing v0.5.6 IRs validate against v0.6 schema; Workflow fan-out mezzo batch ratification pattern applied (7-agent parallel implementation: schema + renderer + 4 templates + 3 skills); v0.5.6 §5.6.7 auto-localize discipline preserved; v0.5.5 §11.5 v1.0 readiness rubric Lens A 5.3/4.9 + Lens B 5.5/5.1 — both sub-threshold — unchanged, candidates pending count v0.6 → 3 (v0.7+ register)); depends-on: none (optional synergy: Constellation §13 A2A — active, Superscalar §3.1 decision-delegation interlock — active); license: Apache-2.0 -->
+<!-- module: Hyperbrief; layer: decision-gating; part-of: EstreGenesis 2.5.x; version: v0.8.0; date: 2026-07-28; status: design draft v0.8.0 (브리핑 티어 토글 §2.5 — 출력이 «1줄 통보» 아니면 «9섹션» 둘뿐이어서 게이트가 늘 싼 쪽으로 몰리던 자리. 바닥 티어를 설정으로 만들고 그 사이에 요약 브리핑을 넣었어요: `off` = v0.7.x 거동 · `summary` = 기본값 · `full` = 결정마다 전체. 해소는 max 격자라 어떤 설정도 티어를 내릴 수 없고(AF-27), 되돌릴 수 없는 결정은 설정과 무관하게 계속 전체 브리핑을 받아요 — 그래서 기본값 변경이 거동 변경이면서 안전성 변경은 아니에요. 스키마는 가산 — SummaryBrief 가 oneOf 에 합류하고 기존 v0.7.x IR 은 그대로 통과. 상향 어포던스 §5.6.10 은 말투를 내리는 §5.6.7 의 방향만 반대인 형제 장치) on top of v0.7.6 (약어 수준 추정이 문장 길이를 재던 자리 — 축의 지표를 약어 내용(첫 등장에서 펼치지 않은 약어의 비율)으로 교체하고, 상태가 «재지 못함»이면 null — 결함의 출처는 렌더러가 아니라 이 문서와 스키마였어요) on top of v0.7.4 (부품 부재를 통과로 보고하던 자리 — `hyperbrief_validate` 가 ajv 부재에서 `ok: true` 를 돌려주던 것을 부품 이름을 대는 거부로 교체; 계산하지 않은 판정은 내놓지 않아요) on top of v0.7.3 (MCP response-envelope fix — the 4 decision tools' `tools/call` results are wrapped at a single dispatch choke point; a bare result object is a protocol success with nothing to render, which reads as an absent tool; §5.6.9 setup-flow choice default unchanged) (§5.6.9 setup-flow choice default — first-contact structured choices MUST default to the plain floor band L1.1.1–L1.2.2 with per-option costs/benefits + recommendation + §5.6.7 fallback affordance, MUST-22; 직전 v0.7.0 = post-response tone-estimate Stop hook — deferred candidate #5 landed via host-hook equivalence + estimateSurfaceProfile re-export + skill MUST-20 active-profile arming; 직전 v0.6.2 = §5.6.7 live-board decisions-panel fallback surface — Constellation composition, board card button + fallback-rerender feedback contract; 직전 v0.6.0 = substantive 4-slot additive cut — `recommended_methodology[]` (§8) + `evaluation_lenses[]` (§0) + `maturity_anchor` (FullBrief top-level) + `term_pairing` (§0 AudienceProfileFallback extension with mode E/I/N + scope C/D/B/R + retroactive_apply + I-mode low-frequency override + C-scope auto-non-retroactive + short-command form Lx.M.S+S! / Lx.M.S?); back-compat preserved — all 4 slots optional, existing v0.5.6 IRs validate against v0.6 schema; Workflow fan-out mezzo batch ratification pattern applied (7-agent parallel implementation: schema + renderer + 4 templates + 3 skills); v0.5.6 §5.6.7 auto-localize discipline preserved; v0.5.5 §11.5 v1.0 readiness rubric Lens A 5.3/4.9 + Lens B 5.5/5.1 — both sub-threshold — unchanged, candidates pending count v0.6 → 3 (v0.7+ register)); depends-on: none (optional synergy: Constellation §13 A2A — active, Superscalar §3.1 decision-delegation interlock — active); license: Apache-2.0 -->
 
 # Hyperbrief — Decision-Delegation Gating Discipline
 
 > **EstreGenesis optional module — design draft v0.1.** Where Constellation governs *how* agents talk to each other and Superscalar governs *how* an agent dispatches sub-work, Hyperbrief governs the third axis: **how an agent delegates decisions back to the user.** Hyperbrief is not a "briefing format." It is a **gating ritual** for the act of asking the user to decide — (a) a *trigger rubric* that decides whether the question should be asked at all, (b) an *epistemic-honesty surface* that forces the LLM to admit what it does not know, (c) a *cognitive-debiasing layout* (framing balance · progressive disclosure · active choice) that prevents the agent from steering the user into pre-baked consent, (d) a *reversibility-first governance* (RAPID / Cynefin / lexicographic reversibility priority) that classifies the decision before content, and (e) a *post-decision learning loop* (decision lineage + revisit trigger) that closes the feedback path most agents leave open.
 >
-> **The principal failure mode Hyperbrief targets** is the *sycophantic over-delegation loop* — an agent that masks its uncertainty by manufacturing artificial choice points, then nudges the user toward a pre-selected answer with framing tricks ("괜찮을까요?"), and never closes the learning loop. The opposite failure is *false autonomy* — an agent that decides a high-blast-radius, irreversible action alone and post-notifies. Hyperbrief is the **two-sided gate** between these: it both blocks unnecessary delegation (when the escalation score is low → autonomous decide + post-notify) and blocks unstructured delegation (when escalation is high → full 9-section IR required).
+> **The principal failure mode Hyperbrief targets** is the *sycophantic over-delegation loop* — an agent that masks its uncertainty by manufacturing artificial choice points, then nudges the user toward a pre-selected answer with framing tricks ("괜찮을까요?"), and never closes the learning loop. The opposite failure is *false autonomy* — an agent that decides a high-blast-radius, irreversible action alone and post-notifies. Hyperbrief is the **two-sided gate** between these: it both blocks unnecessary delegation (when the escalation score is low → autonomous decide + post-notify) and blocks unstructured delegation (when escalation is high → full 9-section IR required). From v0.8.0 the low side is a **configurable floor** rather than a constant (§2.5) — its default is a summary brief, not a one-liner — while the high side is unchanged and no setting can lower it.
 >
 > **Schema-enforced, not free-form.** The LLM emits a single **JSON IR** that conforms to `hyperbrief.schema.json`; deterministic Node renderers (`renderer-md.cjs` / `renderer-html.cjs`) emit the Markdown ADR and the interactive HTML. The LLM never writes MD or HTML directly. This is the load-bearing constraint — without IR/render separation, the MD and HTML drift, and the "8 sections" become a markdown cosplay rather than a contract.
 >
@@ -21,7 +21,7 @@
 | "A briefing template." | A trigger rubric + a schema + a renderer pipeline. |
 | "Just write the 8 sections in MD." | LLM emits IR only; MD/HTML are deterministic renders. |
 | "Helps the user decide better." | Blocks the agent from manufacturing decisions for the user; helps the user *refuse* the framing. |
-| "Run it before every big change." | Run the trigger-check before *every* user-facing question; emit the full brief only when escalation ≥ 4 or a MUST-trigger condition fires. |
+| "Run it before every big change." | Run the trigger-check before *every* user-facing question. The full brief is mandatory at escalation ≥ 4 or any MUST-trigger, and available on request at any time; what the *remaining* decisions get is the tier setting's answer (§2.5) — a summary brief by default, a one-line post-notify only at `off`. |
 
 The **five-stage pipeline** (each stage MUST pass; failure routes to a different output):
 
@@ -30,7 +30,7 @@ trigger rubric  →  epistemic honesty  →  cognitive debiasing  →  reversibi
    (gate)             (surface)              (debias)                  (classify)                 (close)
 ```
 
-A request that fails the trigger rubric never produces a brief — the agent decides autonomously and post-notifies. A request that passes produces a brief whose every fact-statement carries an epistemic tag, whose every recommendation cites tree nodes, whose reversibility class is declared before any content, and whose revisit date is registered before the user even responds.
+A request that fails the trigger rubric produces no *full* brief; what it produces instead is the tier floor's answer (§2.5) — a one-line post-notify at `off`, a summary brief at the default. A request that passes produces a brief whose every fact-statement carries an epistemic tag, whose every recommendation cites tree nodes, whose reversibility class is declared before any content, and whose revisit date is registered before the user even responds. Epistemic tagging, framing balance, voluntariness, and revisit registration hold at **every** tier; only the depth of the supporting evidence varies.
 
 ---
 
@@ -49,8 +49,10 @@ The most expensive failure mode the rubric prevents: an agent that emits a Hyper
 
 `escalation_sum = irreversibility + blast_radius + time_horizon + reversal_cost` (range 0-12).
 
-- `sum < 4` AND no MUST-trigger fires → **AUTONOMOUS_DECIDE** (agent decides, post-notifies in one line; brief generation is blocked).
-- `sum ≥ 4` OR any MUST-trigger fires → **FULL_HYPERBRIEF** (emit full IR).
+- `sum ≥ 4` OR any MUST-trigger fires → **FULL_HYPERBRIEF** (emit full IR). This side of the rubric is fixed; §2.5 cannot lower it.
+- `sum < 4` AND no MUST-trigger fires → the rubric itself asks for nothing, and the **brief tier floor** (§2.5) decides what is emitted: `SUMMARY_BRIEF` at the default setting, `BLOCKED_STUB` (agent decides, post-notifies in one line) at `off`, `FULL_HYPERBRIEF` at `full`.
+
+Before v0.8.0 this second bullet was unconditionally `AUTONOMOUS_DECIDE`, which made the rubric two-valued. See §2.5 for why that shape reliably starved the middle of the range.
 
 ### 2.2 MUST-trigger conditions (any one alone → FULL_HYPERBRIEF)
 
@@ -69,6 +71,47 @@ The most expensive failure mode the rubric prevents: an agent that emits a Hyper
 ### 2.4 Self-throttle — alert-fatigue circuit breaker
 
 Maintain rolling stats over last 20 hyperbriefs. If `user_acceptance_rate > 70% AND user_premortem_input_avg_length < 30 chars`, emit a self-warning card to the user ("Hyperbrief 자동 승인 패턴 감지 — trigger 임계 상향 권유") and raise `escalation_sum` threshold from 4 to 5 for next 10 cycles. This is the **anti-cosplay** guard: a Hyperbrief that is rubber-stamped is a Hyperbrief that has degenerated into ceremonial overhead.
+
+### 2.5 Brief tier — the floor is a setting, not a constant (v0.8.0)
+
+§2.1's routing had exactly two outputs: below the threshold, one line; at or above it, nine sections. Nothing lay between them, and the threshold was calibrated to keep the expensive output rare. The consequence is structural rather than accidental, and it was measured across adopting projects before it was diagnosed here: **almost every decision landed on the one-line side**, so a module installed specifically to stop terse decision-dumping went on producing terse decision-dumping. A gate whose only two settings are *nothing* and *everything* gets tuned toward *nothing*, because that is the side whose cost the operator can see.
+
+The fix is not a lower threshold — that trades under-briefing for alert fatigue on the same two-valued axis. The fix is a third output, plus making the **floor** configurable while leaving the **ceiling** exactly where it was.
+
+| Setting | Floor | Meaning |
+|---|---|---|
+| `off` | `BLOCKED_STUB` | Pre-v0.8 behavior. The rubric alone decides; sub-threshold decisions get the one-line post-notify. Manual requests and per-area opt-in still reach the higher tiers. |
+| `summary` **(default)** | `SUMMARY_BRIEF` | Every decision reaching the trigger-check gets **at least** a summary brief (§4 SummaryBrief body). One action escalates it to the full brief (§5.6.10). |
+| `full` | `FULL_HYPERBRIEF` | Every decision point gets nine sections, whatever the escalation score. |
+
+Resolution is a **max over a three-element lattice** — never an override:
+
+```
+BLOCKED_STUB   <   SUMMARY_BRIEF   <   FULL_HYPERBRIEF
+
+rubric_tier = FULL_HYPERBRIEF   if (escalation_sum >= threshold OR any MUST-trigger fires)
+              BLOCKED_STUB      otherwise
+floor       = { off: BLOCKED_STUB, summary: SUMMARY_BRIEF, full: FULL_HYPERBRIEF }[brief_tier]
+
+verdict     = max(rubric_tier, floor)          // monotone; never min, never assignment
+```
+
+**The toggle can only raise the tier.** This is the load-bearing invariant, and it is the whole reason the setting is safe to default to `summary`: no value of `brief_tier` can turn a full brief into a summary. An irreversible cross-module decision gets nine sections at `off`, at `summary`, and at `full` alike. Adopting the toggle therefore cannot weaken the gate that already exists — it can only add briefs where there were none, which makes the default change a behavior change without being a safety change. An implementation that lets `brief_tier` *demote* a MUST-triggered decision has inverted the feature into a bypass; that is the one defect that would make this setting unshippable, and it is registered as AF-27 rather than left to reviewer vigilance.
+
+**§2.3's anti-triggers short-circuit the lattice; they are not elements of it.** Cynefin `confused` still routes to `DECISION_REJECT_FRAMING` and `chaotic` still routes to MINIMAL_BRIEF at every setting, `full` included. A frame nobody can classify does not become classifiable by being briefed at greater length, and a chaotic domain's binding constraint is elapsed time, which a nine-section brief spends. Read-only fan-out stays exempt by construction: the floor applies to *decisions*, and a lane with no side effects presents none.
+
+**§2.4's self-throttle keeps its voice at `full` but loses its lever.** The breaker's mechanism is to raise the threshold from 4 to 5, which changes nothing once the floor is already `FULL_HYPERBRIEF`. Rather than let it go silently inert, at `brief_tier: full` the breaker MUST still emit its self-warning card, naming `summary` as the remedy. The operator asked for every decision to be briefed; the honest response to rubber-stamping under that request is to say so, not to quietly override the setting. This is spelled out because an alert-fatigue guard that reports nothing is indistinguishable from one that found nothing (AF-28).
+
+**Where the setting lives** (first hit wins):
+
+1. **In-conversation command or request** — session scope, highest precedence. Short forms `HB.off` / `HB.summary` / `HB.full`, parsed alongside the §5.6.8 tone commands and distinguished from them by the `HB.` prefix. A natural-language request to see more escalates *the brief in hand* via §5.6.10 without changing the session setting; changing the setting takes the command or an explicit instruction.
+2. **`HYPERBRIEF_BRIEF_TIER` env** — `off` | `summary` | `full`. Present so a headless or CI run can pin the tier without editing a tracked file.
+3. **`.hyperbrief/config.json` → `brief_tier`** — the project's pinned policy. Deliberately the same file the review-doc preference already occupies (§11.4): a second config file is a second thing to drift.
+4. **Default `summary`.**
+
+`brief_tier` is *policy* and belongs in `config.json`; `audience_profile` overrides are *reader tone* and stay in `.hyperbrief/profile.json`. They are kept apart because their lifetimes differ — a reader retunes tone per brief, an operator sets the gating floor once — and because merging them lets a tone tweak silently reset the gate.
+
+A malformed file or an unrecognized value resolves to the default and MUST be reported once rather than silently coerced. An unreadable policy file is precisely the case where the operator believes a floor is in force that is not, and a silent fallback to `summary` looks identical to a working `summary` right up to the point where someone pinned `full` and never got it.
 
 ---
 
@@ -173,6 +216,34 @@ Before any content, the brief MUST declare:
 The archive is the **load-bearing development record** — it's how Hyperbrief decisions remain auditable after months. Adopters MAY disable per-brief (`archive_config.enabled: false`) for low-value decisions, but the default is ON because the marginal cost of archival is small and the lost context after disabling is unrecoverable.
 
 **Layer separation — per-decision archive vs module-level ledger**. The per-decision `archive_config` above stores one decision's full bundle. The **module-level dogfood ledger** (§11.2) is the index over all decision archives within an adopter project — it is SHOULD-kept in an external file, not inside the SSoT body, to preserve the spec body's normative/cite-stable surface from operational telemetry drift. SSoT body retains only a recent-N-row index + pointer; the full ledger lives at `_proposals/<bundle>/dogfood-ledger.md` (human-readable) or `.agent/_decisions/<module>-ledger.jsonl` (machine-readable stream, append-only).
+
+### SummaryBrief body (v0.8.0) — what a summary may drop, and what it may not
+
+The `SUMMARY_BRIEF` tier (§2.5) exists to be **cheap enough to always emit**. The design question is therefore not "what fits in a short brief" but **which of the full brief's properties survive compression** — because a summary that drops the debiasing machinery is not a small brief, it is the nudge this whole module was built to prevent. Compressing §5's seven blocks to a sentence and keeping the recommendation produces precisely the shape of AF-9 (a recommendation with no derivation) wearing a Hyperbrief badge, which is worse than the one-liner it replaced: the one-liner at least did not claim to be a brief.
+
+**MUST carry** — each row names the property that element is there to preserve, not the content it holds:
+
+| Element | Preserves |
+|---|---|
+| `section_0_summary` — escalation sum · reversibility class + badge · Cynefin domain · RAPID decider · deadline · `audience_profile` | **Classify before content** (§3). The reader routes attention before reading options, at every tier. |
+| `section_6_decision_prompt` — unchanged shape, reused `$def` | **Routing sufficiency.** §6 is already specified as sufficient on its own to route a decision; the summary tier is the case that specification was written for. |
+| `summary_core.options[]`, ≥ 2, each `{label, gain, loss}` | **Framing balance** (§5a). Both directions per option, or the list is a recommendation in disguise. A one-option summary is schema-invalid, not merely discouraged. |
+| `summary_core.no_action_cost` | **The null option** (§5f). The most-omitted alternative is doing nothing, and omitting it is the mechanism by which a decision gets manufactured. |
+| `summary_core.meta_branch` — reused `$def` from §7 | **Voluntariness** (§7): accept · reject_framing · defer · request_investigation. The reader's right to refuse the question does not scale with brief length. |
+| `summary_core.key_unknowns[]`, ≥ 1 | **Epistemic honesty** (§5). A summary with nothing unknown is a summary that stopped looking; `[verified]`-only surfaces are the signature. |
+| `section_8_summary` — `{recommended, confidence, switch_if}` | **Conditional recommendation** (§8). `switch_if` is the difference between a recommendation and a request for consent. |
+| `full_brief_fallback` | **The escalation affordance** (§5.6.10). |
+| `section_9_decision_capture_stub` — reused `$def` | **The learning loop** (§9). A decision made off a summary is still a decision that can turn out wrong, so `revisit_date` registers at every tier. |
+
+**MAY be dropped**, and are, by construction: §2's blast-radius enumeration · §3's incremental-path justification · §4's four blocks · §5's MCDA table, pre-mortem scenarios, stakeholder restatement, and Toulmin predictions with numeric CIs · §7's node tree and pruned options · §8's methodology, falsification trigger, and artifact bodies.
+
+Every item on that drop list is **evidence for** the summary's claims. That is the honest statement of what the tier costs: a summary asks the reader to accept the agent's compression of the reasoning where a full brief shows the reasoning. Which is exactly why the escalation affordance is a MUST and not a SHOULD — the reader has to stay one action away from the evidence they were asked to take on trust. A summary tier without a working escalation path is not a cheaper brief; it is an authority claim.
+
+**Epistemic tags are not dropped.** Every fact-assertion in a summary carries `[verified|inferred|assumed|unknown]` exactly as in a full brief — MUST-4 is tier-independent. Compression is a reason to tag more carefully, not less: the shorter the surface, the more weight the tag carries in telling the reader what kind of statement they are reading.
+
+**Generation is three stages, not nine** (§7): score and route → §6 plus the option set with both directions → §8 derived from that option set → validate. The staging discipline exists to stop §8 from becoming an assertion detached from its support, and that purpose is tier-independent even though the depth is not. Single-shot generation is acceptable at this tier only because the section count is small enough to hold at once; the derivation order is still normative.
+
+**A summary is not a MINIMAL_BRIEF.** The chaotic-domain MINIMAL_BRIEF (§2.3) is a single action card chosen because time is the binding constraint — it deliberately sheds the option set and the deliberation. A summary sheds *evidence* while keeping the option set, the null option, and the meta-branch. They compress along different axes and MUST NOT be collapsed into one shape: doing so would make a chaotic-domain card inherit an option table it has no time to fill, or a summary inherit a single-action framing that removes the reader's choice.
 
 ---
 
@@ -339,9 +410,30 @@ Setup is the **maximum information-asymmetry moment**: the reader has not adopte
 
 Relationship to the rest of §5.6: `audience_profile` (§5.6.1-.3) says *how to render a declared audience*; §5.6.9 says *which declaration to assume when the audience is structurally unknown*. Once the setup flow ends (the project has a profile, `.hyperbrief/profile.json` or observed expertise), the normal declaration path resumes and this default retires. Consumers: the EG kit's setup skills reference this default at their choice steps; interview-style intake skills compose it with their question discipline.
 
+#### 5.6.10 `full_brief_fallback` — the escalation affordance (v0.8.0)
+
+§5.6.7 gives the reader a one-action path *down* to maximal plainness. The tier toggle (§2.5) creates the symmetric need: a one-action path *up* to the full evidence. These are the same mechanism pointed in opposite directions, and they are specified as siblings so adopters implement one pattern rather than two that drift apart.
+
+| | §5.6.7 tone-floor fallback | §5.6.10 full-brief fallback |
+|---|---|---|
+| Direction | plainer | deeper |
+| Field | `audience_profile_fallback` | `full_brief_fallback` |
+| HTML | button, always present | button, present on every summary |
+| MD / chat | monitored `trigger_phrases_md` | monitored `trigger_phrases_md` |
+| Board card | `fallback.label` + `fallback-rerender` feedback row | `fallback.label_full` + `full-brief-request` feedback row |
+| Response | re-render the same IR at `{1,1,1}` | generate the FullBrief for the same `decision_id` |
+
+Shared discipline, inherited verbatim from §5.6.7 rather than restated in parallel: the skill MUST populate `button_label` and `trigger_phrases_md` in the user's prevailing conversation language at IR-emit time; both fields accept a markdown string **or** an array and MUST be read through the single exported `normalizeTriggerPhrases` normalizer; an empty phrase list means *no phrases* and never *the default list*; the schema declares the default and consumers MUST NOT re-copy it.
+
+**Escalation preserves identity.** The full brief generated from a summary carries the **same `decision_id`** and records its origin as `escalated_from_tier: "summary"`. It is not a new decision. The ledger must not show two rows because the reader asked one question twice — and `decision_lineage.parent_decision_ids` MUST NOT be used to link them, because that field means *supersession* and a tier escalation supersedes nothing.
+
+**Escalation is not an answer.** A reader who escalates has neither accepted, rejected the frame, nor deferred — those are §7 meta-branch outcomes and this is a request for the evidence behind an option set the reader has not yet chosen from. The agent MUST NOT record an escalation as a decision outcome, and MUST NOT re-ask the decision question at the top of the full brief as though the summary had not happened. The failure this forbids is a real one: an agent that reads "give me more detail" as engagement and treats the subsequent silence as consent has converted an information request into approval (AF-29).
+
+Reference literals, auto-localized per §5.6.7 — English `"Show me the full brief."` with triggers `full brief` · `show me the details` · `more detail` · `expand this` · `i need the full analysis` · `too brief` · `not enough`; Korean `"풀 브리핑으로 보여줘 (근거까지)"` with triggers `풀 브리핑` · `자세히` · `근거` · `더 자세` · `전체 브리핑` · `너무 간략` · `짧아` · `상세하게`; Japanese `"詳しいブリーフを見せて。"` with an analogous list. The Korean list includes `너무 간략` because that is the phrasing in which the gap this tier closes was first reported — the complaint that the surface is too terse is itself the most reliable trigger for going deeper.
+
 ---
 
-## 6. Anti-patterns (16 fail modes)
+## 6. Anti-patterns (30 fail modes)
 
 | # | Anti-pattern | Where caught |
 |---|---|---|
@@ -371,6 +463,10 @@ Relationship to the rest of §5.6: `audience_profile` (§5.6.1-.3) says *how to 
 | AF-24 | `recommended_artifacts[].body_hash` present but does not match sha256(body) | renderer auto-check + warn |
 | AF-25 | `recommended_artifacts[].line_count` present but does not match `body.split('\n').length` | renderer auto-check + warn |
 | AF-26 | Code/config/patch artifact missing `language` hint when `body` is a non-trivial code block | renderer SHOULD-warn + adopter discipline |
+| AF-27 | `brief_tier` **demotes** a MUST-triggered or ≥threshold decision to summary or stub — the toggle used as a bypass | §2.5 monotone-max invariant; tier resolution MUST be `max`, never assignment |
+| AF-28 | §2.4 self-throttle silently inert at `brief_tier: full` (its lever does nothing, so it stops speaking) | §2.5 — breaker MUST still emit its card at `full`, naming `summary` as the remedy |
+| AF-29 | Escalation request (§5.6.10) recorded as a decision outcome, or the question re-asked as if the summary had not happened | §5.6.10 — escalation is an evidence request, not an answer; same `decision_id`, no lineage link |
+| AF-30 | Summary emitted without a working escalation affordance — compression presented with no path to the evidence it compressed | §4 SummaryBrief MUST-carry table; `full_brief_fallback` required |
 
 ---
 
@@ -384,7 +480,7 @@ LLM  ──emits──►  HyperbriefIR (JSON, schema-validated)  ──renderer
 Renderers are pure functions: same IR → same output. The LLM never produces MD or HTML directly. This is the single defense against MD/HTML drift.
 
 **Internal generation pipeline** (per-turn, not single-shot):
-1. Compute escalation 4-score → route.
+1. Compute escalation 4-score, resolve the tier as `max(rubric_tier, floor)` per §2.5 → route.
 2. If FULL_HYPERBRIEF: generate §1 + §6 (frame + decision prompt).
 3. Generate §2 + §3 + §4.
 4. Generate §5 (the heavy section).
@@ -393,6 +489,12 @@ Renderers are pure functions: same IR → same output. The LLM never produces MD
 7. Self-critique: identify 3 omissions; patch IR.
 8. Validate IR against schema; if fail, retry the failed section.
 9. Render MD + HTML deterministically.
+
+**SUMMARY_BRIEF pipeline** (v0.8.0 — three generation stages, same validate/render tail):
+1. Compute the 4-score and resolve the tier (shared step 1 above). The score is carried into `section_0_summary` unchanged — a summary reports the same escalation arithmetic a full brief would, because that arithmetic is what justifies the tier.
+2. Generate §6 + `summary_core` — the decision prompt, then the option set with `gain` **and** `loss` on every option, the no-action cost, the meta-branch, and the key unknowns.
+3. Generate `section_8_summary` **as a function of** `summary_core.options` — `switch_if` names the option that wins if the recommendation's assumption fails. Deriving §8 before the option set exists is the AF-9 failure at reduced size, and reduced size does not make it acceptable.
+4. Validate, then render. Escalation to FULL_HYPERBRIEF (§5.6.10) re-enters the full pipeline at step 2 with the same `decision_id`, and MAY reuse the summary's §6 verbatim — the question did not change.
 
 ---
 
@@ -480,7 +582,7 @@ on fan_out_request(intent, lanes):
 ### 10.1 MUST
 
 1. Every user-facing decision question MUST first pass `hyperbrief-trigger-check`.
-2. `escalation_sum < 4` AND no MUST-trigger → AUTONOMOUS_DECIDE; brief generation is blocked.
+2. `escalation_sum ≥ 4` OR any MUST-trigger → FULL_HYPERBRIEF, at every `brief_tier` setting. Below that line the emitted tier is `max(BLOCKED_STUB, brief_tier floor)` per §2.5 — `AUTONOMOUS_DECIDE` with brief generation blocked **only** at `brief_tier: off`. Tier resolution MUST be a max over the lattice; an implementation in which any setting demotes a MUST-triggered decision is AF-27.
 3. §0 Decision Header MUST declare all 8 fields (escalation · reversibility_class · rapid · cynefin_domain · decision_lineage · deadline · reading_minutes · stake).
 4. Every fact-assertion in IR string fields MUST carry an epistemic tag `[verified|inferred|assumed|unknown]`.
 5. `§4b.must_have ≥ 2`, `§4c.hidden_assumptions ≥ 3`, `§4d.rejected_alternatives ≥ 2` (or forcing-function justification).
@@ -501,6 +603,9 @@ on fan_out_request(intent, lanes):
 20. **`recommended_artifacts[].body_hash` + `.line_count` auto-stamping** (v0.5) — the renderer MUST auto-stamp these two sub-fields when absent (computed as `sha256(body)` lowercase hex and `body.split('\n').length` respectively). When present-but-stale (hash/count does not match the current body), the renderer MUST emit a warning (AF-24/AF-25) without overwriting the IR's stored values — the discrepancy is the actionable signal. `language` is RECOMMENDED for code/config/patch artifacts (AF-26 is SHOULD-only).
 21. **`surface_profile_estimate` AF-18 declared-vs-effective drift warning** (v0.5) — the renderer MUST populate `§0.surface_profile_estimate` from the rendered surface, compute the gap against the declared `audience_profile`, and emit a warning (AF-18) when `|declared - estimate| >= 2` on any axis. The estimate MUST NOT auto-override the declared profile; the warning is informational and drives operator/LLM reconciliation, not silent reprofiling.
 22. **Setup-flow choice default** (§5.6.9, v0.7.2) — a setup/onboarding-flow agent presenting a structured choice to a human of unknown expertise MUST default the presentation register to the plain floor band `L1.1.1`–`L1.2.2`, MUST carry per-option costs/benefits + a recommendation, and MUST surface the §5.6.7 fallback affordance ("explain more simply", auto-localized) on every choice. Starting above the band at setup time is a violation even when the *author* is expert — the declaration being defaulted is the reader's, not the writer's.
+23. **Brief tier resolves as a monotone max** (§2.5, v0.8.0) — `verdict = max(rubric_tier, floor)` over `BLOCKED_STUB < SUMMARY_BRIEF < FULL_HYPERBRIEF`. No value of `brief_tier` may lower the tier the rubric asks for; a MUST-triggered or ≥threshold decision MUST receive a FullBrief at `off`, `summary`, and `full` alike (AF-27). §2.3 anti-triggers short-circuit ahead of the lattice and are not overridden by any setting. An unreadable or unrecognized `brief_tier` MUST resolve to the default **and be reported once** — a silent coercion is indistinguishable from the setting having been honored.
+24. **A SummaryBrief MUST carry the debiasing set** (§4 SummaryBrief body) — `section_0_summary` · `section_6_decision_prompt` · `summary_core` with ≥ 2 options each carrying both `gain` and `loss`, `no_action_cost`, `meta_branch`, ≥ 1 `key_unknowns` · `section_8_summary` with `switch_if` · `full_brief_fallback` · `section_9_decision_capture_stub`. Epistemic tags (MUST-4) are tier-independent. Dropping any of these does not produce a shorter brief; it produces a nudge (AF-30). Evidence — MCDA, pre-mortem, Toulmin CIs, blast-radius enumeration, node tree — is what a summary is permitted to omit, and the only thing.
+25. **Escalation preserves decision identity and is not an outcome** (§5.6.10) — the FullBrief generated from a summary MUST reuse the same `decision_id`, MUST record `escalated_from_tier`, and MUST NOT be linked via `decision_lineage.parent_decision_ids` (that field means supersession). An escalation request MUST NOT be recorded as a decision outcome and the decision question MUST NOT be re-asked as though the summary had not happened (AF-29). `full_brief_fallback.button_label` and `.trigger_phrases_md` follow MUST-19's auto-localize discipline and MUST be read through the single exported `normalizeTriggerPhrases` normalizer.
 
 ### 10.2 SHOULD
 
@@ -603,6 +708,8 @@ The `plugins/hyperbrief/hooks/` directory ships with three components: `hooks.js
 3. **Constellation off** + `auto_generate_review_doc = "ask"` (default): stderr advise only — `[hyperbrief] 결정 시점 감지 (<tool>). 검토 사안 문서 자동 생성을 켜시려면 .hyperbrief/config.json의 auto_generate_review_doc를 "on"으로 설정하세요. 현재 설정: "ask".`
 
 4. **Constellation off** + `auto_generate_review_doc = "off"`: simple stderr alert, no file emitted.
+
+**The hook states the resolved tier (v0.8.0).** All four routes above previously ended by telling the agent it could "request a full brief" — the two-valued vocabulary of §2.1, surfaced at exactly the moment the agent decides what to emit. From v0.8.0 the hook resolves `brief_tier` itself (§2.5's precedence order, env then `.hyperbrief/config.json`, defaulting to `summary`) and names the resolved **floor** in its advisory line, so the agent sees the applicable minimum rather than an invitation. This is the toggle's only mechanical enforcement point, and it is why the setting reads from a file the hook already parses: a policy that lives only in prose is a policy the agent applies when it remembers to. The hook stays advisory — it never blocks — but an advisory that names the floor is materially different from one that names an option.
 
 **Why advise mode (not hard-block)**: §2.4's alert-fatigue circuit breaker exists precisely because a rubber-stamped Hyperbrief is a degenerate Hyperbrief. A hard-block hook would force every `AskUserQuestion` and every dangerous Bash call through a user confirm step — exactly the alert-fatigue path §2.4 is designed to prevent. Advise mode preserves the agent's responsibility (model-invoked self-invoke per `SKILL.md` description) while adding a *signal-of-silent-skip* layer: when the agent forgets to invoke `hyperbrief-trigger-check`, the hook leaves a visible trail (board review item, file placeholder, or stderr line) so the user can surface the gap rather than have it carry forward invisibly.
 
@@ -759,12 +866,16 @@ are required. A hand-written check had run over those same IRs and passed them, 
 from the same reading of §2 that produced them: **a check derived from the author's own understanding
 re-derives the author's own mistakes.** §2's field list names the fields without stating their types,
 which is a documentation gap this section records rather than excuses; `trigger_phrases_md` requiring
-an array despite its `_md` suffix is a naming defect on the same list, and renaming it is a breaking
-schema change that needs its own decision.
+an array despite its `_md` suffix was a naming defect on the same list, **closed in v0.7.7** by widening
+the schema to accept either form rather than renaming the field — renaming would have broken every
+existing consumer to fix a name, and widening made the already-shipped callers valid instead of
+retroactively wrong (§5.6.7).
 
 ## 12. Versioning
 
 `Hyperbrief.md` follows EG semver (`vMAJOR.MINOR.PATCH`). Plugin (`plugins/hyperbrief/`) tracks `Hyperbrief.md` minor version. Breaking schema changes (`hyperbrief-ir.schema.json`) bump major. Adopter contract: any tool that calls `hyperbrief_validate` MUST declare the schema major it supports.
+
+**v0.8.0 — brief tier toggle (§2.5) — is a behavior change, not a schema break.** The schema addition is additive: `SUMMARY_BRIEF` joins the `oneOf` alongside `FullBrief` and `BlockedStub`, so every existing v0.7.x IR validates unchanged and no consumer that reads `status` needs to change to keep working. What *does* change without any adopter action is the **default floor**: a project that upgrades and sets nothing moves from one-line post-notify to summary briefs on sub-threshold decisions. That is the point of the release rather than a side effect of it, and the migration back is one line — `.hyperbrief/config.json` `{"brief_tier": "off"}` restores v0.7.x behavior exactly, including the `BlockedStub` shape. Adopters who consume the IR programmatically and switch on `status` should note the new `"summary"` value before upgrading; a consumer that treats unknown `status` values as an error will see them, which is why the value is announced here rather than only in the schema.
 
 ---
 
