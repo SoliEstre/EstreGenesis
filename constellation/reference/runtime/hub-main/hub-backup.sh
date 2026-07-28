@@ -1,7 +1,7 @@
 #!/bin/sh
 # hub-backup.sh — board 변동 백업: 추적 파일 변경을 commit+push (private repo). (§13.28)
 # 방어: 스테이징 내용에 시크릿 패턴이 있으면 push 중단(.gitignore 실수 대비 2차 게이트).  [§13.28.3 secret gate]
-# provenance: MangoEdu hub-peer dogfood 실배치 검증본(2026-07-09) 업스트림. 치환: /data 프리픽스, 스캔 패턴, 커밋 메시지.
+# provenance: 채택자 hub-peer dogfood 실배치 검증본(2026-07-09) 업스트림. 치환: /data 프리픽스, 스캔 패턴, 커밋 메시지.
 cd /data || exit 0
 export HOME=/data/home
 export PATH="/usr/local/bin:/usr/bin:/bin"

@@ -6,7 +6,7 @@
 #        이벤트 구동이라 유휴 시 sh sleep(≈0 RAM), 추론 프로세스는 의미있는 A2A 도착 시에만 스폰
 #        (쿼터·RAM 절약 — §13.27 invariant 1 wake economy).
 #
-# provenance: MangoEdu hub-peer dogfood 실배치 검증본(2026-07-09, §13.14 redaction 적용) 업스트림.
+# provenance: 채택자 hub-peer dogfood 실배치 검증본(2026-07-09, §13.14 redaction 적용) 업스트림.
 # 치환 포인트: /data(배포 마운트 프리픽스) · hub-main(canonical-id) · WS_WAIT_TICKS(재arm 주기).
 #
 # self-wake-watcher 는 WS_STANDBY_MODE=always(v2.4.47) 로 board 의 공개 standby 필드와 무관하게

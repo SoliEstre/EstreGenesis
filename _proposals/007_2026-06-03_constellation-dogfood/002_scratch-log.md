@@ -49,9 +49,9 @@
 - local-bridge.cjs 가 `new WebSocket()` (Node 22+ 글로벌, 본 환경 v24.14.0) 사용 → ws npm 불요. plugin mcp/server.cjs 만 `ws ^8.18.0` 필요 (별개).
 
 ### [OBS-10] 보드 기동·핸드셰이크 검증 (positive)
-- 서버: `PORT=17878 WS_PRIMARY_AGENT=mangoclass-main` Start-Process detached → LISTENING, boot log 정상.
+- 서버: `PORT=17878 WS_PRIMARY_AGENT=adopter-main` Start-Process detached → LISTENING, boot log 정상.
 - HTTP: `GET /` 200 (8361B 대시보드), `GET /api/state` 200 (state.json), `GET /api/events` SSE `event: state` 푸시.
-- 브릿지: `connected → HELLO as mangoclass-main` → `SERVER_HELLO proto 0.3` (§핸드셰이크 SERVER_HELLO→HELLO 통과), lockfile 단일 인스턴스 가드 작동.
+- 브릿지: `connected → HELLO as adopter-main` → `SERVER_HELLO proto 0.3` (§핸드셰이크 SERVER_HELLO→HELLO 통과), lockfile 단일 인스턴스 가드 작동.
 
 ### [OBS-11] self-wake-watcher ↔ standby 결합 (설계대로, 문서 명료성 minor)
 - watcher 가 `standby:false` 일 때 매 폴 즉시 WAKE (line 114 `[ "$sb" != "true" ]`, docstring line 28 명시). **버그 아님** — self-wake-watcher 는 무한대기(standby=true) 전용 메커니즘이라 standby off 면 "기다릴 것 없음 → 즉시 깨움".
