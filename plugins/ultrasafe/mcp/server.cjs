@@ -372,11 +372,44 @@ async function handleCleanSignalCheck(args = {}) {
   //   쓰고 있었고, 그래서 게이트 문턱이 «어디에 물어보느냐» 에 따라 달랐어요.
   const { floorPctForTier } = require("../lib/coverage-floor.cjs");
   const tierFloor = floorPctForTier(tier);
-  const coverageValues = Object.values(coverage_pct);
-  const avgCoverage = coverageValues.length
-    ? coverageValues.reduce((s, v) => s + Number(v || 0), 0) / coverageValues.length
-    : 0;
-  const condition_3_coverage_floor = avgCoverage >= tierFloor;
+
+  // v0.2.10 — 분모는 **선언 축 집합**이에요. 신고된 키가 아니라.
+  //
+  // 예전 코드: `Object.values(coverage_pct)` 를 평균. 그러면 안 돌린 축을 **빼는 것만으로**
+  //   평균이 올라가요. 축 2개만 신고하고 둘 다 90 이면 90% 로 통과하는데, 선언된 13축 중
+  //   11축은 손도 안 댄 상태예요. 조건이 있는 것과 없는 것이 구분되지 않았어요 — 게이트를
+  //   «덜 신고해서» 통과할 수 있었어요. 미신고 축은 이제 0 으로 세어져요.
+  // 그리고 §6.3 은 «분모 명시 + untested_classes[] 필수» 라고 적는데, 두 칸을 받아서
+  //   결과에 되돌려주기만 하고 어떤 판정도 안 봤어요. 선언만 되고 아무 데도 안 걸린 값은
+  //   있는 것과 없는 것이 같아요. 이제 실제로 읽고, 없으면 **판정 불가**로 돌려요 —
+  //   «측정했는데 하한 미달» 과 «측정을 못 했음» 은 다른 상태이고, 후자를 실패로 뭉뚱그리면
+  //   왜 못 넘었는지가 사라져요.
+  const { DECLARED_AXES, isDeclaredAxis, unreportedAxes, unknownAxes } = require("../lib/axes.cjs");
+  const condition_3_errors = [];
+
+  const unknown = unknownAxes(coverage_pct);
+  if (unknown.length) {
+    condition_3_errors.push(
+      `미등록 축 id ${unknown.join(", ")} — §3.1 등록부에 없는 축이에요. 분모에도 분자에도 들어갈 수 없어요 ` +
+      `(한 축 안의 하위 구분이라면 축이 아니라 untested_classes[axis] 의 분류로 적으세요).`
+    );
+  }
+  const missingBasis = Object.keys(coverage_pct).filter(isDeclaredAxis).filter((a) => {
+    const size = Number(applicable_subset_size[a]);
+    return !Number.isFinite(size) || size <= 0 || !Array.isArray(untested_classes[a]);
+  });
+  if (missingBasis.length) {
+    condition_3_errors.push(
+      `분모 근거 미제출: ${missingBasis.join(", ")} — §6.3 은 축마다 applicable_subset_size(>0) 와 ` +
+      `untested_classes[] 를 필수로 요구해요. 근거 없는 비율은 측정이 아니라 주장이에요.`
+    );
+  }
+
+  const denominator = DECLARED_AXES.length;
+  const reportedSum = DECLARED_AXES.reduce((s, a) => s + Number(coverage_pct[a] || 0), 0);
+  const avgCoverage = reportedSum / denominator;
+  const condition_3_measurable = condition_3_errors.length === 0;
+  const condition_3_coverage_floor = condition_3_measurable && avgCoverage >= tierFloor;
 
   // Condition 4: 2 consecutive iterations clean.
   const prevIter = iteration_history[iteration - 1];
@@ -411,8 +444,16 @@ async function handleCleanSignalCheck(args = {}) {
     condition_2_monotonic_improvement,
     condition_2_window: recentIters.map((r) => r.findings_count),
     condition_3_coverage_floor,
+    condition_3_measurable,
+    condition_3_errors,
     condition_3_avg_coverage_pct: avgCoverage,
     condition_3_tier_floor_pct: tierFloor,
+    // 분모를 결과에 실어요 — 「7/13 이었나 7/7 이었나」를 사후에 복원할 수 없으면 그 수치는
+    //   감사할 수 없어요. 0 으로 세어진 축을 이름으로 돌려주는 것도 같은 이유예요: 「하한을
+    //   못 넘었다」보다 「이 4축은 아무도 안 돌렸다」가 행동 가능한 정보예요.
+    condition_3_denominator_axes: DECLARED_AXES.length,
+    condition_3_reported_axes: Object.keys(coverage_pct).filter(isDeclaredAxis).length,
+    condition_3_unreported_axes: unreportedAxes(coverage_pct),
     condition_4_consecutive_2_iter,
     recommended_action,
     would_block_in_v03_blocking: clean_signal_reached === false,
