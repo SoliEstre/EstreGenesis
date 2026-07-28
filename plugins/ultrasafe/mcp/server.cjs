@@ -39,19 +39,15 @@ const BLOCKING_IN_V03 = true; // surfaced in all returns so consumers know what 
 //   보였어요 — 증가하지 않는 카운터는 충족된 조건과 구분이 안 돼요.
 //   앵커 규칙은 Stop 훅(ultrasafe-clean-signal.cjs)과 **글자 그대로 같아야** 해요. 다르면 한쪽이 쓰고
 //   다른 쪽이 못 읽는, 지금과 증상이 똑같은 상태로 되돌아가요.
-function usfRepoRoot(startDir) {
-  let dir = startDir || process.cwd();
-  for (let i = 0; i < 16; i++) {
-    if (fs.existsSync(path.join(dir, '.git')) || fs.existsSync(path.join(dir, '.ultrasafe'))) return dir;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return startDir || process.cwd();
-}
-const USF_REPO_ROOT = usfRepoRoot(process.cwd());
-const USF_STATE_DIR = process.env.ULTRASAFE_STATE_DIR || path.join(USF_REPO_ROOT, '.ultrasafe');
-const USF_STATE_PATH = path.join(USF_STATE_DIR, 'state.json');
+// v0.2.12 — 해소 규칙은 이제 `lib/state-root.cjs` **한 곳**에 있어요.
+//   여기 있던 사본은 걷는 함수는 훅과 동일했는데 **우선순위 사슬이 달랐어요**: 훅 둘은
+//   `CLAUDE_PROJECT_DIR` 을 먼저 봤고 이 파일은 안 봤어요. 겹친 저장소 배치에서 그 차이가
+//   그대로 분할된 원장이 됐어요(이벤트 28건이 한쪽에만, 회차 기록은 다른 쪽에만).
+//   위 주석이 「글자 그대로 같아야」라고 경고했지만 그건 규율이지 기제가 아니었어요.
+const stateRoot = require('../lib/state-root.cjs');
+const USF_REPO_ROOT = stateRoot.repoRoot(process.cwd());
+const USF_STATE_DIR = stateRoot.stateDir(process.cwd());
+const USF_STATE_PATH = stateRoot.statePath(process.cwd());
 
 function usfReadState() {
   try { return JSON.parse(fs.readFileSync(USF_STATE_PATH, 'utf8')); } catch { return null; }

@@ -40,31 +40,12 @@ const path = require("path");
 
 // ─── Repo root + state dir ───────────────────────────────────────────────────
 
-function findRepoRoot(startDir) {
-  let dir = startDir;
-  for (let i = 0; i < 16; i++) {
-    if (
-      fs.existsSync(path.join(dir, ".git")) ||
-      fs.existsSync(path.join(dir, ".ultrasafe"))
-    ) {
-      return dir;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return startDir;
-}
-
-// v0.2.4 — same stable-root anchoring as the PreToolUse trigger: a hook must not
-// let the tool call's cwd decide which `.ultrasafe/` it reads/writes, or the Stop
-// hook evaluates a different state file than the one the trigger appended to.
-const REPO_ROOT =
-  process.env.CLAUDE_PROJECT_DIR ||
-  process.env.ULTRASAFE_REPO_ROOT ||
-  findRepoRoot(process.cwd());
-const STATE_DIR = process.env.ULTRASAFE_STATE_DIR || path.join(REPO_ROOT, ".ultrasafe");
-const STATE_PATH = path.join(STATE_DIR, "state.json");
+// v0.2.12 — 해소 규칙은 `lib/state-root.cjs` 한 곳에 있어요. 전에는 이 파일·트리거·MCP 서버에
+// 사본이 셋이었고, 걷는 함수는 같은데 우선순위 사슬이 달라서 원장이 갈렸어요.
+const stateRoot = require("../lib/state-root.cjs");
+const REPO_ROOT = stateRoot.repoRoot(process.cwd());
+const STATE_DIR = stateRoot.stateDir(process.cwd());
+const STATE_PATH = stateRoot.statePath(process.cwd());
 
 // ─── Floors / thresholds (overridable via env) ───────────────────────────────
 

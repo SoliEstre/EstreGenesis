@@ -88,34 +88,18 @@ function generateGateEventId() {
 
 // ─── Repo root + state dir ───────────────────────────────────────────────────
 
-function findRepoRoot(startDir) {
-  let dir = startDir;
-  for (let i = 0; i < 16; i++) {
-    if (
-      fs.existsSync(path.join(dir, ".git")) ||
-      fs.existsSync(path.join(dir, ".ultrasafe"))
-    ) {
-      return dir;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return startDir;
-}
-
-// v0.2.4 — anchor the state dir to a STABLE root, not the shell's current cwd.
-// A hook fires with whatever cwd the tool call happens to carry, so a session that
-// `cd`s into a nested repo (a vendored subrepo, a monorepo package) writes its
-// events into a *second* `.ultrasafe/`. The evidence then splits across two files
-// and any single-file read undercounts it (measured 2026-07-11: 5 events visible,
-// 11 actual). Precedence: explicit env → host-provided project root → cwd walk.
-const REPO_ROOT =
-  process.env.CLAUDE_PROJECT_DIR ||
-  process.env.ULTRASAFE_REPO_ROOT ||
-  findRepoRoot(process.cwd());
-const STATE_DIR = process.env.ULTRASAFE_STATE_DIR || path.join(REPO_ROOT, ".ultrasafe");
-const STATE_PATH = path.join(STATE_DIR, "state.json");
+// v0.2.12 — 해소 규칙은 `lib/state-root.cjs` 한 곳에 있어요. 아래 주석이 적어둔 그 사고를
+// 훅에서는 v0.2.4 로 고쳤는데 **MCP 서버 사본은 그 수정을 못 받았어요** — 걷는 함수는 같고
+// 우선순위 사슬만 달라서, 훅은 프로젝트 루트에 쓰고 MCP 는 호출 cwd 를 따라갔어요. 사본이
+// 셋이면 «같아야 한다» 는 주석은 규율이지 기제가 아니에요.
+//
+// (원 기록) 훅은 도구 호출이 실어온 cwd 로 발화하므로, 중첩 저장소로 cd 한 세션은 자기
+// 이벤트를 *두 번째* `.ultrasafe/` 에 써요. 그러면 증거가 두 파일로 갈리고 한 파일만 읽는
+// 쪽은 과소집계해요 (2026-07-11 실측: 5건 보임 / 실제 11건).
+const stateRoot = require("../lib/state-root.cjs");
+const REPO_ROOT = stateRoot.repoRoot(process.cwd());
+const STATE_DIR = stateRoot.stateDir(process.cwd());
+const STATE_PATH = stateRoot.statePath(process.cwd());
 
 // ─── Secret masking ──────────────────────────────────────────────────────────
 // The publish command is recorded into state.json for advisory context, but a
