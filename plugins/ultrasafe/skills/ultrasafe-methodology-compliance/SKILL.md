@@ -15,7 +15,7 @@ description: Use BEFORE a publish-equivalent release (npm publish / pip upload /
 본 skill 은 *model-invoked* — orchestrator 역할 (메인 에이전트의 Workflow fan-out — Ultrasafe.md §14.1 역할 매핑) 의 dispatch 또는 MCP tool `ultrasafe_run_fanout` 호출 시 다음 trigger 중 ANY 충족 시 자동 invoke:
 
 1. **Publish-equivalent gate**: PreToolUse hook (`ultrasafe-trigger.cjs`, §17.1) 이 npm publish / pip upload / git push --tags 또는 동급 release 명령을 감지하고 advisory fan-out 을 개시할 때.
-2. **Axis-set match**: dispatch 의 `axis_set` 에 `usf-iam-config` / `usf-methodology-coverage` / `usf-compliance-anchor` / `usf-test-coverage-cliff` 중 1개 이상 포함 + tier ≥ 2.
+2. **Axis-set match**: dispatch 의 `axis_set` 에 `usf-iam-config` 포함 (본 attacker 의 홈 축) — methodology-coverage · compliance-anchor · test-coverage-cliff 는 **축이 아니라 그 축 안의 카탈로그 분류**라, 축 집합이 아니라 `untested_classes[usf-iam-config]` 에 적어요 + tier ≥ 2.
 3. **Iteration boundary continuation**: prior iteration 의 `iteration_boundary.untested_classes[]` 가 non-empty 이고 본 attacker 의 axis 가 그 untested 영역과 겹칠 때 (regression baseline 의 secondary-surface diff 회수, §15.7 의 secondary_surface 패턴 정합).
 4. **Catalog version bump**: 6 catalog 중 하나라도 `catalog_version` 이 prior iteration 대비 변경됐을 때 (예: OWASP WSTG v4.2 → v5.0) — coverage 측정 재산정 강제.
 5. **Stop hook clean-signal verify**: cycle-end Stop hook (`ultrasafe-clean-signal.cjs`, §17.2) 이 4-condition AND-gate (regression-free + monotonic + coverage-floor + consecutive-2-iter) 의 *coverage-floor* condition 측정을 위해 본 skill 에 coverage 재산정 요청 시.
@@ -115,7 +115,7 @@ evidence tier 3-level:
   "value": {
     "finding_id": "us-2026-06-06-mc-0001",
     "iteration": 2,
-    "axis": "usf-methodology-coverage",
+    "axis": "usf-iam-config",
     "attacker_id": "methodology-compliance",
     "perspective": { "primary": "methodology-compliance", "secondary": null },
     "severity": {
@@ -170,7 +170,7 @@ evidence tier 3-level:
 
 ### Example 1 — Coverage cliff detection (trigger 2 + probe 2)
 
-**Context**: tier = 2, axis_set 에 `usf-methodology-coverage` 포함, iteration = 1. `coverage_report_paths` 의 LCOV 파일 분석.
+**Context**: tier = 2, axis_set 에 `usf-iam-config` 포함 (탐색 분류 = methodology-coverage), iteration = 1. `coverage_report_paths` 의 LCOV 파일 분석.
 
 **Probe 실행**: file 단위 coverage % 분포 산출 — `src/auth/login.ts: 92%`, `src/auth/refresh.ts: 95%`, `src/api/user.ts: 88%`, `src/api/admin.ts: 12%`, `src/api/billing.ts: 8%`, `src/util/log.ts: 78%`. bimodal 분포 (> 80% 와 < 20%) 의 cliff 검출.
 
@@ -179,7 +179,7 @@ evidence tier 3-level:
 {
   "finding_id": "us-2026-06-06-mc-0001",
   "iteration": 1,
-  "axis": "usf-methodology-coverage",
+  "axis": "usf-iam-config",
   "attacker_id": "methodology-compliance",
   "category": "coverage_cliff",
   "methodology_anchor": {
@@ -265,7 +265,7 @@ evidence tier 3-level:
 ## §8 Cross-references
 
 - **Ultrasafe.md §2.1.6** — catalog version + coverage % + untested_classes mandatory 강제 origin.
-- **Ultrasafe.md §3.1** — 13-axis matrix 의 `usf-iam-config` / `usf-methodology-coverage` / `usf-compliance-anchor` axis 정의.
+- **Ultrasafe.md §3.1** — 13축 등록부. 본 attacker 의 홈 축은 `usf-iam-config` 하나예요. methodology-coverage / compliance-anchor / test-coverage-cliff 는 §3.1 에 **없어요** — 축으로 적으면 그 발견은 §6.3 분모 밖이라 커버리지에 안 세어져요. 축 안의 카탈로그 분류로 다루세요 (v0.2.10 교정; 기계 등록부 = `plugins/ultrasafe/lib/axes.cjs`).
 - **Ultrasafe.md §6.3** — coverage definition 결정론적 명시 (cell 단위, 무측정 영역 명시).
 - **Ultrasafe.md §15.6** — 본 agent 의 roster shape (8-agent fan-out 의 agent 6 position).
 - **Ultrasafe.md §15.8** — synthesizer (agent 8) 의 본 finding aggregation + dedup + 3-layer report 합성.
