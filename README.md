@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.54-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.55" src="https://img.shields.io/badge/version-v2.6.55-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,7 +303,17 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.54 (2026-07-29) — **A number that is displayed and a number that decides must not be different numbers wearing one name (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` exists because the same gate condition had been implemented twice with different thresholds and different units, and it unified both. One layer up, the *quantity* being compared against them was still derived two ways. The clean-signal gate averaged per-axis coverage over the declared axes — how much surface was actually examined. The iteration writer divided attackers dispatched by attackers configured — how many agents were launched. Both were called `coverage`, and the one written into the ledger, the one a human reads, was the agent ratio, while the one that decided the gate was the axis mean.
+**Current**: v2.6.55** (2026-07-29) — **A provider's refusal is not a failure, and a seat waiting on one reports healthy the whole time (Constellation v2.4.124)** — the turn classifier had names for two kinds of failure: the means (a binary moved, a flag renamed, a model id retired) and the work (a bad prompt, a missing file). A usage limit is neither. Having no name, it fell to the work class, whose remedy is to retry — and the supervisor polls every five seconds, so a five-hour window is on the order of 3,600 attempts into a wall.
+
+Three further consequences followed from the same missing name. The means-failure counter is reset by any non-means outcome, so the ladder never moved — and the ladder is exactly the instrument that would have helped, because quota pools are per-provider and the other engine was available the whole time. The session was discarded on the first refusal, though nothing was wrong with the session. And the reset time, which the vendor writes into the very error being ignored, was never read.
+
+Detection is deliberately broad but is evaluated only on a turn that already failed, since a false positive costs hours of idleness while a false negative costs one wasted attempt — a successful turn whose output merely discusses limits is not a refusal. The reset time is parsed opportunistically across five shapes and is **not** required: an unparsed refusal re-probes on a bounded fixed interval, which rediscovers the reset within one interval and removes the great majority of the wasted attempts while knowing nothing at all. Any parsed deadline is capped, because a misparse into the distant future silences the seat permanently, which is the failure the section already forbids. This path had never run here — 201 turn records contain no limit event — so the design assumes the wording will not match rather than assuming it will.
+
+The first version of the ladder change failed its own test: it descended on a clock and returned on a turn count, so a seat that switched away never switched back. The ladder now carries two positions instead of one. The **demotion floor** is a means judgment — persisted, moved down by accumulated means failures and back up by a bounded count of successful turns. The **running rung** is the first rung at or below that floor whose engine is not currently refused, derived per turn from the block map and never stored, so the return is automatic because there is no position to restore. Measuring that surfaced an older defect: the chosen rung had been used for the turn and never written back, so the stored position stayed at zero — demotion was always computed as zero-to-one, the last rung was unreachable, and the counter governing return to the primary never incremented at all.
+
+While the seat waits, bridge upkeep continues, because it draws on no quota and suspending it loses the inbound traffic that arrives during the wait. The wait itself is published in the heartbeat: a waiting seat keeps beating and would otherwise read as healthy for hours, which is the mirror image of a failure disguised as absence and just as invisible to a probe that asks whether the layer is running. The survivability checker went from 108 to 139 assertions with five new mutations, one of which reproduces the pre-existing unreachable-rung behaviour. Separately, three heartbeat files were tracked in version control: the ignore rules named files one at a time, and three new writers walked past the enumeration.
+
+Previously: v2.6.54 (2026-07-29) — **A number that is displayed and a number that decides must not be different numbers wearing one name (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` exists because the same gate condition had been implemented twice with different thresholds and different units, and it unified both. One layer up, the *quantity* being compared against them was still derived two ways. The clean-signal gate averaged per-axis coverage over the declared axes — how much surface was actually examined. The iteration writer divided attackers dispatched by attackers configured — how many agents were launched. Both were called `coverage`, and the one written into the ledger, the one a human reads, was the agent ratio, while the one that decided the gate was the axis mean.
 
 They disagree whenever an attacker covers other than exactly one axis, which is the ordinary case: the measured run dispatched seven attackers across eight axes, so the ledger recorded 53.8% for a run whose axis coverage was 61.5%. Neither number was near the tier floor, so the verdict happened to be right — which is exactly how this survives, since a wrong number that reaches the same conclusion produces no symptom.
 
@@ -884,7 +894,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
+**현재**: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
+
+같은 «이름 없음» 에서 결과가 셋 더 나와요. 수단 실패 계수기는 수단이 아닌 결과가 오면 0 으로 되돌아가니 **사다리가 한 번도 안 움직였어요** — 그런데 사다리야말로 여기서 쓸모 있는 도구예요, 할당량 주머니는 공급사마다 따로라 다른 엔진은 내내 멀쩡했거든요. 세션은 첫 거절에 버려졌어요, 세션엔 아무 문제가 없었는데요. 그리고 재개 시각은 **무시당한 그 오류 안에 공급사가 적어 보내는데** 아무도 안 읽었어요.
+
+탐지는 일부러 넓게 걸되 **이미 실패한 턴에서만** 판정해요 — 오탐은 몇 시간의 놀림이고 미탐은 한 번의 헛시도라, 대가가 대칭이 아니에요(리밋을 «이야기하는» 성공한 턴은 거절이 아니에요). 재개 시각은 다섯 형태로 기회 되는 대로 읽되 **필요조건이 아니에요**: 못 읽은 거절은 고정 간격으로 다시 시험하고, 그러면 리셋을 그 한 간격 안에 스스로 발견해서 헛시도의 대부분이 아무것도 모르는 채로 사라져요. 읽어낸 시각도 상한을 걸어요 — 엉뚱한 미래로 잘못 읽으면 자리가 **영구히** 조용해지는데, 그건 이 절이 이미 금지하는 실패거든요. 이 경로는 여기서 한 번도 돈 적이 없어요(턴 기록 201줄에 리밋 0건). 그래서 «문구가 맞을 것» 이 아니라 **«안 맞을 것»** 을 전제로 설계했어요.
+
+사다리 수정의 첫 판은 자기 시험에서 깨졌어요: **내려갈 땐 시각으로, 올라올 땐 턴 수로** 셌거든요. 단위가 다르니 한 번 갈아탄 자리는 안 돌아왔어요. 이제 사다리는 위치를 **둘** 들어요. **바닥**은 수단 판정이라 저장돼요 — 수단 실패 누적으로 내려가고, 성공 턴이 정해진 수만큼 쌓이면 올라와요. **칸**은 그 바닥 이하에서 지금 거절당하지 않은 첫 칸이라 매 턴 차단 지도에서 파생되고 **저장 안 해요** — 복원할 위치가 없으니 복귀가 저절로 돼요. 그걸 재다가 더 오래된 결함이 나왔어요: **고른 칸을 그 턴에 쓰기만 하고 안 남겨서** 저장된 위치가 늘 0 이었고, 강등이 항상 «0→1» 로만 계산돼 **마지막 칸이 도달 불가**였고, 원래 수단으로 돌아가는 계수기는 **한 번도 안 올랐어요.**
+
+기다리는 동안에도 다리 유지는 계속해요 — 다리는 할당량을 안 쓰고, 멈추면 그 사이 도착한 인바운드를 잃어요. 기다림 자체는 맥박에 실어요: 기다리는 자리도 맥박은 계속 뛰니까 그냥 두면 몇 시간을 «정상» 으로 읽혀요. **부재로 위장한 고장의 거울상**이고, 「그 층이 돌고 있나」를 묻는 관찰로는 똑같이 안 보여요. 생존 검사는 단정 108 → 139 · 돌연변이 5종 신설이고, 그중 하나는 위의 «도달 불가한 칸» 거동을 그대로 재현해요. 별건으로, 맥박 파일 셋이 버전 관리에 추적되고 있었어요 — 무시 규칙이 파일 이름을 하나씩 적는 방식이라 새 작성자 셋이 그 열거를 걸어 나갔어요.
+
+이전: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
 
 공격자 하나가 축 하나를 정확히 덮지 않는 순간 둘은 갈라지는데, 그게 보통의 경우예요. 실측된 회차는 공격자 7종이 축 8개를 덮었고, 그래서 원장엔 53.8% 가 남았는데 축 커버리지는 61.5% 였어요. 둘 다 티어 하한 근처가 아니라 **판정은 우연히 같았고요** — 이게 이런 게 살아남는 방식이에요. 같은 결론에 닿는 틀린 수는 증상을 안 만들거든요.
 
@@ -1530,7 +1550,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
+**현재**: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
+
+같은 «이름 없음» 에서 결과가 셋 더 나와요. 수단 실패 계수기는 수단이 아닌 결과가 오면 0 으로 되돌아가니 **사다리가 한 번도 안 움직였어요** — 그런데 사다리야말로 여기서 쓸모 있는 도구예요, 할당량 주머니는 공급사마다 따로라 다른 엔진은 내내 멀쩡했거든요. 세션은 첫 거절에 버려졌어요, 세션엔 아무 문제가 없었는데요. 그리고 재개 시각은 **무시당한 그 오류 안에 공급사가 적어 보내는데** 아무도 안 읽었어요.
+
+탐지는 일부러 넓게 걸되 **이미 실패한 턴에서만** 판정해요 — 오탐은 몇 시간의 놀림이고 미탐은 한 번의 헛시도라, 대가가 대칭이 아니에요(리밋을 «이야기하는» 성공한 턴은 거절이 아니에요). 재개 시각은 다섯 형태로 기회 되는 대로 읽되 **필요조건이 아니에요**: 못 읽은 거절은 고정 간격으로 다시 시험하고, 그러면 리셋을 그 한 간격 안에 스스로 발견해서 헛시도의 대부분이 아무것도 모르는 채로 사라져요. 읽어낸 시각도 상한을 걸어요 — 엉뚱한 미래로 잘못 읽으면 자리가 **영구히** 조용해지는데, 그건 이 절이 이미 금지하는 실패거든요. 이 경로는 여기서 한 번도 돈 적이 없어요(턴 기록 201줄에 리밋 0건). 그래서 «문구가 맞을 것» 이 아니라 **«안 맞을 것»** 을 전제로 설계했어요.
+
+사다리 수정의 첫 판은 자기 시험에서 깨졌어요: **내려갈 땐 시각으로, 올라올 땐 턴 수로** 셌거든요. 단위가 다르니 한 번 갈아탄 자리는 안 돌아왔어요. 이제 사다리는 위치를 **둘** 들어요. **바닥**은 수단 판정이라 저장돼요 — 수단 실패 누적으로 내려가고, 성공 턴이 정해진 수만큼 쌓이면 올라와요. **칸**은 그 바닥 이하에서 지금 거절당하지 않은 첫 칸이라 매 턴 차단 지도에서 파생되고 **저장 안 해요** — 복원할 위치가 없으니 복귀가 저절로 돼요. 그걸 재다가 더 오래된 결함이 나왔어요: **고른 칸을 그 턴에 쓰기만 하고 안 남겨서** 저장된 위치가 늘 0 이었고, 강등이 항상 «0→1» 로만 계산돼 **마지막 칸이 도달 불가**였고, 원래 수단으로 돌아가는 계수기는 **한 번도 안 올랐어요.**
+
+기다리는 동안에도 다리 유지는 계속해요 — 다리는 할당량을 안 쓰고, 멈추면 그 사이 도착한 인바운드를 잃어요. 기다림 자체는 맥박에 실어요: 기다리는 자리도 맥박은 계속 뛰니까 그냥 두면 몇 시간을 «정상» 으로 읽혀요. **부재로 위장한 고장의 거울상**이고, 「그 층이 돌고 있나」를 묻는 관찰로는 똑같이 안 보여요. 생존 검사는 단정 108 → 139 · 돌연변이 5종 신설이고, 그중 하나는 위의 «도달 불가한 칸» 거동을 그대로 재현해요. 별건으로, 맥박 파일 셋이 버전 관리에 추적되고 있었어요 — 무시 규칙이 파일 이름을 하나씩 적는 방식이라 새 작성자 셋이 그 열거를 걸어 나갔어요.
+
+이전: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
 
 공격자 하나가 축 하나를 정확히 덮지 않는 순간 둘은 갈라지는데, 그게 보통의 경우예요. 실측된 회차는 공격자 7종이 축 8개를 덮었고, 그래서 원장엔 53.8% 가 남았는데 축 커버리지는 61.5% 였어요. 둘 다 티어 하한 근처가 아니라 **판정은 우연히 같았고요** — 이게 이런 게 살아남는 방식이에요. 같은 결론에 닿는 틀린 수는 증상을 안 만들거든요.
 
@@ -2237,7 +2267,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
+**현재**: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
+
+같은 «이름 없음» 에서 결과가 셋 더 나와요. 수단 실패 계수기는 수단이 아닌 결과가 오면 0 으로 되돌아가니 **사다리가 한 번도 안 움직였어요** — 그런데 사다리야말로 여기서 쓸모 있는 도구예요, 할당량 주머니는 공급사마다 따로라 다른 엔진은 내내 멀쩡했거든요. 세션은 첫 거절에 버려졌어요, 세션엔 아무 문제가 없었는데요. 그리고 재개 시각은 **무시당한 그 오류 안에 공급사가 적어 보내는데** 아무도 안 읽었어요.
+
+탐지는 일부러 넓게 걸되 **이미 실패한 턴에서만** 판정해요 — 오탐은 몇 시간의 놀림이고 미탐은 한 번의 헛시도라, 대가가 대칭이 아니에요(리밋을 «이야기하는» 성공한 턴은 거절이 아니에요). 재개 시각은 다섯 형태로 기회 되는 대로 읽되 **필요조건이 아니에요**: 못 읽은 거절은 고정 간격으로 다시 시험하고, 그러면 리셋을 그 한 간격 안에 스스로 발견해서 헛시도의 대부분이 아무것도 모르는 채로 사라져요. 읽어낸 시각도 상한을 걸어요 — 엉뚱한 미래로 잘못 읽으면 자리가 **영구히** 조용해지는데, 그건 이 절이 이미 금지하는 실패거든요. 이 경로는 여기서 한 번도 돈 적이 없어요(턴 기록 201줄에 리밋 0건). 그래서 «문구가 맞을 것» 이 아니라 **«안 맞을 것»** 을 전제로 설계했어요.
+
+사다리 수정의 첫 판은 자기 시험에서 깨졌어요: **내려갈 땐 시각으로, 올라올 땐 턴 수로** 셌거든요. 단위가 다르니 한 번 갈아탄 자리는 안 돌아왔어요. 이제 사다리는 위치를 **둘** 들어요. **바닥**은 수단 판정이라 저장돼요 — 수단 실패 누적으로 내려가고, 성공 턴이 정해진 수만큼 쌓이면 올라와요. **칸**은 그 바닥 이하에서 지금 거절당하지 않은 첫 칸이라 매 턴 차단 지도에서 파생되고 **저장 안 해요** — 복원할 위치가 없으니 복귀가 저절로 돼요. 그걸 재다가 더 오래된 결함이 나왔어요: **고른 칸을 그 턴에 쓰기만 하고 안 남겨서** 저장된 위치가 늘 0 이었고, 강등이 항상 «0→1» 로만 계산돼 **마지막 칸이 도달 불가**였고, 원래 수단으로 돌아가는 계수기는 **한 번도 안 올랐어요.**
+
+기다리는 동안에도 다리 유지는 계속해요 — 다리는 할당량을 안 쓰고, 멈추면 그 사이 도착한 인바운드를 잃어요. 기다림 자체는 맥박에 실어요: 기다리는 자리도 맥박은 계속 뛰니까 그냥 두면 몇 시간을 «정상» 으로 읽혀요. **부재로 위장한 고장의 거울상**이고, 「그 층이 돌고 있나」를 묻는 관찰로는 똑같이 안 보여요. 생존 검사는 단정 108 → 139 · 돌연변이 5종 신설이고, 그중 하나는 위의 «도달 불가한 칸» 거동을 그대로 재현해요. 별건으로, 맥박 파일 셋이 버전 관리에 추적되고 있었어요 — 무시 규칙이 파일 이름을 하나씩 적는 방식이라 새 작성자 셋이 그 열거를 걸어 나갔어요.
+
+이전: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
 
 공격자 하나가 축 하나를 정확히 덮지 않는 순간 둘은 갈라지는데, 그게 보통의 경우예요. 실측된 회차는 공격자 7종이 축 8개를 덮었고, 그래서 원장엔 53.8% 가 남았는데 축 커버리지는 61.5% 였어요. 둘 다 티어 하한 근처가 아니라 **판정은 우연히 같았고요** — 이게 이런 게 살아남는 방식이에요. 같은 결론에 닿는 틀린 수는 증상을 안 만들거든요.
 
