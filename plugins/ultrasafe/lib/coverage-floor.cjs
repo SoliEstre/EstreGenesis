@@ -57,4 +57,37 @@ function meetsFloor(opts) {
   return pct >= floorPctForTier(o.tier);
 }
 
-module.exports = { TIER_FLOOR_PCT, floorPctForTier, toPct, meetsFloor };
+/**
+ * The coverage **numerator**, computed once. Added after the same split this file was written to
+ * end reappeared one layer up: the threshold and the unit were unified here, but the *quantity*
+ * being compared against them was still derived two different ways.
+ *
+ *   · the gate averaged per-axis coverage over the declared axes — surface actually examined;
+ *   · the iteration writer divided attackers dispatched by attackers configured — agents launched.
+ *
+ * Those answer different questions and disagree whenever one attacker covers more or fewer than
+ * one axis, which is the normal case (7 attackers reported across 8 axes in the measured run).
+ * Both were called `coverage`, and the one stored in the ledger — the one a human reads — was the
+ * agent ratio, while the one that decided the gate was the axis mean. A number that is displayed
+ * and a number that decides must not be different numbers wearing one name.
+ *
+ * Returns percent, or `null` when coverage cannot be computed. `null` is not zero and not a pass.
+ *
+ * @param {Object<string, number>} coveragePct  per-axis coverage, in percent
+ * @param {string[]} declaredAxes               the denominator — every declared axis, reported or not
+ */
+function coverageFromAxes(coveragePct, declaredAxes) {
+  if (!coveragePct || typeof coveragePct !== 'object') return null;
+  if (!Array.isArray(declaredAxes) || declaredAxes.length === 0) return null;
+  // Unreported axes count as **zero**, never as absent. Averaging only what was submitted lets a
+  // run raise its own score by skipping axes — the defect this project measured at 50% → 90%.
+  let sum = 0, reported = 0;
+  for (const axis of declaredAxes) {
+    const v = coveragePct[axis];
+    if (typeof v === 'number' && Number.isFinite(v)) { sum += v; reported++; }
+  }
+  if (reported === 0) return null;   // nothing submitted at all = unmeasured, not 0%
+  return sum / declaredAxes.length;
+}
+
+module.exports = { TIER_FLOOR_PCT, floorPctForTier, toPct, meetsFloor, coverageFromAxes };

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.53-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.54-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,7 +303,17 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.53 (2026-07-29) — **«Unspecified» and «unrecognized» fell into the same else, so an explicit request was silently granted as something else (Constellation v2.4.123)** — §3.1 has stated since v0.5 that an unknown key kind MUST be rejected at the registration boundary and never coerced to a default. The reference server did not do that. Its issuance line read `(local||collab||upstream||peer) ? kind : 'upstream'`, which collapses two different situations into one branch: a client that sends no kind at all — the dashboard's issue button, where a default is intended — and a client that asks for a kind the server does not recognize, because of a typo or because the server is older than the caller. The second case is the one that matters. A caller that explicitly requested a peer key received an upstream key, the reply said issued, and nothing anywhere reported a discrepancy.
+**Current**: v2.6.54 (2026-07-29) — **A number that is displayed and a number that decides must not be different numbers wearing one name (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` exists because the same gate condition had been implemented twice with different thresholds and different units, and it unified both. One layer up, the *quantity* being compared against them was still derived two ways. The clean-signal gate averaged per-axis coverage over the declared axes — how much surface was actually examined. The iteration writer divided attackers dispatched by attackers configured — how many agents were launched. Both were called `coverage`, and the one written into the ledger, the one a human reads, was the agent ratio, while the one that decided the gate was the axis mean.
+
+They disagree whenever an attacker covers other than exactly one axis, which is the ordinary case: the measured run dispatched seven attackers across eight axes, so the ledger recorded 53.8% for a run whose axis coverage was 61.5%. Neither number was near the tier floor, so the verdict happened to be right — which is exactly how this survives, since a wrong number that reaches the same conclusion produces no symptom.
+
+The writer also carried a third hardcoded floor, `0.8`, under a comment asserting parity with the hook. The hook's was `0.85` and the spec's tier table says 75 for this tier. The comment claimed the consistency that the module beneath it had been created to provide and that this file had never adopted.
+
+The numerator now lives beside the threshold and the unit, in one function both surfaces call. Unreported axes count as zero rather than as absent — averaging only what was submitted lets a run raise its own score by skipping axes, which is the defect this project measured going from 50% to 90%. Coverage with nothing submitted is `null`, and a `null` coverage yields a `null` verdict rather than a failing one, because a condition that could not be evaluated is neither met nor unmet. The dispatch ratio is kept under a name that says what it is.
+
+The iteration checker failed on this change, correctly — it had been asserting the old contract, pinning coverage to the agent ratio. Its axes were rewritten to the new contract rather than removed, and one was added for the case the change introduces: omit the per-axis values and both coverage and the clean verdict record `null`, never a substitute derived from the dispatch count.
+
+Previously: v2.6.53 (2026-07-29) — **«Unspecified» and «unrecognized» fell into the same else, so an explicit request was silently granted as something else (Constellation v2.4.123)** — §3.1 has stated since v0.5 that an unknown key kind MUST be rejected at the registration boundary and never coerced to a default. The reference server did not do that. Its issuance line read `(local||collab||upstream||peer) ? kind : 'upstream'`, which collapses two different situations into one branch: a client that sends no kind at all — the dashboard's issue button, where a default is intended — and a client that asks for a kind the server does not recognize, because of a typo or because the server is older than the caller. The second case is the one that matters. A caller that explicitly requested a peer key received an upstream key, the reply said issued, and nothing anywhere reported a discrepancy.
 
 The section's own rationale names the cost: a kind that is misread as collab attaches collab group membership to a connection that should not have it. So the failure is not cosmetic — it is a quiet widening of who is inside a group.
 
@@ -874,7 +884,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
+**현재**: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
+
+공격자 하나가 축 하나를 정확히 덮지 않는 순간 둘은 갈라지는데, 그게 보통의 경우예요. 실측된 회차는 공격자 7종이 축 8개를 덮었고, 그래서 원장엔 53.8% 가 남았는데 축 커버리지는 61.5% 였어요. 둘 다 티어 하한 근처가 아니라 **판정은 우연히 같았고요** — 이게 이런 게 살아남는 방식이에요. 같은 결론에 닿는 틀린 수는 증상을 안 만들거든요.
+
+기록기엔 **세 번째 하드코딩 임계값 `0.8`** 도 있었어요. 「훅과 같은 값」이라는 주석을 달고요. 훅은 `0.85` 였고 규격 티어 표는 이 티어에서 75 예요. 주석이 **바로 아래 모듈이 제공하려고 만들어진 정합을 주장**하고 있었어요 — 정작 이 파일은 그 모듈을 쓴 적이 없는데요.
+
+이제 분자가 임계값·단위와 **같은 자리**에 있고, 두 표면이 같은 함수를 불러요. 미신고 축은 «없음» 이 아니라 **0** 으로 세요 — 제출된 것만 평균하면 축을 빼는 것만으로 자기 점수를 올릴 수 있고, 이 저장소가 50%→90% 로 실측한 결함이 정확히 그거예요. 아무것도 제출 안 하면 커버리지는 `null` 이고, `null` 커버리지는 실패가 아니라 `null` 판정을 내요. 평가하지 못한 조건은 충족도 미충족도 아니니까요. 에이전트 비율은 **자기가 무엇인지 말하는 이름**으로 남겼어요.
+
+이 변경에 회차 검사가 **실패했어요 — 옳게요.** 그 검사가 옛 계약을 단정하고 있었거든요(커버리지를 에이전트 비율에 못박아서). 축을 지우지 않고 **새 계약으로 다시 썼고**, 변경이 새로 만든 경우에 축을 하나 더 붙였어요 — 축별 값을 안 주면 커버리지도 clean 판정도 `null` 이지, 띄운 수에서 유도한 대체값이 아니에요.
+
+Previously: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
 
 그 절이 위험을 직접 적어놨어요 — 못 알아본 종이 collab 으로 흘러가면 그 접속에 collab 그룹 소속이 붙어요. 겉모습 문제가 아니라 **누가 그룹 안에 있는지가 조용히 넓어지는** 거예요.
 
@@ -1510,7 +1530,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
+**현재**: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
+
+공격자 하나가 축 하나를 정확히 덮지 않는 순간 둘은 갈라지는데, 그게 보통의 경우예요. 실측된 회차는 공격자 7종이 축 8개를 덮었고, 그래서 원장엔 53.8% 가 남았는데 축 커버리지는 61.5% 였어요. 둘 다 티어 하한 근처가 아니라 **판정은 우연히 같았고요** — 이게 이런 게 살아남는 방식이에요. 같은 결론에 닿는 틀린 수는 증상을 안 만들거든요.
+
+기록기엔 **세 번째 하드코딩 임계값 `0.8`** 도 있었어요. 「훅과 같은 값」이라는 주석을 달고요. 훅은 `0.85` 였고 규격 티어 표는 이 티어에서 75 예요. 주석이 **바로 아래 모듈이 제공하려고 만들어진 정합을 주장**하고 있었어요 — 정작 이 파일은 그 모듈을 쓴 적이 없는데요.
+
+이제 분자가 임계값·단위와 **같은 자리**에 있고, 두 표면이 같은 함수를 불러요. 미신고 축은 «없음» 이 아니라 **0** 으로 세요 — 제출된 것만 평균하면 축을 빼는 것만으로 자기 점수를 올릴 수 있고, 이 저장소가 50%→90% 로 실측한 결함이 정확히 그거예요. 아무것도 제출 안 하면 커버리지는 `null` 이고, `null` 커버리지는 실패가 아니라 `null` 판정을 내요. 평가하지 못한 조건은 충족도 미충족도 아니니까요. 에이전트 비율은 **자기가 무엇인지 말하는 이름**으로 남겼어요.
+
+이 변경에 회차 검사가 **실패했어요 — 옳게요.** 그 검사가 옛 계약을 단정하고 있었거든요(커버리지를 에이전트 비율에 못박아서). 축을 지우지 않고 **새 계약으로 다시 썼고**, 변경이 새로 만든 경우에 축을 하나 더 붙였어요 — 축별 값을 안 주면 커버리지도 clean 판정도 `null` 이지, 띄운 수에서 유도한 대체값이 아니에요.
+
+Previously: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
 
 그 절이 위험을 직접 적어놨어요 — 못 알아본 종이 collab 으로 흘러가면 그 접속에 collab 그룹 소속이 붙어요. 겉모습 문제가 아니라 **누가 그룹 안에 있는지가 조용히 넓어지는** 거예요.
 
@@ -2207,7 +2237,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
+**현재**: v2.6.54 (2026-07-29) — **화면에 남는 수와 판정하는 수가, 같은 이름을 쓰는 다른 수면 안 돼요 (Ultrasafe v0.2.13)** — `lib/coverage-floor.cjs` 는 «같은 게이트 조건이 두 번, 다른 임계값과 다른 단위로 구현됐다» 는 이유로 만들어졌고 그 둘을 하나로 모았어요. 그런데 **한 층 위에서, 그 임계값에 비교되는 «양» 자체가 여전히 두 갈래**였어요. 게이트는 선언된 축에 대한 축별 커버리지의 평균 — «표면을 실제로 얼마나 훑었나» 를 봤고, 회차 기록기는 띄운 공격자 ÷ 설정된 공격자 — «에이전트를 몇 개 띄웠나» 를 봤어요. 둘 다 이름이 `coverage` 였고, **원장에 남아 사람이 읽는 건 에이전트 비율**이었고 **게이트를 판정한 건 축 평균**이었어요.
+
+공격자 하나가 축 하나를 정확히 덮지 않는 순간 둘은 갈라지는데, 그게 보통의 경우예요. 실측된 회차는 공격자 7종이 축 8개를 덮었고, 그래서 원장엔 53.8% 가 남았는데 축 커버리지는 61.5% 였어요. 둘 다 티어 하한 근처가 아니라 **판정은 우연히 같았고요** — 이게 이런 게 살아남는 방식이에요. 같은 결론에 닿는 틀린 수는 증상을 안 만들거든요.
+
+기록기엔 **세 번째 하드코딩 임계값 `0.8`** 도 있었어요. 「훅과 같은 값」이라는 주석을 달고요. 훅은 `0.85` 였고 규격 티어 표는 이 티어에서 75 예요. 주석이 **바로 아래 모듈이 제공하려고 만들어진 정합을 주장**하고 있었어요 — 정작 이 파일은 그 모듈을 쓴 적이 없는데요.
+
+이제 분자가 임계값·단위와 **같은 자리**에 있고, 두 표면이 같은 함수를 불러요. 미신고 축은 «없음» 이 아니라 **0** 으로 세요 — 제출된 것만 평균하면 축을 빼는 것만으로 자기 점수를 올릴 수 있고, 이 저장소가 50%→90% 로 실측한 결함이 정확히 그거예요. 아무것도 제출 안 하면 커버리지는 `null` 이고, `null` 커버리지는 실패가 아니라 `null` 판정을 내요. 평가하지 못한 조건은 충족도 미충족도 아니니까요. 에이전트 비율은 **자기가 무엇인지 말하는 이름**으로 남겼어요.
+
+이 변경에 회차 검사가 **실패했어요 — 옳게요.** 그 검사가 옛 계약을 단정하고 있었거든요(커버리지를 에이전트 비율에 못박아서). 축을 지우지 않고 **새 계약으로 다시 썼고**, 변경이 새로 만든 경우에 축을 하나 더 붙였어요 — 축별 값을 안 주면 커버리지도 clean 판정도 `null` 이지, 띄운 수에서 유도한 대체값이 아니에요.
+
+Previously: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
 
 그 절이 위험을 직접 적어놨어요 — 못 알아본 종이 collab 으로 흘러가면 그 접속에 collab 그룹 소속이 붙어요. 겉모습 문제가 아니라 **누가 그룹 안에 있는지가 조용히 넓어지는** 거예요.
 
