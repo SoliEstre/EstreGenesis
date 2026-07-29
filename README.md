@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.52-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.53-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,7 +303,15 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.52 (2026-07-29) — **Guidance placed where it is convenient to author, not where the reader arrives (seed v2.6.1, Constellation v2.4.122)** — an earlier cut specified what an autonomous agent should do when handed this standard with no request attached: treat reception as installation rather than production, mount pure discipline by default and require an explicit request for anything that runs a process, binds a port, spends money or claims authority. That guidance went into the protocol and into the kit's bootstrap skill. It did not go into the seed — and the seed is the artifact that actually gets handed over. The intended reader is precisely an agent that received one file and nothing else, so the guidance was absent from the only place that reader looks.
+**Current**: v2.6.53 (2026-07-29) — **«Unspecified» and «unrecognized» fell into the same else, so an explicit request was silently granted as something else (Constellation v2.4.123)** — §3.1 has stated since v0.5 that an unknown key kind MUST be rejected at the registration boundary and never coerced to a default. The reference server did not do that. Its issuance line read `(local||collab||upstream||peer) ? kind : 'upstream'`, which collapses two different situations into one branch: a client that sends no kind at all — the dashboard's issue button, where a default is intended — and a client that asks for a kind the server does not recognize, because of a typo or because the server is older than the caller. The second case is the one that matters. A caller that explicitly requested a peer key received an upstream key, the reply said issued, and nothing anywhere reported a discrepancy.
+
+The section's own rationale names the cost: a kind that is misread as collab attaches collab group membership to a connection that should not have it. So the failure is not cosmetic — it is a quiet widening of who is inside a group.
+
+The fix separates the two: an unrecognized value returns an error envelope naming the closed enum, while an absent value still takes the intended default. Three behavioural assertions were added to the key smoke test — reject the unrecognized, keep the default for the unspecified, and confirm the peer kind actually issues a `pk-` key on its own URL parameter rather than riding the upstream one. Reverting the fix fails the first assertion and leaves the other two green, which is what a specific axis should do.
+
+Provenance is worth recording. A collaborating agent found this shape in its own server, said so, and quoted the line. Checking whether the same shape existed here is what surfaced it — and the section being violated was the one this side had cited at them an hour earlier. A specification that is quoted but not conformed to is worse than one nobody read, because the citation is taken as evidence of compliance.
+
+Previously: v2.6.52 (2026-07-29) — **Guidance placed where it is convenient to author, not where the reader arrives (seed v2.6.1, Constellation v2.4.122)** — an earlier cut specified what an autonomous agent should do when handed this standard with no request attached: treat reception as installation rather than production, mount pure discipline by default and require an explicit request for anything that runs a process, binds a port, spends money or claims authority. That guidance went into the protocol and into the kit's bootstrap skill. It did not go into the seed — and the seed is the artifact that actually gets handed over. The intended reader is precisely an agent that received one file and nothing else, so the guidance was absent from the only place that reader looks.
 
 The seed now carries it as **Mode R**, alongside the bootstrap and three migration modes it already offered. Those four all presuppose a request; Mode R is the case where none is attached, which is why its absence was easy to miss — nothing failed, the agent simply picked the closest-fitting mode and produced something. All six tier/language files carry it, scaled: the Master files state the reasoning, Lite compresses it, Compact keeps the splitting rule and the two orderings (conduct before infrastructure, bootstrap before the first deliverable).
 
@@ -866,7 +874,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
+**현재**: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
+
+그 절이 위험을 직접 적어놨어요 — 못 알아본 종이 collab 으로 흘러가면 그 접속에 collab 그룹 소속이 붙어요. 겉모습 문제가 아니라 **누가 그룹 안에 있는지가 조용히 넓어지는** 거예요.
+
+고침은 둘을 가르는 거예요. 못 알아본 값은 닫힌 열거를 이름 대며 오류로 돌려주고, 값이 없는 경우는 그대로 기본값을 써요. 열쇠 스모크에 거동 단정 셋을 붙였어요 — 못 알아본 건 거부 · 미지정은 기본값 유지 · peer 종이 실제로 `pk-` 로 발급되고 upstream 파라미터에 편승하지 않는지. 고침을 되돌리면 **첫 단정만** 실패하고 나머지 둘은 초록이에요. 겨냥한 부류에만 반응한다는 뜻이고요.
+
+출처를 적어둘 만해요. 협업 상대가 자기 서버에서 같은 모양을 찾아 알려주면서 그 줄을 그대로 인용했고, «여기도 같은 모양인가» 를 대조한 게 발견의 경로였어요. 그리고 위반당하고 있던 그 절은, 한 시간 전에 이쪽이 상대에게 **인용해 준** 바로 그 절이에요. 인용은 되는데 지켜지지 않는 규격은 아무도 안 읽은 규격보다 나빠요 — 인용 자체가 준수의 증거로 읽히거든요.
+
+Previously: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
 
 이제 시드가 **모드 R** 로 담아요. 원래 있던 부트스트랩 + 마이그레이션 세 모드 옆에요. 그 넷은 전부 **요청이 있다고 전제**하고, 모드 R 은 요청이 안 붙은 경우예요 — 빠진 게 눈에 안 띈 이유가 거기 있어요. 아무것도 실패하지 않고, 에이전트가 그냥 제일 가까운 모드를 골라서 뭔가를 만들어 내거든요. 6파일 전부에 넣되 분량을 맞췄어요: 마스터는 이유까지, Lite 는 압축, Compact 는 층을 가르는 규칙과 순서 둘(처신이 인프라보다 먼저 · 부트스트랩이 첫 산출물보다 먼저)만.
 
@@ -1494,7 +1510,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
+**현재**: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
+
+그 절이 위험을 직접 적어놨어요 — 못 알아본 종이 collab 으로 흘러가면 그 접속에 collab 그룹 소속이 붙어요. 겉모습 문제가 아니라 **누가 그룹 안에 있는지가 조용히 넓어지는** 거예요.
+
+고침은 둘을 가르는 거예요. 못 알아본 값은 닫힌 열거를 이름 대며 오류로 돌려주고, 값이 없는 경우는 그대로 기본값을 써요. 열쇠 스모크에 거동 단정 셋을 붙였어요 — 못 알아본 건 거부 · 미지정은 기본값 유지 · peer 종이 실제로 `pk-` 로 발급되고 upstream 파라미터에 편승하지 않는지. 고침을 되돌리면 **첫 단정만** 실패하고 나머지 둘은 초록이에요. 겨냥한 부류에만 반응한다는 뜻이고요.
+
+출처를 적어둘 만해요. 협업 상대가 자기 서버에서 같은 모양을 찾아 알려주면서 그 줄을 그대로 인용했고, «여기도 같은 모양인가» 를 대조한 게 발견의 경로였어요. 그리고 위반당하고 있던 그 절은, 한 시간 전에 이쪽이 상대에게 **인용해 준** 바로 그 절이에요. 인용은 되는데 지켜지지 않는 규격은 아무도 안 읽은 규격보다 나빠요 — 인용 자체가 준수의 증거로 읽히거든요.
+
+Previously: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
 
 이제 시드가 **모드 R** 로 담아요. 원래 있던 부트스트랩 + 마이그레이션 세 모드 옆에요. 그 넷은 전부 **요청이 있다고 전제**하고, 모드 R 은 요청이 안 붙은 경우예요 — 빠진 게 눈에 안 띈 이유가 거기 있어요. 아무것도 실패하지 않고, 에이전트가 그냥 제일 가까운 모드를 골라서 뭔가를 만들어 내거든요. 6파일 전부에 넣되 분량을 맞췄어요: 마스터는 이유까지, Lite 는 압축, Compact 는 층을 가르는 규칙과 순서 둘(처신이 인프라보다 먼저 · 부트스트랩이 첫 산출물보다 먼저)만.
 
@@ -2183,7 +2207,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
+**현재**: v2.6.53 (2026-07-29) — **«미지정» 과 «못 알아본 값» 이 같은 else 로 떨어져서, 명시한 요청이 조용히 다른 게 발급됐어요 (Constellation v2.4.123)** — §3.1 은 v0.5 부터 «모르는 열쇠 종은 등록 경계에서 거부해야 하고, 기본값으로 강제하면 안 된다» 고 규범으로 적고 있었어요. 레퍼런스 서버가 그걸 안 지키고 있었어요. 발급 줄이 `(local||collab||upstream||peer) ? kind : 'upstream'` 였는데, 이 삼항은 **서로 다른 두 상황을 한 갈래로 접어요** — 종을 아예 안 보낸 클라이언트(대시보드 발급 버튼처럼 기본값이 의도된 경우)와, 서버가 못 알아보는 종을 요청한 클라이언트(오타이거나, 서버가 호출자보다 구버전이거나). 문제는 두 번째예요. **피어 열쇠를 명시적으로 요청한 쪽이 upstream 열쇠를 받았고**, 응답은 «발급됨» 이었고, 어디서도 어긋났다는 말이 안 나왔어요.
+
+그 절이 위험을 직접 적어놨어요 — 못 알아본 종이 collab 으로 흘러가면 그 접속에 collab 그룹 소속이 붙어요. 겉모습 문제가 아니라 **누가 그룹 안에 있는지가 조용히 넓어지는** 거예요.
+
+고침은 둘을 가르는 거예요. 못 알아본 값은 닫힌 열거를 이름 대며 오류로 돌려주고, 값이 없는 경우는 그대로 기본값을 써요. 열쇠 스모크에 거동 단정 셋을 붙였어요 — 못 알아본 건 거부 · 미지정은 기본값 유지 · peer 종이 실제로 `pk-` 로 발급되고 upstream 파라미터에 편승하지 않는지. 고침을 되돌리면 **첫 단정만** 실패하고 나머지 둘은 초록이에요. 겨냥한 부류에만 반응한다는 뜻이고요.
+
+출처를 적어둘 만해요. 협업 상대가 자기 서버에서 같은 모양을 찾아 알려주면서 그 줄을 그대로 인용했고, «여기도 같은 모양인가» 를 대조한 게 발견의 경로였어요. 그리고 위반당하고 있던 그 절은, 한 시간 전에 이쪽이 상대에게 **인용해 준** 바로 그 절이에요. 인용은 되는데 지켜지지 않는 규격은 아무도 안 읽은 규격보다 나빠요 — 인용 자체가 준수의 증거로 읽히거든요.
+
+Previously: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
 
 이제 시드가 **모드 R** 로 담아요. 원래 있던 부트스트랩 + 마이그레이션 세 모드 옆에요. 그 넷은 전부 **요청이 있다고 전제**하고, 모드 R 은 요청이 안 붙은 경우예요 — 빠진 게 눈에 안 띈 이유가 거기 있어요. 아무것도 실패하지 않고, 에이전트가 그냥 제일 가까운 모드를 골라서 뭔가를 만들어 내거든요. 6파일 전부에 넣되 분량을 맞췄어요: 마스터는 이유까지, Lite 는 압축, Compact 는 층을 가르는 규칙과 순서 둘(처신이 인프라보다 먼저 · 부트스트랩이 첫 산출물보다 먼저)만.
 
