@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.50-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.51-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,7 +303,19 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.50 (2026-07-29) — **A recovery path fails as an absence, not an error (Constellation v2.4.120)** — the script that owned reboot registration for the live board could not be parsed at all. The host reads a BOM-less UTF-8 file in the system ANSI codepage, and some characters became syntax; registration, status query, and removal were all unavailable. Nothing reported it, because a recovery path that cannot run produces no error — it produces nothing, which is what a recovery path that is never needed also produces. All four scripts of that class were one edit away from the same state.
+**Current**: v2.6.51 (2026-07-29) — **A greeting is re-sent on every reconnect, so anything mutable in it becomes a standing claim (Constellation v2.4.121)** — a peer reported that our bridge kept announcing a track as in progress ten days after that track closed, and that it had been waiting for a follow-up that was never coming. The greeting a bridge sends on connect carries free-text metadata for human readers, and that greeting goes out again on every reconnect — every socket flap, every process restart, every reboot. A status written there is therefore not a note; it is a claim re-asserted indefinitely. Nothing errors on either side: the sender sees an ordinary reconnect and the receiver sees a fresh assertion.
+
+A comment reminding the author to update that string when the track closed was sitting directly above it. That is what a discipline looks like when nothing enforces it — and the fix is not better upkeep. The greeting now carries identity and a pointer to where live state is authoritative, and carries no state at all; a greeting with no state in it cannot go stale. A checker rejects track-state vocabulary in that field, and its mutation restores the exact string that shipped, because a synthetic sentence would not reproduce this class.
+
+§2 step 3 states the rule where the greeting's shape is specified, since the trap belongs to the protocol rather than to one deployment.
+
+Operationally the seat watchdog grew to the surface a reboot exposed. Everything it already covered came back by itself; the two bridges the interactive seat uses to reach the board did not, because they had been filed as things that appear when a seat opens rather than as programs independent of it. They are now components like any other. Three more processes learned to emit a heartbeat from inside their work loop through a shared module that deliberately contains no timer — one that scheduled itself would keep the heartbeat advancing through exactly the wedge it exists to catch, so the absence of a timer is what forces the caller to beat from its loop.
+
+Two placement traps came with that. Each of those loops legitimately returns early — a bridge when disconnected, the mirror when echo is off — and a heartbeat written below that return turns a normal idle state into a stall, so the watchdog would restart healthy processes forever. The beat goes above the return and the state rides along as a value. And a disconnected bridge is not simply dead: restarting a client that cannot reach a downed server is churn, so the rule is now a cross-component one — the board is up and only this bridge has been disconnected past its grace, therefore the fault is here.
+
+The staleness threshold is no longer written into the watchdog per component; it is derived from the interval each heartbeat reports about itself, so a component that changes its loop period does not silently outrun a number nobody remembered to update. The strongest new axis is a coverage assertion rather than a snapshot: every process that emits a heartbeat must appear in the watchdog's component list, so adding one and forgetting to register it is a build failure rather than a quiet gap.
+
+Previously: v2.6.50 (2026-07-29) — **A recovery path fails as an absence, not an error (Constellation v2.4.120)** — the script that owned reboot registration for the live board could not be parsed at all. The host reads a BOM-less UTF-8 file in the system ANSI codepage, and some characters became syntax; registration, status query, and removal were all unavailable. Nothing reported it, because a recovery path that cannot run produces no error — it produces nothing, which is what a recovery path that is never needed also produces. All four scripts of that class were one edit away from the same state.
 
 That is the shape of the whole cut. The seat stack was supervised top-down — scheduler brings up the launcher, the launcher brings up the server and the supervisor, the supervisor brings up the bridge and each turn — and every layer was covered except the top. When the supervisor itself wedged, the board stayed healthy and delegations stopped being processed, and the only remaining recovery mechanism was a person noticing. The layer added here hangs off the OS scheduler, because a supervisor supervised by another supervisor only relocates the question, and it is non-destructive when healthy so it can run on a short interval — a bring-up script that reclaims a port is correct at boot and is an outage on a timer.
 
@@ -846,7 +858,19 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.50 (2026-07-29) — **복구 경로는 오류가 아니라 «없음» 으로 고장나요 (Constellation v2.4.120)** — 라이브 보드의 재부팅 등록을 소유한 스크립트가 **파싱조차 안 됐어요.** 호스트가 BOM 없는 UTF-8 파일을 시스템 ANSI 코드페이지로 읽어서 일부 글자가 문법이 돼 버렸고, 등록·조회·해제가 전부 불가였어요. 아무도 안 알려줬어요 — 못 도는 복구 경로는 오류를 안 내거든요. 아무것도 안 내요. 그건 «필요가 없어서 안 돈» 복구 경로와 똑같이 생겼어요. 같은 부류의 스크립트 네 개가 전부 편집 한 번이면 같은 상태가 될 자리에 있었어요.
+**현재**: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
+
+그 문구 **바로 윗줄에** 「트랙이 끝나면 반드시 갱신할 것」이라는 주석이 있었어요. 규율이 있고 그걸 강제하는 게 없으면 이렇게 돼요. 그래서 「이번엔 잘 갱신하자」로 안 고쳤어요. 인사말은 이제 **정체와, 살아 있는 상태의 정본이 어디인지**만 실어요. 상태가 없으면 낡을 수가 없어요. 검사가 그 자리의 트랙-상태 어휘를 거부하고, 되돌림 시험은 **실제로 나갔던 그 문구를 그대로** 복원해요 — 지어낸 문장으로는 이 부류를 못 흉내내거든요.
+
+규격은 인사말의 모양을 정하는 자리(§2 step 3)에 그 규칙을 적었어요. 이 함정은 한 배포의 문제가 아니라 규약의 문제라서요.
+
+운영 쪽에서는 자리 감시자가 **재부팅이 드러낸 표면**까지 넓어졌어요. 이미 보고 있던 건 전부 스스로 돌아왔는데, 사람이 앉는 자리가 보드에 말을 거는 다리 둘은 안 돌아왔어요 — «자리가 열릴 때 뜨는 것» 으로 분류돼 있었지, 자리와 독립된 프로그램으로 안 봤거든요. 이제 다른 것들과 같은 컴포넌트예요. 프로세스 셋이 **자기 작업 루프 안에서** 맥박을 남기게 됐고, 쓰는 부품에는 **일부러 타이머를 안 넣었어요** — 스스로 뛰는 맥박은 잡으려던 그 «멈춤» 을 그대로 통과하니까요. 타이머가 없다는 것 자체가 호출부를 루프 안에서 부르게 만드는 장치예요.
+
+자리 함정이 둘 딸려 왔어요. 그 루프들은 전부 **정상적인 조기 반환**으로 시작해요 — 다리는 끊겼을 때, 미러는 echo 를 껐을 때. 맥박을 그 아래 두면 정상 대기가 멈춤으로 보여서 감시자가 멀쩡한 걸 영원히 재기동해요. 그래서 맥박은 반환 **위**에 두고 상태는 값으로 실어요. 그리고 끊긴 다리가 곧 죽은 다리는 아니에요 — 서버가 내려간 동안 클라이언트를 다시 띄우는 건 헛돌기니까요. 그래서 판정이 **교차 조건**이 됐어요: 보드는 살아 있는데 이 다리만 유예를 넘겨 끊겨 있으면, 그건 이쪽 잘못이에요.
+
+«얼마나 낡으면 죽음인가» 도 감시자에 컴포넌트별로 안 박아요. **맥박이 스스로 말한 주기**에서 뽑아요 — 안 그러면 어떤 컴포넌트가 루프 주기를 바꿨을 때 아무도 그 숫자를 안 고쳐서, 검사는 통과하는데 재는 건 달라져요. 새 축 중 제일 오래 갈 건 스냅샷이 아니라 **커버리지 단정**이에요: 맥박을 쓰는 프로세스는 전부 감시 목록에 있어야 해요. 하나 더 붙이고 등재를 안 하면 조용한 누락이 아니라 빌드 실패예요.
+
+Previously: v2.6.50 (2026-07-29) — **복구 경로는 오류가 아니라 «없음» 으로 고장나요 (Constellation v2.4.120)** — 라이브 보드의 재부팅 등록을 소유한 스크립트가 **파싱조차 안 됐어요.** 호스트가 BOM 없는 UTF-8 파일을 시스템 ANSI 코드페이지로 읽어서 일부 글자가 문법이 돼 버렸고, 등록·조회·해제가 전부 불가였어요. 아무도 안 알려줬어요 — 못 도는 복구 경로는 오류를 안 내거든요. 아무것도 안 내요. 그건 «필요가 없어서 안 돈» 복구 경로와 똑같이 생겼어요. 같은 부류의 스크립트 네 개가 전부 편집 한 번이면 같은 상태가 될 자리에 있었어요.
 
 이 컷 전체가 그 모양이에요. 자리는 위에서 아래로 지켜지고 있었어요 — 스케줄러가 기동 스크립트를, 기동 스크립트가 서버와 감독자를, 감독자가 브릿지와 매 턴을. 맨 위만 빼고 다 덮여 있었어요. 감독자 자신이 멈추면 보드는 멀쩡한데 위임이 처리되지 않고, 남은 복구 수단은 **사람이 알아채는 것** 하나였어요. 여기서 더한 층은 OS 스케줄러에 매달아요 — 감독자를 감독자로 감독하면 질문이 자리만 옮기니까요. 그리고 멀쩡할 땐 아무것도 안 건드려서 짧은 간격으로 돌 수 있어요. 포트를 회수하는 기동 스크립트는 부팅 때는 맞고 타이머에 걸면 정기 장애예요.
 
@@ -1454,7 +1478,19 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.50 (2026-07-29) — **복구 경로는 오류가 아니라 «없음» 으로 고장나요 (Constellation v2.4.120)** — 라이브 보드의 재부팅 등록을 소유한 스크립트가 **파싱조차 안 됐어요.** 호스트가 BOM 없는 UTF-8 파일을 시스템 ANSI 코드페이지로 읽어서 일부 글자가 문법이 돼 버렸고, 등록·조회·해제가 전부 불가였어요. 아무도 안 알려줬어요 — 못 도는 복구 경로는 오류를 안 내거든요. 아무것도 안 내요. 그건 «필요가 없어서 안 돈» 복구 경로와 똑같이 생겼어요. 같은 부류의 스크립트 네 개가 전부 편집 한 번이면 같은 상태가 될 자리에 있었어요.
+**현재**: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
+
+그 문구 **바로 윗줄에** 「트랙이 끝나면 반드시 갱신할 것」이라는 주석이 있었어요. 규율이 있고 그걸 강제하는 게 없으면 이렇게 돼요. 그래서 「이번엔 잘 갱신하자」로 안 고쳤어요. 인사말은 이제 **정체와, 살아 있는 상태의 정본이 어디인지**만 실어요. 상태가 없으면 낡을 수가 없어요. 검사가 그 자리의 트랙-상태 어휘를 거부하고, 되돌림 시험은 **실제로 나갔던 그 문구를 그대로** 복원해요 — 지어낸 문장으로는 이 부류를 못 흉내내거든요.
+
+규격은 인사말의 모양을 정하는 자리(§2 step 3)에 그 규칙을 적었어요. 이 함정은 한 배포의 문제가 아니라 규약의 문제라서요.
+
+운영 쪽에서는 자리 감시자가 **재부팅이 드러낸 표면**까지 넓어졌어요. 이미 보고 있던 건 전부 스스로 돌아왔는데, 사람이 앉는 자리가 보드에 말을 거는 다리 둘은 안 돌아왔어요 — «자리가 열릴 때 뜨는 것» 으로 분류돼 있었지, 자리와 독립된 프로그램으로 안 봤거든요. 이제 다른 것들과 같은 컴포넌트예요. 프로세스 셋이 **자기 작업 루프 안에서** 맥박을 남기게 됐고, 쓰는 부품에는 **일부러 타이머를 안 넣었어요** — 스스로 뛰는 맥박은 잡으려던 그 «멈춤» 을 그대로 통과하니까요. 타이머가 없다는 것 자체가 호출부를 루프 안에서 부르게 만드는 장치예요.
+
+자리 함정이 둘 딸려 왔어요. 그 루프들은 전부 **정상적인 조기 반환**으로 시작해요 — 다리는 끊겼을 때, 미러는 echo 를 껐을 때. 맥박을 그 아래 두면 정상 대기가 멈춤으로 보여서 감시자가 멀쩡한 걸 영원히 재기동해요. 그래서 맥박은 반환 **위**에 두고 상태는 값으로 실어요. 그리고 끊긴 다리가 곧 죽은 다리는 아니에요 — 서버가 내려간 동안 클라이언트를 다시 띄우는 건 헛돌기니까요. 그래서 판정이 **교차 조건**이 됐어요: 보드는 살아 있는데 이 다리만 유예를 넘겨 끊겨 있으면, 그건 이쪽 잘못이에요.
+
+«얼마나 낡으면 죽음인가» 도 감시자에 컴포넌트별로 안 박아요. **맥박이 스스로 말한 주기**에서 뽑아요 — 안 그러면 어떤 컴포넌트가 루프 주기를 바꿨을 때 아무도 그 숫자를 안 고쳐서, 검사는 통과하는데 재는 건 달라져요. 새 축 중 제일 오래 갈 건 스냅샷이 아니라 **커버리지 단정**이에요: 맥박을 쓰는 프로세스는 전부 감시 목록에 있어야 해요. 하나 더 붙이고 등재를 안 하면 조용한 누락이 아니라 빌드 실패예요.
+
+Previously: v2.6.50 (2026-07-29) — **복구 경로는 오류가 아니라 «없음» 으로 고장나요 (Constellation v2.4.120)** — 라이브 보드의 재부팅 등록을 소유한 스크립트가 **파싱조차 안 됐어요.** 호스트가 BOM 없는 UTF-8 파일을 시스템 ANSI 코드페이지로 읽어서 일부 글자가 문법이 돼 버렸고, 등록·조회·해제가 전부 불가였어요. 아무도 안 알려줬어요 — 못 도는 복구 경로는 오류를 안 내거든요. 아무것도 안 내요. 그건 «필요가 없어서 안 돈» 복구 경로와 똑같이 생겼어요. 같은 부류의 스크립트 네 개가 전부 편집 한 번이면 같은 상태가 될 자리에 있었어요.
 
 이 컷 전체가 그 모양이에요. 자리는 위에서 아래로 지켜지고 있었어요 — 스케줄러가 기동 스크립트를, 기동 스크립트가 서버와 감독자를, 감독자가 브릿지와 매 턴을. 맨 위만 빼고 다 덮여 있었어요. 감독자 자신이 멈추면 보드는 멀쩡한데 위임이 처리되지 않고, 남은 복구 수단은 **사람이 알아채는 것** 하나였어요. 여기서 더한 층은 OS 스케줄러에 매달아요 — 감독자를 감독자로 감독하면 질문이 자리만 옮기니까요. 그리고 멀쩡할 땐 아무것도 안 건드려서 짧은 간격으로 돌 수 있어요. 포트를 회수하는 기동 스크립트는 부팅 때는 맞고 타이머에 걸면 정기 장애예요.
 
@@ -2123,7 +2159,19 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.50 (2026-07-29) — **복구 경로는 오류가 아니라 «없음» 으로 고장나요 (Constellation v2.4.120)** — 라이브 보드의 재부팅 등록을 소유한 스크립트가 **파싱조차 안 됐어요.** 호스트가 BOM 없는 UTF-8 파일을 시스템 ANSI 코드페이지로 읽어서 일부 글자가 문법이 돼 버렸고, 등록·조회·해제가 전부 불가였어요. 아무도 안 알려줬어요 — 못 도는 복구 경로는 오류를 안 내거든요. 아무것도 안 내요. 그건 «필요가 없어서 안 돈» 복구 경로와 똑같이 생겼어요. 같은 부류의 스크립트 네 개가 전부 편집 한 번이면 같은 상태가 될 자리에 있었어요.
+**현재**: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
+
+그 문구 **바로 윗줄에** 「트랙이 끝나면 반드시 갱신할 것」이라는 주석이 있었어요. 규율이 있고 그걸 강제하는 게 없으면 이렇게 돼요. 그래서 「이번엔 잘 갱신하자」로 안 고쳤어요. 인사말은 이제 **정체와, 살아 있는 상태의 정본이 어디인지**만 실어요. 상태가 없으면 낡을 수가 없어요. 검사가 그 자리의 트랙-상태 어휘를 거부하고, 되돌림 시험은 **실제로 나갔던 그 문구를 그대로** 복원해요 — 지어낸 문장으로는 이 부류를 못 흉내내거든요.
+
+규격은 인사말의 모양을 정하는 자리(§2 step 3)에 그 규칙을 적었어요. 이 함정은 한 배포의 문제가 아니라 규약의 문제라서요.
+
+운영 쪽에서는 자리 감시자가 **재부팅이 드러낸 표면**까지 넓어졌어요. 이미 보고 있던 건 전부 스스로 돌아왔는데, 사람이 앉는 자리가 보드에 말을 거는 다리 둘은 안 돌아왔어요 — «자리가 열릴 때 뜨는 것» 으로 분류돼 있었지, 자리와 독립된 프로그램으로 안 봤거든요. 이제 다른 것들과 같은 컴포넌트예요. 프로세스 셋이 **자기 작업 루프 안에서** 맥박을 남기게 됐고, 쓰는 부품에는 **일부러 타이머를 안 넣었어요** — 스스로 뛰는 맥박은 잡으려던 그 «멈춤» 을 그대로 통과하니까요. 타이머가 없다는 것 자체가 호출부를 루프 안에서 부르게 만드는 장치예요.
+
+자리 함정이 둘 딸려 왔어요. 그 루프들은 전부 **정상적인 조기 반환**으로 시작해요 — 다리는 끊겼을 때, 미러는 echo 를 껐을 때. 맥박을 그 아래 두면 정상 대기가 멈춤으로 보여서 감시자가 멀쩡한 걸 영원히 재기동해요. 그래서 맥박은 반환 **위**에 두고 상태는 값으로 실어요. 그리고 끊긴 다리가 곧 죽은 다리는 아니에요 — 서버가 내려간 동안 클라이언트를 다시 띄우는 건 헛돌기니까요. 그래서 판정이 **교차 조건**이 됐어요: 보드는 살아 있는데 이 다리만 유예를 넘겨 끊겨 있으면, 그건 이쪽 잘못이에요.
+
+«얼마나 낡으면 죽음인가» 도 감시자에 컴포넌트별로 안 박아요. **맥박이 스스로 말한 주기**에서 뽑아요 — 안 그러면 어떤 컴포넌트가 루프 주기를 바꿨을 때 아무도 그 숫자를 안 고쳐서, 검사는 통과하는데 재는 건 달라져요. 새 축 중 제일 오래 갈 건 스냅샷이 아니라 **커버리지 단정**이에요: 맥박을 쓰는 프로세스는 전부 감시 목록에 있어야 해요. 하나 더 붙이고 등재를 안 하면 조용한 누락이 아니라 빌드 실패예요.
+
+Previously: v2.6.50 (2026-07-29) — **복구 경로는 오류가 아니라 «없음» 으로 고장나요 (Constellation v2.4.120)** — 라이브 보드의 재부팅 등록을 소유한 스크립트가 **파싱조차 안 됐어요.** 호스트가 BOM 없는 UTF-8 파일을 시스템 ANSI 코드페이지로 읽어서 일부 글자가 문법이 돼 버렸고, 등록·조회·해제가 전부 불가였어요. 아무도 안 알려줬어요 — 못 도는 복구 경로는 오류를 안 내거든요. 아무것도 안 내요. 그건 «필요가 없어서 안 돈» 복구 경로와 똑같이 생겼어요. 같은 부류의 스크립트 네 개가 전부 편집 한 번이면 같은 상태가 될 자리에 있었어요.
 
 이 컷 전체가 그 모양이에요. 자리는 위에서 아래로 지켜지고 있었어요 — 스케줄러가 기동 스크립트를, 기동 스크립트가 서버와 감독자를, 감독자가 브릿지와 매 턴을. 맨 위만 빼고 다 덮여 있었어요. 감독자 자신이 멈추면 보드는 멀쩡한데 위임이 처리되지 않고, 남은 복구 수단은 **사람이 알아채는 것** 하나였어요. 여기서 더한 층은 OS 스케줄러에 매달아요 — 감독자를 감독자로 감독하면 질문이 자리만 옮기니까요. 그리고 멀쩡할 땐 아무것도 안 건드려서 짧은 간격으로 돌 수 있어요. 포트를 회수하는 기동 스크립트는 부팅 때는 맞고 타이머에 걸면 정기 장애예요.
 
