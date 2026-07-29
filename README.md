@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.51-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.52-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -127,9 +127,9 @@ Eight plugins: the **estregenesis** kit (the seed itself, as `/egboot` · `/egmi
 
 | Tier | Size | Primary use | Target reader |
 |---|---|---|---|
-| **Master** | ~2430 lines | New projects that need deep guidance, teams learning the pattern for the first time, edge cases where you need every inline template (full AGENTS.md + `.gitignore` per-stack rows + escape/HTML/PDF scripts + bridge templates) | First-time AI Native author; teams formalizing a process |
-| **Lite** | ~1110 lines | Quick new projects, migration sessions, onboarding new AI services into existing projects, when the master would eat too much context window. Self-contained — embeds inline templates for AGENTS.md, `.agent/rules.md`, `.gitignore`, scripts, and bridge stubs in compressed form | Returning author who remembers the pattern; most projects |
-| **Compact** | ~135 lines | Authors who already know the pattern and want the minimum viable seed; tightest context window; bullet triggers + algorithm-spec descriptions only (the agent generates the actual files following the specs) | Power user who just needs a checklist |
+| **Master** | ~2440 lines | New projects that need deep guidance, teams learning the pattern for the first time, edge cases where you need every inline template (full AGENTS.md + `.gitignore` per-stack rows + escape/HTML/PDF scripts + bridge templates) | First-time AI Native author; teams formalizing a process |
+| **Lite** | ~1120 lines | Quick new projects, migration sessions, onboarding new AI services into existing projects, when the master would eat too much context window. Self-contained — embeds inline templates for AGENTS.md, `.agent/rules.md`, `.gitignore`, scripts, and bridge stubs in compressed form | Returning author who remembers the pattern; most projects |
+| **Compact** | ~140 lines | Authors who already know the pattern and want the minimum viable seed; tightest context window; bullet triggers + algorithm-spec descriptions only (the agent generates the actual files following the specs) | Power user who just needs a checklist |
 
 You place **one tier** into your project. Not all three. Cross-referencing tiers that aren't present produces dead links and agent confusion, so each tier is **self-contained** — internally complete, no forward or backward references to other tiers.
 
@@ -140,9 +140,9 @@ When a project grows to need more detail, you don't upgrade tiers in-place. You 
 ## File list
 
 ```
-AI_Native_Project_Master_Seed_Prompt.md       ← English master (deepest, ~2430 lines)
-AI_Native_Project_Seed_Prompt_Lite.md         ← English lite (~1110 lines, self-contained)
-AI_Native_Project_Seed_Prompt_Compact.md      ← English compact (~135 lines, self-contained)
+AI_Native_Project_Master_Seed_Prompt.md       ← English master (deepest, ~2440 lines)
+AI_Native_Project_Seed_Prompt_Lite.md         ← English lite (~1120 lines, self-contained)
+AI_Native_Project_Seed_Prompt_Compact.md      ← English compact (~140 lines, self-contained)
 AI_Native_프로젝트_마스터_시드_프롬프트.md       ← Korean master
 AI_Native_프로젝트_시드_프롬프트_Lite.md          ← Korean lite
 AI_Native_프로젝트_시드_프롬프트_Compact.md       ← Korean compact
@@ -303,7 +303,15 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.51 (2026-07-29) — **A greeting is re-sent on every reconnect, so anything mutable in it becomes a standing claim (Constellation v2.4.121)** — a peer reported that our bridge kept announcing a track as in progress ten days after that track closed, and that it had been waiting for a follow-up that was never coming. The greeting a bridge sends on connect carries free-text metadata for human readers, and that greeting goes out again on every reconnect — every socket flap, every process restart, every reboot. A status written there is therefore not a note; it is a claim re-asserted indefinitely. Nothing errors on either side: the sender sees an ordinary reconnect and the receiver sees a fresh assertion.
+**Current**: v2.6.52 (2026-07-29) — **Guidance placed where it is convenient to author, not where the reader arrives (seed v2.6.1, Constellation v2.4.122)** — an earlier cut specified what an autonomous agent should do when handed this standard with no request attached: treat reception as installation rather than production, mount pure discipline by default and require an explicit request for anything that runs a process, binds a port, spends money or claims authority. That guidance went into the protocol and into the kit's bootstrap skill. It did not go into the seed — and the seed is the artifact that actually gets handed over. The intended reader is precisely an agent that received one file and nothing else, so the guidance was absent from the only place that reader looks.
+
+The seed now carries it as **Mode R**, alongside the bootstrap and three migration modes it already offered. Those four all presuppose a request; Mode R is the case where none is attached, which is why its absence was easy to miss — nothing failed, the agent simply picked the closest-fitting mode and produced something. All six tier/language files carry it, scaled: the Master files state the reasoning, Lite compresses it, Compact keeps the splitting rule and the two orderings (conduct before infrastructure, bootstrap before the first deliverable).
+
+§13.32.6(e) now states the three-way relationship instead of implying a two-way one: the skill owns the procedure, the section states the contract, and the seed carries the compressed form because it is the copy that travels alone. None restates another.
+
+The edit itself had to respect a measured trap: three of the six seed files carry mixed line endings, and this repository has previously rewritten all six in full by normalizing before editing. The insertion detects the terminator at each anchor and uses that, which the byte counts confirm — the stray line-feed counts in the mixed files came through unchanged.
+
+Previously: v2.6.51 (2026-07-29) — **A greeting is re-sent on every reconnect, so anything mutable in it becomes a standing claim (Constellation v2.4.121)** — a peer reported that our bridge kept announcing a track as in progress ten days after that track closed, and that it had been waiting for a follow-up that was never coming. The greeting a bridge sends on connect carries free-text metadata for human readers, and that greeting goes out again on every reconnect — every socket flap, every process restart, every reboot. A status written there is therefore not a note; it is a claim re-asserted indefinitely. Nothing errors on either side: the sender sees an ordinary reconnect and the receiver sees a fresh assertion.
 
 A comment reminding the author to update that string when the track closed was sitting directly above it. That is what a discipline looks like when nothing enforces it — and the fix is not better upkeep. The greeting now carries identity and a pointer to where live state is authoritative, and carries no state at all; a greeting with no state in it cannot go stale. A checker rejects track-state vocabulary in that field, and its mutation restores the exact string that shipped, because a synthetic sentence would not reproduce this class.
 
@@ -698,9 +706,9 @@ v1.x 는 프로젝트 시드 — 신규 AI-Native 프로젝트 부트스트랩, 
 
 | Tier | 크기 | 주 용도 | 대상 독자 |
 |---|---|---|---|
-| **Master** | ~2430줄 | 깊이 있는 가이드 필요한 신규 프로젝트, 패턴 처음 배우는 팀, 모든 인라인 템플릿 필요한 엣지 케이스 | 첫 AI Native 저자; 프로세스 공식화하는 팀 |
-| **Lite** | ~1110줄 | 빠른 신규 프로젝트, 마이그레이션 세션, 기존 프로젝트에 새 AI 서비스 편입, 마스터가 컨텍스트 윈도우에 무거울 때 | 패턴 기억하는 복귀 저자; 대부분 프로젝트 |
-| **Compact** | ~135줄 | 이미 패턴 알고 최소 시드 원하는 저자; 가장 타이트한 컨텍스트 윈도우; bullet 트리거만 | 체크리스트만 필요한 파워 유저 |
+| **Master** | ~2440줄 | 깊이 있는 가이드 필요한 신규 프로젝트, 패턴 처음 배우는 팀, 모든 인라인 템플릿 필요한 엣지 케이스 | 첫 AI Native 저자; 프로세스 공식화하는 팀 |
+| **Lite** | ~1120줄 | 빠른 신규 프로젝트, 마이그레이션 세션, 기존 프로젝트에 새 AI 서비스 편입, 마스터가 컨텍스트 윈도우에 무거울 때 | 패턴 기억하는 복귀 저자; 대부분 프로젝트 |
+| **Compact** | ~140줄 | 이미 패턴 알고 최소 시드 원하는 저자; 가장 타이트한 컨텍스트 윈도우; bullet 트리거만 | 체크리스트만 필요한 파워 유저 |
 
 프로젝트에는 **tier 하나만** 배치. 세 개 다 넣지 않음. 존재하지 않는 tier 를 교차 참조하면 dead link 와 에이전트 혼란만 발생하므로, 각 tier 는 **self-contained** — 내부 완결, 다른 tier 로의 forward/backward 참조 없음.
 
@@ -709,9 +717,9 @@ v1.x 는 프로젝트 시드 — 신규 AI-Native 프로젝트 부트스트랩, 
 ## 파일 목록
 
 ```
-AI_Native_Project_Master_Seed_Prompt.md       ← 영문 마스터 (가장 깊음, ~2430줄)
-AI_Native_Project_Seed_Prompt_Lite.md         ← 영문 lite (~1110줄)
-AI_Native_Project_Seed_Prompt_Compact.md      ← 영문 compact (~135줄)
+AI_Native_Project_Master_Seed_Prompt.md       ← 영문 마스터 (가장 깊음, ~2440줄)
+AI_Native_Project_Seed_Prompt_Lite.md         ← 영문 lite (~1120줄)
+AI_Native_Project_Seed_Prompt_Compact.md      ← 영문 compact (~140줄)
 AI_Native_프로젝트_마스터_시드_프롬프트.md       ← 한국어 마스터
 AI_Native_프로젝트_시드_프롬프트_Lite.md          ← 한국어 lite
 AI_Native_프로젝트_시드_프롬프트_Compact.md       ← 한국어 compact
@@ -858,7 +866,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
+**현재**: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
+
+이제 시드가 **모드 R** 로 담아요. 원래 있던 부트스트랩 + 마이그레이션 세 모드 옆에요. 그 넷은 전부 **요청이 있다고 전제**하고, 모드 R 은 요청이 안 붙은 경우예요 — 빠진 게 눈에 안 띈 이유가 거기 있어요. 아무것도 실패하지 않고, 에이전트가 그냥 제일 가까운 모드를 골라서 뭔가를 만들어 내거든요. 6파일 전부에 넣되 분량을 맞췄어요: 마스터는 이유까지, Lite 는 압축, Compact 는 층을 가르는 규칙과 순서 둘(처신이 인프라보다 먼저 · 부트스트랩이 첫 산출물보다 먼저)만.
+
+§13.32.6(e) 도 2자 관계를 암시하던 문장에서 **3자 관계**를 명시하는 문장으로 바꿨어요: 스킬이 절차를 갖고, 절이 계약을 말하고, 시드는 «혼자 여행하는 사본» 이라 압축형을 실어요. 셋 중 어느 것도 다른 것을 되풀이하지 않아요.
+
+편집 자체가 실측된 함정을 하나 피해야 했어요. 시드 6파일 중 **셋이 혼합 줄바꿈**이고, 이 저장소는 전에 정규화 후 편집하다 6파일을 통째로 재작성한 적이 있어요. 이번엔 앵커마다 종결자를 감지해서 그걸로만 넣었고, 바이트 수가 그걸 확인해줘요 — 혼합 파일의 낱개 줄바꿈 개수가 그대로 통과했어요.
+
+Previously: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
 
 그 문구 **바로 윗줄에** 「트랙이 끝나면 반드시 갱신할 것」이라는 주석이 있었어요. 규율이 있고 그걸 강제하는 게 없으면 이렇게 돼요. 그래서 「이번엔 잘 갱신하자」로 안 고쳤어요. 인사말은 이제 **정체와, 살아 있는 상태의 정본이 어디인지**만 실어요. 상태가 없으면 낡을 수가 없어요. 검사가 그 자리의 트랙-상태 어휘를 거부하고, 되돌림 시험은 **실제로 나갔던 그 문구를 그대로** 복원해요 — 지어낸 문장으로는 이 부류를 못 흉내내거든요.
 
@@ -1478,7 +1494,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
+**현재**: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
+
+이제 시드가 **모드 R** 로 담아요. 원래 있던 부트스트랩 + 마이그레이션 세 모드 옆에요. 그 넷은 전부 **요청이 있다고 전제**하고, 모드 R 은 요청이 안 붙은 경우예요 — 빠진 게 눈에 안 띈 이유가 거기 있어요. 아무것도 실패하지 않고, 에이전트가 그냥 제일 가까운 모드를 골라서 뭔가를 만들어 내거든요. 6파일 전부에 넣되 분량을 맞췄어요: 마스터는 이유까지, Lite 는 압축, Compact 는 층을 가르는 규칙과 순서 둘(처신이 인프라보다 먼저 · 부트스트랩이 첫 산출물보다 먼저)만.
+
+§13.32.6(e) 도 2자 관계를 암시하던 문장에서 **3자 관계**를 명시하는 문장으로 바꿨어요: 스킬이 절차를 갖고, 절이 계약을 말하고, 시드는 «혼자 여행하는 사본» 이라 압축형을 실어요. 셋 중 어느 것도 다른 것을 되풀이하지 않아요.
+
+편집 자체가 실측된 함정을 하나 피해야 했어요. 시드 6파일 중 **셋이 혼합 줄바꿈**이고, 이 저장소는 전에 정규화 후 편집하다 6파일을 통째로 재작성한 적이 있어요. 이번엔 앵커마다 종결자를 감지해서 그걸로만 넣었고, 바이트 수가 그걸 확인해줘요 — 혼합 파일의 낱개 줄바꿈 개수가 그대로 통과했어요.
+
+Previously: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
 
 그 문구 **바로 윗줄에** 「트랙이 끝나면 반드시 갱신할 것」이라는 주석이 있었어요. 규율이 있고 그걸 강제하는 게 없으면 이렇게 돼요. 그래서 「이번엔 잘 갱신하자」로 안 고쳤어요. 인사말은 이제 **정체와, 살아 있는 상태의 정본이 어디인지**만 실어요. 상태가 없으면 낡을 수가 없어요. 검사가 그 자리의 트랙-상태 어휘를 거부하고, 되돌림 시험은 **실제로 나갔던 그 문구를 그대로** 복원해요 — 지어낸 문장으로는 이 부류를 못 흉내내거든요.
 
@@ -2159,7 +2183,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
+**현재**: v2.6.52 (2026-07-29) — **지침을 쓰기 편한 곳에 뒀지, 읽는 사람이 도착하는 곳에 두지 않았어요 (시드 v2.6.1, Constellation v2.4.122)** — 앞선 컷이 «자율 에이전트가 요청 없이 이 표준만 건네받았을 때 무엇을 해야 하는가» 를 정했어요: 수용을 생산이 아니라 설치로 다루고, 순수 규율은 기본탑재하되 프로세스를 띄우거나 포트를 열거나 돈을 쓰거나 권한을 주장하는 건 명시적 요청을 받으라고요. 그 지침은 규약에 들어갔고 킷의 부트스트랩 스킬에도 들어갔어요. **시드에는 안 들어갔어요** — 그런데 실제로 남에게 건네지는 건 시드예요. 이 지침이 겨냥한 독자가 정확히 «파일 하나만 받고 그 외엔 아무것도 없는 에이전트» 인데, 그 독자가 보는 유일한 자리에 지침이 없었던 거예요.
+
+이제 시드가 **모드 R** 로 담아요. 원래 있던 부트스트랩 + 마이그레이션 세 모드 옆에요. 그 넷은 전부 **요청이 있다고 전제**하고, 모드 R 은 요청이 안 붙은 경우예요 — 빠진 게 눈에 안 띈 이유가 거기 있어요. 아무것도 실패하지 않고, 에이전트가 그냥 제일 가까운 모드를 골라서 뭔가를 만들어 내거든요. 6파일 전부에 넣되 분량을 맞췄어요: 마스터는 이유까지, Lite 는 압축, Compact 는 층을 가르는 규칙과 순서 둘(처신이 인프라보다 먼저 · 부트스트랩이 첫 산출물보다 먼저)만.
+
+§13.32.6(e) 도 2자 관계를 암시하던 문장에서 **3자 관계**를 명시하는 문장으로 바꿨어요: 스킬이 절차를 갖고, 절이 계약을 말하고, 시드는 «혼자 여행하는 사본» 이라 압축형을 실어요. 셋 중 어느 것도 다른 것을 되풀이하지 않아요.
+
+편집 자체가 실측된 함정을 하나 피해야 했어요. 시드 6파일 중 **셋이 혼합 줄바꿈**이고, 이 저장소는 전에 정규화 후 편집하다 6파일을 통째로 재작성한 적이 있어요. 이번엔 앵커마다 종결자를 감지해서 그걸로만 넣었고, 바이트 수가 그걸 확인해줘요 — 혼합 파일의 낱개 줄바꿈 개수가 그대로 통과했어요.
+
+Previously: v2.6.51 (2026-07-29) — **인사말은 재접속마다 다시 나가요 — 거기 담긴 가변 상태는 계속 주장되는 사실이 돼요 (Constellation v2.4.121)** — 상대 에이전트가 알려왔어요. 저희 다리가 **열흘 전에 끝난 트랙을 «진행 중» 이라고 계속 알리고 있었고**, 그쪽은 오지 않을 후속을 기다리고 있었어요. 다리가 접속할 때 보내는 인사말에는 사람이 읽을 자유 문구가 실리는데, 그 인사말은 **재접속마다 다시 나가요** — 소켓이 한 번 끊길 때마다, 프로세스를 다시 띄울 때마다, 기기를 재부팅할 때마다요. 거기 적은 상태는 메모가 아니라 **끝없이 다시 주장되는 사실**이에요. 양쪽 다 오류는 안 나요 — 보내는 쪽엔 평범한 재접속이고 받는 쪽엔 새 주장이에요.
 
 그 문구 **바로 윗줄에** 「트랙이 끝나면 반드시 갱신할 것」이라는 주석이 있었어요. 규율이 있고 그걸 강제하는 게 없으면 이렇게 돼요. 그래서 「이번엔 잘 갱신하자」로 안 고쳤어요. 인사말은 이제 **정체와, 살아 있는 상태의 정본이 어디인지**만 실어요. 상태가 없으면 낡을 수가 없어요. 검사가 그 자리의 트랙-상태 어휘를 거부하고, 되돌림 시험은 **실제로 나갔던 그 문구를 그대로** 복원해요 — 지어낸 문장으로는 이 부류를 못 흉내내거든요.
 
