@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.56" src="https://img.shields.io/badge/version-v2.6.56-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.57" src="https://img.shields.io/badge/version-v2.6.57-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,7 +303,21 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.56 (2026-07-29) — **A scanner that catches every vendor's tokens and not its own (Ultrasafe v0.2.14)** — the publish hook records one command line into the assessment ledger for advisory context, and `maskSecrets` is the only hygiene control on that path. Iteration 2 measured four shapes passing through it unchanged: a PAT inside a push URL, an `Authorization: Bearer` value, an npmrc `:_authToken=`, and this project's own connection-key format. The last one is the one that stings — the control knew about `NPM_TOKEN` and `--otp` and nothing about `ck-`/`uk-`/`pk-`/`lk-`.
+**Current**: v2.6.57 (2026-07-30) — **A premise a single configuration line can invert is not a premise (Constellation v2.4.125)** — a board carries a roster, a conversation history, an org chart, and controls that issue live keys and hand over the control plane. None of it is meant to face the open internet, and that was written down. It was also expressible away: an allowlist of `null` meant *every address*. Measured on the live board — binding exposed, agent and MCP allowlists both unset — a non-loopback address received the agent roster and the conversation history **before sending a handshake at all**. Presenting a key afterwards was refused, but the refusal came after the payload.
+
+The detail that makes the shape clear is that the *human* UI surface was already narrowed, in the same file, to a LAN range plus an overlay range. The surfaces left open were the agent-facing ones — the two whose audience is machines, and therefore the two nobody looks at.
+
+So the change is the allowlist's **domain**, not its evaluation. The domain is private address space: named ranges (loopback, RFC1918, CGNAT, link-local, IPv6 ULA) or CIDRs inside them. A public address is not a value the configuration can hold — an entry covering one is refused with a reason printed on every load, because an entry silently dropped reads exactly like an entry that works. Absent now means *all private ranges* rather than *all addresses*, since a default is the state of every deployment nobody has thought about. Empty means loopback only: closed has to be expressible, and it must not lock the operator out of the surface that would reopen it.
+
+The arithmetic has to be exact, because the neighbours of private space are public — `172.31.255.255` is private and `172.32.0.0` is not, `100.127.255.255` is CGNAT and `100.128.0.0` is not. A predicate that is loose at those edges widens the reachable set by a whole range and reports nothing, so the checker tests the boundaries on both sides. A range *entry* is validated at both ends rather than at its base, since `10.0.0.0/4` begins in private space and swallows most of the public internet.
+
+Refusing public sources costs nothing, because both legitimate ways to reach a board from elsewhere arrive privately: an overlay network places the peer inside CGNAT, and a reverse proxy terminating TLS connects from the host. That also settles transport — **the board does not implement TLS**, because a proxy that already owns certificates and renewal does it better, and a board that only accepts private sources is not the layer where wire encryption belongs.
+
+What this does not fix is the next question rather than a footnote. Behind a proxy every client appears local, which inverts every address-based judgment including the one granting the `main` role. Address scope cannot answer *which person*, so the code does what it can: a request carrying forwarding headers is not counted as host-local, recorded at upgrade time because headers are only visible there. Detection is not identity. An internet-reachable board needs an account concept, and once it has one the human UI and the agent interface want separate ports — their audiences differ, their gates differ, and one port forces the weaker requirement onto both. Both are registered as open.
+
+Fixing this broke five smoke tests at once, which was the more useful finding. Each of seven harnesses staged the reference runtime into a sandbox by **listing the files to copy**, and the lists had drifted in both directions — they omitted the new component and carried one the server does not require at all. The symptom was not "component missing" but "the isolated server does not start", one layer removed from the cause. The lists are gone; the closure is derived from what the entry point actually requires, with an explicit `extra` only for files launched as separate processes, which a require graph cannot see.
+
+Previously: v2.6.56 (2026-07-29) — **A scanner that catches every vendor's tokens and not its own (Ultrasafe v0.2.14)** — the publish hook records one command line into the assessment ledger for advisory context, and `maskSecrets` is the only hygiene control on that path. Iteration 2 measured four shapes passing through it unchanged: a PAT inside a push URL, an `Authorization: Bearer` value, an npmrc `:_authToken=`, and this project's own connection-key format. The last one is the one that stings — the control knew about `NPM_TOKEN` and `--otp` and nothing about `ck-`/`uk-`/`pk-`/`lk-`.
 
 The npmrc case is worth naming on its own, because it was not a missing rule but a missing flag. The env-var rule required the name to contain `TOKEN`, `SECRET`, `PASSWORD` — and it was case-sensitive, so `NPM_TOKEN` was caught and `_authToken` was not. Reading the regex does not show that; running it does.
 
@@ -902,7 +916,21 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
+**현재**: v2.6.57 (2026-07-30) — **설정 한 줄로 뒤집히는 전제는 전제가 아니에요 (Constellation v2.4.125)** — 보드는 명부·대화 이력·조직도와, 살아 있는 키를 발급하고 제어면을 넘기는 컨트롤을 담고 있어요. 어느 것도 인터넷을 향할 물건이 아니고, 그건 적혀 있었어요. 그런데 **적어 없앨 수도 있었어요**: 허용목록 `null` 이 «전체 주소» 였거든요. 라이브 보드 실측 — 노출 상태에서 agent·mcp 허용목록이 둘 다 미설정이었고, 비-loopback 주소가 **핸드셰이크를 보내기도 전에** 명부와 대화 이력을 받았어요. 그 뒤에 키를 내면 거부되는데, 거부가 payload 뒤에 왔어요.
+
+모양을 드러내는 디테일은 **사람 UI 는 이미 좁혀져 있었다**는 거예요 — 같은 파일에서 LAN 대역 + 오버레이 대역으로요. 열려 있던 건 에이전트 쪽 표면 둘이에요. 청중이 기계인 둘, 그래서 아무도 안 보는 둘.
+
+그래서 바꾼 건 판정이 아니라 허용목록의 **정의역**이에요. 정의역은 사설 주소 공간이고, 항목은 이름 있는 대역(loopback·RFC1918·CGNAT·link-local·IPv6 ULA) 또는 그 안의 CIDR 이에요. **공개 주소는 설정이 담을 수 있는 값이 아니에요** — 공개를 포함하는 항목은 사유를 달고 거부되고 그 사유가 매 로드에 출력돼요, 조용히 버려진 항목은 작동하는 항목과 똑같이 보이니까요. 미설정은 이제 «전체 주소» 가 아니라 «사설 전부» 예요. 기본값은 아무도 생각해 보지 않은 모든 배치의 상태라, 가장 넓은 선택을 거기 둘 수는 없어요. 빈 배열은 loopback 만 — 「닫힘」이 표현 가능해야 하고, 그게 되돌릴 표면까지 잠그면 안 되니까요.
+
+산술이 정확해야 해요, **사설 대역의 옆집이 공개**거든요 — `172.31.255.255` 는 사설이고 `172.32.0.0` 은 아니에요, `100.127.255.255` 는 CGNAT 이고 `100.128.0.0` 은 아니에요. 그 경계에서 느슨한 판정은 닿을 수 있는 범위를 **대역 하나만큼** 넓히고 아무 말도 안 해요. 그래서 검사가 양쪽 경계를 다 재요. 대역 **항목**도 base 가 아니라 양 끝을 봐요 — `10.0.0.0/4` 는 사설에서 시작해 공개 인터넷 대부분을 삼켜요.
+
+공개를 거절하는 데 드는 비용은 0 이에요. 밖에서 보드에 닿는 정당한 두 경로가 다 **사설로 도착**하니까요 — 오버레이 망은 상대를 CGNAT 안에 놓고, TLS 를 끝내는 리버스 프록시는 호스트에서 붙어요. 그래서 전송도 함께 정해져요: **보드는 TLS 를 구현하지 않아요.** 인증서와 갱신을 이미 소유한 프록시가 더 잘하고, 사설만 받는 보드는 와이어 암호화가 있을 층이 아니에요.
+
+안 고쳐지는 건 각주가 아니라 다음 질문이에요. 프록시 뒤에서는 모든 클라이언트가 로컬로 보여서 주소 기반 판정이 전부 뒤집혀요 — `main` role 을 주는 판정까지요. 주소로는 «누구인가» 를 답할 수 없어서, 코드는 할 수 있는 걸 해요: 전달 헤더를 달고 온 요청은 host-local 로 세지 않고, 그 판정을 upgrade 때 기록해요(헤더는 그때만 보이니까요). **감지는 신원이 아니에요.** 인터넷에서 닿는 보드는 계정 개념이 필요하고, 그게 생기면 사람 UI 와 에이전트 인터페이스는 **포트를 나누고** 싶어져요 — 청중이 다르고 게이트가 다르고, 한 포트는 더 약한 요구를 양쪽에 강요해요. 둘 다 열린 결정으로 등재했어요.
+
+고치다가 스모크 5개가 동시에 깨졌고 그게 더 쓸모 있는 발견이었어요. 하네스 일곱 개가 레퍼런스 런타임을 격리 폴더로 옮길 때 **복사할 파일을 손으로 열거**하고 있었고, 그 목록이 **양방향으로** 뒤처져 있었어요 — 새 부품을 빠뜨리고, 정작 서버가 require 하지도 않는 파일을 옮기고 있었어요. 증상은 「부품 없음」이 아니라 「격리 서버가 안 뜸」이라 원인이 한 겹 멀었어요. 목록은 없앴어요. 진입점이 실제로 require 하는 닫힘에서 파생되고, require 그래프가 볼 수 없는 것(별 프로세스로 띄우는 스크립트)만 `extra` 로 이름을 대요.
+
+이전: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
 
 npmrc 건은 따로 이름 붙일 만해요. 규칙이 **없어서**가 아니라 **플래그 하나가 없어서** 였거든요. 환경변수 규칙은 이름에 `TOKEN`·`SECRET`·`PASSWORD` 가 들어가길 요구했는데 **대소문자를 구분**했어요. 그래서 `NPM_TOKEN` 은 잡고 `_authToken` 은 놓쳤어요. 정규식을 읽어선 안 보이고, 돌려 보면 보여요.
 
@@ -1566,7 +1594,21 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
+**현재**: v2.6.57 (2026-07-30) — **설정 한 줄로 뒤집히는 전제는 전제가 아니에요 (Constellation v2.4.125)** — 보드는 명부·대화 이력·조직도와, 살아 있는 키를 발급하고 제어면을 넘기는 컨트롤을 담고 있어요. 어느 것도 인터넷을 향할 물건이 아니고, 그건 적혀 있었어요. 그런데 **적어 없앨 수도 있었어요**: 허용목록 `null` 이 «전체 주소» 였거든요. 라이브 보드 실측 — 노출 상태에서 agent·mcp 허용목록이 둘 다 미설정이었고, 비-loopback 주소가 **핸드셰이크를 보내기도 전에** 명부와 대화 이력을 받았어요. 그 뒤에 키를 내면 거부되는데, 거부가 payload 뒤에 왔어요.
+
+모양을 드러내는 디테일은 **사람 UI 는 이미 좁혀져 있었다**는 거예요 — 같은 파일에서 LAN 대역 + 오버레이 대역으로요. 열려 있던 건 에이전트 쪽 표면 둘이에요. 청중이 기계인 둘, 그래서 아무도 안 보는 둘.
+
+그래서 바꾼 건 판정이 아니라 허용목록의 **정의역**이에요. 정의역은 사설 주소 공간이고, 항목은 이름 있는 대역(loopback·RFC1918·CGNAT·link-local·IPv6 ULA) 또는 그 안의 CIDR 이에요. **공개 주소는 설정이 담을 수 있는 값이 아니에요** — 공개를 포함하는 항목은 사유를 달고 거부되고 그 사유가 매 로드에 출력돼요, 조용히 버려진 항목은 작동하는 항목과 똑같이 보이니까요. 미설정은 이제 «전체 주소» 가 아니라 «사설 전부» 예요. 기본값은 아무도 생각해 보지 않은 모든 배치의 상태라, 가장 넓은 선택을 거기 둘 수는 없어요. 빈 배열은 loopback 만 — 「닫힘」이 표현 가능해야 하고, 그게 되돌릴 표면까지 잠그면 안 되니까요.
+
+산술이 정확해야 해요, **사설 대역의 옆집이 공개**거든요 — `172.31.255.255` 는 사설이고 `172.32.0.0` 은 아니에요, `100.127.255.255` 는 CGNAT 이고 `100.128.0.0` 은 아니에요. 그 경계에서 느슨한 판정은 닿을 수 있는 범위를 **대역 하나만큼** 넓히고 아무 말도 안 해요. 그래서 검사가 양쪽 경계를 다 재요. 대역 **항목**도 base 가 아니라 양 끝을 봐요 — `10.0.0.0/4` 는 사설에서 시작해 공개 인터넷 대부분을 삼켜요.
+
+공개를 거절하는 데 드는 비용은 0 이에요. 밖에서 보드에 닿는 정당한 두 경로가 다 **사설로 도착**하니까요 — 오버레이 망은 상대를 CGNAT 안에 놓고, TLS 를 끝내는 리버스 프록시는 호스트에서 붙어요. 그래서 전송도 함께 정해져요: **보드는 TLS 를 구현하지 않아요.** 인증서와 갱신을 이미 소유한 프록시가 더 잘하고, 사설만 받는 보드는 와이어 암호화가 있을 층이 아니에요.
+
+안 고쳐지는 건 각주가 아니라 다음 질문이에요. 프록시 뒤에서는 모든 클라이언트가 로컬로 보여서 주소 기반 판정이 전부 뒤집혀요 — `main` role 을 주는 판정까지요. 주소로는 «누구인가» 를 답할 수 없어서, 코드는 할 수 있는 걸 해요: 전달 헤더를 달고 온 요청은 host-local 로 세지 않고, 그 판정을 upgrade 때 기록해요(헤더는 그때만 보이니까요). **감지는 신원이 아니에요.** 인터넷에서 닿는 보드는 계정 개념이 필요하고, 그게 생기면 사람 UI 와 에이전트 인터페이스는 **포트를 나누고** 싶어져요 — 청중이 다르고 게이트가 다르고, 한 포트는 더 약한 요구를 양쪽에 강요해요. 둘 다 열린 결정으로 등재했어요.
+
+고치다가 스모크 5개가 동시에 깨졌고 그게 더 쓸모 있는 발견이었어요. 하네스 일곱 개가 레퍼런스 런타임을 격리 폴더로 옮길 때 **복사할 파일을 손으로 열거**하고 있었고, 그 목록이 **양방향으로** 뒤처져 있었어요 — 새 부품을 빠뜨리고, 정작 서버가 require 하지도 않는 파일을 옮기고 있었어요. 증상은 「부품 없음」이 아니라 「격리 서버가 안 뜸」이라 원인이 한 겹 멀었어요. 목록은 없앴어요. 진입점이 실제로 require 하는 닫힘에서 파생되고, require 그래프가 볼 수 없는 것(별 프로세스로 띄우는 스크립트)만 `extra` 로 이름을 대요.
+
+이전: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
 
 npmrc 건은 따로 이름 붙일 만해요. 규칙이 **없어서**가 아니라 **플래그 하나가 없어서** 였거든요. 환경변수 규칙은 이름에 `TOKEN`·`SECRET`·`PASSWORD` 가 들어가길 요구했는데 **대소문자를 구분**했어요. 그래서 `NPM_TOKEN` 은 잡고 `_authToken` 은 놓쳤어요. 정규식을 읽어선 안 보이고, 돌려 보면 보여요.
 
@@ -2291,7 +2333,21 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
+**현재**: v2.6.57 (2026-07-30) — **설정 한 줄로 뒤집히는 전제는 전제가 아니에요 (Constellation v2.4.125)** — 보드는 명부·대화 이력·조직도와, 살아 있는 키를 발급하고 제어면을 넘기는 컨트롤을 담고 있어요. 어느 것도 인터넷을 향할 물건이 아니고, 그건 적혀 있었어요. 그런데 **적어 없앨 수도 있었어요**: 허용목록 `null` 이 «전체 주소» 였거든요. 라이브 보드 실측 — 노출 상태에서 agent·mcp 허용목록이 둘 다 미설정이었고, 비-loopback 주소가 **핸드셰이크를 보내기도 전에** 명부와 대화 이력을 받았어요. 그 뒤에 키를 내면 거부되는데, 거부가 payload 뒤에 왔어요.
+
+모양을 드러내는 디테일은 **사람 UI 는 이미 좁혀져 있었다**는 거예요 — 같은 파일에서 LAN 대역 + 오버레이 대역으로요. 열려 있던 건 에이전트 쪽 표면 둘이에요. 청중이 기계인 둘, 그래서 아무도 안 보는 둘.
+
+그래서 바꾼 건 판정이 아니라 허용목록의 **정의역**이에요. 정의역은 사설 주소 공간이고, 항목은 이름 있는 대역(loopback·RFC1918·CGNAT·link-local·IPv6 ULA) 또는 그 안의 CIDR 이에요. **공개 주소는 설정이 담을 수 있는 값이 아니에요** — 공개를 포함하는 항목은 사유를 달고 거부되고 그 사유가 매 로드에 출력돼요, 조용히 버려진 항목은 작동하는 항목과 똑같이 보이니까요. 미설정은 이제 «전체 주소» 가 아니라 «사설 전부» 예요. 기본값은 아무도 생각해 보지 않은 모든 배치의 상태라, 가장 넓은 선택을 거기 둘 수는 없어요. 빈 배열은 loopback 만 — 「닫힘」이 표현 가능해야 하고, 그게 되돌릴 표면까지 잠그면 안 되니까요.
+
+산술이 정확해야 해요, **사설 대역의 옆집이 공개**거든요 — `172.31.255.255` 는 사설이고 `172.32.0.0` 은 아니에요, `100.127.255.255` 는 CGNAT 이고 `100.128.0.0` 은 아니에요. 그 경계에서 느슨한 판정은 닿을 수 있는 범위를 **대역 하나만큼** 넓히고 아무 말도 안 해요. 그래서 검사가 양쪽 경계를 다 재요. 대역 **항목**도 base 가 아니라 양 끝을 봐요 — `10.0.0.0/4` 는 사설에서 시작해 공개 인터넷 대부분을 삼켜요.
+
+공개를 거절하는 데 드는 비용은 0 이에요. 밖에서 보드에 닿는 정당한 두 경로가 다 **사설로 도착**하니까요 — 오버레이 망은 상대를 CGNAT 안에 놓고, TLS 를 끝내는 리버스 프록시는 호스트에서 붙어요. 그래서 전송도 함께 정해져요: **보드는 TLS 를 구현하지 않아요.** 인증서와 갱신을 이미 소유한 프록시가 더 잘하고, 사설만 받는 보드는 와이어 암호화가 있을 층이 아니에요.
+
+안 고쳐지는 건 각주가 아니라 다음 질문이에요. 프록시 뒤에서는 모든 클라이언트가 로컬로 보여서 주소 기반 판정이 전부 뒤집혀요 — `main` role 을 주는 판정까지요. 주소로는 «누구인가» 를 답할 수 없어서, 코드는 할 수 있는 걸 해요: 전달 헤더를 달고 온 요청은 host-local 로 세지 않고, 그 판정을 upgrade 때 기록해요(헤더는 그때만 보이니까요). **감지는 신원이 아니에요.** 인터넷에서 닿는 보드는 계정 개념이 필요하고, 그게 생기면 사람 UI 와 에이전트 인터페이스는 **포트를 나누고** 싶어져요 — 청중이 다르고 게이트가 다르고, 한 포트는 더 약한 요구를 양쪽에 강요해요. 둘 다 열린 결정으로 등재했어요.
+
+고치다가 스모크 5개가 동시에 깨졌고 그게 더 쓸모 있는 발견이었어요. 하네스 일곱 개가 레퍼런스 런타임을 격리 폴더로 옮길 때 **복사할 파일을 손으로 열거**하고 있었고, 그 목록이 **양방향으로** 뒤처져 있었어요 — 새 부품을 빠뜨리고, 정작 서버가 require 하지도 않는 파일을 옮기고 있었어요. 증상은 「부품 없음」이 아니라 「격리 서버가 안 뜸」이라 원인이 한 겹 멀었어요. 목록은 없앴어요. 진입점이 실제로 require 하는 닫힘에서 파생되고, require 그래프가 볼 수 없는 것(별 프로세스로 띄우는 스크립트)만 `extra` 로 이름을 대요.
+
+이전: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
 
 npmrc 건은 따로 이름 붙일 만해요. 규칙이 **없어서**가 아니라 **플래그 하나가 없어서** 였거든요. 환경변수 규칙은 이름에 `TOKEN`·`SECRET`·`PASSWORD` 가 들어가길 요구했는데 **대소문자를 구분**했어요. 그래서 `NPM_TOKEN` 은 잡고 `_authToken` 은 놓쳤어요. 정규식을 읽어선 안 보이고, 돌려 보면 보여요.
 
