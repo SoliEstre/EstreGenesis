@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.44" src="https://img.shields.io/badge/version-v2.6.44-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.45" src="https://img.shields.io/badge/version-v2.6.45-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,11 +303,15 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.44 (2026-07-29) — **A comparison harness that lets the two sides receive different bytes reports an agreement it never tested (Constellation v2.4.115)** — the submission guard now exists twice, because the layer that drives a resident seat follows the harness SDK while the reference runtime does not. Shelling out per submission would put a second runtime in the hot path; maintaining two copies by review is the failure this repository has already shipped three times. So the copies are bound by a **conformance corpus run against both**, with shared constants read from the one measurement record and character classes written explicitly — the shorthand classes differ in Unicode coverage between the two languages, which yields two implementations that hold the same regex and answer differently.
+**Current**: v2.6.45 (2026-07-29) — **Two doors, because a rule about who authored the text should be a type and not a discipline (Constellation v2.4.116)** — the resident-seat driver lands, implementing the five operations the specification asks an adapter to provide. The design decision that matters is the submission surface: there are two entry points, one for board-authored content that cannot reach the harness except through the guard, and one for adapter-authored procedure commands that may legitimately be commands. Board content has no path to the second. A single entry point with a flag would encode the same rule as a convention, and a convention is one refactor away from defaulting the wrong way.
 
-The equivalence axis passed on its first run, and a mutation that deliberately reintroduced the shorthand class **also** passed. That combination is the tell: the mutation was applied and the axis still saw no difference. The corpus was crossing a process boundary without a declared encoding, so the non-ASCII cases arrived mangled on one side — the axis was comparing two implementations on two different inputs and reporting that they agreed. The entry point now fixes its own encoding rather than trusting the caller's environment, since it is the boundary this module publishes.
+The compaction cycle is enforced at construction rather than checked later: a seat whose materialize and re-inject hooks are not both reachable refuses to open. Checking afterwards is worse than not checking, because the turns worked in between have already crossed the boundary the check exists to protect. Half a pair does not count, and a re-injection hook bound to a different lifecycle point does not count either — it does not run at the boundary that loses the context.
 
-The specification records the general rule rather than this instance: where a guard must exist in more than one language, bind the copies with a corpus, not with review; write character classes explicitly; and declare the encoding the corpus crosses on.
+Verified end-to-end against a live seat, fourteen assertions: a destructive command submitted through the board door was processed as data and the seat kept its context; the same command through the adapter door dispatched with zero model turns and the cursor guard refused to advance on it; both compaction hooks were confirmed **called** by the marker files they write rather than by their presence in configuration; and the seat answered from before the boundary afterwards. The context signal decomposes as the specification requires — and the numbers restate why compaction is not a cost lever: the reclaimable part fell 56% while the total fell 8%, because the fixed floor was five times larger than everything a compaction can touch.
+
+The single-submission-path check failed on the new driver and was right to run: its guard-symbol net was written in one language's naming convention, so a file that used the guard correctly looked like a bypass. The net now covers both. The Python-side contract is bound by having this checker **run that side's own self-test** and fail with it — delegation rather than a second implementation of the same assertions — with a mutation that removes the residency gate and requires the self-test to break.
+
+Previously: v2.6.44 (2026-07-29) — **A comparison harness that lets the two sides receive different bytes reports an agreement it never tested (Constellation v2.4.115)** — the submission guard now exists twice, because the layer that drives a resident seat follows the harness SDK while the reference runtime does not. Shelling out per submission would put a second runtime in the hot path; maintaining two copies by review is the failure this repository has already shipped three times. So the copies are bound by a **conformance corpus run against both**, with shared constants read from the one measurement record and character classes written explicitly — the shorthand classes differ in Unicode coverage between the two languages, which yields two implementations that hold the same regex and answer differently.
 
 Previously: v2.6.43 (2026-07-29) — **Injection safety for a resident seat is three layers, only one of which can be closed — and that one closes by position, not by framing (Constellation v2.4.114)** — a seat that stays alive and is spoken into by a board accepts board-authored text on the same channel that accepts commands, and a message body beginning with a command sigil is executed as that command. The consequences were measured on a live seat: one line wiped the entire working context and reset the spend ceiling to zero, and the terminal envelope reported a clean success both times, because from the harness's point of view the command did succeed.
 
@@ -824,11 +828,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.44 (2026-07-29) — **두 쪽에 서로 다른 바이트를 주는 대조 장치는, 시험한 적 없는 «일치» 를 보고해요 (Constellation v2.4.115)** — 제출 가드가 이제 두 벌이에요. 상주 좌석을 실제로 모는 층은 하네스 SDK 를 따라가고 참조 런타임은 그렇지 않거든요. 제출마다 하위 프로세스를 띄우면 뜨거운 경로에 런타임이 하나 더 박히고, 그렇다고 두 벌을 눈으로 유지하면 이 저장소가 이미 세 번 겪은 그 실패예요. 그래서 두 벌을 **같은 코퍼스를 양쪽에 통과시키는 검사**로 묶었어요. 공유 상수는 실측 기록 한 곳에서 읽고, 문자 클래스는 축약형 대신 명시로 적어요 — 축약 클래스는 두 언어에서 유니코드 포함 범위가 달라서, 같은 정규식을 적어두고 다른 답을 내는 구현 둘이 나와요.
+**현재**: v2.6.45 (2026-07-29) — **문을 둘로 — 「누가 썼나」는 규율이 아니라 타입이어야 해요 (Constellation v2.4.116)** — 상주 좌석 드라이버가 나왔어요. 규격이 어댑터에게 요구하는 다섯 연산을 구현해요. 중요한 설계 결정은 제출 창구예요. 문이 둘이에요 — 하나는 보드가 저작한 글이 들어가는 문이고 그건 가드를 거치지 않고는 하네스에 닿을 수 없어요. 다른 하나는 어댑터가 저작한 절차 명령용이고 그건 진짜 명령이어도 돼요. **보드 내용이 두 번째 문으로 갈 길은 아예 없어요.** 문을 하나로 두고 깃발로 구분하면 같은 규칙이 «관례» 가 되는데, 관례는 리팩터 한 번이면 반대쪽으로 기본값이 넘어가요.
 
-동치 축은 첫 실행에 통과했고, 축약 클래스를 일부러 되살린 돌연변이도 **같이** 통과했어요. 이 조합이 신호예요 — 돌연변이는 적용됐는데 축이 차이를 못 본 거니까요. 코퍼스가 인코딩을 선언하지 않은 채 프로세스 경계를 건너고 있었고, 그래서 비-ASCII 케이스가 한쪽에서 깨진 채 도착했어요. 축은 **서로 다른 입력**으로 두 구현을 비교하면서 「같다」고 보고하고 있었어요. 이제 진입점이 호출부 환경에 기대지 않고 자기 입출력 인코딩을 못박아요. 그 경계는 이 모듈이 공개한 창구니까요.
+압축 주기는 나중에 확인하는 게 아니라 **생성 시점에 강제**해요 — 물질화 훅과 재주입 훅 둘 다 닿지 않는 좌석은 아예 안 열려요. 나중에 보면 그 사이에 일한 턴들이 이미 그 검사가 지키려던 경계를 지나갔거든요. 반쪽은 통과가 아니고, 다른 생명주기 지점에 걸린 재주입 훅도 통과가 아니에요 — 문맥을 잃는 그 경계에서 안 돌면 소용이 없어요.
 
-규격에는 이 사례가 아니라 일반 규칙을 적었어요 — 가드가 두 언어로 존재해야 하면 사본을 «검토» 가 아니라 «코퍼스» 로 묶을 것, 문자 클래스는 명시로 적을 것, 코퍼스가 건너는 인코딩을 선언할 것.
+살아 있는 좌석에 대고 종단으로 시험했어요, 단정 열넷. 파괴적 명령을 **보드 문**으로 넣었더니 데이터로 처리되고 좌석 문맥이 살아남았어요. 같은 명령을 **어댑터 문**으로 넣었더니 모델 턴 0으로 디스패치됐고 커서 가드가 전진을 거부했어요. 압축 훅 둘은 «설정에 적혀 있다» 가 아니라 **실제로 불렸다** 를 marker 파일로 확인했어요. 압축 뒤에도 경계 이전의 것을 답했고요. 문맥 신호는 규격대로 분해돼요 — 그리고 그 숫자가 「압축은 비용 레버가 아니다」를 다시 말해줘요: 회수 가능한 몫은 56% 줄었는데 총량은 8% 줄었어요. 고정층이 압축이 건드릴 수 있는 전부보다 다섯 배 컸거든요.
+
+단일-제출-경로 검사가 새 드라이버에서 실패했는데, 그게 그 검사가 도는 이유였어요 — 가드 심볼 그물이 한 언어의 이름 규칙으로만 짜여 있어서, 가드를 제대로 쓰는 파일이 우회로 보였어요. 이제 양쪽을 덮어요. 파이썬 쪽 계약은 이 검사기가 **그쪽 자체시험을 직접 돌려서** 묶어요 — 같은 단정을 두 번 구현하는 대신 위임하고, 실패하면 같이 실패해요. 상주 관문을 없앤 돌연변이가 그 자체시험을 실제로 깨뜨리는지도 매 실행 확인해요.
+
+Previously: v2.6.44 (2026-07-29) — **두 쪽에 서로 다른 바이트를 주는 대조 장치는, 시험한 적 없는 «일치» 를 보고해요 (Constellation v2.4.115)** — 제출 가드가 이제 두 벌이에요. 상주 좌석을 실제로 모는 층은 하네스 SDK 를 따라가고 참조 런타임은 그렇지 않거든요. 제출마다 하위 프로세스를 띄우면 뜨거운 경로에 런타임이 하나 더 박히고, 그렇다고 두 벌을 눈으로 유지하면 이 저장소가 이미 세 번 겪은 그 실패예요. 그래서 두 벌을 **같은 코퍼스를 양쪽에 통과시키는 검사**로 묶었어요. 공유 상수는 실측 기록 한 곳에서 읽고, 문자 클래스는 축약형 대신 명시로 적어요 — 축약 클래스는 두 언어에서 유니코드 포함 범위가 달라서, 같은 정규식을 적어두고 다른 답을 내는 구현 둘이 나와요.
 
 Previously: v2.6.43 (2026-07-29) — **상주 좌석의 주입 안전은 세 층이고, 닫을 수 있는 건 하나뿐이며, 그 하나는 감싸기가 아니라 «위치» 로 닫혀요 (Constellation v2.4.114)** — 살아 있는 좌석에 보드가 말을 거는 구조에서는, 보드가 쓴 글이 명령과 같은 통로로 들어와요. 그래서 본문이 명령 기호로 시작하면 그게 명령으로 실행돼요. 결과를 살아 있는 좌석에서 실제로 재봤어요: 한 줄이 작업 문맥을 통째로 날렸고 비용 상한을 0으로 되돌렸는데, 두 번 다 결과 봉투는 «깨끗한 성공» 이었어요. 하네스 입장에서는 명령이 정말로 성공했으니까요.
 
@@ -1410,11 +1418,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.44 (2026-07-29) — **두 쪽에 서로 다른 바이트를 주는 대조 장치는, 시험한 적 없는 «일치» 를 보고해요 (Constellation v2.4.115)** — 제출 가드가 이제 두 벌이에요. 상주 좌석을 실제로 모는 층은 하네스 SDK 를 따라가고 참조 런타임은 그렇지 않거든요. 제출마다 하위 프로세스를 띄우면 뜨거운 경로에 런타임이 하나 더 박히고, 그렇다고 두 벌을 눈으로 유지하면 이 저장소가 이미 세 번 겪은 그 실패예요. 그래서 두 벌을 **같은 코퍼스를 양쪽에 통과시키는 검사**로 묶었어요. 공유 상수는 실측 기록 한 곳에서 읽고, 문자 클래스는 축약형 대신 명시로 적어요 — 축약 클래스는 두 언어에서 유니코드 포함 범위가 달라서, 같은 정규식을 적어두고 다른 답을 내는 구현 둘이 나와요.
+**현재**: v2.6.45 (2026-07-29) — **문을 둘로 — 「누가 썼나」는 규율이 아니라 타입이어야 해요 (Constellation v2.4.116)** — 상주 좌석 드라이버가 나왔어요. 규격이 어댑터에게 요구하는 다섯 연산을 구현해요. 중요한 설계 결정은 제출 창구예요. 문이 둘이에요 — 하나는 보드가 저작한 글이 들어가는 문이고 그건 가드를 거치지 않고는 하네스에 닿을 수 없어요. 다른 하나는 어댑터가 저작한 절차 명령용이고 그건 진짜 명령이어도 돼요. **보드 내용이 두 번째 문으로 갈 길은 아예 없어요.** 문을 하나로 두고 깃발로 구분하면 같은 규칙이 «관례» 가 되는데, 관례는 리팩터 한 번이면 반대쪽으로 기본값이 넘어가요.
 
-동치 축은 첫 실행에 통과했고, 축약 클래스를 일부러 되살린 돌연변이도 **같이** 통과했어요. 이 조합이 신호예요 — 돌연변이는 적용됐는데 축이 차이를 못 본 거니까요. 코퍼스가 인코딩을 선언하지 않은 채 프로세스 경계를 건너고 있었고, 그래서 비-ASCII 케이스가 한쪽에서 깨진 채 도착했어요. 축은 **서로 다른 입력**으로 두 구현을 비교하면서 「같다」고 보고하고 있었어요. 이제 진입점이 호출부 환경에 기대지 않고 자기 입출력 인코딩을 못박아요. 그 경계는 이 모듈이 공개한 창구니까요.
+압축 주기는 나중에 확인하는 게 아니라 **생성 시점에 강제**해요 — 물질화 훅과 재주입 훅 둘 다 닿지 않는 좌석은 아예 안 열려요. 나중에 보면 그 사이에 일한 턴들이 이미 그 검사가 지키려던 경계를 지나갔거든요. 반쪽은 통과가 아니고, 다른 생명주기 지점에 걸린 재주입 훅도 통과가 아니에요 — 문맥을 잃는 그 경계에서 안 돌면 소용이 없어요.
 
-규격에는 이 사례가 아니라 일반 규칙을 적었어요 — 가드가 두 언어로 존재해야 하면 사본을 «검토» 가 아니라 «코퍼스» 로 묶을 것, 문자 클래스는 명시로 적을 것, 코퍼스가 건너는 인코딩을 선언할 것.
+살아 있는 좌석에 대고 종단으로 시험했어요, 단정 열넷. 파괴적 명령을 **보드 문**으로 넣었더니 데이터로 처리되고 좌석 문맥이 살아남았어요. 같은 명령을 **어댑터 문**으로 넣었더니 모델 턴 0으로 디스패치됐고 커서 가드가 전진을 거부했어요. 압축 훅 둘은 «설정에 적혀 있다» 가 아니라 **실제로 불렸다** 를 marker 파일로 확인했어요. 압축 뒤에도 경계 이전의 것을 답했고요. 문맥 신호는 규격대로 분해돼요 — 그리고 그 숫자가 「압축은 비용 레버가 아니다」를 다시 말해줘요: 회수 가능한 몫은 56% 줄었는데 총량은 8% 줄었어요. 고정층이 압축이 건드릴 수 있는 전부보다 다섯 배 컸거든요.
+
+단일-제출-경로 검사가 새 드라이버에서 실패했는데, 그게 그 검사가 도는 이유였어요 — 가드 심볼 그물이 한 언어의 이름 규칙으로만 짜여 있어서, 가드를 제대로 쓰는 파일이 우회로 보였어요. 이제 양쪽을 덮어요. 파이썬 쪽 계약은 이 검사기가 **그쪽 자체시험을 직접 돌려서** 묶어요 — 같은 단정을 두 번 구현하는 대신 위임하고, 실패하면 같이 실패해요. 상주 관문을 없앤 돌연변이가 그 자체시험을 실제로 깨뜨리는지도 매 실행 확인해요.
+
+Previously: v2.6.44 (2026-07-29) — **두 쪽에 서로 다른 바이트를 주는 대조 장치는, 시험한 적 없는 «일치» 를 보고해요 (Constellation v2.4.115)** — 제출 가드가 이제 두 벌이에요. 상주 좌석을 실제로 모는 층은 하네스 SDK 를 따라가고 참조 런타임은 그렇지 않거든요. 제출마다 하위 프로세스를 띄우면 뜨거운 경로에 런타임이 하나 더 박히고, 그렇다고 두 벌을 눈으로 유지하면 이 저장소가 이미 세 번 겪은 그 실패예요. 그래서 두 벌을 **같은 코퍼스를 양쪽에 통과시키는 검사**로 묶었어요. 공유 상수는 실측 기록 한 곳에서 읽고, 문자 클래스는 축약형 대신 명시로 적어요 — 축약 클래스는 두 언어에서 유니코드 포함 범위가 달라서, 같은 정규식을 적어두고 다른 답을 내는 구현 둘이 나와요.
 
 Previously: v2.6.43 (2026-07-29) — **상주 좌석의 주입 안전은 세 층이고, 닫을 수 있는 건 하나뿐이며, 그 하나는 감싸기가 아니라 «위치» 로 닫혀요 (Constellation v2.4.114)** — 살아 있는 좌석에 보드가 말을 거는 구조에서는, 보드가 쓴 글이 명령과 같은 통로로 들어와요. 그래서 본문이 명령 기호로 시작하면 그게 명령으로 실행돼요. 결과를 살아 있는 좌석에서 실제로 재봤어요: 한 줄이 작업 문맥을 통째로 날렸고 비용 상한을 0으로 되돌렸는데, 두 번 다 결과 봉투는 «깨끗한 성공» 이었어요. 하네스 입장에서는 명령이 정말로 성공했으니까요.
 
@@ -2057,11 +2069,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.44 (2026-07-29) — **두 쪽에 서로 다른 바이트를 주는 대조 장치는, 시험한 적 없는 «일치» 를 보고해요 (Constellation v2.4.115)** — 제출 가드가 이제 두 벌이에요. 상주 좌석을 실제로 모는 층은 하네스 SDK 를 따라가고 참조 런타임은 그렇지 않거든요. 제출마다 하위 프로세스를 띄우면 뜨거운 경로에 런타임이 하나 더 박히고, 그렇다고 두 벌을 눈으로 유지하면 이 저장소가 이미 세 번 겪은 그 실패예요. 그래서 두 벌을 **같은 코퍼스를 양쪽에 통과시키는 검사**로 묶었어요. 공유 상수는 실측 기록 한 곳에서 읽고, 문자 클래스는 축약형 대신 명시로 적어요 — 축약 클래스는 두 언어에서 유니코드 포함 범위가 달라서, 같은 정규식을 적어두고 다른 답을 내는 구현 둘이 나와요.
+**현재**: v2.6.45 (2026-07-29) — **문을 둘로 — 「누가 썼나」는 규율이 아니라 타입이어야 해요 (Constellation v2.4.116)** — 상주 좌석 드라이버가 나왔어요. 규격이 어댑터에게 요구하는 다섯 연산을 구현해요. 중요한 설계 결정은 제출 창구예요. 문이 둘이에요 — 하나는 보드가 저작한 글이 들어가는 문이고 그건 가드를 거치지 않고는 하네스에 닿을 수 없어요. 다른 하나는 어댑터가 저작한 절차 명령용이고 그건 진짜 명령이어도 돼요. **보드 내용이 두 번째 문으로 갈 길은 아예 없어요.** 문을 하나로 두고 깃발로 구분하면 같은 규칙이 «관례» 가 되는데, 관례는 리팩터 한 번이면 반대쪽으로 기본값이 넘어가요.
 
-동치 축은 첫 실행에 통과했고, 축약 클래스를 일부러 되살린 돌연변이도 **같이** 통과했어요. 이 조합이 신호예요 — 돌연변이는 적용됐는데 축이 차이를 못 본 거니까요. 코퍼스가 인코딩을 선언하지 않은 채 프로세스 경계를 건너고 있었고, 그래서 비-ASCII 케이스가 한쪽에서 깨진 채 도착했어요. 축은 **서로 다른 입력**으로 두 구현을 비교하면서 「같다」고 보고하고 있었어요. 이제 진입점이 호출부 환경에 기대지 않고 자기 입출력 인코딩을 못박아요. 그 경계는 이 모듈이 공개한 창구니까요.
+압축 주기는 나중에 확인하는 게 아니라 **생성 시점에 강제**해요 — 물질화 훅과 재주입 훅 둘 다 닿지 않는 좌석은 아예 안 열려요. 나중에 보면 그 사이에 일한 턴들이 이미 그 검사가 지키려던 경계를 지나갔거든요. 반쪽은 통과가 아니고, 다른 생명주기 지점에 걸린 재주입 훅도 통과가 아니에요 — 문맥을 잃는 그 경계에서 안 돌면 소용이 없어요.
 
-규격에는 이 사례가 아니라 일반 규칙을 적었어요 — 가드가 두 언어로 존재해야 하면 사본을 «검토» 가 아니라 «코퍼스» 로 묶을 것, 문자 클래스는 명시로 적을 것, 코퍼스가 건너는 인코딩을 선언할 것.
+살아 있는 좌석에 대고 종단으로 시험했어요, 단정 열넷. 파괴적 명령을 **보드 문**으로 넣었더니 데이터로 처리되고 좌석 문맥이 살아남았어요. 같은 명령을 **어댑터 문**으로 넣었더니 모델 턴 0으로 디스패치됐고 커서 가드가 전진을 거부했어요. 압축 훅 둘은 «설정에 적혀 있다» 가 아니라 **실제로 불렸다** 를 marker 파일로 확인했어요. 압축 뒤에도 경계 이전의 것을 답했고요. 문맥 신호는 규격대로 분해돼요 — 그리고 그 숫자가 「압축은 비용 레버가 아니다」를 다시 말해줘요: 회수 가능한 몫은 56% 줄었는데 총량은 8% 줄었어요. 고정층이 압축이 건드릴 수 있는 전부보다 다섯 배 컸거든요.
+
+단일-제출-경로 검사가 새 드라이버에서 실패했는데, 그게 그 검사가 도는 이유였어요 — 가드 심볼 그물이 한 언어의 이름 규칙으로만 짜여 있어서, 가드를 제대로 쓰는 파일이 우회로 보였어요. 이제 양쪽을 덮어요. 파이썬 쪽 계약은 이 검사기가 **그쪽 자체시험을 직접 돌려서** 묶어요 — 같은 단정을 두 번 구현하는 대신 위임하고, 실패하면 같이 실패해요. 상주 관문을 없앤 돌연변이가 그 자체시험을 실제로 깨뜨리는지도 매 실행 확인해요.
+
+Previously: v2.6.44 (2026-07-29) — **두 쪽에 서로 다른 바이트를 주는 대조 장치는, 시험한 적 없는 «일치» 를 보고해요 (Constellation v2.4.115)** — 제출 가드가 이제 두 벌이에요. 상주 좌석을 실제로 모는 층은 하네스 SDK 를 따라가고 참조 런타임은 그렇지 않거든요. 제출마다 하위 프로세스를 띄우면 뜨거운 경로에 런타임이 하나 더 박히고, 그렇다고 두 벌을 눈으로 유지하면 이 저장소가 이미 세 번 겪은 그 실패예요. 그래서 두 벌을 **같은 코퍼스를 양쪽에 통과시키는 검사**로 묶었어요. 공유 상수는 실측 기록 한 곳에서 읽고, 문자 클래스는 축약형 대신 명시로 적어요 — 축약 클래스는 두 언어에서 유니코드 포함 범위가 달라서, 같은 정규식을 적어두고 다른 답을 내는 구현 둘이 나와요.
 
 Previously: v2.6.43 (2026-07-29) — **상주 좌석의 주입 안전은 세 층이고, 닫을 수 있는 건 하나뿐이며, 그 하나는 감싸기가 아니라 «위치» 로 닫혀요 (Constellation v2.4.114)** — 살아 있는 좌석에 보드가 말을 거는 구조에서는, 보드가 쓴 글이 명령과 같은 통로로 들어와요. 그래서 본문이 명령 기호로 시작하면 그게 명령으로 실행돼요. 결과를 살아 있는 좌석에서 실제로 재봤어요: 한 줄이 작업 문맥을 통째로 날렸고 비용 상한을 0으로 되돌렸는데, 두 번 다 결과 봉투는 «깨끗한 성공» 이었어요. 하네스 입장에서는 명령이 정말로 성공했으니까요.
 
