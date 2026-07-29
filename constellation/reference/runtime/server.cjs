@@ -463,6 +463,21 @@ function wsOperatorAuthz(conn) {
 }
 // 업스트림 등록키 레지스트리 (영속, gitignore). 메인이 발급 → 사용자 경유 업스트림에 전달 → 그 키로 upstream role.
 const crypto = require('crypto');
+
+// v2.4.118 (Ultrasafe crypto-06) — 로그에 찍는 키 지문. 상관(correlation)에는 쓸모 있고 비밀은 안 새요.
+//   종전엔 키 앞 14자를 그대로 찍었어요. 키는 «역할 접두 + 24 hex» 라 그 14자가 96비트 중 약 44비트예요.
+//   그리고 그게 **발급 때가 아니라 접속마다** stdout·로그파일로 나갔어요. 접두를 6~8자로 줄이는 방법도
+//   있지만 그건 같은 종류의 누출을 «조금» 하는 거예요 — 해시는 그 부류를 없애요.
+//   역할 접두(`ck-`·`pk-`·`lk-`)는 비밀이 아니라 그대로 남겨요. 그게 로그를 읽는 사람에게 쓸모 있는 부분이고,
+//   접두만으로는 어떤 키도 좁혀지지 않아요.
+function keyFp(k) {
+  if (k == null || k === '') return '(none)';
+  const s = String(k);
+  const dash = s.indexOf('-');
+  const pre = dash > 0 && dash <= 3 ? s.slice(0, dash + 1) : '';
+  return pre + 'fp:' + crypto.createHash('sha256').update(s).digest('hex').slice(0, 8);
+}
+
 const WS_KEYS = path.join(DIR, 'ws-keys.json');
 let wsKeys = [];
 try { const k = JSON.parse(fs.readFileSync(WS_KEYS, 'utf8')); if (Array.isArray(k)) wsKeys = k; } catch {}
@@ -1667,7 +1682,7 @@ server.on('upgrade', (req, socket) => {
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
   conn.meta.ip = normIp(req.socket.remoteAddress);   // v2.4.87 — 운영자 authz(§13.25.9) 가 주소를 봐야 하므로 upgrade 시 보관
-  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } else if (kr === 'local') { conn.meta.localKey = true; conn.meta.upstreamKey = k; }   /* v2.4.101 — local(lk-) 분기가 **이 자리에도** 없었어요. v2.4.99 는 HELLO 본문 경로만 고쳤는데, 레퍼런스 join-local 은 키를 URL 로만 보내요(?key=). 그래서 (a) 그 키는 관측되지 않아 state/lastAgent 가 초기값에 머물고 (b) 원격 local 키 거부 가드가 발동하지 않았어요 — 재기동 후 실측으로 드러난 구멍. 스모크가 두 경로에 다 키를 실어서 URL-only 경로를 시험하지 않았던 것도 같이 고쳤어요. */ if (k != null) console.log('[ws upgrade] key=%s role=%s', String(k).slice(0, 14) + '…', kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
+  try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } else if (kr === 'local') { conn.meta.localKey = true; conn.meta.upstreamKey = k; }   /* v2.4.101 — local(lk-) 분기가 **이 자리에도** 없었어요. v2.4.99 는 HELLO 본문 경로만 고쳤는데, 레퍼런스 join-local 은 키를 URL 로만 보내요(?key=). 그래서 (a) 그 키는 관측되지 않아 state/lastAgent 가 초기값에 머물고 (b) 원격 local 키 거부 가드가 발동하지 않았어요 — 재기동 후 실측으로 드러난 구멍. 스모크가 두 경로에 다 키를 실어서 URL-only 경로를 시험하지 않았던 것도 같이 고쳤어요. */ if (k != null) console.log('[ws upgrade] key=%s role=%s', keyFp(k), kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
   // v2.4.104 §13.25.13 — 기간 지난 키는 여기서 끊어요. 아래 SERVER_HELLO/AgentList/History 보다
   //   **앞**이어야 해요: URL 로 키를 싣는 클라이언트는 HELLO 를 보내기 전에 이미 보드 내용을 받으니까요
   //   (v2.4.41 이 IP 차단에 대해 같은 이유로 잡아둔 순서와 동일한 근거).
@@ -1747,7 +1762,7 @@ server.on('upgrade', (req, socket) => {
         // v2.4.99 §13.25.11 (se-01) — 키↔정체 TOFU 결속 위반 거부. 키는 처음 쓴 agentId 의 것이에요.
         { const _pinK = conn.meta.upstreamKey; const _bound = keyPinViolation(_pinK, conn.meta.agentId);
           if (_bound) {
-            console.warn('[ws HELLO] §13.25.11 키-정체 불일치 거부 key=%s bound=%s claimed=%s ip=%s', String(_pinK).slice(0, 14) + '…', _bound, conn.meta.agentId, normIp(_ip) || '?');
+            console.warn('[ws HELLO] §13.25.11 키-정체 불일치 거부 key=%s bound=%s claimed=%s ip=%s', keyFp(_pinK), _bound, conn.meta.agentId, normIp(_ip) || '?');
             // v2.4.111 — hint 교정 (adopter 질문 ME-CST-13 §3). 종전 문구(«워커마다 별도 키를 발급하세요»)가
             //   **별도 키를 기본값처럼** 읽히게 했어요. 별도 키는 «정체가 실제로 다를 때» 의 답이에요 — 로스터에
             //   따로 서고 독립적으로 폐기하고 싶은 워커. 읽기 전용 보조 도구는 정체가 다른 게 아니라 **같은 정체의
@@ -1765,7 +1780,7 @@ server.on('upgrade', (req, socket) => {
           }
         }
       }
-      console.log('[ws HELLO]%s agent=%s ip=%s ua=%s upstreamKey=%s → role=%s', _hadId ? '' : ' [ANON]', conn.meta.agentId, conn.remoteAddr || '?', (conn.ua || '').slice(0, 50) || '-', msg.upstreamKey ? String(msg.upstreamKey).slice(0, 14) + '…' : '(none)', wsAgentRole(conn));   // role 전환 audit + 출처(ip/ua)
+      console.log('[ws HELLO]%s agent=%s ip=%s ua=%s upstreamKey=%s → role=%s', _hadId ? '' : ' [ANON]', conn.meta.agentId, conn.remoteAddr || '?', (conn.ua || '').slice(0, 50) || '-', keyFp(msg.upstreamKey), wsAgentRole(conn));   // role 전환 audit + 출처(ip/ua)
       if (!_hadId) { console.log('[ws HELLO][ANON] 익명 HELLO 등록 거부(AgentList/relay/탭 제외) raw=%s', JSON.stringify(msg).slice(0, 240)); return; }   // 익명(agentId 누락) = 보드 탭 미생성·relay 제외, 출처 로깅만
       const prev = wsAgents.get(conn.meta.agentId);
       if (prev && prev !== conn) { try { prev.close(); } catch {} }

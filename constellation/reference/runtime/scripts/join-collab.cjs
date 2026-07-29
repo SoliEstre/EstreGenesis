@@ -68,7 +68,7 @@ if (!key) { console.error('[join-collab] COLLAB_KEY 또는 COLLAB_KEY_FILE 이 �
 // 키 접두사 ↔ 질의 파라미터. 서버는 key/peerKey/upstreamKey/collabKey 를 모두 읽지만, 종별 파라미터를
 //   쓰면 «어느 종으로 붙으려 했는가» 가 서버 로그와 거부 메시지에 남아요 (오진 비용이 줄어요).
 const KIND = /^pk-/.test(key) ? 'peer' : /^uk-/.test(key) ? 'upstream' : /^ck-/.test(key) ? 'collab' : null;
-if (!KIND) { console.error('[join-collab] 키 접두사를 알 수 없어요 (ck- / pk- / uk- 기대): ' + key.slice(0, 6) + '…'); process.exit(1); }
+if (!KIND) { console.error('[join-collab] 키 접두사를 알 수 없어요 (ck- / pk- / uk- 기대) — 받은 값의 접두: ' + String(key).split('-')[0] + '-'); process.exit(1); }
 const ROLE = process.env.WS_ROLE || (KIND === 'upstream' ? 'upstream' : KIND);
 const PARAM = KIND === 'peer' ? 'peerKey' : KIND === 'upstream' ? 'upstreamKey' : 'key';
 
@@ -194,7 +194,7 @@ function drainOutbox() {
 }
 
 function connect() {
-  console.log(`[join-collab] connecting ${WS_URL.replace(key, key.slice(0, 8) + '…')} (agentId=${AGENT_ID} role=${ROLE} kind=${KIND})`);
+  console.log(`[join-collab] connecting ${WS_URL.replace(key, '<key>')} (agentId=${AGENT_ID} role=${ROLE} kind=${KIND})`);
   ws = new WebSocket(WS_URL);
   ws.onopen = () => {
     connected = true; backoff = 500; selfIntroSent = false;

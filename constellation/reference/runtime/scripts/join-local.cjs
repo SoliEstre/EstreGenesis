@@ -74,7 +74,7 @@ function drainOutbox() {
 }
 
 function connect() {
-  console.log(`[join-local] connecting ${WS_URL.replace(key, key.slice(0, 8) + '…')} (agentId=${AGENT_ID})`);
+  console.log(`[join-local] connecting ${WS_URL.replace(key, '<key>')} (agentId=${AGENT_ID})`);
   ws = new WebSocket(WS_URL);
   ws.onopen = () => {
     connected = true; backoff = 500;

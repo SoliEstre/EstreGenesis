@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.46" src="https://img.shields.io/badge/version-v2.6.46-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.47" src="https://img.shields.io/badge/version-v2.6.47-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,15 +303,17 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.46 (2026-07-29) — **The measurement removed half the reason for building the thing, and the specification now says so (Constellation v2.4.117)** — a shadow runner lands: it reads the same intake the turn-spawned board worker reads, drives the same delegation through a resident seat, and writes a *proposed* patch to a separate file. It never touches the board. What keeps it from touching the board is not an instruction but an absence — the shadow seat is given read tools only, so a charter telling it to write has nothing to write with. That is the control this specification names for the layers a wrapper cannot close, applied to its own dogfood.
+**Current**: v2.6.47 (2026-07-29) — **Truncating a secret looks like hiding it and is actually leaking a little, and a little repeated is not a little (Constellation v2.4.118)** — connection keys are a role prefix followed by 24 hex characters. The server logged the first fourteen of them, which is roughly 44 of the key's 96 secret bits, and it did so on **every connection attempt** rather than at issuance. Log files and console history accumulate that. Shortening the prefix to six or eight characters was the obvious repair and is the wrong shape: it leaks the same thing more slowly. The key is now logged as a hash fingerprint that keeps the role prefix — the part an operator actually correlates on, and the part that narrows nothing.
 
-The point of a shadow is that the comparison survives. Replacing the worker first and asking afterwards whether residency helped leaves nothing to compare against, and the answer degrades to an impression. So the two ran the same delegation and were timed.
+The finding named three sites in one file. A pattern scan over the whole runtime found two more in scripts nobody had looked at, where a key was being spliced into a connection URL for a "connecting to…" line that did not need it at all; those are redacted rather than shortened. One further hit was a false positive worth keeping visible: a VAPID **public** key, which is named like a secret and is not one. It is exempt by symbol, with the reason printed on every run, because a silent exemption is the same failure class as a stale list.
 
-**Residency did not win.** The resumed turn-spawned worker finished in 60s; the resident seat took 66s on the same delegation and the same model. The reason is that this workspace's worker already resumes a fixed session across turns, so it was never rebuilding the preamble — the cost that the case for residency leaned on hardest was already gone, and had been for weeks. The specification carried that claim in two places and both are corrected: the preamble is not inherent to the turn-spawned shape, and a design justified by preamble savings is justified by a number the alternative can also have. What is left of the residency case is narrower and worth stating narrowly — the wake path, cancelling an in-flight turn from outside it, choosing where the compaction boundary falls, and reading a decomposed context signal to act on.
+The checker's primary axis is the mechanism, not the data. It requires the fingerprint to be a **hash** — a shorter prefix would satisfy any string check while leaving the leak — and it verifies the fingerprint's behaviour by evaluating it: different keys must differ, the role prefix must survive, and no eight-character run of the secret may appear in the output. That last one cannot be checked by reading the source. It also asserts the **deployed copy** carries the fix, since a manually-copied runtime lags with no signal.
 
-A first replay run looked like agreement and was not a comparison at all: the shadow read the board *after* the worker had already applied the change, correctly answered "identical, nothing to do", and proved only that it can recognise idempotence. A replay is not the same input as a race — it is the world after the other side finished.
+The first version of the scan missed its own headline case: the pattern tried to read inside the log call and could not cross the parenthesis in `String(k).slice(...)`. A synthetic mutation caught that. Binding the pattern to the *receiver* of the slice rather than to the call fixed it and also removed a false positive where an unrelated truncation sat on the same line.
 
-Three defects in the shadow, all of the same kind: it read the wrong file (the main agent's inbox rather than the worker's intake, which shows up as *nothing to do* rather than as a failure), it seeked by byte offset on a text-mode stream, and it reset to the start of the log on rotation. All three were already solved in the worker, two of them with comments explaining why. A new implementation does not inherit the old one's scars, which is the standing failure mode of parallel implementations; the self-test now asserts that the shadow reads the same file its counterpart does.
+**The running server still has the old code.** The file is synced; picking it up needs a restart, which is deliberately not taken here.
+
+Previously: v2.6.46 (2026-07-29) — **The measurement removed half the reason for building the thing, and the specification now says so (Constellation v2.4.117)** — a shadow runner lands: it reads the same intake the turn-spawned board worker reads, drives the same delegation through a resident seat, and writes a *proposed* patch to a separate file. It never touches the board. What keeps it from touching the board is not an instruction but an absence — the shadow seat is given read tools only, so a charter telling it to write has nothing to write with. That is the control this specification names for the layers a wrapper cannot close, applied to its own dogfood.
 
 Previously: v2.6.45 (2026-07-29) — **Two doors, because a rule about who authored the text should be a type and not a discipline (Constellation v2.4.116)** — the resident-seat driver lands, implementing the five operations the specification asks an adapter to provide. The design decision that matters is the submission surface: there are two entry points, one for board-authored content that cannot reach the harness except through the guard, and one for adapter-authored procedure commands that may legitimately be commands. Board content has no path to the second. A single entry point with a flag would encode the same rule as a convention, and a convention is one refactor away from defaulting the wrong way.
 
@@ -832,15 +834,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
+**현재**: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
-그림자를 쓰는 이유는 **비교가 살아남게** 하려는 거예요. 워커를 먼저 갈아치우고 나중에 「상주가 도움이 됐나」를 물으면 비교할 상대가 없어서 답이 인상으로 떨어져요. 그래서 둘에게 같은 위임을 주고 시간을 쟀어요.
+지적은 한 파일의 세 자리를 지목했어요. 런타임 전체를 패턴으로 훑으니 아무도 안 본 스크립트에서 두 자리가 더 나왔어요 — 「어디에 접속합니다」 한 줄을 찍으려고 접속 주소에 키를 끼워 넣고 있었는데, 그 줄엔 키가 애초에 필요 없어요. 그래서 줄이는 대신 **지웠어요**. 하나는 오탐인데 보이게 남길 값이 있어요 — 웹푸시 **공개**키예요. 이름이 비밀처럼 생겼을 뿐 비밀이 아니에요. 기호 단위로 면제하되 **사유를 매 실행 출력**해요. 조용한 면제는 낡은 목록과 같은 부류의 실패라서요.
 
-**상주가 못 이겼어요.** 세션을 이어 쓰는 턴-생성 워커가 60초, 상주 좌석이 같은 위임·같은 모델로 66초였어요. 이유는 이 워크스페이스의 워커가 **이미 고정 세션을 이어 쓰고 있어서** 서두를 다시 짓지 않고 있었기 때문이에요 — 상주의 근거 중 가장 크게 기대던 비용이 이미 사라져 있었고, 몇 주 전부터 그랬어요. 규격이 그 주장을 두 곳에서 하고 있었고 둘 다 고쳤어요: 서두 비용은 턴-생성 방식에 **내재하지 않고**, 서두 절약으로 정당화된 설계는 상대도 가질 수 있는 숫자로 정당화된 거예요. 남은 상주의 근거는 더 좁고, 좁게 적는 게 맞아요 — 기상 경로, 진행 중인 턴을 바깥에서 끊기, 압축 경계를 «언제» 로 정하기, 그리고 분해된 문맥 신호를 읽어 움직이기.
+검사의 1차 축은 데이터가 아니라 기제예요. 지문이 **해시인지**를 요구해요 — 접두를 짧게 자른 것도 어떤 문자열 검사든 통과하지만 누출은 그대로 남거든요. 그리고 지문의 **거동**을 실제로 평가해서 확인해요: 서로 다른 키는 서로 다른 지문을 내야 하고, 역할 접두는 남아야 하고, 비밀의 여덟 자 이상 조각이 결과에 나타나면 안 돼요. 마지막 건 소스를 읽어서는 절대 못 봐요. **배포 사본**에도 반영됐는지도 같이 봐요 — 손으로 복사하는 런타임은 아무 신호 없이 뒤처지니까요.
 
-첫 재생 실행은 일치처럼 보였지만 애초에 비교가 아니었어요 — 그림자가 워커가 이미 적용한 **뒤의** 보드를 읽고 「동일해요, 할 일 없음」이라고 옳게 답했을 뿐이에요. 그건 멱등을 알아본다는 증거지 대조가 아니에요. 재생은 같은 입력이 아니라 «상대가 끝낸 뒤의 세계» 예요.
+첫 판 스캔은 정작 자기 대표 사례를 놓쳤어요. 로그 호출 «안» 을 읽으려는 패턴이 `String(k).slice(...)` 의 괄호를 못 넘어갔거든요. 합성 돌연변이가 그걸 잡았어요. 패턴을 호출이 아니라 **잘리는 대상**에 묶으니 해결됐고, 덤으로 무관한 자르기가 같은 줄에 있다는 이유만으로 걸리던 오탐도 사라졌어요.
 
-그림자에서 결함 셋이 나왔고 전부 같은 부류예요 — 잘못된 파일을 읽었고(워커 인테이크가 아니라 대표 자리의 수신함, 증상이 «실패» 가 아니라 «할 일 없음» 이라 더 조용해요), 텍스트 스트림에 바이트 오프셋으로 seek 했고, 로그가 회전하면 처음으로 되돌아갔어요. 셋 다 워커에선 이미 해결돼 있었고 둘엔 이유까지 주석으로 적혀 있었어요. 새 구현은 옛 구현의 흉터를 물려받지 않아요 — 그게 평행 구현의 상시 실패 모드예요. 자체시험에 「상대와 같은 파일을 읽는가」 단정을 넣었어요.
+**돌고 있는 서버는 아직 옛 코드예요.** 파일은 동기됐고, 반영은 재기동이 필요한데 그건 여기서 일부러 안 했어요.
+
+Previously: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
 
 Previously: v2.6.45 (2026-07-29) — **문을 둘로 — 「누가 썼나」는 규율이 아니라 타입이어야 해요 (Constellation v2.4.116)** — 상주 좌석 드라이버가 나왔어요. 규격이 어댑터에게 요구하는 다섯 연산을 구현해요. 중요한 설계 결정은 제출 창구예요. 문이 둘이에요 — 하나는 보드가 저작한 글이 들어가는 문이고 그건 가드를 거치지 않고는 하네스에 닿을 수 없어요. 다른 하나는 어댑터가 저작한 절차 명령용이고 그건 진짜 명령이어도 돼요. **보드 내용이 두 번째 문으로 갈 길은 아예 없어요.** 문을 하나로 두고 깃발로 구분하면 같은 규칙이 «관례» 가 되는데, 관례는 리팩터 한 번이면 반대쪽으로 기본값이 넘어가요.
 
@@ -1426,15 +1430,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
+**현재**: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
-그림자를 쓰는 이유는 **비교가 살아남게** 하려는 거예요. 워커를 먼저 갈아치우고 나중에 「상주가 도움이 됐나」를 물으면 비교할 상대가 없어서 답이 인상으로 떨어져요. 그래서 둘에게 같은 위임을 주고 시간을 쟀어요.
+지적은 한 파일의 세 자리를 지목했어요. 런타임 전체를 패턴으로 훑으니 아무도 안 본 스크립트에서 두 자리가 더 나왔어요 — 「어디에 접속합니다」 한 줄을 찍으려고 접속 주소에 키를 끼워 넣고 있었는데, 그 줄엔 키가 애초에 필요 없어요. 그래서 줄이는 대신 **지웠어요**. 하나는 오탐인데 보이게 남길 값이 있어요 — 웹푸시 **공개**키예요. 이름이 비밀처럼 생겼을 뿐 비밀이 아니에요. 기호 단위로 면제하되 **사유를 매 실행 출력**해요. 조용한 면제는 낡은 목록과 같은 부류의 실패라서요.
 
-**상주가 못 이겼어요.** 세션을 이어 쓰는 턴-생성 워커가 60초, 상주 좌석이 같은 위임·같은 모델로 66초였어요. 이유는 이 워크스페이스의 워커가 **이미 고정 세션을 이어 쓰고 있어서** 서두를 다시 짓지 않고 있었기 때문이에요 — 상주의 근거 중 가장 크게 기대던 비용이 이미 사라져 있었고, 몇 주 전부터 그랬어요. 규격이 그 주장을 두 곳에서 하고 있었고 둘 다 고쳤어요: 서두 비용은 턴-생성 방식에 **내재하지 않고**, 서두 절약으로 정당화된 설계는 상대도 가질 수 있는 숫자로 정당화된 거예요. 남은 상주의 근거는 더 좁고, 좁게 적는 게 맞아요 — 기상 경로, 진행 중인 턴을 바깥에서 끊기, 압축 경계를 «언제» 로 정하기, 그리고 분해된 문맥 신호를 읽어 움직이기.
+검사의 1차 축은 데이터가 아니라 기제예요. 지문이 **해시인지**를 요구해요 — 접두를 짧게 자른 것도 어떤 문자열 검사든 통과하지만 누출은 그대로 남거든요. 그리고 지문의 **거동**을 실제로 평가해서 확인해요: 서로 다른 키는 서로 다른 지문을 내야 하고, 역할 접두는 남아야 하고, 비밀의 여덟 자 이상 조각이 결과에 나타나면 안 돼요. 마지막 건 소스를 읽어서는 절대 못 봐요. **배포 사본**에도 반영됐는지도 같이 봐요 — 손으로 복사하는 런타임은 아무 신호 없이 뒤처지니까요.
 
-첫 재생 실행은 일치처럼 보였지만 애초에 비교가 아니었어요 — 그림자가 워커가 이미 적용한 **뒤의** 보드를 읽고 「동일해요, 할 일 없음」이라고 옳게 답했을 뿐이에요. 그건 멱등을 알아본다는 증거지 대조가 아니에요. 재생은 같은 입력이 아니라 «상대가 끝낸 뒤의 세계» 예요.
+첫 판 스캔은 정작 자기 대표 사례를 놓쳤어요. 로그 호출 «안» 을 읽으려는 패턴이 `String(k).slice(...)` 의 괄호를 못 넘어갔거든요. 합성 돌연변이가 그걸 잡았어요. 패턴을 호출이 아니라 **잘리는 대상**에 묶으니 해결됐고, 덤으로 무관한 자르기가 같은 줄에 있다는 이유만으로 걸리던 오탐도 사라졌어요.
 
-그림자에서 결함 셋이 나왔고 전부 같은 부류예요 — 잘못된 파일을 읽었고(워커 인테이크가 아니라 대표 자리의 수신함, 증상이 «실패» 가 아니라 «할 일 없음» 이라 더 조용해요), 텍스트 스트림에 바이트 오프셋으로 seek 했고, 로그가 회전하면 처음으로 되돌아갔어요. 셋 다 워커에선 이미 해결돼 있었고 둘엔 이유까지 주석으로 적혀 있었어요. 새 구현은 옛 구현의 흉터를 물려받지 않아요 — 그게 평행 구현의 상시 실패 모드예요. 자체시험에 「상대와 같은 파일을 읽는가」 단정을 넣었어요.
+**돌고 있는 서버는 아직 옛 코드예요.** 파일은 동기됐고, 반영은 재기동이 필요한데 그건 여기서 일부러 안 했어요.
+
+Previously: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
 
 Previously: v2.6.45 (2026-07-29) — **문을 둘로 — 「누가 썼나」는 규율이 아니라 타입이어야 해요 (Constellation v2.4.116)** — 상주 좌석 드라이버가 나왔어요. 규격이 어댑터에게 요구하는 다섯 연산을 구현해요. 중요한 설계 결정은 제출 창구예요. 문이 둘이에요 — 하나는 보드가 저작한 글이 들어가는 문이고 그건 가드를 거치지 않고는 하네스에 닿을 수 없어요. 다른 하나는 어댑터가 저작한 절차 명령용이고 그건 진짜 명령이어도 돼요. **보드 내용이 두 번째 문으로 갈 길은 아예 없어요.** 문을 하나로 두고 깃발로 구분하면 같은 규칙이 «관례» 가 되는데, 관례는 리팩터 한 번이면 반대쪽으로 기본값이 넘어가요.
 
@@ -2081,15 +2087,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
+**현재**: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
-그림자를 쓰는 이유는 **비교가 살아남게** 하려는 거예요. 워커를 먼저 갈아치우고 나중에 「상주가 도움이 됐나」를 물으면 비교할 상대가 없어서 답이 인상으로 떨어져요. 그래서 둘에게 같은 위임을 주고 시간을 쟀어요.
+지적은 한 파일의 세 자리를 지목했어요. 런타임 전체를 패턴으로 훑으니 아무도 안 본 스크립트에서 두 자리가 더 나왔어요 — 「어디에 접속합니다」 한 줄을 찍으려고 접속 주소에 키를 끼워 넣고 있었는데, 그 줄엔 키가 애초에 필요 없어요. 그래서 줄이는 대신 **지웠어요**. 하나는 오탐인데 보이게 남길 값이 있어요 — 웹푸시 **공개**키예요. 이름이 비밀처럼 생겼을 뿐 비밀이 아니에요. 기호 단위로 면제하되 **사유를 매 실행 출력**해요. 조용한 면제는 낡은 목록과 같은 부류의 실패라서요.
 
-**상주가 못 이겼어요.** 세션을 이어 쓰는 턴-생성 워커가 60초, 상주 좌석이 같은 위임·같은 모델로 66초였어요. 이유는 이 워크스페이스의 워커가 **이미 고정 세션을 이어 쓰고 있어서** 서두를 다시 짓지 않고 있었기 때문이에요 — 상주의 근거 중 가장 크게 기대던 비용이 이미 사라져 있었고, 몇 주 전부터 그랬어요. 규격이 그 주장을 두 곳에서 하고 있었고 둘 다 고쳤어요: 서두 비용은 턴-생성 방식에 **내재하지 않고**, 서두 절약으로 정당화된 설계는 상대도 가질 수 있는 숫자로 정당화된 거예요. 남은 상주의 근거는 더 좁고, 좁게 적는 게 맞아요 — 기상 경로, 진행 중인 턴을 바깥에서 끊기, 압축 경계를 «언제» 로 정하기, 그리고 분해된 문맥 신호를 읽어 움직이기.
+검사의 1차 축은 데이터가 아니라 기제예요. 지문이 **해시인지**를 요구해요 — 접두를 짧게 자른 것도 어떤 문자열 검사든 통과하지만 누출은 그대로 남거든요. 그리고 지문의 **거동**을 실제로 평가해서 확인해요: 서로 다른 키는 서로 다른 지문을 내야 하고, 역할 접두는 남아야 하고, 비밀의 여덟 자 이상 조각이 결과에 나타나면 안 돼요. 마지막 건 소스를 읽어서는 절대 못 봐요. **배포 사본**에도 반영됐는지도 같이 봐요 — 손으로 복사하는 런타임은 아무 신호 없이 뒤처지니까요.
 
-첫 재생 실행은 일치처럼 보였지만 애초에 비교가 아니었어요 — 그림자가 워커가 이미 적용한 **뒤의** 보드를 읽고 「동일해요, 할 일 없음」이라고 옳게 답했을 뿐이에요. 그건 멱등을 알아본다는 증거지 대조가 아니에요. 재생은 같은 입력이 아니라 «상대가 끝낸 뒤의 세계» 예요.
+첫 판 스캔은 정작 자기 대표 사례를 놓쳤어요. 로그 호출 «안» 을 읽으려는 패턴이 `String(k).slice(...)` 의 괄호를 못 넘어갔거든요. 합성 돌연변이가 그걸 잡았어요. 패턴을 호출이 아니라 **잘리는 대상**에 묶으니 해결됐고, 덤으로 무관한 자르기가 같은 줄에 있다는 이유만으로 걸리던 오탐도 사라졌어요.
 
-그림자에서 결함 셋이 나왔고 전부 같은 부류예요 — 잘못된 파일을 읽었고(워커 인테이크가 아니라 대표 자리의 수신함, 증상이 «실패» 가 아니라 «할 일 없음» 이라 더 조용해요), 텍스트 스트림에 바이트 오프셋으로 seek 했고, 로그가 회전하면 처음으로 되돌아갔어요. 셋 다 워커에선 이미 해결돼 있었고 둘엔 이유까지 주석으로 적혀 있었어요. 새 구현은 옛 구현의 흉터를 물려받지 않아요 — 그게 평행 구현의 상시 실패 모드예요. 자체시험에 「상대와 같은 파일을 읽는가」 단정을 넣었어요.
+**돌고 있는 서버는 아직 옛 코드예요.** 파일은 동기됐고, 반영은 재기동이 필요한데 그건 여기서 일부러 안 했어요.
+
+Previously: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
 
 Previously: v2.6.45 (2026-07-29) — **문을 둘로 — 「누가 썼나」는 규율이 아니라 타입이어야 해요 (Constellation v2.4.116)** — 상주 좌석 드라이버가 나왔어요. 규격이 어댑터에게 요구하는 다섯 연산을 구현해요. 중요한 설계 결정은 제출 창구예요. 문이 둘이에요 — 하나는 보드가 저작한 글이 들어가는 문이고 그건 가드를 거치지 않고는 하네스에 닿을 수 없어요. 다른 하나는 어댑터가 저작한 절차 명령용이고 그건 진짜 명령이어도 돼요. **보드 내용이 두 번째 문으로 갈 길은 아예 없어요.** 문을 하나로 두고 깃발로 구분하면 같은 규칙이 «관례» 가 되는데, 관례는 리팩터 한 번이면 반대쪽으로 기본값이 넘어가요.
 
