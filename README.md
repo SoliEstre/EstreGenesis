@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.55" src="https://img.shields.io/badge/version-v2.6.55-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.56" src="https://img.shields.io/badge/version-v2.6.56-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,7 +303,15 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.55** (2026-07-29) — **A provider's refusal is not a failure, and a seat waiting on one reports healthy the whole time (Constellation v2.4.124)** — the turn classifier had names for two kinds of failure: the means (a binary moved, a flag renamed, a model id retired) and the work (a bad prompt, a missing file). A usage limit is neither. Having no name, it fell to the work class, whose remedy is to retry — and the supervisor polls every five seconds, so a five-hour window is on the order of 3,600 attempts into a wall.
+**Current**: v2.6.56 (2026-07-29) — **A scanner that catches every vendor's tokens and not its own (Ultrasafe v0.2.14)** — the publish hook records one command line into the assessment ledger for advisory context, and `maskSecrets` is the only hygiene control on that path. Iteration 2 measured four shapes passing through it unchanged: a PAT inside a push URL, an `Authorization: Bearer` value, an npmrc `:_authToken=`, and this project's own connection-key format. The last one is the one that stings — the control knew about `NPM_TOKEN` and `--otp` and nothing about `ck-`/`uk-`/`pk-`/`lk-`.
+
+The npmrc case is worth naming on its own, because it was not a missing rule but a missing flag. The env-var rule required the name to contain `TOKEN`, `SECRET`, `PASSWORD` — and it was case-sensitive, so `NPM_TOKEN` was caught and `_authToken` was not. Reading the regex does not show that; running it does.
+
+The masking now separates two kinds of rule. **Shape rules** have a name sitting beside the value, so the value is redacted while the name stays readable and the preview keeps its advisory worth — flags, named values, URL userinfo, and an `Authorization` value however the scheme is spelled. **Literal rules** have no name anywhere, which is the ordinary case for a token embedded in a URL or standing alone in a header, so they are recognised by issuer prefix. The prefix list carries this project's own key shape beside GitHub's, GitLab's, npm's, Slack's and AWS's.
+
+The report named the reason this needed a checker rather than only a fix: reverting the control broke nothing anywhere. The new checker is behavioural, since the defect was invisible in the source — it feeds real strings and reads the output, asserts that ordinary publish lines survive untouched (a masker that redacts everything passes every leak assertion), and confirms the hook actually calls the function. Four mutations revert it, one per rule. The first draft of one of them was itself wrong: its probe value also matched a prefix rule, so the sweep masked it and the mutation measured a neighbouring rule instead of the one it aimed at. The mutation caught that, which is what mutations are for.
+
+Previously: v2.6.55 (2026-07-29) — **A provider's refusal is not a failure, and a seat waiting on one reports healthy the whole time (Constellation v2.4.124)** — the turn classifier had names for two kinds of failure: the means (a binary moved, a flag renamed, a model id retired) and the work (a bad prompt, a missing file). A usage limit is neither. Having no name, it fell to the work class, whose remedy is to retry — and the supervisor polls every five seconds, so a five-hour window is on the order of 3,600 attempts into a wall.
 
 Three further consequences followed from the same missing name. The means-failure counter is reset by any non-means outcome, so the ladder never moved — and the ladder is exactly the instrument that would have helped, because quota pools are per-provider and the other engine was available the whole time. The session was discarded on the first refusal, though nothing was wrong with the session. And the reset time, which the vendor writes into the very error being ignored, was never read.
 
@@ -894,7 +902,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
+**현재**: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
+
+npmrc 건은 따로 이름 붙일 만해요. 규칙이 **없어서**가 아니라 **플래그 하나가 없어서** 였거든요. 환경변수 규칙은 이름에 `TOKEN`·`SECRET`·`PASSWORD` 가 들어가길 요구했는데 **대소문자를 구분**했어요. 그래서 `NPM_TOKEN` 은 잡고 `_authToken` 은 놓쳤어요. 정규식을 읽어선 안 보이고, 돌려 보면 보여요.
+
+이제 마스킹이 규칙을 두 갈래로 나눠요. **모양 규칙**은 값 옆에 이름이 있어서 값만 지우고 이름은 남겨요 — 미리보기가 참고 가치를 잃지 않게요(플래그 · 이름=값 · URL 사용자정보 · `Authorization` 값, 스킴 표기 무관). **리터럴 규칙**은 이름이 아예 없는 경우예요. URL 에 박히거나 헤더에 홀로 선 토큰이 그 평범한 모양이고, 그럴 땐 발급자 접두가 유일한 신호예요. 접두 목록엔 GitHub·GitLab·npm·Slack·AWS 옆에 **이 저장소 자신의 열쇠 모양**을 같이 넣었어요.
+
+보고서가 이게 왜 «고치기» 로 안 끝나는지도 적어 뒀어요 — **통제를 되돌려 놔도 아무 검사가 안 깨졌어요.** 새 검사는 **거동**으로 재요, 결함이 소스에선 안 보였으니까요. 실제 문자열을 넣고 출력을 읽고, 평범한 발행 줄이 그대로 살아남는지도 단정해요(전부 가리는 마스커는 누출 축을 전부 통과하거든요), 그리고 훅이 그 함수를 정말 부르는지도 봐요. 돌연변이 4종이 규칙마다 하나씩 되돌려요. 그중 하나의 첫 판은 **그 자체가 틀렸어요** — 시험값이 접두 규칙에도 걸려서, 겨눈 규칙이 아니라 옆 규칙을 재고 있었어요. 그걸 돌연변이가 잡았고, 그게 돌연변이가 있는 이유예요.
+
+이전: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
 
 같은 «이름 없음» 에서 결과가 셋 더 나와요. 수단 실패 계수기는 수단이 아닌 결과가 오면 0 으로 되돌아가니 **사다리가 한 번도 안 움직였어요** — 그런데 사다리야말로 여기서 쓸모 있는 도구예요, 할당량 주머니는 공급사마다 따로라 다른 엔진은 내내 멀쩡했거든요. 세션은 첫 거절에 버려졌어요, 세션엔 아무 문제가 없었는데요. 그리고 재개 시각은 **무시당한 그 오류 안에 공급사가 적어 보내는데** 아무도 안 읽었어요.
 
@@ -1550,7 +1566,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
+**현재**: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
+
+npmrc 건은 따로 이름 붙일 만해요. 규칙이 **없어서**가 아니라 **플래그 하나가 없어서** 였거든요. 환경변수 규칙은 이름에 `TOKEN`·`SECRET`·`PASSWORD` 가 들어가길 요구했는데 **대소문자를 구분**했어요. 그래서 `NPM_TOKEN` 은 잡고 `_authToken` 은 놓쳤어요. 정규식을 읽어선 안 보이고, 돌려 보면 보여요.
+
+이제 마스킹이 규칙을 두 갈래로 나눠요. **모양 규칙**은 값 옆에 이름이 있어서 값만 지우고 이름은 남겨요 — 미리보기가 참고 가치를 잃지 않게요(플래그 · 이름=값 · URL 사용자정보 · `Authorization` 값, 스킴 표기 무관). **리터럴 규칙**은 이름이 아예 없는 경우예요. URL 에 박히거나 헤더에 홀로 선 토큰이 그 평범한 모양이고, 그럴 땐 발급자 접두가 유일한 신호예요. 접두 목록엔 GitHub·GitLab·npm·Slack·AWS 옆에 **이 저장소 자신의 열쇠 모양**을 같이 넣었어요.
+
+보고서가 이게 왜 «고치기» 로 안 끝나는지도 적어 뒀어요 — **통제를 되돌려 놔도 아무 검사가 안 깨졌어요.** 새 검사는 **거동**으로 재요, 결함이 소스에선 안 보였으니까요. 실제 문자열을 넣고 출력을 읽고, 평범한 발행 줄이 그대로 살아남는지도 단정해요(전부 가리는 마스커는 누출 축을 전부 통과하거든요), 그리고 훅이 그 함수를 정말 부르는지도 봐요. 돌연변이 4종이 규칙마다 하나씩 되돌려요. 그중 하나의 첫 판은 **그 자체가 틀렸어요** — 시험값이 접두 규칙에도 걸려서, 겨눈 규칙이 아니라 옆 규칙을 재고 있었어요. 그걸 돌연변이가 잡았고, 그게 돌연변이가 있는 이유예요.
+
+이전: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
 
 같은 «이름 없음» 에서 결과가 셋 더 나와요. 수단 실패 계수기는 수단이 아닌 결과가 오면 0 으로 되돌아가니 **사다리가 한 번도 안 움직였어요** — 그런데 사다리야말로 여기서 쓸모 있는 도구예요, 할당량 주머니는 공급사마다 따로라 다른 엔진은 내내 멀쩡했거든요. 세션은 첫 거절에 버려졌어요, 세션엔 아무 문제가 없었는데요. 그리고 재개 시각은 **무시당한 그 오류 안에 공급사가 적어 보내는데** 아무도 안 읽었어요.
 
@@ -2267,7 +2291,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
+**현재**: v2.6.56 (2026-07-29) — **남의 토큰은 다 잡고 자기 것만 못 잡는 검사기 (Ultrasafe v0.2.14)** — 발행 훅은 명령 한 줄을 참고용으로 원장에 남기고, `maskSecrets` 가 그 경로의 **유일한** 위생 통제예요. 회차 2 가 네 형태의 무변경 통과를 실측했어요: 푸시 URL 에 박힌 PAT · `Authorization: Bearer` 값 · npmrc `:_authToken=` · 그리고 **이 저장소 자신의 접속 열쇠 형식**. 마지막 게 아픈 자리예요 — 통제는 `NPM_TOKEN` 과 `--otp` 는 알면서 `ck-`/`uk-`/`pk-`/`lk-` 는 몰랐어요.
+
+npmrc 건은 따로 이름 붙일 만해요. 규칙이 **없어서**가 아니라 **플래그 하나가 없어서** 였거든요. 환경변수 규칙은 이름에 `TOKEN`·`SECRET`·`PASSWORD` 가 들어가길 요구했는데 **대소문자를 구분**했어요. 그래서 `NPM_TOKEN` 은 잡고 `_authToken` 은 놓쳤어요. 정규식을 읽어선 안 보이고, 돌려 보면 보여요.
+
+이제 마스킹이 규칙을 두 갈래로 나눠요. **모양 규칙**은 값 옆에 이름이 있어서 값만 지우고 이름은 남겨요 — 미리보기가 참고 가치를 잃지 않게요(플래그 · 이름=값 · URL 사용자정보 · `Authorization` 값, 스킴 표기 무관). **리터럴 규칙**은 이름이 아예 없는 경우예요. URL 에 박히거나 헤더에 홀로 선 토큰이 그 평범한 모양이고, 그럴 땐 발급자 접두가 유일한 신호예요. 접두 목록엔 GitHub·GitLab·npm·Slack·AWS 옆에 **이 저장소 자신의 열쇠 모양**을 같이 넣었어요.
+
+보고서가 이게 왜 «고치기» 로 안 끝나는지도 적어 뒀어요 — **통제를 되돌려 놔도 아무 검사가 안 깨졌어요.** 새 검사는 **거동**으로 재요, 결함이 소스에선 안 보였으니까요. 실제 문자열을 넣고 출력을 읽고, 평범한 발행 줄이 그대로 살아남는지도 단정해요(전부 가리는 마스커는 누출 축을 전부 통과하거든요), 그리고 훅이 그 함수를 정말 부르는지도 봐요. 돌연변이 4종이 규칙마다 하나씩 되돌려요. 그중 하나의 첫 판은 **그 자체가 틀렸어요** — 시험값이 접두 규칙에도 걸려서, 겨눈 규칙이 아니라 옆 규칙을 재고 있었어요. 그걸 돌연변이가 잡았고, 그게 돌연변이가 있는 이유예요.
+
+이전: v2.6.55 (2026-07-29) — **공급사의 «지금은 안 돼» 는 고장이 아니고, 그걸 기다리는 자리는 그동안 내내 «정상» 이라고 말해요 (Constellation v2.4.124)** — 턴 판정기는 실패를 두 부류로 부를 줄 알았어요: **수단**(실행 파일이 옮겨감·플래그 이름이 바뀜·모델 이름이 은퇴)과 **일**(프롬프트가 나쁨·파일이 없음). 할당량은 둘 다 아니에요. 이름이 없으니 «일» 쪽으로 접혔고, 그쪽 처방은 재시도예요 — 감독자는 5초마다 도니까 5시간 창이면 **약 3,600번** 같은 벽을 두드려요.
 
 같은 «이름 없음» 에서 결과가 셋 더 나와요. 수단 실패 계수기는 수단이 아닌 결과가 오면 0 으로 되돌아가니 **사다리가 한 번도 안 움직였어요** — 그런데 사다리야말로 여기서 쓸모 있는 도구예요, 할당량 주머니는 공급사마다 따로라 다른 엔진은 내내 멀쩡했거든요. 세션은 첫 거절에 버려졌어요, 세션엔 아무 문제가 없었는데요. 그리고 재개 시각은 **무시당한 그 오류 안에 공급사가 적어 보내는데** 아무도 안 읽었어요.
 

@@ -107,14 +107,55 @@ const STATE_PATH = stateRoot.statePath(process.cwd());
 // `NPM_TOKEN=… npm publish`, `twine upload -p <pass>`). Mask those before they
 // land on disk — state.json may be committed (and .ultrasafe/ is gitignored as a
 // second layer). Conservative: redact the VALUE, keep the flag/var name visible.
+// Bare credential literals, recognised by issuer prefix. Shape rules below need a
+// *name* next to the value (`--token=`, `FOO_SECRET=`); these forms carry none —
+// the token stands alone in the line, which is the ordinary case for a URL-embedded
+// PAT or an `Authorization` value. Prefix matching is the only signal available.
+//
+// The last entry is this project's own connection-key shape (Constellation §3.1:
+// role prefix + hex). A scanner that catches every vendor's tokens and not its own
+// is the shape that lets a publish line carrying a live board key through.
+const SECRET_LITERALS = [
+  /\bgithub_pat_[A-Za-z0-9_]{20,}/g,
+  /\bgh[pousr]_[A-Za-z0-9]{20,}/g,          // GitHub PAT / OAuth / user / server / refresh
+  /\bglpat-[A-Za-z0-9_-]{16,}/g,            // GitLab
+  /\bsk-ant-[A-Za-z0-9_-]{16,}/g,
+  /\bsk-[A-Za-z0-9]{20,}/g,
+  /\bnpm_[A-Za-z0-9]{20,}/g,
+  /\bxox[baprs]-[A-Za-z0-9-]{10,}/g,        // Slack
+  /\bAKIA[0-9A-Z]{16}\b/g,                  // AWS access key id
+  /\b(?:ck|uk|pk|lk)-[a-f0-9]{12,}/g,       // this project's board keys
+];
+
 function maskSecrets(s) {
-  // Best-effort, not exhaustive: covers the common inline-secret shapes on a
-  // publish line — `--otp=…` / `--token …` / `--password=…` and
-  // `NPM_TOKEN=…` / `TWINE_PASSWORD=…` env-prefixes. Single-letter flags like
-  // `-p` are intentionally NOT matched (too ambiguous — docker/ssh/grep port).
+  // Two kinds of rule, deliberately separate.
+  //
+  //   ① **Shape rules** — a name sits beside the value, so the value can be redacted
+  //      while the name stays readable (the preview keeps its advisory worth).
+  //   ② **Literal rules** — no name anywhere; recognised by issuer prefix (above).
+  //
+  // Shape rules run first so the name survives; literal rules then sweep whatever
+  // stood alone. Single-letter flags like `-p` are still NOT matched — too ambiguous
+  // (docker/ssh/grep all use it for something else).
+  //
+  // Measured gaps this closes (Ultrasafe iteration 2, `crypto-13`/`crypto-14`/`meth-11`):
+  // a PAT inside a push URL, an `Authorization: Bearer` value, an npmrc `:_authToken=`,
+  // and this project's own key format all passed through unchanged. The npmrc case is
+  // worth naming — the env-var rule below was case-*sensitive*, so `TOKEN` was caught
+  // and `_authToken` was not, which is a distinction no attacker respects.
   return String(s)
+    // ① flags: `--token=…` / `--password …`
     .replace(/(--?(?:otp|token|password|passwd|pass|secret|auth|api[-_]?key)[=\s]+)\S+/gi, "$1[redacted]")
-    .replace(/\b([A-Za-z_][A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[-_]?KEY|_KEY|_PASS)[A-Za-z0-9_]*)=\S+/g, "$1=[redacted]");
+    // ① named values: `NPM_TOKEN=…`, `//registry.npmjs.org/:_authToken=…` (case-insensitive)
+    .replace(/\b([A-Za-z_][A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[-_]?KEY|_KEY|_PASS)[A-Za-z0-9_]*)=\S+/gi, "$1=[redacted]")
+    // ① URL userinfo: `https://user:secret@host` — redact the password half only
+    .replace(/([a-z][a-z0-9+.-]*:\/\/[^\s:/@]+):[^\s@/]+@/gi, "$1:[redacted]@")
+    // ① URL userinfo with no username — a lone credential standing in for one
+    .replace(/([a-z][a-z0-9+.-]*:\/\/)[A-Za-z0-9_-]{20,}@/gi, "$1[redacted]@")
+    // ① auth header value, however the scheme is spelled
+    .replace(/(Authorization\s*:\s*(?:Bearer|Basic|Token|Digest)?\s*)[A-Za-z0-9._~+/=-]{12,}/gi, "$1[redacted]")
+    // ② bare literals recognised by issuer prefix
+    .replace(new RegExp(SECRET_LITERALS.map((r) => r.source).join("|"), "g"), "[redacted]");
 }
 
 // ─── State read/write ────────────────────────────────────────────────────────
