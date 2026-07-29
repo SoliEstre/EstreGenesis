@@ -220,8 +220,12 @@ class Seat:
                         "total_cost_usd": getattr(msg, "total_cost_usd", None),
                         "session_id": getattr(msg, "session_id", None),
                     }
-                    if getattr(msg, "result", None):
-                        chunks.append(str(msg.result))
+                    # `result` 는 대개 마지막 어시스턴트 텍스트와 같은 내용이에요. 둘 다 담으면
+                    # 저장된 산출물이 두 벌이 되고, 그걸 나중에 파싱하는 쪽이 «두 번 제안했다» 로
+                    # 읽어요. 이미 담긴 것과 같으면 안 담아요.
+                    res = getattr(msg, "result", None)
+                    if res and str(res).strip() not in [c.strip() for c in chunks]:
+                        chunks.append(str(res))
         finally:
             self._busy = False
         r = TurnResult(envelope, " ".join(chunks), text, time.time() - t0)
