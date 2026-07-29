@@ -1022,6 +1022,15 @@ tolerated, and it is printed on every checker run.
 
 Unknown `kind` values MUST be rejected at the server's key-registration boundary (`RegisterKey{kind, label}` returning an error envelope) and at the receiver's `KeyList` consumer (a key with an unrecognized `kind` is logged and skipped, never coerced to a default). The fail-safe-reject discipline mirrors §13.22.6's `sourceContentRef.kind` enum handling in the A2A PR System — closed enums with explicit reject on unknown rather than fallthrough to a default, which prevents silent misclassification (e.g., an unrecognized kind being routed as `collab` would assign `group:collab` to an upstream peer, leaking collab group membership to non-collab agents).
 
+**Absent and unrecognized are different inputs and MUST take different branches.** An omitted `kind` is a request for the default and is legitimate — the issuance UI sends none. An unrecognized `kind` is a request the server cannot honor, from a typo or from a caller newer than the server. Writing the check as `KNOWN.has(v.kind) ? v.kind : DEFAULT` satisfies the first and silently violates the second: the caller asked for a specific kind, received a different one, and got a success reply. This is stated because the sentence above was not enough on its own — **two independently written servers both collapsed the two cases into one fallback**, and one of them was this specification's own reference implementation, which had cited this paragraph while violating it. Where a normative rule names only the case its author had in mind, implementers will supply the other case from habit, and the habit here is a defaulting ternary. The conformant shape rejects first and defaults second:
+
+```js
+if (v.kind != null && v.kind !== '' && !KINDS.has(v.kind)) return error('UNKNOWN_KIND', …);
+const kind = (v.kind == null || v.kind === '') ? DEFAULT : v.kind;
+```
+
+Conformance to this paragraph MUST be checked **behaviourally** — issue a key with a nonsense kind and require an error envelope, issue one with no kind and require the default, and issue one of each declared kind and require its own prefix and join parameter. A source-level check for the ternary shape does not survive a variant with one more condition in it, which is exactly the form the reference carried.
+
 **SSoT surfaces** (the four layers that all read the same `kind` enum):
 
 - **Server `keyStore`** — the in-memory / on-disk key registry stamps every entry with `kind`. Issuance time (`RegisterCollabKey` / `RegisterUpstreamKey`) populates `kind` from the issuance operation; revocation operates on the `(kind, keyValue)` tuple, not on `keyValue` alone (a `ck-…` and a `uk-…` are different keys even if their suffixes happened to collide).
