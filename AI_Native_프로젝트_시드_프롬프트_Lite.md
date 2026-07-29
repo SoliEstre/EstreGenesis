@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Lite
 
-<!-- seed-tier: Lite; language: Korean; version: v2.6.0; date: 2026-07-25; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = 가지치기+레지스트리 cut — 운영 규율 §13.x 인라인 → Constellation.md SSoT 포인터화 (invariant 어휘 + 1줄 요지만 시드 유지) + provenance/verbatim redaction + § EG 모듈 레지스트리 (5종 1-테이블) 신설; v2.5.1 = 레지스트리 6종 — Compendium 행 추가 (Migration-B dogfood 후속); v2.6.0 = 레지스트리 7종 — Corporate 행 추가 (역할 기반 에이전트 조직 모듈 신설) -->
+<!-- seed-tier: Lite; language: Korean; version: v2.6.1; date: 2026-07-29; counterpart: AI_Native_Project_Seed_Prompt_Lite.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = 가지치기+레지스트리 cut — 운영 규율 §13.x 인라인 → Constellation.md SSoT 포인터화 (invariant 어휘 + 1줄 요지만 시드 유지) + provenance/verbatim redaction + § EG 모듈 레지스트리 (5종 1-테이블) 신설; v2.5.1 = 레지스트리 6종 — Compendium 행 추가 (Migration-B dogfood 후속); v2.6.0 = 레지스트리 7종 — Corporate 행 추가 (역할 기반 에이전트 조직 모듈 신설); v2.6.1 = 모드 R (수용) 추가 — 요청 없이 표준만 건네받았을 때의 계약 (수용=설치·생산 아님 · 순수 규율 기본탑재 / 프로세스·포트·비용·권한은 명시적 요청 · 처신은 인프라보다 먼저 · 부트스트랩은 첫 산출물보다 먼저) -->
 
 > **사용법**: 이 파일 전체를 복사해 어떤 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등)에게든 **첫 메시지**로 붙여넣기. 에이전트가 **대화형 부트스트랩 세션** 시작 (프로젝트가 이미 존재하면 **마이그레이션 세션** — § 마이그레이션 가이드 참조).
 >
@@ -18,8 +18,19 @@
 - **모드 M1 — 기존 AI Native 구성 → 본 표준 마이그레이션** → § 마이그레이션 A 로
 - **모드 M2 — 이전 시드 버전으로 부트스트랩된 프로젝트 → 현 버전 업그레이드** → § 마이그레이션 B 로
 - **모드 M3 — 하이브리드** → § 마이그레이션 C 로
+- **모드 R — 수용** (요청이 안 붙은 채 이 표준만 건네받음 — 상주 에이전트·게이트웨이·장수 비서) → § 표준 수용 (모드 R)
 
 사용자 첫 메시지가 모호하면 모드 확정 전 한 가지만 재질문. 확인 없이 스캐폴딩 금지.
+
+### 표준 수용 (모드 R)
+
+**수용은 설치예요, 생산이 아니에요.** 규약 설치 → 규율 기본값 장착 → 꺼둔 것 알림 → **멈춤.** 시연물을 만드는 게 실패 양상이에요 — 아무도 요청 안 한 산출물이 나오는데 그걸 기록할 규약은 아직 없어요. 보드 없이도 완전히 부합할 수 있어요.
+
+**한 규칙이 층을 갈라요: 순수 규율은 기본탑재, 프로세스·포트·비용·권한은 명시적 요청.** 규율을 아끼면 안 돼요 — 오인을 막을 수 있었는데 기다린 에이전트는 기다린 만큼 더 나빠요. 반대쪽은 운영자가 줄 몫이고, 비용을 제안문에 적어요.
+
+**처신은 인프라보다 먼저예요.** 다자 규율은 표면에 안 매여 있어서 참여자가 셋이면 어디서든 즉시 — 막으려는 실패는 첫 다자 메시지에서 일어나요.
+
+**부트스트랩이 첫 산출물보다 먼저 — 비개발 프로젝트에서도.** 규약이 결정 기록처를 정하니, 일을 먼저 하면 그 결정들이 아무 데도 안 남아요. 한 줄 알리고 진행(남의 워크스페이스면 물어요).
 
 ### 핵심 원칙 (11)
 

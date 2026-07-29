@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 시드 프롬프트 — Compact
 
-<!-- seed-tier: Compact; language: Korean; version: v2.6.0; date: 2026-07-25; counterpart: AI_Native_Project_Seed_Prompt_Compact.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = 가지치기+레지스트리 cut — 운영 규율 §13.x 인라인 → Constellation.md SSoT 포인터화 (invariant 어휘 + 1줄 요지만 시드 유지) + provenance/verbatim redaction + § EG 모듈 레지스트리 (5종 1-테이블) 신설; v2.5.1 = 레지스트리 6종 — Compendium 행 추가 (Migration-B dogfood 후속); v2.6.0 = 레지스트리 7종 — Corporate 행 추가 (역할 기반 에이전트 조직 모듈 신설) -->
+<!-- seed-tier: Compact; language: Korean; version: v2.6.1; date: 2026-07-29; counterpart: AI_Native_Project_Seed_Prompt_Compact.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = 가지치기+레지스트리 cut — 운영 규율 §13.x 인라인 → Constellation.md SSoT 포인터화 (invariant 어휘 + 1줄 요지만 시드 유지) + provenance/verbatim redaction + § EG 모듈 레지스트리 (5종 1-테이블) 신설; v2.5.1 = 레지스트리 6종 — Compendium 행 추가 (Migration-B dogfood 후속); v2.6.0 = 레지스트리 7종 — Corporate 행 추가 (역할 기반 에이전트 조직 모듈 신설); v2.6.1 = 모드 R (수용) 추가 — 요청 없이 표준만 건네받았을 때의 계약 (수용=설치·생산 아님 · 순수 규율 기본탑재 / 프로세스·포트·비용·권한은 명시적 요청 · 처신은 인프라보다 먼저 · 부트스트랩은 첫 산출물보다 먼저) -->
 
 > 어떤 AI 코딩 에이전트에게든 첫 메시지로 붙여넣기. **자기 완결** — 다른 tier 참조 없음; AI Native 패턴 이미 아는 저자용. 라이브러리의 다른 tier (Master, Lite) 가 동일 패턴을 다른 깊이로 ship — **프로젝트 repo 당 1 tier**, 혼합은 dead link 발생. 본 시드의 inline 스크립트는 *알고리즘 spec* 으로 묘사 (에이전트가 spec 따라 생성); 즉시 복사-붙여넣기 가능한 풀 source 가 필요하면 라이브러리의 Master 또는 Lite tier 사용.
 
@@ -11,8 +11,15 @@
 - **M1 (표준으로 마이그레이션)** — 기존 프로젝트에 산발적 `CLAUDE.md`/`.cursor/rules/` 등은 있으나 `AGENTS.md` SSoT 없음 → § 마이그레이션 A
 - **M2 (시드 버전 업그레이드)** — 구 버전 시드로 부트스트랩된 프로젝트 → § 마이그레이션 B
 - **M3 (하이브리드)** — 커스텀 + 시드 혼재 → § 마이그레이션 C
+- **R (수용)** — 요청 없이 표준만 건네받음 (상주 에이전트·게이트웨이) → § 표준 수용
 
 모드 모호하면 한 가지만 재질문. 확정 전 스캐폴딩 금지.
+
+## 표준 수용 (모드 R)
+
+요청 없이 표준만 받았으면 **수용 = 설치, 생산 아님**: 규약 설치 → 기본값 장착 → 꺼둔 것 알림 → **멈춤**. 시연물 제작이 실패 양상 (요청 안 한 산출물인데 기록할 규약이 아직 없음). 보드 없이도 완전 부합 가능.
+
+**층 구분 한 규칙: 순수 규율은 기본탑재 · 프로세스·포트·비용·권한은 명시적 요청.** 처신은 인프라보다 먼저 (참여자 셋이면 표면 무관 즉시 적용). 부트스트랩은 첫 산출물보다 먼저 — 비개발 프로젝트도 동일 (규약이 결정 기록처를 정하므로).
 
 ## 원칙
 1. 코드 전에 문서; 모든 결정은 파일로.
