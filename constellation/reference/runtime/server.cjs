@@ -719,8 +719,20 @@ function keyOnConnClose(conn) {   // §4: REVOKED_PENDING 키의 마지막 live 
   if (m && m.alive) { const ev = wscore.event('CUSTOM', { name: 'KeyRevoked', value: { key, mode: 'sessionEnd', agentsDisconnected: 1, agentsNotified: 1 } }); ev.source = 'server'; ev.targetAgentId = m.meta.agentId; m.send(ev); }
 }
 function wsKeyReply(conn, name, value, ackForMsg) { const ev = wscore.event('CUSTOM', { name, value }); ev.source = 'server'; if (ackForMsg && (ackForMsg.msgId || ackForMsg.messageId)) ev.value.re_msgId = ackForMsg.msgId || ackForMsg.messageId; if (conn.meta.agentId) ev.targetAgentId = conn.meta.agentId; conn.send(ev); }
+const KEY_KINDS = new Set(['local', 'collab', 'upstream', 'peer']);   // §3.1 KEY-MGMT v0.5 — 닫힌 열거
 function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (upstream/collab/local/peer) + roleDescription
-  const kind = (v.kind === 'local' || v.kind === 'collab' || v.kind === 'upstream' || v.kind === 'peer') ? v.kind : 'upstream';
+  // **«미지정» 과 «미지의 값» 을 갈라요.** 종전엔 한 삼항의 else 로 둘 다 upstream 이 됐어요 —
+  //   즉 `pk-` 를 명시적으로 요청한 클라이언트가 **조용히 uk- 를 받았어요.** 요청은 성공으로
+  //   보이고 종만 달라져서, 어디서도 오류가 안 나요.
+  //   §3.1 이 「모르는 kind 는 등록 경계에서 거부, 기본값으로 강제 금지」라고 규범으로 적고 있는데
+  //   그걸 인용한 이쪽 구현이 위반하고 있었어요. 협업 상대가 자기 서버에서 같은 형태를 찾아
+  //   알려줘서 이쪽도 대조하다 발견했어요 (2026-07-29).
+  //   왜 위험한가는 §3.1 이 직접 말해요 — 못 알아본 kind 가 collab 으로 흘러가면 그 접속에
+  //   `group:collab` 이 붙어서 collab 그룹 소속이 비-collab 에이전트에게 새요.
+  if (v.kind != null && v.kind !== '' && !KEY_KINDS.has(v.kind)) {
+    return keyError(conn, msg, 'UNKNOWN_KIND', `kind must be one of ${[...KEY_KINDS].join('/')} — 모르는 값은 기본값으로 강제하지 않고 거부해요 (§3.1)`);
+  }
+  const kind = (v.kind == null || v.kind === '') ? 'upstream' : v.kind;   // 미지정만 기본값
   const label = (v.label != null && v.label !== '') ? String(v.label) : kind;
   if (!keyValidate(label)) return keyError(conn, msg, 'INVALID_LABEL', 'label must be 1..64 chars, no control chars');
   if (kind === 'local' && !keyValidateLabelSafe(label)) return keyError(conn, msg, 'INVALID_LABEL', 'local key label must match /^[a-zA-Z0-9_-]+$/ (used as filename)');
