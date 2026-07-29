@@ -25,7 +25,11 @@ push.init(DIR, { subject: 'mailto:admin@constellation.local' });   // #3b VAPID 
 
 // ── #5a 표면별 접근 제어 + 노출 (Constellation §13.25) ─────────────────────────────────────
 // access.json (server 옆, gitignore) = { expose:bool, ui:{allowlist}, agent:{allowlist,requireKey}, mcp:{allowlist} }.
-//   - allowlist: null/미배열 = 전체 허용(기본). 배열이면 그 IP/CIDR 만 통과. loopback 은 항상 통과.
+//   - allowlist 의 정의역은 **사설 대역**이에요 (v2.4.125). 항목은 이름(loopback/private/cgnat/
+//     linklocal/ula/all-private) 또는 사설 CIDR·정확-IP. null/미배열 = **사설 전부**(종전 «전체 IP»
+//     에서 좁혀짐). 빈 배열 = loopback 만. loopback 은 목록과 무관하게 통과.
+//     **공개 주소는 설정으로 열 수 없어요** — 적으면 사유와 함께 무시돼요. 밖에서 닿아야 하면
+//     오버레이 망(Tailscale 등 CGNAT), 인터넷 노출이면 리버스 프록시가 TLS 를 맡아요.
 //   - 비-노출(loopback bind) 환경에선 IP 게이트 전체 무동작 (로컬 전용이라 의미 없음).
 //   - agent.requireKey: true 면 노출 환경에서 무키/무효키 /ws 연결 거부 (v2.4.11 무인증 board 벡터 차단). 기본 false.
 //   - expose (#5a-4): true 면 WS_BIND 미지정 시 0.0.0.0(LAN 노출) 로 bind. WS_BIND env 가 있으면 그게 우선. 변경은 /api/restart 로 적용(bind-time).
@@ -45,33 +49,50 @@ function loadAccess() {
   } catch { accessCfg = _accessDefault(); }   // 파일 부재/파손 = 기본(비노출 + 전체 허용) (fail-open: 보안 게이트는 명시 opt-in)
 }
 loadAccess();
-try { fs.watchFile(ACCESS, { interval: 1000 }, () => loadAccess()); } catch {}   // allowlist/requireKey hot-reload (expose 변경은 /api/restart 로 bind 재적용)
+try { fs.watchFile(ACCESS, { interval: 1000 }, () => { loadAccess(); reportAccessRejects(); }); } catch {}   // allowlist/requireKey hot-reload (expose 변경은 /api/restart 로 bind 재적용)
 
 // v2.4.11 secure-by-default 바인드. WS_BIND env 우선, 없으면 access.json 의 expose 로 결정 (#5a-4 — 그래서 access block 뒤에 정의).
 const WS_BIND = process.env.WS_BIND || (accessCfg.expose ? '0.0.0.0' : '127.0.0.1');
 const _isLoopback = WS_BIND === '127.0.0.1' || WS_BIND === '::1' || WS_BIND === 'localhost';
-function normIp(ip) { return ip ? String(ip).replace(/^::ffff:/, '') : ''; }   // IPv4-mapped IPv6 prefix 제거
-function isLoopbackIp(ip) { ip = normIp(ip); return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || ip.startsWith('127.'); }
-function ip4ToInt(s) { const p = String(s).split('.'); if (p.length !== 4) return null; let n = 0; for (const x of p) { if (!/^\d{1,3}$/.test(x)) return null; const v = Number(x); if (v > 255) return null; n = (n * 256) + v; } return n >>> 0; }
-// allowlist 항목 매칭 — 정확-IP(IPv4/IPv6) 또는 IPv4 CIDR(a.b.c.d/n). ip 는 normIp 적용값. (IPv6 CIDR 미지원 — 정확-IPv6 는 매칭됨.)
-function ipMatch(entry, ip) {
-  entry = String(entry).trim(); if (!entry) return false;
-  if (entry === ip) return true;
-  const slash = entry.indexOf('/');
-  if (slash > 0) {
-    const base = ip4ToInt(entry.slice(0, slash)), cand = ip4ToInt(ip), bits = Number(entry.slice(slash + 1));
-    if (base == null || cand == null || !Number.isInteger(bits) || bits < 0 || bits > 32) return false;
-    const mask = bits === 0 ? 0 : (0xFFFFFFFF << (32 - bits)) >>> 0;
-    return (base & mask) === (cand & mask);
-  }
-  return false;
+// v2.4.125 §13.25.15 — 접속 판정을 `ip-scope.cjs` 한 곳으로. **바뀐 건 판정이 아니라 어휘예요**:
+//   종전엔 `allowlist: null` 이 «전체 IP 허용» 이었고, 그래서 보드를 노출한 순간 아무 주소나
+//   통과했어요(실측: 비-loopback 주소가 키·HELLO 없이 명부와 이력 수신). 보드가 인터넷에
+//   노출되지 않는다는 게 전제라면 «전체 허용» 은 **적을 수 있는 값이면 안 돼요** — 설정 한 줄로
+//   뒤집히는 전제는 전제가 아니에요. 이제 허용목록의 정의역은 **사설 대역**이고, 공개 주소는
+//   설정으로 열 수 없어요. 밖에서 닿아야 하면 오버레이 망(CGNAT 100.64/10), 인터넷 노출이면
+//   리버스 프록시 — 둘 다 서버가 보는 주소는 사설이에요.
+const ipScope = require('./ip-scope.cjs');
+const normIp = ipScope.normIp;
+function isLoopbackIp(ip) { return ipScope.scopeOf(ip) === 'loopback'; }
+function ipMatch(entry, ip) { return ipScope.decide([entry], ip).ok; }   // 판정처는 하나 — 사본은 반드시 갈라져요
+/** 사유까지 필요한 호출부용. boolean 만 돌려주면 「왜 안 붙지」가 무증상이 돼요. */
+function surfaceDecide(surface, ip) {
+  if (_isLoopback) return { ok: true, scope: 'loopback', why: '비-노출 bind — 게이트 무동작' };
+  return ipScope.decide(accessCfg[surface] && accessCfg[surface].allowlist, ip);
 }
-function surfaceAllowed(surface, ip) {
-  if (_isLoopback) return true;                       // 비-노출 = 게이트 무동작
-  if (isLoopbackIp(ip)) return true;                  // 로컬은 항상 통과
-  const al = accessCfg[surface] && accessCfg[surface].allowlist;
-  if (!Array.isArray(al)) return true;                // null = 전체 허용(기본)
-  const _ip = normIp(ip); return al.some((e) => ipMatch(e, _ip));   // 정확-IP 또는 CIDR 대역 매칭
+function surfaceAllowed(surface, ip) { return surfaceDecide(surface, ip).ok; }
+// 거부된 허용목록 항목은 **매 로드마다 출력**해요. 조용히 버리면 「적어 뒀는데 안 먹는다」가
+// 무증상으로 남고, 그건 설정이 있다는 착각을 만들어요.
+function reportAccessRejects() {
+  for (const surface of ['ui', 'agent', 'mcp']) {
+    const al = accessCfg[surface] && accessCfg[surface].allowlist;
+    if (al == null) continue;
+    const n = ipScope.normalizeAllowlist(al);
+    for (const r of n.rejected) console.warn('[access] %s.allowlist 항목 무시 «%s» — %s', surface, r.entry, r.why);
+    if (!n.groups.length && !n.cidrs.length) console.warn('[access] %s.allowlist 가 비어요 — loopback 만 통과해요', surface);
+  }
+}
+reportAccessRejects();
+
+// `tml-10` — **프록시가 앞에 있으면 loopback 이라는 사실이 아무 뜻이 없어요.** 원격이 전부 로컬로
+//   보여서 아래의 host-local 신뢰가 통째로 뒤집혀요(종전 코드 주석이 스스로 인정하던 구멍).
+//   대역으로는 신원을 만들 수 없으니 여기서 하는 건 **알아채고 신뢰를 취소하는 것**이에요 —
+//   전달 헤더가 붙어 온 요청은 「로컬」로 세지 않아요. 프록시 뒤에서 사람을 가려내는 건 다음 층
+//   (로그인)의 몫이고, 그건 결정 대기예요.
+function reqIsHostLocal(req) {
+  if (!req) return false;
+  if (ipScope.forwardedPresent(req.headers)) return false;
+  return isLoopbackIp(req.socket && req.socket.remoteAddress);
 }
 
 const EXT_BY_MIME = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/svg+xml': '.svg', 'application/pdf': '.pdf', 'text/plain': '.txt', 'application/json': '.json' };
@@ -181,7 +202,7 @@ const server = http.createServer((req, res) => {
   if (url === '/api/access') {   // #5a 접근 제어 설정 — GET=조회(UI 게이트 통과분) · POST=loopback 전용(운영자 로컬 관리)
     if (req.method === 'GET') return sendJson(res, 200, { ok: true, access: accessCfg, exposed: !_isLoopback, bind: WS_BIND });
     if (req.method === 'POST') {
-      if (!isLoopbackIp(req.socket.remoteAddress)) return sendJson(res, 403, { ok: false, error: 'access.json 변경은 로컬(loopback)에서만 가능해요.' });
+      if (!reqIsHostLocal(req)) return sendJson(res, 403, { ok: false, error: 'access.json 변경은 로컬(loopback)에서만 가능해요.' });
       if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/access POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
       let body = '';
       req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
@@ -202,7 +223,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (url === '/api/restart' && req.method === 'POST') {   // #5a-4 self-restart — 저장한 expose(bind) 적용. loopback 전용.
-    if (!isLoopbackIp(req.socket.remoteAddress)) return sendJson(res, 403, { ok: false, error: '재시작은 로컬(loopback)에서만 가능해요.' });
+    if (!reqIsHostLocal(req)) return sendJson(res, 403, { ok: false, error: '재시작은 로컬(loopback)에서만 가능해요.' });
     if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/restart POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
     sendJson(res, 200, { ok: true, restarting: true });
     console.log('[server] #5a-4 /api/restart — restart-self-board.ps1 스폰 후 self-exit (새 서버가 access.json expose 로 bind)');
@@ -305,7 +326,7 @@ const server = http.createServer((req, res) => {
       //   메인이 워커에 부여한 roleDescription 이 그대로 실려요. 즉 라벨(`board-observer` 처럼 추측 가능한 이름)
       //   하나로 **무인증 원격** 당사자가 «끊기지 않는 사슬» 1단계(정찰)를 공짜로 얻었어요 — 라이브 보드에서 실측
       //   (200 / 4.6KB / agentId 노출 확인). local 워커는 정의상 호스트-로컬이라 원격이 이 문서를 받을 이유가 없어요.
-      if (!isLoopbackIp(req.socket.remoteAddress)) {
+      if (!reqIsHostLocal(req)) {
         console.warn('[server] §13.25.11 /join/local 원격 거부 ip=%s label=%s', normIp(req.socket.remoteAddress) || '?', label);
         res.writeHead(403, { 'Content-Type': 'text/markdown; charset=utf-8' });
         res.end('# 접속 거부\n\n로컬(local) 워커 온보딩은 보드를 띄운 호스트 자신에서만 조회할 수 있어요. (Constellation §13.25.11)');
@@ -438,7 +459,14 @@ function wsPrimaryAgent() { const p = wsAgents.get(WS_PRIMARY_ID); if (p && p.al
 //   «끊기지 않는 사슬». WS_PRIMARY_ID 는 비밀이 아니고 온보딩 텍스트에 그대로 실려요(아래 /join/local 참고).
 //   main 은 정의상 보드를 띄운 호스트의 오케스트레이터이므로, 원격 연결은 어떤 선언을 해도 main 이 되지 않아요.
 //   지원되는 원격 «다른 프로젝트의 main» 은 `peer` 종(pk-)이고 그 경로는 이 분기를 타지 않아요.
-function wsConnIsHostLocal(c) { return !!(c && (isLoopbackIp(c.remoteAddr) || isLoopbackIp(c.meta && c.meta.ip))); }
+// host-local = «이 기계에서 온 연결». 프록시가 앞에 있으면 원격이 전부 loopback 으로 보여서 이
+//   판정이 통째로 뒤집혀요 — main role(제어면)이 그 위에 얹혀 있어요. 그래서 전달 헤더를 본
+//   연결은 **loopback 이어도 로컬로 안 세요** (`tml-10`, v2.4.125).
+function wsConnIsHostLocal(c) {
+  if (!c) return false;
+  if (c.meta && c.meta.fwd) return false;
+  return !!(isLoopbackIp(c.remoteAddr) || isLoopbackIp(c.meta && c.meta.ip));
+}
 function wsAgentRole(c) { return c.meta.collab ? 'collab' : (c.meta.peer ? 'peer' : (c.meta.upstream ? 'upstream' : ((c.meta.agentId === WS_PRIMARY_ID && wsConnIsHostLocal(c)) ? 'main' : 'local'))); }   // v0.3 오케스트레이션 role (+collab #168, +peer v2.4.52 — peer-main ≠ 자율 upstream · v2.4.99 main=호스트-로컬)
 // §13.13.3 (v2.4.96) — target-unspecified *text* intake. An external party that speaks with no
 //   `targetAgentId` is addressing the room, and the main is the room's orchestrator: it must hear
@@ -1685,8 +1713,12 @@ server.on('upgrade', (req, socket) => {
   // #5a-3 upgrade 사전검사 — 노출 환경에서 agent·MCP 둘 다 차단된 IP 는 handshake 전 거부 (접속 직후 보내는 History/AgentList 누수 차단).
   //   둘 중 하나라도 허용이면 통과 후 HELLO 에서 표면별(agent/MCP) 정밀 판정 + requireKey 검사. loopback/비-노출은 면제.
   { const _ip = req.socket.remoteAddress;
-    if (!_isLoopback && !isLoopbackIp(_ip) && !(surfaceAllowed('agent', _ip) || surfaceAllowed('mcp', _ip))) {
-      console.warn('[ws upgrade] #5a-3 차단 IP 거부 (agent·MCP 둘 다 allowlist 밖) ip=%s', _ip || '?'); socket.destroy(); return;
+    const _a = surfaceDecide('agent', _ip), _m = surfaceDecide('mcp', _ip);
+    if (!_isLoopback && !isLoopbackIp(_ip) && !(_a.ok || _m.ok)) {
+      // **사유를 찍어요.** 종전엔 «allowlist 밖» 한 문구뿐이라 「공개 주소라 거절」과 「대역을 안 열어서
+      //   거절」이 구분되지 않았어요 — 앞은 설계고 뒤는 설정이라 운영자가 할 일이 정반대예요.
+      console.warn('[ws upgrade] #5a-3 거부 ip=%s scope=%s — agent: %s / mcp: %s', normIp(_ip) || '?', _a.scope, _a.why, _m.why);
+      socket.destroy(); return;
     } }
   // v2.4.112 §13.25.15 (Ultrasafe 회차 2 — web-09 / se-09 / tml-09, critical) — **CSWSH.**
   //   upgrade 는 Origin 을 아예 안 봤어요. HTTP POST 면에는 CSRF 게이트를 걸어뒀는데(web-01 에서
@@ -1722,6 +1754,9 @@ server.on('upgrade', (req, socket) => {
   const conn = wscore.handleUpgrade(req, socket);
   if (!conn) return;
   conn.meta.ip = normIp(req.socket.remoteAddress);   // v2.4.87 — 운영자 authz(§13.25.9) 가 주소를 봐야 하므로 upgrade 시 보관
+  // `tml-10` — 전달 헤더가 붙어 왔으면 이 주소는 **프록시의 것**이라 loopback 이어도 로컬이 아니에요.
+  //   upgrade 때만 헤더를 볼 수 있으니 여기서 표시해 두고, host-local 판정이 그걸 봐요.
+  conn.meta.fwd = ipScope.forwardedPresent(req.headers);
   try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } else if (kr === 'local') { conn.meta.localKey = true; conn.meta.upstreamKey = k; }   /* v2.4.101 — local(lk-) 분기가 **이 자리에도** 없었어요. v2.4.99 는 HELLO 본문 경로만 고쳤는데, 레퍼런스 join-local 은 키를 URL 로만 보내요(?key=). 그래서 (a) 그 키는 관측되지 않아 state/lastAgent 가 초기값에 머물고 (b) 원격 local 키 거부 가드가 발동하지 않았어요 — 재기동 후 실측으로 드러난 구멍. 스모크가 두 경로에 다 키를 실어서 URL-only 경로를 시험하지 않았던 것도 같이 고쳤어요. */ if (k != null) console.log('[ws upgrade] key=%s role=%s', keyFp(k), kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
   // v2.4.104 §13.25.13 — 기간 지난 키는 여기서 끊어요. 아래 SERVER_HELLO/AgentList/History 보다
   //   **앞**이어야 해요: URL 로 키를 싣는 클라이언트는 HELLO 를 보내기 전에 이미 보드 내용을 받으니까요
