@@ -9,7 +9,10 @@
     "manifest and fails the build on any divergence — including an accidental `npm install` in place."
   ],
   "target": "node_modules",
-  "consumers": ["mcp/server.cjs", "renderers/mini-engine.cjs"],
+  "consumers": [
+    "mcp/server.cjs",
+    "renderers/mini-engine.cjs"
+  ],
   "entrypoint": "ajv/dist/2020",
   "packages": {
     "ajv": "8.20.0",
@@ -20,13 +23,38 @@
   },
   "prune": {
     "rule": "Only files a runtime cannot load are removed. Every .js / .json / license file is kept, including code paths this repo never exercises — a prune list tuned to the measured require-closure would break the first adopter who takes an untested path (ajv standalone, $data refs, async schemas).",
-    "extensions": [".ts", ".map"],
-    "dirNames": [".github", "test", "tests", "spec", "benchmark", "benchmarks"]
+    "extensions": [
+      ".ts",
+      ".map"
+    ],
+    "dirNames": [
+      ".github",
+      "test",
+      "tests",
+      "spec",
+      "benchmark",
+      "benchmarks"
+    ]
   },
   "measured": {
     "at": "2026-07-27",
-    "unpruned": { "files": 546, "kb": 1351 },
-    "requireClosure": { "files": 88, "kb": 257, "note": "require-from-string is never loaded by the validator path (standalone codegen only) — kept anyway, per the prune rule above." },
+    "unpruned": {
+      "files": 546,
+      "kb": 1351
+    },
+    "requireClosure": {
+      "files": 88,
+      "kb": 257,
+      "note": "require-from-string is never loaded by the validator path (standalone codegen only) — kept anyway, per the prune rule above."
+    },
     "licenses": "MIT x4 + BSD-3-Clause (fast-uri); all permissive, all ship a license file, none copyleft."
-  }
+  },
+  "digests": {
+    "ajv": "sha256:222723ce0940baba1a5444dc5c78b3ffbb37c40a58fd4b5dca277b0b9ad6c7b2",
+    "fast-deep-equal": "sha256:498655ef4efe151b6791957bac6379d68f2a9f43183375dc58e7adaedcf63012",
+    "fast-uri": "sha256:10bccff2e9aa3c05b83779d70b7d75b5a722ff6c8e3829996179dc203829ed5e",
+    "json-schema-traverse": "sha256:e047951abd3aeaf3bb664e44e4d73ef183e6713b2e4971270d8bf41a3f4575cf",
+    "require-from-string": "sha256:281d6bc0ede5018e9273ec4bacfbb2bc2f0c0dac93c28f7c8a4af161e78b4f7f"
+  },
+  "digest_note": "패키지별 내용 지문. 경로+내용을 정렬해 해싱해요. 담긴 부품을 정상적으로 갱신했으면 scripts/write-vendor-digests.cjs 로 다시 채우세요 — 이 값을 손으로 고치면 조작과 구분이 안 돼요."
 }

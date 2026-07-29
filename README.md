@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.48" src="https://img.shields.io/badge/version-v2.6.48-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.49" src="https://img.shields.io/badge/version-v2.6.49-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,13 +303,13 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.48 (2026-07-29) — **Pinning a value does not make it true; it makes it consistently false (Constellation v2.4.119)** — a joining party declares its own display name, and that name reaches the dashboard tab label and the sender line of the operator's device push notification. An earlier cut noticed the second half of this and pinned every message's name to the value captured at connection time. What it did not do was validate the value being pinned. Pinning an unvalidated name does not prevent impersonation — it guarantees a consistently impersonated one, which is worse than an inconsistent one because it looks settled.
+**Current**: v2.6.49 (2026-07-29) — **A check that can fail is not the same as a check that can fail for the whole class it was written against (Ultrasafe sc-08 / crypto-16)** — the vendored dependency tree was verified for shape: which packages are present, their versions, a license file, pruned artifacts. Every one of those is a property of the tree's surface. Editing a byte inside a vendored file changed none of them, and a tampered copy passed all assertions — two separate audit axes reached that conclusion independently, each with its own proof.
 
-The name is now checked at ingress against three things: invisible characters that make one name render as another (control, zero-width, direction-override), a declared name that normalises to some other connected party's identifier, and names that claim to be the system or the operator. A rejected name falls back to the connection's own identifier and the attempt is logged — a plain name is more accurate than a forged one, and the fact that someone tried should be visible.
+The tree now carries a **content digest per package**, computed over sorted path-plus-content so that swapping two identically-sized files is drift too, and a missing digest is reported as a defect rather than counted as clean — a tree with no digest is a tree with no way to detect tampering, which is the condition rather than the absence of one.
 
-The reserved-name check shipped broken for one alphabet and the mutation test is why it did not stay that way. The pattern ended in `\b`, and JavaScript defines a word boundary over `[A-Za-z0-9_]` only — after a Hangul syllable there is no boundary, so every Korean reserved name passed straight through while the English ones were caught. It is the same class as the character-class divergence two cuts ago: a shorthand whose meaning is narrower than it reads. Fixed with a Unicode-aware lookahead, and one of the four mutations reintroduces the `\b` specifically.
+The repair that matters is to the negative control. It planted only shape violations, so it demonstrated that the checker could fail while leaving the class it now covers entirely untested. It plants a content edit as well, restores the bytes afterwards, and asserts the restoration directly. That last assertion was wrong on its first run and the code was right: at that point the shape probes are still planted, and they legitimately change the package's content digest. Comparing the whole tree there conflates the probe with the tamper; comparing the edited file's bytes does not.
 
-The checker's primary axis is behaviour, not text. It feeds impersonation attempts through the real function and requires each to fall back — and it requires ordinary names, including ordinary Korean ones, to survive, because a validator that blocks legitimate names is not strict, it is broken.
+Previously: v2.6.48 (2026-07-29) — **Pinning a value does not make it true; it makes it consistently false (Constellation v2.4.119)** — a joining party declares its own display name, and that name reaches the dashboard tab label and the sender line of the operator's device push notification. An earlier cut noticed the second half of this and pinned every message's name to the value captured at connection time. What it did not do was validate the value being pinned. Pinning an unvalidated name does not prevent impersonation — it guarantees a consistently impersonated one, which is worse than an inconsistent one because it looks settled.
 
 Previously: v2.6.47 (2026-07-29) — **Truncating a secret looks like hiding it and is actually leaking a little, and a little repeated is not a little (Constellation v2.4.118)** — connection keys are a role prefix followed by 24 hex characters. The server logged the first fourteen of them, which is roughly 44 of the key's 96 secret bits, and it did so on **every connection attempt** rather than at issuance. Log files and console history accumulate that. Shortening the prefix to six or eight characters was the obvious repair and is the wrong shape: it leaks the same thing more slowly. The key is now logged as a hash fingerprint that keeps the role prefix — the part an operator actually correlates on, and the part that narrows nothing.
 
@@ -834,13 +834,13 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
+**현재**: v2.6.49 (2026-07-29) — **실패할 수 있는 검사와, 자기가 겨냥한 부류 전체에 대해 실패할 수 있는 검사는 다른 얘기예요 (Ultrasafe sc-08 / crypto-16)** — 담긴 부품 트리를 «모양» 으로 검증하고 있었어요. 어떤 패키지가 있는지, 버전이 맞는지, 라이선스 파일이 있는지, 지워야 할 산출물이 남았는지. 전부 트리의 겉면에 대한 성질이에요. 담긴 파일 안의 **한 바이트**를 바꾸면 그중 아무것도 안 변해서, 조작된 사본이 모든 단정을 통과했어요 — 서로 다른 두 점검 축이 각자 증거를 들고 같은 결론에 닿았어요.
 
-이제 입구에서 셋을 봐요. 보이지 않는 문자로 한 이름을 다른 이름처럼 보이게 만드는 것(제어·폭 0·방향 뒤집기), 선언한 이름이 **다른 접속의 식별자**로 정규화되는 것, 그리고 시스템이나 운영자를 자칭하는 이름. 거절된 이름은 그 접속의 자기 식별자로 되돌리고 시도를 로그에 남겨요 — 위조된 이름보다 밋밋한 이름이 정확하고, 누가 시도했다는 사실은 보여야 하니까요.
+이제 트리가 **패키지별 내용 지문**을 갖고 다녀요. 경로와 내용을 정렬해서 함께 해싱하니, 크기가 같은 두 파일의 이름을 맞바꾸는 것도 어긋남이에요. 그리고 **지문 선언이 없는 것 자체를 결함으로** 올려요 — 지문이 없는 트리는 조작을 알아챌 수단이 아예 없는 트리라, 그건 「깨끗함」이 아니라 상태예요.
 
-예약어 검사는 **한 문자 체계에서만 고장난 채** 나갈 뻔했고, 그게 안 그렇게 된 이유가 돌연변이 시험이에요. 패턴 끝이 `\b` 였는데 자바스크립트의 단어 경계는 `[A-Za-z0-9_]` 로만 정의돼요 — 한글 음절 뒤에는 경계가 성립하지 않아서, **영어 예약어는 걸리고 한국어 예약어는 전부 그냥 통과**했어요. 두 컷 전의 문자 클래스 어긋남과 같은 부류예요: 읽히는 것보다 뜻이 좁은 축약. 유니코드 인식 전방탐색으로 고쳤고, 돌연변이 넷 중 하나가 그 `\b` 를 일부러 되살려요.
+진짜 고친 건 음성 대조예요. 종전엔 «모양» 위반만 심어서, 검사가 실패할 수 있다는 건 보여주면서 지금 덮은 그 부류는 한 번도 시험하지 않았어요. 이제 **내용 편집도 심고**, 끝나면 바이트를 되돌리고, 되돌아왔는지를 직접 단정해요. 그 마지막 단정이 첫 실행에 틀렸는데 **코드가 옳고 단정이 틀렸어요** — 그 시점엔 모양 탐침이 아직 심겨 있고, 그것도 패키지 내용의 일부라 지문을 정당하게 바꾸거든요. 거기서 트리 전체를 보면 탐침과 조작이 뒤섞여요. 편집한 파일의 바이트만 보면 안 섞이고요.
 
-검사의 1차 축은 글이 아니라 **거동**이에요. 사칭 입력을 실제 함수에 넣어 전부 되돌려지는지 보고, 동시에 **평범한 이름 — 평범한 한국어 이름 포함 — 은 살아남아야** 한다고 요구해요. 정상 이름을 막는 검증기는 엄격한 게 아니라 고장난 거니까요.
+Previously: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
 
 Previously: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
@@ -1430,13 +1430,13 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
+**현재**: v2.6.49 (2026-07-29) — **실패할 수 있는 검사와, 자기가 겨냥한 부류 전체에 대해 실패할 수 있는 검사는 다른 얘기예요 (Ultrasafe sc-08 / crypto-16)** — 담긴 부품 트리를 «모양» 으로 검증하고 있었어요. 어떤 패키지가 있는지, 버전이 맞는지, 라이선스 파일이 있는지, 지워야 할 산출물이 남았는지. 전부 트리의 겉면에 대한 성질이에요. 담긴 파일 안의 **한 바이트**를 바꾸면 그중 아무것도 안 변해서, 조작된 사본이 모든 단정을 통과했어요 — 서로 다른 두 점검 축이 각자 증거를 들고 같은 결론에 닿았어요.
 
-이제 입구에서 셋을 봐요. 보이지 않는 문자로 한 이름을 다른 이름처럼 보이게 만드는 것(제어·폭 0·방향 뒤집기), 선언한 이름이 **다른 접속의 식별자**로 정규화되는 것, 그리고 시스템이나 운영자를 자칭하는 이름. 거절된 이름은 그 접속의 자기 식별자로 되돌리고 시도를 로그에 남겨요 — 위조된 이름보다 밋밋한 이름이 정확하고, 누가 시도했다는 사실은 보여야 하니까요.
+이제 트리가 **패키지별 내용 지문**을 갖고 다녀요. 경로와 내용을 정렬해서 함께 해싱하니, 크기가 같은 두 파일의 이름을 맞바꾸는 것도 어긋남이에요. 그리고 **지문 선언이 없는 것 자체를 결함으로** 올려요 — 지문이 없는 트리는 조작을 알아챌 수단이 아예 없는 트리라, 그건 「깨끗함」이 아니라 상태예요.
 
-예약어 검사는 **한 문자 체계에서만 고장난 채** 나갈 뻔했고, 그게 안 그렇게 된 이유가 돌연변이 시험이에요. 패턴 끝이 `\b` 였는데 자바스크립트의 단어 경계는 `[A-Za-z0-9_]` 로만 정의돼요 — 한글 음절 뒤에는 경계가 성립하지 않아서, **영어 예약어는 걸리고 한국어 예약어는 전부 그냥 통과**했어요. 두 컷 전의 문자 클래스 어긋남과 같은 부류예요: 읽히는 것보다 뜻이 좁은 축약. 유니코드 인식 전방탐색으로 고쳤고, 돌연변이 넷 중 하나가 그 `\b` 를 일부러 되살려요.
+진짜 고친 건 음성 대조예요. 종전엔 «모양» 위반만 심어서, 검사가 실패할 수 있다는 건 보여주면서 지금 덮은 그 부류는 한 번도 시험하지 않았어요. 이제 **내용 편집도 심고**, 끝나면 바이트를 되돌리고, 되돌아왔는지를 직접 단정해요. 그 마지막 단정이 첫 실행에 틀렸는데 **코드가 옳고 단정이 틀렸어요** — 그 시점엔 모양 탐침이 아직 심겨 있고, 그것도 패키지 내용의 일부라 지문을 정당하게 바꾸거든요. 거기서 트리 전체를 보면 탐침과 조작이 뒤섞여요. 편집한 파일의 바이트만 보면 안 섞이고요.
 
-검사의 1차 축은 글이 아니라 **거동**이에요. 사칭 입력을 실제 함수에 넣어 전부 되돌려지는지 보고, 동시에 **평범한 이름 — 평범한 한국어 이름 포함 — 은 살아남아야** 한다고 요구해요. 정상 이름을 막는 검증기는 엄격한 게 아니라 고장난 거니까요.
+Previously: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
 
 Previously: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
@@ -2087,13 +2087,13 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
+**현재**: v2.6.49 (2026-07-29) — **실패할 수 있는 검사와, 자기가 겨냥한 부류 전체에 대해 실패할 수 있는 검사는 다른 얘기예요 (Ultrasafe sc-08 / crypto-16)** — 담긴 부품 트리를 «모양» 으로 검증하고 있었어요. 어떤 패키지가 있는지, 버전이 맞는지, 라이선스 파일이 있는지, 지워야 할 산출물이 남았는지. 전부 트리의 겉면에 대한 성질이에요. 담긴 파일 안의 **한 바이트**를 바꾸면 그중 아무것도 안 변해서, 조작된 사본이 모든 단정을 통과했어요 — 서로 다른 두 점검 축이 각자 증거를 들고 같은 결론에 닿았어요.
 
-이제 입구에서 셋을 봐요. 보이지 않는 문자로 한 이름을 다른 이름처럼 보이게 만드는 것(제어·폭 0·방향 뒤집기), 선언한 이름이 **다른 접속의 식별자**로 정규화되는 것, 그리고 시스템이나 운영자를 자칭하는 이름. 거절된 이름은 그 접속의 자기 식별자로 되돌리고 시도를 로그에 남겨요 — 위조된 이름보다 밋밋한 이름이 정확하고, 누가 시도했다는 사실은 보여야 하니까요.
+이제 트리가 **패키지별 내용 지문**을 갖고 다녀요. 경로와 내용을 정렬해서 함께 해싱하니, 크기가 같은 두 파일의 이름을 맞바꾸는 것도 어긋남이에요. 그리고 **지문 선언이 없는 것 자체를 결함으로** 올려요 — 지문이 없는 트리는 조작을 알아챌 수단이 아예 없는 트리라, 그건 「깨끗함」이 아니라 상태예요.
 
-예약어 검사는 **한 문자 체계에서만 고장난 채** 나갈 뻔했고, 그게 안 그렇게 된 이유가 돌연변이 시험이에요. 패턴 끝이 `\b` 였는데 자바스크립트의 단어 경계는 `[A-Za-z0-9_]` 로만 정의돼요 — 한글 음절 뒤에는 경계가 성립하지 않아서, **영어 예약어는 걸리고 한국어 예약어는 전부 그냥 통과**했어요. 두 컷 전의 문자 클래스 어긋남과 같은 부류예요: 읽히는 것보다 뜻이 좁은 축약. 유니코드 인식 전방탐색으로 고쳤고, 돌연변이 넷 중 하나가 그 `\b` 를 일부러 되살려요.
+진짜 고친 건 음성 대조예요. 종전엔 «모양» 위반만 심어서, 검사가 실패할 수 있다는 건 보여주면서 지금 덮은 그 부류는 한 번도 시험하지 않았어요. 이제 **내용 편집도 심고**, 끝나면 바이트를 되돌리고, 되돌아왔는지를 직접 단정해요. 그 마지막 단정이 첫 실행에 틀렸는데 **코드가 옳고 단정이 틀렸어요** — 그 시점엔 모양 탐침이 아직 심겨 있고, 그것도 패키지 내용의 일부라 지문을 정당하게 바꾸거든요. 거기서 트리 전체를 보면 탐침과 조작이 뒤섞여요. 편집한 파일의 바이트만 보면 안 섞이고요.
 
-검사의 1차 축은 글이 아니라 **거동**이에요. 사칭 입력을 실제 함수에 넣어 전부 되돌려지는지 보고, 동시에 **평범한 이름 — 평범한 한국어 이름 포함 — 은 살아남아야** 한다고 요구해요. 정상 이름을 막는 검증기는 엄격한 게 아니라 고장난 거니까요.
+Previously: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
 
 Previously: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
