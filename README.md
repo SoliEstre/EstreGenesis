@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.47" src="https://img.shields.io/badge/version-v2.6.47-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.48" src="https://img.shields.io/badge/version-v2.6.48-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,15 +303,15 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.47 (2026-07-29) — **Truncating a secret looks like hiding it and is actually leaking a little, and a little repeated is not a little (Constellation v2.4.118)** — connection keys are a role prefix followed by 24 hex characters. The server logged the first fourteen of them, which is roughly 44 of the key's 96 secret bits, and it did so on **every connection attempt** rather than at issuance. Log files and console history accumulate that. Shortening the prefix to six or eight characters was the obvious repair and is the wrong shape: it leaks the same thing more slowly. The key is now logged as a hash fingerprint that keeps the role prefix — the part an operator actually correlates on, and the part that narrows nothing.
+**Current**: v2.6.48 (2026-07-29) — **Pinning a value does not make it true; it makes it consistently false (Constellation v2.4.119)** — a joining party declares its own display name, and that name reaches the dashboard tab label and the sender line of the operator's device push notification. An earlier cut noticed the second half of this and pinned every message's name to the value captured at connection time. What it did not do was validate the value being pinned. Pinning an unvalidated name does not prevent impersonation — it guarantees a consistently impersonated one, which is worse than an inconsistent one because it looks settled.
 
-The finding named three sites in one file. A pattern scan over the whole runtime found two more in scripts nobody had looked at, where a key was being spliced into a connection URL for a "connecting to…" line that did not need it at all; those are redacted rather than shortened. One further hit was a false positive worth keeping visible: a VAPID **public** key, which is named like a secret and is not one. It is exempt by symbol, with the reason printed on every run, because a silent exemption is the same failure class as a stale list.
+The name is now checked at ingress against three things: invisible characters that make one name render as another (control, zero-width, direction-override), a declared name that normalises to some other connected party's identifier, and names that claim to be the system or the operator. A rejected name falls back to the connection's own identifier and the attempt is logged — a plain name is more accurate than a forged one, and the fact that someone tried should be visible.
 
-The checker's primary axis is the mechanism, not the data. It requires the fingerprint to be a **hash** — a shorter prefix would satisfy any string check while leaving the leak — and it verifies the fingerprint's behaviour by evaluating it: different keys must differ, the role prefix must survive, and no eight-character run of the secret may appear in the output. That last one cannot be checked by reading the source. It also asserts the **deployed copy** carries the fix, since a manually-copied runtime lags with no signal.
+The reserved-name check shipped broken for one alphabet and the mutation test is why it did not stay that way. The pattern ended in `\b`, and JavaScript defines a word boundary over `[A-Za-z0-9_]` only — after a Hangul syllable there is no boundary, so every Korean reserved name passed straight through while the English ones were caught. It is the same class as the character-class divergence two cuts ago: a shorthand whose meaning is narrower than it reads. Fixed with a Unicode-aware lookahead, and one of the four mutations reintroduces the `\b` specifically.
 
-The first version of the scan missed its own headline case: the pattern tried to read inside the log call and could not cross the parenthesis in `String(k).slice(...)`. A synthetic mutation caught that. Binding the pattern to the *receiver* of the slice rather than to the call fixed it and also removed a false positive where an unrelated truncation sat on the same line.
+The checker's primary axis is behaviour, not text. It feeds impersonation attempts through the real function and requires each to fall back — and it requires ordinary names, including ordinary Korean ones, to survive, because a validator that blocks legitimate names is not strict, it is broken.
 
-**The running server still has the old code.** The file is synced; picking it up needs a restart, which is deliberately not taken here.
+Previously: v2.6.47 (2026-07-29) — **Truncating a secret looks like hiding it and is actually leaking a little, and a little repeated is not a little (Constellation v2.4.118)** — connection keys are a role prefix followed by 24 hex characters. The server logged the first fourteen of them, which is roughly 44 of the key's 96 secret bits, and it did so on **every connection attempt** rather than at issuance. Log files and console history accumulate that. Shortening the prefix to six or eight characters was the obvious repair and is the wrong shape: it leaks the same thing more slowly. The key is now logged as a hash fingerprint that keeps the role prefix — the part an operator actually correlates on, and the part that narrows nothing.
 
 Previously: v2.6.46 (2026-07-29) — **The measurement removed half the reason for building the thing, and the specification now says so (Constellation v2.4.117)** — a shadow runner lands: it reads the same intake the turn-spawned board worker reads, drives the same delegation through a resident seat, and writes a *proposed* patch to a separate file. It never touches the board. What keeps it from touching the board is not an instruction but an absence — the shadow seat is given read tools only, so a charter telling it to write has nothing to write with. That is the control this specification names for the layers a wrapper cannot close, applied to its own dogfood.
 
@@ -834,15 +834,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
+**현재**: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
 
-지적은 한 파일의 세 자리를 지목했어요. 런타임 전체를 패턴으로 훑으니 아무도 안 본 스크립트에서 두 자리가 더 나왔어요 — 「어디에 접속합니다」 한 줄을 찍으려고 접속 주소에 키를 끼워 넣고 있었는데, 그 줄엔 키가 애초에 필요 없어요. 그래서 줄이는 대신 **지웠어요**. 하나는 오탐인데 보이게 남길 값이 있어요 — 웹푸시 **공개**키예요. 이름이 비밀처럼 생겼을 뿐 비밀이 아니에요. 기호 단위로 면제하되 **사유를 매 실행 출력**해요. 조용한 면제는 낡은 목록과 같은 부류의 실패라서요.
+이제 입구에서 셋을 봐요. 보이지 않는 문자로 한 이름을 다른 이름처럼 보이게 만드는 것(제어·폭 0·방향 뒤집기), 선언한 이름이 **다른 접속의 식별자**로 정규화되는 것, 그리고 시스템이나 운영자를 자칭하는 이름. 거절된 이름은 그 접속의 자기 식별자로 되돌리고 시도를 로그에 남겨요 — 위조된 이름보다 밋밋한 이름이 정확하고, 누가 시도했다는 사실은 보여야 하니까요.
 
-검사의 1차 축은 데이터가 아니라 기제예요. 지문이 **해시인지**를 요구해요 — 접두를 짧게 자른 것도 어떤 문자열 검사든 통과하지만 누출은 그대로 남거든요. 그리고 지문의 **거동**을 실제로 평가해서 확인해요: 서로 다른 키는 서로 다른 지문을 내야 하고, 역할 접두는 남아야 하고, 비밀의 여덟 자 이상 조각이 결과에 나타나면 안 돼요. 마지막 건 소스를 읽어서는 절대 못 봐요. **배포 사본**에도 반영됐는지도 같이 봐요 — 손으로 복사하는 런타임은 아무 신호 없이 뒤처지니까요.
+예약어 검사는 **한 문자 체계에서만 고장난 채** 나갈 뻔했고, 그게 안 그렇게 된 이유가 돌연변이 시험이에요. 패턴 끝이 `\b` 였는데 자바스크립트의 단어 경계는 `[A-Za-z0-9_]` 로만 정의돼요 — 한글 음절 뒤에는 경계가 성립하지 않아서, **영어 예약어는 걸리고 한국어 예약어는 전부 그냥 통과**했어요. 두 컷 전의 문자 클래스 어긋남과 같은 부류예요: 읽히는 것보다 뜻이 좁은 축약. 유니코드 인식 전방탐색으로 고쳤고, 돌연변이 넷 중 하나가 그 `\b` 를 일부러 되살려요.
 
-첫 판 스캔은 정작 자기 대표 사례를 놓쳤어요. 로그 호출 «안» 을 읽으려는 패턴이 `String(k).slice(...)` 의 괄호를 못 넘어갔거든요. 합성 돌연변이가 그걸 잡았어요. 패턴을 호출이 아니라 **잘리는 대상**에 묶으니 해결됐고, 덤으로 무관한 자르기가 같은 줄에 있다는 이유만으로 걸리던 오탐도 사라졌어요.
+검사의 1차 축은 글이 아니라 **거동**이에요. 사칭 입력을 실제 함수에 넣어 전부 되돌려지는지 보고, 동시에 **평범한 이름 — 평범한 한국어 이름 포함 — 은 살아남아야** 한다고 요구해요. 정상 이름을 막는 검증기는 엄격한 게 아니라 고장난 거니까요.
 
-**돌고 있는 서버는 아직 옛 코드예요.** 파일은 동기됐고, 반영은 재기동이 필요한데 그건 여기서 일부러 안 했어요.
+Previously: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
 Previously: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
 
@@ -1430,15 +1430,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
+**현재**: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
 
-지적은 한 파일의 세 자리를 지목했어요. 런타임 전체를 패턴으로 훑으니 아무도 안 본 스크립트에서 두 자리가 더 나왔어요 — 「어디에 접속합니다」 한 줄을 찍으려고 접속 주소에 키를 끼워 넣고 있었는데, 그 줄엔 키가 애초에 필요 없어요. 그래서 줄이는 대신 **지웠어요**. 하나는 오탐인데 보이게 남길 값이 있어요 — 웹푸시 **공개**키예요. 이름이 비밀처럼 생겼을 뿐 비밀이 아니에요. 기호 단위로 면제하되 **사유를 매 실행 출력**해요. 조용한 면제는 낡은 목록과 같은 부류의 실패라서요.
+이제 입구에서 셋을 봐요. 보이지 않는 문자로 한 이름을 다른 이름처럼 보이게 만드는 것(제어·폭 0·방향 뒤집기), 선언한 이름이 **다른 접속의 식별자**로 정규화되는 것, 그리고 시스템이나 운영자를 자칭하는 이름. 거절된 이름은 그 접속의 자기 식별자로 되돌리고 시도를 로그에 남겨요 — 위조된 이름보다 밋밋한 이름이 정확하고, 누가 시도했다는 사실은 보여야 하니까요.
 
-검사의 1차 축은 데이터가 아니라 기제예요. 지문이 **해시인지**를 요구해요 — 접두를 짧게 자른 것도 어떤 문자열 검사든 통과하지만 누출은 그대로 남거든요. 그리고 지문의 **거동**을 실제로 평가해서 확인해요: 서로 다른 키는 서로 다른 지문을 내야 하고, 역할 접두는 남아야 하고, 비밀의 여덟 자 이상 조각이 결과에 나타나면 안 돼요. 마지막 건 소스를 읽어서는 절대 못 봐요. **배포 사본**에도 반영됐는지도 같이 봐요 — 손으로 복사하는 런타임은 아무 신호 없이 뒤처지니까요.
+예약어 검사는 **한 문자 체계에서만 고장난 채** 나갈 뻔했고, 그게 안 그렇게 된 이유가 돌연변이 시험이에요. 패턴 끝이 `\b` 였는데 자바스크립트의 단어 경계는 `[A-Za-z0-9_]` 로만 정의돼요 — 한글 음절 뒤에는 경계가 성립하지 않아서, **영어 예약어는 걸리고 한국어 예약어는 전부 그냥 통과**했어요. 두 컷 전의 문자 클래스 어긋남과 같은 부류예요: 읽히는 것보다 뜻이 좁은 축약. 유니코드 인식 전방탐색으로 고쳤고, 돌연변이 넷 중 하나가 그 `\b` 를 일부러 되살려요.
 
-첫 판 스캔은 정작 자기 대표 사례를 놓쳤어요. 로그 호출 «안» 을 읽으려는 패턴이 `String(k).slice(...)` 의 괄호를 못 넘어갔거든요. 합성 돌연변이가 그걸 잡았어요. 패턴을 호출이 아니라 **잘리는 대상**에 묶으니 해결됐고, 덤으로 무관한 자르기가 같은 줄에 있다는 이유만으로 걸리던 오탐도 사라졌어요.
+검사의 1차 축은 글이 아니라 **거동**이에요. 사칭 입력을 실제 함수에 넣어 전부 되돌려지는지 보고, 동시에 **평범한 이름 — 평범한 한국어 이름 포함 — 은 살아남아야** 한다고 요구해요. 정상 이름을 막는 검증기는 엄격한 게 아니라 고장난 거니까요.
 
-**돌고 있는 서버는 아직 옛 코드예요.** 파일은 동기됐고, 반영은 재기동이 필요한데 그건 여기서 일부러 안 했어요.
+Previously: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
 Previously: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
 
@@ -2087,15 +2087,15 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
+**현재**: v2.6.48 (2026-07-29) — **값을 못박는다고 그 값이 참이 되지는 않아요. 일관되게 거짓이 될 뿐이에요 (Constellation v2.4.119)** — 합류하는 쪽이 자기 표시 이름을 스스로 선언하고, 그 이름이 대시보드 탭 라벨과 **운영자 기기 푸시 알림의 발신자 줄**로 가요. 앞선 컷이 이 뒷부분을 알아채고 «매 메시지의 이름을 접속 시 값으로 못박기» 를 넣었어요. 안 한 게 하나 있었는데, **못박는 그 값 자체를 검증하지 않았어요.** 검증 없는 이름을 못박는 건 사칭을 막는 게 아니라 **일관되게 사칭된 이름**을 보장하는 거예요. 들쭉날쭉한 것보다 나빠요 — 정해진 것처럼 보이니까요.
 
-지적은 한 파일의 세 자리를 지목했어요. 런타임 전체를 패턴으로 훑으니 아무도 안 본 스크립트에서 두 자리가 더 나왔어요 — 「어디에 접속합니다」 한 줄을 찍으려고 접속 주소에 키를 끼워 넣고 있었는데, 그 줄엔 키가 애초에 필요 없어요. 그래서 줄이는 대신 **지웠어요**. 하나는 오탐인데 보이게 남길 값이 있어요 — 웹푸시 **공개**키예요. 이름이 비밀처럼 생겼을 뿐 비밀이 아니에요. 기호 단위로 면제하되 **사유를 매 실행 출력**해요. 조용한 면제는 낡은 목록과 같은 부류의 실패라서요.
+이제 입구에서 셋을 봐요. 보이지 않는 문자로 한 이름을 다른 이름처럼 보이게 만드는 것(제어·폭 0·방향 뒤집기), 선언한 이름이 **다른 접속의 식별자**로 정규화되는 것, 그리고 시스템이나 운영자를 자칭하는 이름. 거절된 이름은 그 접속의 자기 식별자로 되돌리고 시도를 로그에 남겨요 — 위조된 이름보다 밋밋한 이름이 정확하고, 누가 시도했다는 사실은 보여야 하니까요.
 
-검사의 1차 축은 데이터가 아니라 기제예요. 지문이 **해시인지**를 요구해요 — 접두를 짧게 자른 것도 어떤 문자열 검사든 통과하지만 누출은 그대로 남거든요. 그리고 지문의 **거동**을 실제로 평가해서 확인해요: 서로 다른 키는 서로 다른 지문을 내야 하고, 역할 접두는 남아야 하고, 비밀의 여덟 자 이상 조각이 결과에 나타나면 안 돼요. 마지막 건 소스를 읽어서는 절대 못 봐요. **배포 사본**에도 반영됐는지도 같이 봐요 — 손으로 복사하는 런타임은 아무 신호 없이 뒤처지니까요.
+예약어 검사는 **한 문자 체계에서만 고장난 채** 나갈 뻔했고, 그게 안 그렇게 된 이유가 돌연변이 시험이에요. 패턴 끝이 `\b` 였는데 자바스크립트의 단어 경계는 `[A-Za-z0-9_]` 로만 정의돼요 — 한글 음절 뒤에는 경계가 성립하지 않아서, **영어 예약어는 걸리고 한국어 예약어는 전부 그냥 통과**했어요. 두 컷 전의 문자 클래스 어긋남과 같은 부류예요: 읽히는 것보다 뜻이 좁은 축약. 유니코드 인식 전방탐색으로 고쳤고, 돌연변이 넷 중 하나가 그 `\b` 를 일부러 되살려요.
 
-첫 판 스캔은 정작 자기 대표 사례를 놓쳤어요. 로그 호출 «안» 을 읽으려는 패턴이 `String(k).slice(...)` 의 괄호를 못 넘어갔거든요. 합성 돌연변이가 그걸 잡았어요. 패턴을 호출이 아니라 **잘리는 대상**에 묶으니 해결됐고, 덤으로 무관한 자르기가 같은 줄에 있다는 이유만으로 걸리던 오탐도 사라졌어요.
+검사의 1차 축은 글이 아니라 **거동**이에요. 사칭 입력을 실제 함수에 넣어 전부 되돌려지는지 보고, 동시에 **평범한 이름 — 평범한 한국어 이름 포함 — 은 살아남아야** 한다고 요구해요. 정상 이름을 막는 검증기는 엄격한 게 아니라 고장난 거니까요.
 
-**돌고 있는 서버는 아직 옛 코드예요.** 파일은 동기됐고, 반영은 재기동이 필요한데 그건 여기서 일부러 안 했어요.
+Previously: v2.6.47 (2026-07-29) — **비밀을 잘라 찍는 건 가린 것처럼 보이지만 «조금만» 새는 거고, 조금은 반복되면 조금이 아니에요 (Constellation v2.4.118)** — 접속 키는 «역할 접두 + 24 hex» 예요. 서버가 그 앞 열네 자를 로그에 찍고 있었는데, 그게 96비트 중 약 44비트예요. 게다가 발급할 때가 아니라 **접속할 때마다** 찍혔어요. 로그 파일과 콘솔 기록에 그게 쌓여요. 접두를 여섯이나 여덟 자로 줄이는 게 눈에 보이는 수선이지만 모양이 틀렸어요 — 같은 걸 더 천천히 흘릴 뿐이에요. 이제 키는 **해시 지문**으로 찍히고, 역할 접두만 남겨요. 로그를 읽는 사람이 실제로 맞춰보는 부분이고, 그것만으론 아무것도 좁혀지지 않으니까요.
 
 Previously: v2.6.46 (2026-07-29) — **재보니 만들 이유의 절반이 사라졌고, 규격에 그렇게 적었어요 (Constellation v2.4.117)** — 그림자 실행기가 나왔어요. 턴마다 새로 뜨는 보드 워커와 **같은 인테이크**를 읽고, 같은 위임을 상주 좌석으로 몰고, «이렇게 바꾸겠다» 는 제안만 별도 파일에 써요. 보드는 안 건드려요. 안 건드리게 만드는 건 지시가 아니라 **부재**예요 — 그림자 좌석엔 읽기 도구만 줘서, 차터가 「쓰라」고 해도 쓸 수단이 없어요. 이 규격이 «감싸기로 못 닫는 층» 의 통제 수단으로 지목한 게 정확히 그거고, 이번엔 자기 도그푸드에 적용했어요.
 

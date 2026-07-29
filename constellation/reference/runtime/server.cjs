@@ -478,6 +478,34 @@ function keyFp(k) {
   return pre + 'fp:' + crypto.createHash('sha256').update(s).digest('hex').slice(0, 8);
 }
 
+
+// v2.4.119 (Ultrasafe se-03) — 표시 이름 입구 검증.
+//   v2.4.110 이 «매 메시지의 agentName 을 접속 시 값으로 못박기» 를 넣었는데, 못박는 대상인 그 값 자체는
+//   검증 없이 들어왔어요. 못박기는 위조를 막는 게 아니라 **일관되게 위조된 이름**을 보장할 뿐이에요.
+//   이 이름은 대시보드 탭 라벨과 **기기 푸시 알림의 발신자 줄**로 가요 — 운영자가 화면만 보고 신뢰를
+//   판단하는 자리라, 여기서 통과시킨 문자열이 그대로 권위처럼 보여요.
+//   세 가지를 봐요: ① 보이지 않는 문자(제어·폭 0·방향 뒤집기)로 다른 이름처럼 보이게 만들기
+//   ② 남의 식별자를 자기 이름으로 선언하기(§13.25.11 이 키↔정체를 묶는 것과 같은 결)
+//   ③ 서버·운영자를 자칭해서 «시스템이 하는 말» 처럼 보이게 하기.
+//   거절은 조용히 하지 않고 **자기 식별자로 되돌리고 로그에 남겨요** — 위조된 값을 남기는 것보다
+//   이름이 밋밋한 게 정확하고, 시도가 있었다는 사실은 보여야 해요.
+const NAME_MAX = 80;   // 실측 최장 정상 이름 54자 (2026-07-29)
+const NAME_RESERVED = /^(system|server|constellation|board|operator|admin|root|security|notice|alert|\uc6b4\uc601\uc790|\uad00\ub9ac\uc790|\uc2dc\uc2a4\ud15c|\uacbd\uace0|\uc54c\ub9bc)(?![\p{L}\p{N}_])/iu;
+function safeAgentName(raw, selfId, peerIds) {
+  let v = String(raw == null ? '' : raw);
+  v = v.replace(/[\u0000-\u001f\u007f]/g, '')                                   // 제어문자
+       .replace(/[\u200b-\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]/g, '')  // 폭 0 · 방향 뒤집기
+       .replace(/\s+/g, ' ')
+       .trim();
+  if (v.length > NAME_MAX) v = v.slice(0, NAME_MAX);
+  if (!v) return { name: selfId, why: null };
+  const norm = v.toLowerCase();
+  for (const id of (peerIds || [])) {
+    if (id !== selfId && String(id).toLowerCase() === norm) return { name: selfId, why: '다른 접속의 식별자를 자기 이름으로 선언' };
+  }
+  if (NAME_RESERVED.test(v)) return { name: selfId, why: '예약된 시스템·운영자 이름' };
+  return { name: v, why: null };
+}
 const WS_KEYS = path.join(DIR, 'ws-keys.json');
 let wsKeys = [];
 try { const k = JSON.parse(fs.readFileSync(WS_KEYS, 'utf8')); if (Array.isArray(k)) wsKeys = k; } catch {}
@@ -1718,7 +1746,11 @@ server.on('upgrade', (req, socket) => {
       conn.meta.anonymous = !_hadId;
       conn.meta.agentId = _hadId ? msg.agentId : ('agent-' + conn.id.slice(0, 4));
       conn.meta.clientId = msg.clientId;
-      conn.meta.agentName = msg.agentName || conn.meta.agentId;
+      {
+        const _an = safeAgentName(msg.agentName, conn.meta.agentId, [...wsAgents.keys()]);
+        conn.meta.agentName = _an.name;
+        if (_an.why) console.warn('[ws HELLO] 표시 이름 거부(%s) agent=%s ip=%s — 자기 식별자로 되돌림', _an.why, conn.meta.agentId, normIp(conn.remoteAddr) || '?');
+      }
       { const k = msg.key || msg.peerKey || msg.upstreamKey || msg.collabKey; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || (msg.upstreamKey && wsValidKey(msg.upstreamKey))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } else if (kr === 'local') { conn.meta.localKey = true; conn.meta.upstreamKey = k; } }   // #168 HELLO 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기 · v2.4.99 local(lk-) 분기 신설 — 아래 참조
       conn.meta.roleHint = msg.role || '';                       // local/upstream 힌트(최종 판정은 키·main)
       // #5a-3 표면별 접근 판정 — HELLO 에서 agent/MCP 구분(capabilities mcp-proxy) 후 그 표면의 IP allowlist + (둘 다) requireKey 적용.
