@@ -756,7 +756,8 @@ const TOOLS = [
         target_ref: { type: "string", description: "Commit/tag the iteration assessed." },
         tier: { type: "integer", description: "Tier 1|2|3." },
         attackers_configured: { type: "integer", description: "Attackers the tier declares — the coverage denominator. Measured, not estimated." },
-        attackers_run: { type: "integer", description: "Attackers actually dispatched." },
+        attackers_run: { type: "integer", description: "Attackers actually dispatched. This is a dispatch count, NOT coverage — one attacker does not equal one axis." },
+        coverage_pct: { type: "object", description: "Per-axis coverage in percent, keyed by declared axis id. This is what coverage is computed from — the same input and the same computation the clean-signal gate uses. Omit it and `coverage` records null (unmeasured), never a substitute derived from the dispatch count." },
         findings: { type: "array", description: "This iteration's findings (severity + file + pattern_id + title used for keying)." },
         severity_threshold: { type: "string", description: "Threshold for new_findings_above_threshold (default 'high')." },
         roster_snapshot_hash: { type: "string" },
@@ -833,7 +834,7 @@ async function callTool(name, args) {
 function handleIterationRecord(a) {
   const {
     iteration_id, target_ref, tier,
-    attackers_configured, attackers_run,
+    attackers_configured, attackers_run, coverage_pct = null,
     findings = [], severity_threshold = "high",
     roster_snapshot_hash = null, report_path = null, notes = null,
   } = a;
@@ -876,9 +877,24 @@ function handleIterationRecord(a) {
     ? null
     : [...aboveKeys].filter((k) => !priorKeys.has(k)).length;
 
-  const coverage = Number(attackers_run) / Number(attackers_configured);
-  const COVERAGE_FLOOR = 0.8;   // Stop 훅과 같은 값 — 여기서 다르게 두면 두 판정이 갈라져요
-  const clean = newAbove === 0 && coverage >= COVERAGE_FLOOR;
+  // ── 커버리지: 게이트와 **같은 계산**을 써요 (lib/coverage-floor.cjs) ──────────
+  // 종전엔 여기서 `attackers_run / attackers_configured` 로 자체 계산하고, 임계값도 0.8 을
+  //   박아놓고 주석으로 «Stop 훅과 같은 값» 이라고 주장하고 있었어요. **셋 다 달랐어요** —
+  //   훅 0.85 · 이 파일 0.8 · 규격 표 Tier2 75. 그리고 분자도 달랐어요: 게이트는 «축을 얼마나
+  //   훑었나» 의 평균이고 여기는 «에이전트를 몇 개 띄웠나» 였어요. 공격자 하나가 축 하나를
+  //   덮지 않는 순간 둘은 갈라지고, 실측이 정확히 그랬어요(공격자 7 → 축 8).
+  //   화면에 남는 수와 판정하는 수가 다른 수면 안 돼요. 그래서 둘 다 공유 부품으로 보냈어요.
+  const { coverageFromAxes, floorPctForTier, meetsFloor } = require("../lib/coverage-floor.cjs");
+  const { DECLARED_AXES } = require("../lib/axes.cjs");
+  const coveragePctValue = coverageFromAxes(coverage_pct, DECLARED_AXES);   // percent | null
+  const coverage = coveragePctValue == null ? null : coveragePctValue / 100;
+  // 에이전트 비율은 **버리지 않고 이름을 바로잡아** 남겨요 — 운영에 쓸모는 있는데 커버리지가 아니에요.
+  const attacker_dispatch_ratio = Number(attackers_run) / Number(attackers_configured);
+  // `clean` 은 이제 tier 표를 거쳐요. tier 를 안 주면 판정 불가라 **null** 이에요 — 통과 아니고요.
+  const floorOk = (tier == null || coverage == null)
+    ? null
+    : meetsFloor({ coverage: coveragePctValue, unit: "percent", tier: Number(tier) });
+  const clean = (newAbove === 0 && floorOk === true) ? true : (floorOk === null ? null : false);
 
   const counts = findings.reduce((acc, f) => {
     const s = String((f && f.severity) || "info").toLowerCase();
@@ -892,7 +908,9 @@ function handleIterationRecord(a) {
     tier: tier == null ? null : Number(tier),
     attackers_configured: Number(attackers_configured),
     attackers_run: Number(attackers_run),
-    coverage,
+    attacker_dispatch_ratio,          // 에이전트를 몇 개 띄웠나 — 커버리지가 **아니에요**
+    coverage,                         // 축을 얼마나 훑었나 (게이트와 같은 계산) · null = 미측정
+    coverage_pct: coverage_pct || null,
     open_findings: findings.length,
     findings_by_severity: counts,
     severity_threshold,
