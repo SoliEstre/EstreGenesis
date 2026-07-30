@@ -7,6 +7,19 @@
 const fs = require("fs");
 const path = require("path");
 const L = require("../lint.cjs"); // { runLint, ghSlug, headingSlugs, loadEntries, frontmatter, field, listField, defText, STORE, INNER, SUBDIRS }
+const {
+  PROTOCOL_VERSIONS,
+  LATEST,
+  LEGACY,
+  requestedVersion,
+  versionError,
+  discoverResult,
+  complete,
+  cacheable,
+} = require("../../_shared/mcp-protocol.cjs");
+
+const SERVER_INFO = { name: "compendium-mcp", version: require("./package.json").version };
+const CAPABILITIES = { tools: {} };
 
 const PROMOTE_N = 10;   // §7.1 default occurrence threshold
 const PROMOTE_S = 3;    // §7.1 default distinct_sources threshold
@@ -293,9 +306,10 @@ function toolEnvelope(v) {
 }
 
 const handlers = {
-  initialize: async () => ({ protocolVersion: "2024-11-05", serverInfo: { name: "compendium-mcp", version: require("./package.json").version }, capabilities: { tools: {} } }),
-  "tools/list": async () => ({ tools: TOOLS }),
-  "tools/call": async (params) => toolEnvelope(await callTool(params.name, params.arguments || {})),
+  "server/discover": async () => discoverResult(SERVER_INFO, CAPABILITIES),
+  initialize: async () => ({ protocolVersion: LEGACY, serverInfo: { name: "compendium-mcp", version: require("./package.json").version }, capabilities: CAPABILITIES }),
+  "tools/list": async () => complete(cacheable({ tools: TOOLS }), SERVER_INFO),
+  "tools/call": async (params) => complete(toolEnvelope(await callTool(params.name, params.arguments || {})), SERVER_INFO),
 };
 
 // 도구 분기는 **날 결과**를 돌려줘요 — 봉투는 위 한 자리에서만 씌워요.
@@ -336,6 +350,11 @@ process.stdin.on("data", async (chunk) => {
     if (!line) continue;
     try {
       const req = JSON.parse(line);
+      const requested = requestedVersion(req.params || {});
+      if (requested !== null && !PROTOCOL_VERSIONS.includes(requested)) {
+        process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: req.id, error: versionError(requested) }) + "\n");
+        continue;
+      }
       const handler = handlers[req.method];
       if (!handler) { process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: req.id, error: { code: -32601, message: "Method not found: " + req.method } }) + "\n"); continue; }
       try { const result = await handler(req.params || {}); process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: req.id, result }) + "\n"); }

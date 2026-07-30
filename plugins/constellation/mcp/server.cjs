@@ -25,6 +25,19 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const {
+  PROTOCOL_VERSIONS,
+  LATEST,
+  LEGACY,
+  requestedVersion,
+  versionError,
+  discoverResult,
+  complete,
+  cacheable,
+} = require('../../_shared/mcp-protocol.cjs');
+
+const SERVER_INFO = { name: 'constellation-mcp', version: require('./package.json').version };
+const CAPABILITIES = { tools: {} };
 
 // ----- WebSocket transport: platform-native first, `ws` package as fallback -----
 // v0.3.39: the previous `let WebSocket = null` **shadowed the built-in global WebSocket**, so this
@@ -409,20 +422,23 @@ async function handleA2aWaitAck({ msgId, tier, timeoutMs = 30000 }) {
 // ----- MCP stdio protocol -----
 
 const handlers = {
-  'initialize': async () => ({ protocolVersion: '2024-11-05', serverInfo: { name: 'constellation-mcp', version: require('./package.json').version }, capabilities: { tools: {} } }),
-  'tools/list': async () => ({ tools: TOOLS }),
-  'tools/call': async (params) => {
-    const { name, arguments: args } = params;
-    switch (name) {
-      case 'board_state_get': return handleBoardStateGet();
-      case 'board_history_tail': return handleBoardHistoryTail(args || {});
-      case 'agent_list_get': return handleAgentListGet();
-      case 'a2a_emit': return handleA2aEmit(args || {});
-      case 'a2a_wait_ack': return handleA2aWaitAck(args || {});
-      default: throw new Error('Unknown tool: ' + name);
-    }
-  },
+  'server/discover': async () => discoverResult(SERVER_INFO, CAPABILITIES),
+  'initialize': async () => ({ protocolVersion: LEGACY, serverInfo: { name: 'constellation-mcp', version: require('./package.json').version }, capabilities: CAPABILITIES }),
+  'tools/list': async () => complete(cacheable({ tools: TOOLS }), SERVER_INFO),
+  'tools/call': async (params) => complete(await callTool(params), SERVER_INFO),
 };
+
+async function callTool(params) {
+  const { name, arguments: args } = params;
+  switch (name) {
+    case 'board_state_get': return handleBoardStateGet();
+    case 'board_history_tail': return handleBoardHistoryTail(args || {});
+    case 'agent_list_get': return handleAgentListGet();
+    case 'a2a_emit': return handleA2aEmit(args || {});
+    case 'a2a_wait_ack': return handleA2aWaitAck(args || {});
+    default: throw new Error('Unknown tool: ' + name);
+  }
+}
 
 let buffer = '';
 process.stdin.setEncoding('utf8');
@@ -435,6 +451,11 @@ process.stdin.on('data', async (chunk) => {
     if (!line) continue;
     try {
       const req = JSON.parse(line);
+      const requested = requestedVersion(req.params || {});
+      if (requested !== null && !PROTOCOL_VERSIONS.includes(requested)) {
+        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: req.id, error: versionError(requested) }) + '\n');
+        continue;
+      }
       const handler = handlers[req.method];
       if (!handler) { process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: req.id, error: { code: -32601, message: 'Method not found: ' + req.method } }) + '\n'); continue; }
       try {

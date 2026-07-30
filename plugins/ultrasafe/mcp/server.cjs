@@ -17,10 +17,22 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const {
+  PROTOCOL_VERSIONS,
+  LATEST,
+  LEGACY,
+  requestedVersion,
+  versionError,
+  discoverResult,
+  complete,
+  cacheable,
+} = require("../../_shared/mcp-protocol.cjs");
 
 // 버전은 package.json 에서 읽어요. 여기 상수로 두면 컷마다 **두 번 적어야** 하고, 실제로 이 컷에서
 //   0.2.7 로 동결된 채 pkg 만 올라가 N-way 축이 잡았어요 — 자매 서버들은 이미 동적으로 읽고 있었어요.
 const VERSION = require("./package.json").version;
+const SERVER_INFO = { name: "ultrasafe-mcp", version: VERSION };
+const CAPABILITIES = { tools: {} };
 const ADVISORY_MODE = true; // v0.2.x — flips to false in v0.3+ blocking cut.
 const BLOCKING_IN_V03 = true; // surfaced in all returns so consumers know what would happen under blocking mode.
 
@@ -799,13 +811,14 @@ function toolEnvelope(v) {
 }
 
 const handlers = {
+  "server/discover": async () => discoverResult(SERVER_INFO, CAPABILITIES),
   initialize: async () => ({
-    protocolVersion: "2024-11-05",
+    protocolVersion: LEGACY,
     serverInfo: { name: "ultrasafe-mcp", version: VERSION },
-    capabilities: { tools: {} },
+    capabilities: CAPABILITIES,
   }),
-  "tools/list": async () => ({ tools: TOOLS }),
-  "tools/call": async (params) => toolEnvelope(await callTool(params.name, params.arguments || {})),
+  "tools/list": async () => complete(cacheable({ tools: TOOLS }), SERVER_INFO),
+  "tools/call": async (params) => complete(toolEnvelope(await callTool(params.name, params.arguments || {})), SERVER_INFO),
 };
 
 // 도구 분기는 **날 결과**를 돌려줘요 — 봉투는 위 한 자리에서만 씌워요.
@@ -984,6 +997,11 @@ if (process.argv.includes("--cli")) {
       if (!line) continue;
       try {
         const req = JSON.parse(line);
+        const requested = requestedVersion(req.params || {});
+        if (requested !== null && !PROTOCOL_VERSIONS.includes(requested)) {
+          process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: req.id, error: versionError(requested) }) + "\n");
+          continue;
+        }
         const handler = handlers[req.method];
         if (!handler) {
           process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: req.id, error: { code: -32601, message: "Method not found: " + req.method } }) + "\n");
