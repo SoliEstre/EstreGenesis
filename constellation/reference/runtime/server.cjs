@@ -1126,10 +1126,28 @@ function wsSaveChan(ck) {
 // v2.4.60 — timestamp 정규화: 일부 발신 경로가 ISO 문자열로 스탬프(또는 누락) → 숫자-전제 소비자
 // (대시보드 wsMsgEpoch·부팅 sort 의 `timestamp || 0`)가 오동작해 매 새로고침 현재시간 표시되던 버그.
 // 저장·적재 경계에서 epoch 숫자로 통일 (문자열→Date.parse, 누락→서버 수신시각).
+// v2.4.130 — **미래 시각은 받지 않아요.** 발신자가 적은 시각은 선언이고, 우리가 받은 시각은 실측이에요.
+//   받은 시점보다 뒤인 시각은 **증명 가능하게 틀려요** — 아직 오지 않은 순간에 도착한 프레임은 없으니까요.
+//   그런 값은 목록 맨 위에 눌러앉아서, 진짜 시간이 따라잡을 때까지 실시간 흐름을 계속 어긋나게 해요.
+//   실측 2026-08-01: 협업 상대의 프레임 둘이 `15:20:00.000` · `14:15:00.000` — 초·밀리초가 0 으로
+//   딱 떨어지는 건 기계 시계가 아니라 **지어낸 값**의 서명이에요(이 저장소도 워커에게 시계를 안 주고
+//   시각을 요구해 +11h19m 미래를 받은 전례가 있어요 — 같은 부류라 같은 처방을 씁니다).
+//   시계 오차는 정상이라 여유를 두되, 그 밖은 수신 시각으로 눌러요. **조용히 고치지 않아요** — 원본을
+//   `declaredTs` 로 남기고 한 줄 경고를 찍어요. 안 그러면 «시각이 왜 다르지» 를 아무도 못 추적해요.
+const WS_TS_SKEW_MS = Number(process.env.WS_TS_SKEW_MS || 2 * 60 * 1000);
 function wsNormTs(ev) {
   if (!ev || typeof ev !== 'object') return ev;
   if (typeof ev.timestamp === 'string') { const e = Date.parse(ev.timestamp); if (!isNaN(e)) ev.timestamp = e; }
-  if (ev.timestamp == null) ev.timestamp = Date.now();
+  const now = Date.now();
+  if (ev.timestamp == null) ev.timestamp = now;
+  else if (typeof ev.timestamp === 'number' && ev.timestamp > now + WS_TS_SKEW_MS) {
+    if (ev.declaredTs == null) {
+      ev.declaredTs = ev.timestamp;
+      console.warn('[ws] 미래 시각 보정 — from=%s name=%s declared=%s → %s',
+        ev.agentId || '?', ev.name || ev.type || '?', new Date(ev.timestamp).toISOString(), new Date(now).toISOString());
+    }
+    ev.timestamp = now;
+  }
   return ev;
 }
 function wsStore(ck, ev) {
