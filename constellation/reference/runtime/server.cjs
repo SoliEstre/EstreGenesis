@@ -2041,8 +2041,14 @@ server.on('upgrade', (req, socket) => {
       //   surfaced as redelivery → false RelayUnreachable{commitment-ack-absent} on the 2026-06-02
       //   dogfood; main found + fixed the equivalent line on its own server first, EG reference
       //   bug confirmed by code review and shipped here.
-      if (msg && msg.type === 'CUSTOM' && msg.name === 'AckProcessed' && msg.value && msg.value.ackFor && tgt) {
+      if (msg && msg.type === 'CUSTOM' && msg.name === 'AckProcessed' && msg.value && msg.value.ackFor) {
         _relayPendingClear(conn.meta.agentId, msg.value.ackFor);
+        // v2.4.132 §13.13.2 — **무대상 약정 ack 는 서버가 소비해요.** 서버/보드 유래 릴레이 프레임
+        //   (OperatorFeedback 등)엔 발신 에이전트가 없어서 ack 이 갈 곳이 없는데, 종전엔 ① 브릿지가
+        //   «수신처 없음 → ack 생략» 으로 응답을 아예 접었고(4개 구현 전부 — 같은 자리에서 넷이 막히면
+        //   규격의 빈 자리예요) ② 무대상으로 보내면 아래 «대상 미지정 폴백» 이 그 ack 를 **메인에게
+        //   배달**했어요. clear 가 목적의 전부이므로 여기서 흡수해요(기록만 남기고 return).
+        if (!tgt) { wsRecord(msg); return; }
       }
       // v2.4.127 §13.13.2 — **«대상 미지정» 과 «지정됐는데 지금 없음» 을 가릅니다.** 종전 조건은
       //   `tgt && wsAgents.has(tgt)` 라, 대상 이름이 명부에 없으면 아래 else 로 흘러 «대상 미지정 폴백» 을

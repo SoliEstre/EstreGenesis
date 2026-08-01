@@ -247,10 +247,13 @@ function connect() {
     }
 
     // §1 commitment-tier ack — 이게 없으면 상대의 targeted 메시지가 3회 재전달 후 미전달로 종결돼요.
-    if (m && m.type === 'CUSTOM' && m.msgId && m.targetAgentId === AGENT_ID && m.agentId
+    // v2.4.132 — 발신 에이전트가 없어도 ack (무대상이면 targetAgentId 미기재 → 서버 소비). 상세: join-local 동일 수정.
+    if (m && m.type === 'CUSTOM' && m.msgId && m.targetAgentId === AGENT_ID
         && m.source !== 'server' && !ACK_KINDS.has(m.name)) {
-      send('CUSTOM', { name: 'AckProcessed', targetAgentId: m.agentId, value: { ackFor: m.msgId } });
-      log({ ev: 'ackprocessed-sent', ackFor: m.msgId, to: m.agentId });
+      const ack = { name: 'AckProcessed', value: { ackFor: m.msgId } };
+      if (m.agentId) ack.targetAgentId = m.agentId;
+      send('CUSTOM', ack);
+      log({ ev: 'ackprocessed-sent', ackFor: m.msgId, to: m.agentId || '(server-consumed)' });
     }
   };
   ws.onerror = (err) => { log({ ev: 'ws-error', e: String((err && err.message) || err) }); };
