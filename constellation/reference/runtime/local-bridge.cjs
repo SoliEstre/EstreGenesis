@@ -197,10 +197,14 @@ function onInbound(m) {
   //   opt *out* with RELAY_REDELIVERY=off. Server-with-redelivery is the default, so the
   //   commitment ack is the default.
   if (process.env.RELAY_REDELIVERY !== 'off' && appended && m.msgId && !_BRIDGE_ACK_KINDS.has(m.name)) {
+    // v2.4.132 §13.13.2 — 발신 에이전트가 없어도 ack 는 보내요. 서버/보드 유래 릴레이 프레임
+    //   (OperatorFeedback 등)엔 agentId 칸이 없는데, «수신처 있어야 ack» 술어는 그 부류를 조용히
+    //   면제해서 3× 재전달로 실측됐어요. 수신처가 없으면 targetAgentId 를 아예 싣지 않고,
+    //   서버가 무대상 약정 ack 를 clear 후 소비해요.
     const srcAgent = m.agentId || (m.value && m.value.agentId);
-    if (srcAgent) {
-      send('CUSTOM', { name: 'AckProcessed', targetAgentId: srcAgent, value: { ackFor: m.msgId, tier: 'delivered-persist' } });
-    }
+    const ack = { name: 'AckProcessed', value: { ackFor: m.msgId, tier: 'delivered-persist' } };
+    if (srcAgent) ack.targetAgentId = srcAgent;
+    send('CUSTOM', ack);
   }
   if (m.name === 'UserPrompt' && m.value && m.value.promptId) {
     send('CUSTOM', { name: 'UserPromptAccepted', value: { promptId: m.value.promptId, mode: 'queued_for_next_safe_point' } });

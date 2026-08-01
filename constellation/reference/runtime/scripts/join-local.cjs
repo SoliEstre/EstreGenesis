@@ -34,7 +34,8 @@ const LOG = path.join(DIR, 'local-' + AGENT_ID + '.log');
 const OUTBOX = process.env.LOCAL_OUTBOX || path.join(DIR, 'local-' + AGENT_ID + '-outbox.jsonl');   // v2.4.7: 워커 세션이 append → drain 송신 (gateway-client 패턴). 워커 emit 경로.
 const OUT_CURSOR = path.join(DIR, '.local-' + AGENT_ID + '-outbox-cursor');
 
-const ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);   // §13.13 ack/ping류 — commitment-ack 대상 아님 (서버 pending 도 비추적)
+const ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);
+const seenMsgIds = new Set();   // v2.4.132 §13.13.2 멱등 수신 — 재전달된 동일 msgId 의 본문 재기록 방지 (모듈 수명 = 재접속을 넘어 유지)   // §13.13 ack/ping류 — commitment-ack 대상 아님 (서버 pending 도 비추적)
 
 // v2.4.58 — §13.26.3 provenance default: join-local 은 agent-spawned 합류 경로이므로,
 // .echo-mode 마커에 이 agentId 항목이 없으면 { level:'on', provenance:'agent-spawned' } 로 시딩.
@@ -92,16 +93,34 @@ function connect() {
   };
   ws.onmessage = (e) => {   // v2.4.7: CUSTOM/A2A 는 full msg 로깅 (워커가 Delegate value 등 본문 read 가능), History/AgentList 노이즈는 요약
     let m; try { m = JSON.parse(e.data); } catch { return; }
-    if (m.type === 'History' || m.type === 'AgentList' || m.type === 'SERVER_HELLO') log({ ev: 'inbound-meta', type: m.type });
+    // v2.4.132 — §13.13.2 멱등 수신: 같은 msgId 재전달은 본문을 다시 적지 않아요(마커만). 단 ack 는
+    //   중복에도 다시 보내요 — 재전달이 왔다는 건 서버가 내 ack 를 못 받았다는 뜻이라, 여기서 접으면
+    //   재전달 루프를 스스로 연장해요.
+    let isDup = false;
+    if (m && m.msgId) {
+      if (seenMsgIds.has(m.msgId)) isDup = true;
+      else {
+        seenMsgIds.add(m.msgId);
+        if (seenMsgIds.size > 400) { const it = seenMsgIds.values(); for (let i = 0; i < 100; i++) seenMsgIds.delete(it.next().value); }
+      }
+    }
+
+    if (isDup) log({ ev: 'inbound-dedup', msgId: m.msgId, name: m.name });
+    else if (m.type === 'History' || m.type === 'AgentList' || m.type === 'SERVER_HELLO') log({ ev: 'inbound-meta', type: m.type });
     else log({ ev: 'inbound', msg: m });
     // v2.4.50 — §13.13.2 commitment-tier ack. 서버의 at-least-once pending 은 수신자의
     // AckProcessed{ackFor} 로만 clear 됨. 미회신 시 매 targeted CUSTOM 이 바운드 재전달(동일
     // msgId 3×) 후 발신자에게 RelayUnreachable{commitment-ack-absent} 로 종결되는 소음이
     // 매 위임마다 발생 (2026-07-04~11 실측). ack/ping 류는 서버 pending 비추적이라 제외(스톰 방지).
-    if (m && m.type === 'CUSTOM' && m.msgId && m.targetAgentId === AGENT_ID && m.agentId
+    // v2.4.132 — 발신 에이전트가 없어도 ack (서버/보드 유래 릴레이 프레임엔 agentId 가 없어요 —
+    //   «수신처 있어야 ack» 술어가 그 부류를 조용히 면제해 3× 재전달로 실측). 무대상이면 칸을 아예
+    //   싣지 않고 서버가 clear 후 소비해요.
+    if (m && m.type === 'CUSTOM' && m.msgId && m.targetAgentId === AGENT_ID
         && m.source !== 'server' && !ACK_KINDS.has(m.name)) {
-      send('CUSTOM', { name: 'AckProcessed', targetAgentId: m.agentId, value: { ackFor: m.msgId } });
-      log({ ev: 'ackprocessed-sent', ackFor: m.msgId, to: m.agentId });
+      const ack = { name: 'AckProcessed', value: { ackFor: m.msgId } };
+      if (m.agentId) ack.targetAgentId = m.agentId;
+      send('CUSTOM', ack);
+      log({ ev: 'ackprocessed-sent', ackFor: m.msgId, to: m.agentId || '(server-consumed)' });
     }
   };
   ws.onerror = (err) => { log({ ev: 'ws-error', e: String((err && err.message) || err) }); };
