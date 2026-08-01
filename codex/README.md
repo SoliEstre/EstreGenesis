@@ -52,7 +52,7 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 
 <!-- BEGIN AUTO-INVENTORY (gen-codex-adapter.cjs --write) -->
 
-**Skills projected: 44** across 8 modules · **MCP servers: 4**
+**Skills projected: 45** across 8 modules · **MCP servers: 4**
 
 ### Agent Skills (→ `.agents/skills/<dir>/SKILL.md`)
 
@@ -91,6 +91,7 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 | hyperbrief | `hyperbrief` | hyperbrief |
 | hyperbrief | `hyperbrief-revisit` | hyperbrief-revisit |
 | hyperbrief | `hyperbrief-trigger-check` | hyperbrief-trigger-check |
+| superscalar | `context-caching` | context-caching |
 | superscalar | `ooo` | ooo |
 | superscalar | `subscaler` | subscaler |
 | superscalar | `superscalar` | superscalar |

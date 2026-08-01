@@ -1,0 +1,65 @@
+{
+  "$comment": "Context-cache registry — the volatile half of Superscalar §5.4. The spec carries the discipline; this file carries the numbers, because vendor cadence rots numbers baked into prose. Every row cites the page it was confirmed against (confirmedBy). singleSource=true marks facts confirmed only against the vendor's own doc (no independent second domain yet) — usable, but flagged for promotion at the next revisit. Research trail: EstreGenesis-maintenance RESEARCH/context_caching_vendors_20260801 (claim ledger, verified 9 / unresolved 3 / refuted 0).",
+  "asOf": "2026-08-01",
+  "revisit": {
+    "date": "2026-09-01",
+    "watchlist": [
+      "Docs URL migrations measured live (docs.anthropic.com→platform.claude.com, platform.openai.com→developers.openai.com, both 301) — confirm old URLs still redirect, keep confirmedBy on the new hosts",
+      "OpenAI cache billing reshaped at GPT-5.6 (writes 1.25x + >=30min guarantee; pre-5.6 in_memory/24h retention options deprecated) — mixed-generation deployments split cache policy by model",
+      "Gemini 3.1 Pro Preview storage rent is 4.5x the standard rate — recheck when the Preview label drops",
+      "Anthropic Claude-5-family minimum cacheable threshold (512) is vendor-doc-only — promote with a second source",
+      "Harness absorption: Claude Code already automates TTL selection/downgrade — re-scope the skill's jurisdiction as more moves into the harness"
+    ]
+  },
+  "vendors": {
+    "anthropic": {
+      "mechanism": "opt-in cache_control breakpoints (max 4), hierarchical prefix tools→system→messages",
+      "multipliers": { "write5m": 1.25, "write1h": 2.0, "read": 0.1 },
+      "ttl": { "default": "5m", "extended": "1h", "refreshOnUse": true },
+      "minCacheableTokens": { "range": "512–4096 by model (Claude 5 family 512; most 4.x 1024; Haiku 4.5 / Opus 4.5–4.6 4096)", "singleSource": true },
+      "notes": "Thinking/effort parameter changes invalidate (model-dependent). Lookback window 20 blocks per breakpoint. Below-minimum prompts process uncached with no error.",
+      "confirmedBy": ["https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching", "https://www.respan.ai/articles/claude-prompt-caching"]
+    },
+    "openai": {
+      "mechanism": "automatic prefix caching (>=1024-token prefix, strict); prompt_cache_key routing hint + prompt_cache_breakpoint explicit split",
+      "multipliers": { "write": 1.25, "read": 0.1 },
+      "ttl": { "guaranteed": ">=30m (GPT-5.6+)" },
+      "notes": "GPT-5.6 family: Sol $5.00/$0.50/$30 (input/cached/output per 1M), Terra $2/$0.20/$12, Luna $0.20/$0.02/$1.20; writes Sol $6.25. Pre-5.6 retention options (in_memory / 24h) not carried forward.",
+      "confirmedBy": ["https://developers.openai.com/api/docs/guides/prompt-caching", "https://developers.openai.com/api/docs/pricing", "https://www.tldl.io/resources/openai-api-pricing"]
+    },
+    "gemini": {
+      "mechanism": "implicit caching (default-on, Gemini 2.5+) + explicit CachedContent (generateContent API only; hourly storage rent)",
+      "multipliers": { "read": 0.1 },
+      "storageRent": { "standard": "$1.00 / 1M tokens / hour", "gemini31ProPreview": "$4.50 / 1M tokens / hour" },
+      "implicitMinTokens": { "value": "2048 (2.5 family) / 4096 (3.5 Flash, 3.1 Pro Preview)", "singleSource": true },
+      "notes": "Hit visibility: usage.total_cached_tokens. Rent model flips break-even to reuses-per-hour (measured secondary math: 200K ctx on Pro ≈ $0.90/h to hold, ≈$0.36 saved per hit → 2–3 reuses/hour).",
+      "confirmedBy": ["https://ai.google.dev/gemini-api/docs/caching", "https://ai.google.dev/gemini-api/docs/pricing", "https://www.cloudzero.com/blog/gemini-pricing/"]
+    },
+    "deepseek": {
+      "mechanism": "automatic disk KV cache, default-on for all users; full prefix-unit match required (A+B then A+C misses)",
+      "multipliers": { "read": "0.01–0.02 (v4-flash $0.0028 vs $0.14; v4-pro $0.003625 vs $0.435)" },
+      "ttl": { "eviction": "unused caches cleared within hours to days (no guarantee, no control surface)" },
+      "notes": "Cheapest hit of the four vendors, but no TTL guarantee and no breakpoint control — cheap and unpredictable.",
+      "confirmedBy": ["https://api-docs.deepseek.com/guides/kv_cache", "https://api-docs.deepseek.com/quick_start/pricing", "https://benchlm.ai/deepseek/api-pricing"]
+    }
+  },
+  "harness": {
+    "claude-code": {
+      "mainConversationTtl": "1h automatic on subscription auth (auto-downgrades to 5m while drawing usage credits); API-key/3rd-party default 5m, opt-in via ENABLE_PROMPT_CACHING_1H=1",
+      "subagents": { "coldStart": true, "ttl": "5m even on subscription", "parentCacheUntouched": true, "forkReadsParentCache": true },
+      "invalidators": [
+        "model switch (per-model caches; incl. opusplan plan-mode toggles and safety-classifier fallback)",
+        "effort change (per-effort caches; confirmation dialog shown)",
+        "fast mode first enable (request header joins the cache key; once per conversation)",
+        "MCP server connect/disconnect when tools load into the prefix (deferred tools are safe; can fire without user action — process death, HTTP expiry, auto-reconnect)",
+        "bare tool deny rule (built-in tool definitions live in the system-prompt layer; scoped rules like Bash(rm *) are safe)",
+        "compaction (conversation layer replaced by design; the summarization request itself reads the warm prefix)",
+        "Claude Code upgrade (system prompt/tool defs change; resuming a long session post-upgrade can be the most expensive request)"
+      ],
+      "keepers": { "list": "file edits · mid-session CLAUDE.md / output-style edits (also don't apply until reload) · permission-mode switches · skill/command invocation (appended as user messages) · /recap · /rewind (returns to an already-cached entry) ", "singleSource": true },
+      "scope": "effectively per machine + directory (system prompt embeds cwd/platform/git snapshot; worktrees of the same repo do not share cache)",
+      "measurement": "cache_creation_input_tokens / cache_read_input_tokens per response; OpenTelemetry export per user+session",
+      "confirmedBy": ["https://code.claude.com/docs/en/prompt-caching", "https://www.claudecodecamp.com/p/how-prompt-caching-actually-works"]
+    }
+  }
+}
