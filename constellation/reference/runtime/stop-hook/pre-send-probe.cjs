@@ -100,7 +100,14 @@ const ALLOWLIST = new Set([
 const SELF_AGENT_ID = process.env.SELF_AGENT_ID || process.env.CONSTELLATION_AGENT_ID || null;
 const EXCLUDE_NAMES = new Set([
   'Ack', 'AckProcessed', 'AgentHello', 'AgentList', 'History', 'ConnectionInfo',
-  'SERVER_HELLO', 'HELLO', 'Heartbeat', 'Ping', 'Pong', 'ArtifactChunk',
+  // v2.4.129 — **Ping·Pong 을 뺐어요.** 회수 계층에서 제외되는 것과 각성에서 흡수되는 건 다른 질문인데
+  //   한 목록에 같이 있었어요. Ping 은 「상대가 **정말로** 처리 중인가」를 묻는 프로브고, 이 배포엔
+  //   그걸 대신 답해 줄 층이 **없어요**(브릿지도 서버도 자동 Pong 을 안 해요 — 실측). 그래서 이름으로
+  //   흡수하면 §13.13.1 사다리 2단계(“Ping 을 쏴라”)가 구조적으로 응답 불가가 돼요. 설령 전송층이
+  //   대신 답하더라도 그 Pong 은 «전송이 살아 있다» 만 증명해요 — 워커가 나흘 죽어 있는 동안 깨끗한
+  //   ack 가 오던 그 상태예요. 프로브의 답은 모델 층에서 나와야 뜻이 있어요. Pong 도 같은 이유로
+  //   각성 대상이에요(발신자가 기다리는 답이라, 흡수되면 「죽었다」로 오판해요).
+  'SERVER_HELLO', 'HELLO', 'Heartbeat', 'ArtifactChunk',
   'StateSync', 'StateUpdate', 'BoardState', 'CursorAdvance', 'Presence',
   'OnboardAck',            // 합류 환영 + 가이드 + 모드 선언 (실측 139건, 전부 우리 앞) — 의례
   'UserPromptAccepted',    // promptId + 큐 모드만 (실측 19건) — telemetry
