@@ -144,7 +144,11 @@ function classifyMeaningful(o) {
   //    계층에서 **구조적으로 제외**돼서(§13.13.2) 재전달도 미전달 통지도 없거든요.)
   if (eff && EXCLUDE_NAMES.has(eff)) {
     const v = msg.value;
-    const TRANSPORT_ACK_KEYS = new Set(['ackFor', 'kind', 'from', 'recipients', 'offline', 'dedupHit', 'msgId', 'targetAgentId', 'attemptCount', 'lastError']);
+    // 전송 칸 목록은 **실측으로 늘어난 목록**이에요 — 첫 판이 tier/nonce 를 빠뜨려서, 상대의
+    //   순수 전송 ack(AckProcessed{ackFor,tier})가 «본문 있음» 으로 읽혀 깨웠어요(발효 몇 분 만에).
+    //   그쪽 보고서에 그 이름이 적혀 있었는데 옮기지 않은 게 원인이라, 협업 상대의 봉투 형태를
+    //   받을 때마다 여기를 훑는 게 규율이에요. 과잉 각성도 흡수만큼 고장이에요.
+    const TRANSPORT_ACK_KEYS = new Set(['ackFor', 'kind', 'tier', 'nonce', 'from', 'recipients', 'offline', 'dedupHit', 'msgId', 'targetAgentId', 'attemptCount', 'lastError']);
     const bodyKeys = (v && typeof v === 'object' && !Array.isArray(v)) ? Object.keys(v) : [];
     const carriesBody = bodyKeys.some((k) => !TRANSPORT_ACK_KEYS.has(k));
     if (!carriesBody) return null;
