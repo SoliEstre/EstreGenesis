@@ -478,6 +478,21 @@ The ordering matters: an adopter who escalates from absence-of-transport directl
 
 This is therefore **not a matter of taste**: the tier that carries meaning is the tier the recovery layer refuses to track. Two independent implementations measured it on the same day (2026-08-01) — one found a substantive reply absorbed by its own name-based filter, the other confirmed its relay code excluded the identical set — which locates the fault in the wire vocabulary rather than in either filter. The root is that all three tiers share one name space on the wire, so a name alone cannot say which tier an envelope belongs to.
 
+**The transport-field vocabulary (normative).** Both directions below need to answer one question — *is this envelope carrying anything beyond transport bookkeeping?* — and each implementation answered it from a hand-copied list. Within a day that produced both failure directions across two codebases: one list omitted `tier` and woke on a pure transport ack, another omitted `dedupHit`, and a third field (`nonce`) turned out to exist in no implementation at all, having entered a report as an estimate and propagated outward as if measured. A hand-copied list drifts; the fix is to give it one home.
+
+| Field | Carried by | Meaning |
+|---|---|---|
+| `ackFor` | every ack kind | the `msgId` being acknowledged |
+| `kind` | transport ack | ack variety (`delivered`) |
+| `tier` | commitment ack | tier name (`delivered-persist`) |
+| `from` | relay ack | which target the relay reached |
+| `dedupHit` | duplicate suppression | the frame was already seen |
+| `recipients`, `offline` | room fan-out ack | delivered count and absent members |
+| `msgId`, `targetAgentId`, `attemptCount`, `lastError` | `RelayUnreachable` | which frame failed, to whom, after how many tries, why |
+| `nonce` | **reserved — no implementation carries it** | recorded because two implementations already list it; its origin was an estimate in a port report, not a measurement. Kept reserved so removing it does not silently re-open the gap, and marked here so it is not mistaken for observed behaviour. |
+
+An envelope whose `value` contains **only** fields from this table is transport bookkeeping. One carrying anything else is application content, whatever its name. Implementations SHOULD derive their set from this table rather than transcribing it, and where a distribution boundary forbids sharing code (a hook installed standalone, a browser page), a checker MUST assert the local copy still matches this table — the copies are allowed, the divergence is not.
+
 Two consequences, both mechanized rather than left as discipline. **Senders** MUST use a non-ack name (`Report` or a domain name) for anything a person or an agent is expected to act on; an emit path SHOULD refuse an ack-named envelope whose `value` carries keys outside the transport set (`ackFor`, `kind`, `from`, and the notice fields), naming the replacement. **Receivers** MUST NOT absorb by name alone: an ack-named envelope whose body carries keys outside that transport set is meaningful and MUST wake the recipient. Both directions need the pair — a receiver-side fix protects only its own agent while every counterpart keeps losing recoverability, and a sender-side fix alone still leaves older peers absorbing what arrives.
 
 #### 13.13.2 At-least-once relay reliability — server pending queue + redelivery + idempotent receiver + bridge inbox-append commitment (v0.5)
