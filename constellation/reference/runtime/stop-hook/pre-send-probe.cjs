@@ -134,7 +134,22 @@ function classifyMeaningful(o) {
     || (msg.value && Array.isArray(msg.value.addressee) && msg.value.addressee.includes(SELF_AGENT_ID));
   if (!addressed) return null;
   const eff = (outerName && outerName !== 'CUSTOM') ? outerName : (innerName || outerName);
-  if (eff && EXCLUDE_NAMES.has(eff)) return null;
+  // v2.4.128 — **본문 실린 ack 는 흡수하지 않아요.** ack 이름을 이름만 보고 버리면, 그 봉투에
+  //   실질 회신을 담아 보낸 상대의 말이 조용히 사라지고 커서가 그 위로 전진해요(채택자 실측
+  //   2026-08-01: 재기동 종결 보고가 그렇게 삼켜졌고, 커서 점프를 눈으로 본 관례가 겨우 잡았어요).
+  //   뿌리는 §13.13 의 3계층이 **wire 에서 같은 이름을 쓰는 것**이에요 — 전송 계층 ack 와
+  //   응용 계층 회신이 둘 다 'Ack' 로 와요. 그래서 이름이 아니라 **본문 모양**으로 갈라요:
+  //   전송 ack 는 정해진 몇 칸만 채우고, 그 밖의 칸이 있으면 사람이 읽으라고 쓴 글이에요.
+  //   (발신 쪽 규율은 반대 방향이에요 — 실질 회신을 ack 이름에 실지 말 것. ack 계열은 회수
+  //    계층에서 **구조적으로 제외**돼서(§13.13.2) 재전달도 미전달 통지도 없거든요.)
+  if (eff && EXCLUDE_NAMES.has(eff)) {
+    const v = msg.value;
+    const TRANSPORT_ACK_KEYS = new Set(['ackFor', 'kind', 'from', 'recipients', 'offline', 'dedupHit', 'msgId', 'targetAgentId', 'attemptCount', 'lastError']);
+    const bodyKeys = (v && typeof v === 'object' && !Array.isArray(v)) ? Object.keys(v) : [];
+    const carriesBody = bodyKeys.some((k) => !TRANSPORT_ACK_KEYS.has(k));
+    if (!carriesBody) return null;
+    return { name: eff, why: 'ack-with-body' };
+  }
   if (msg.type && EXCLUDE_TYPE_PREFIX.some((p) => String(msg.type).startsWith(p))) return null;
   return { name: eff || ('(unnamed type=' + (msg.type || '?') + ')'), why: 'addressed' };
 }
