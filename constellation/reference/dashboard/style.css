@@ -558,6 +558,12 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-pager { display: none; }
 .ws-page-dots { display: none; }
 .ws-empty { color: var(--muted); font-size: .82rem; padding: 14px 10px; }
+/* v2.4.129 이력 이어받기 — 스트림 맨 위. 자동 로드 대신 누르게 두는 게 상한의 뜻이에요. */
+.ws-more-bar { display: flex; justify-content: center; padding: 6px 0 10px; }
+.ws-more-bar button { font-size: .78rem; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  color: var(--muted); background: transparent; border: 1px solid var(--border, #3a3a3a); }
+.ws-more-bar button:hover:not(:disabled) { color: var(--fg, inherit); }
+.ws-more-bar button:disabled { opacity: .55; cursor: default; }
 /* 날짜 변경선 (sticky top:0, 가운데 날짜 + 좌우 ~물결) — A2A 대화에 일자 구분선 */
 .ws-dateline { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; gap: 10px; padding: 4px 8px; margin: 0 0 2px; background: var(--panel); }
 .ws-dl-wave { flex: 1 1 auto; overflow: hidden; white-space: nowrap; color: var(--muted); opacity: .45; font-size: .7rem; line-height: 1; }

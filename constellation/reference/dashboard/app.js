@@ -2204,6 +2204,37 @@ function wsReplayChannelHistory(channelKey, events) {   // C: on-demand 로 받�
   updateWsConn(); updateWsBadge();
   if (wsState.debugOpen) wsRenderDebug();
 }
+// ── 이력 이어받기 (v2.4.129) ────────────────────────────────────────────────
+// 오래 도는 보드에서 활성 채널의 줄이 수천으로 자라 첫 페인트를 눌렀어요(운영자 보고 2026-08-01).
+//   서버가 최근 N 건만 주고 «잘렸다» 를 scope.truncated 로 알려주면, 여기서 위쪽에 「이전 대화 더
+//   보기」를 띄우고 눌렀을 때만 이어받아요. 자동으로 계속 당기지 않아요 — 그러면 상한을 둔 의미가
+//   없어지고, 사용자가 원치 않는데 옛 줄이 계속 쌓여요.
+const wsMoreState = {};   // channelKey → { oldestTs, remaining }
+function wsMoreNote(channelKey, oldestTs, remaining) {
+  if (!channelKey || !remaining) { delete wsMoreState[channelKey]; return; }
+  wsMoreState[channelKey] = { oldestTs, remaining };
+}
+function wsRequestOlder(channelKey) {
+  const st = wsMoreState[channelKey]; if (!st) return;
+  const ws = wsState.ws; if (!ws || ws.readyState !== 1) return;
+  try {
+    ws.send(JSON.stringify({ ...wsCommon(), type: 'CUSTOM', name: 'RequestChannelHistory',
+      value: { channelKey, beforeTs: st.oldestTs } }));
+  } catch {}
+}
+function wsPrependChannelHistory(channelKey, events, v) {
+  const ch = wsState.channels.get(channelKey);
+  if (!ch) return;
+  const before = ch.rows.slice();
+  ch.rows = []; ch.debug = ch.debug || [];
+  wsState.replaying = true;
+  for (const ev of (events || [])) { try { onWsEvent(ev); } catch {} }
+  wsState.replaying = false;
+  ch.rows = ch.rows.concat(before);          // 새로 받은 옛 줄이 **앞**에
+  wsMoreNote(channelKey, v.oldestSentTs || 0, v.more ? (v.remaining || 0) : 0);
+  const a = wsState.active;
+  if (a === channelKey || (wsIsGroup(a) && wsGroupMembers(a).indexOf(channelKey) >= 0)) wsRenderActiveStream();
+}
 // ✕ 닫기 = 아카이브(숨김). 대화 내역은 서버 history 에 유지(닫아도 사라지지 않음·재연결 복원). "닫은 세션" 드롭다운으로 복원.
 const WS_HIDDEN = 'constellation-ws-hidden';
 function wsLoadHidden() { try { const a = JSON.parse(localStorage.getItem(WS_HIDDEN) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } }
@@ -2744,9 +2775,26 @@ function wsRenderActiveStream() {
 }
 // item = 채널 id 또는 group key. 지정 컨테이너에 스트림 렌더 (데스크탑=#ws-stream, 모바일 페이저=각 .ws-page-stream).
 // #3a (B): 페이지 재사용 위해 컨테이너 인자형. 출처 필터 탭(#ws-chan-filter)은 호출측에서 활성 기준으로만 동기.
+// v2.4.129 — 잘린 채널 위에 「이전 대화 더 보기」를 놓아요. 버튼 문구에 **남은 건수**를 적어요 —
+//   「더 보기」만 있으면 얼마나 남았는지 몰라서 누를지 말지를 못 정해요. 자동 로드는 안 해요(상한의 뜻).
+function wsMoreBar(s, item) {
+  const keys = wsIsGroup(item) ? wsGroupMembers(item) : [item];
+  const pend = keys.filter((k) => wsMoreState[k] && wsMoreState[k].remaining > 0);
+  if (!pend.length) return;
+  const total = pend.reduce((n, k) => n + wsMoreState[k].remaining, 0);
+  const bar = document.createElement('div');
+  bar.className = 'ws-more-bar';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = `↑ 이전 대화 더 보기 (${total}건 남음)`;   // textContent — 와이어 유래 숫자는 숫자로만 써요
+  btn.onclick = () => { btn.disabled = true; btn.textContent = '불러오는 중…'; for (const k of pend) wsRequestOlder(k); };
+  bar.appendChild(btn);
+  s.appendChild(bar);
+}
 function wsRenderStreamInto(s, item) {
   if (!s) return;
   s.innerHTML = ''; s._lastDay = null;
+  wsMoreBar(s, item);
   if (wsIsGroup(item)) {   // §13.6 그룹 병합: 멤버 채널 rows 를 ts 정렬, 출처 라벨 (멤버 체크박스 필터 적용)
     const merged = [];
     const _hidden = wsGrpHidden(item);
@@ -2926,6 +2974,36 @@ function wsWfSubsIntake(v) {   // v2.4.63 — 단독 서브에이전트 모니�
   if (wsWfPopState) wsWfPopRender();
   wsWfBtnSync();
 }
+// ── 좌석 계측 (§13.35.8, v2.4.129) ──────────────────────────────────────────
+// 하네스 기록에서 파생된 좌석 상태 — 모델·effort·문맥 점유·물린 도구. 값은 **와이어 유래**라
+//   신뢰하지 않아요: 숫자만 숫자로 쓰고 문자열은 텍스트 노드로만 넣어요(§8.1 esc-only, 위 둘과 동일).
+let wsSeats = {};   // seatId → 최신 스냅샷
+function wsSeatIntake(v) {
+  const id = typeof v.seat === 'string' ? v.seat.slice(0, 64) : '?';
+  wsSeats[id] = v || null;
+  wsSeatBtnSync();
+}
+function wsSeatBtnSync() {
+  const btn = document.getElementById('ws-seat-inbtn'); if (!btn) return;
+  const ids = Object.keys(wsSeats).sort();
+  if (!ids.length) { btn.textContent = '🪑 —'; btn.title = '좌석 계측 없음'; return; }
+  const s = wsSeats[ids[0]] || {};
+  // 문맥은 «모르면 모른다» 예요 — 0 으로 적으면 「비어 있다」는 주장이 돼요 (§13.35.8).
+  const ctx = Number.isFinite(s.contextTokens) ? Math.round(s.contextTokens / 1000) + 'k' : '—';
+  const busy = typeof s.inFlightTool === 'string' && s.inFlightTool ? '⚙' : '';
+  btn.textContent = `🪑 ${ctx}${busy}`;
+  const lines = [];
+  for (const k of ids) {
+    const t = wsSeats[k] || {};
+    const parts = [k, t.status || 'unknown'];
+    if (typeof t.model === 'string') parts.push(t.model);
+    if (typeof t.effort === 'string') parts.push('effort=' + t.effort);
+    if (Number.isFinite(t.contextTokens)) parts.push('ctx=' + t.contextTokens);
+    if (typeof t.inFlightTool === 'string' && t.inFlightTool) parts.push('▶' + t.inFlightTool);
+    lines.push(parts.join(' · '));
+  }
+  btn.title = lines.join('\n');   // title 은 텍스트 속성이라 마크업 해석 안 해요
+}
 function wsWfBtnSync() {   // v2.4.64 — 입력줄 인디케이터 토글 "Wn/n Sn" (최근 런 done/started + 활동 서브에이전트 수)
   const btn = document.getElementById('ws-wf-inbtn'); if (!btn) return;
   const ids = Object.keys(wsWfRuns).sort((a, b) => ((wsWfRuns[b].updatedAt || 0) - (wsWfRuns[a].updatedAt || 0)));
@@ -3103,12 +3181,22 @@ function onWsEvent(m) {
     if (v.corporateChart && typeof v.corporateChart === 'object') { orgChart = v.corporateChart; }   // §13.33 조직 구조 동봉분 (단일 객체·latest-wins)
     if (v.roleStates && typeof v.roleStates === 'object') { for (const k of Object.keys(v.roleStates)) roleStates.set(k, v.roleStates[k]); }   // §13.33 좌석 상태 동봉분 (role → state)
     wsReplayHistory(events, v.cold, v.archived);
+    // v2.4.129 — 서버가 «활성 채널도 최근분만» 보냈으면 그 사실이 scope.truncated 에 실려 와요.
+    //   기억해 뒀다가 스트림 위쪽 「이전 대화 더 보기」로 보여줘요. 이 신호를 안 쓰면 잘림이 조용해지고,
+    //   사용자는 옛 대화가 **사라졌다** 고 읽어요 (v2.4.89 가 겪은 그 오진과 같은 부류예요).
+    for (const tr of (((v.scope || {}).truncated) || [])) {
+      if (tr && tr.key) wsMoreNote(tr.key, tr.oldestSentTs || 0, Math.max(0, (tr.total || 0) - (tr.sent || 0)));
+    }
     try { renderOrg(); } catch {}   // 조직도 탭은 재생이 끝난 뒤 한 번만 그려요 (선언 부재 시 빈 상태 유지)
     return;
   }
   if (t === 'ChannelHistory' || (t === 'CUSTOM' && m.name === 'ChannelHistory')) {
     const v = (t === 'ChannelHistory') ? m : (m.value || {});
     const channelKey = v.channelKey || v.channel;
+    // v2.4.129 — `prepend` 면 **이어받기**예요: 기존 줄을 지우지 않고 앞에 붙여요. 종전 경로(cold 복원)는
+    //   채널을 통째로 갈아끼우니 그대로 두고, 새 형태만 갈라요 — 한 함수가 두 뜻을 갖게 하면 다음 사람이
+    //   «왜 내 줄이 사라지지» 를 겪어요.
+    if (v.prepend) { wsPrependChannelHistory(channelKey, v.events, v); return; }
     wsReplayChannelHistory(channelKey, v.events); return;
   }
   if (t === 'CUSTOM' && m.name === 'ServerNotice') {   // 브릿지/서버 재시작 등 시스템 공지 → 활성 채널 status 카드
@@ -3172,6 +3260,13 @@ function onWsEvent(m) {
   }
   if (t === 'CUSTOM' && m.name === 'SubagentStatus') {   // v2.4.63 — 단독 서브에이전트 모니터 스냅샷 → 인스펙터 섹션 (스트림 카드 미생성)
     wsWfSubsIntake(m.value || {});
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'SeatTelemetry') {   // v2.4.129 — 좌석 계측 스냅샷 → 지표 (스트림 카드 미생성)
+    // 계측을 대화 줄로 렌더하면 지표가 아니라 소음이 돼요. 위 둘과 같은 부류라 같은 처리를 해요 —
+    //   운영자 보고(2026-08-01): 「주기적으로 SeatTelemetry row 가 뜨고 알림도 온다」. 값은 늘 바뀌니
+    //   변경-트리거로 줄여도 대화창에 있는 한 계속 쌓여요. 자리를 옮기는 게 답이지 빈도가 아니에요.
+    wsSeatIntake(m.value || {});
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CommandManifest') {   // v2.4.67 — 슬래시 자동완성 매니페스트 (스트림 카드 미생성, live 갱신)

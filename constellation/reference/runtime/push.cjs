@@ -149,6 +149,9 @@ const NOISE = new Set([
   'ConnectionRestored', 'CloseChannel', 'DeleteChannelHistory', 'RequestChannelHistory', 'ChannelHistory',
   'ArchiveChannel', 'History', 'KeyRevokePending',
   'EchoModeState', 'WorkflowStatus', 'SubagentStatus',   // v2.4.64 — 활동 모니터/에코 스냅샷 (15s 하트비트급 — PWA 알림 과빈발 사용자 보고로 제외)
+  'SeatTelemetry',   // v2.4.129 — 좌석 계측 스냅샷. **위 줄과 같은 사유로 같은 날 다시 보고됐어요** — 새 계측
+                     //   이름을 만들 때 이 목록을 같이 보는 게 규율인데, 규율은 그렇게 또 빠져요.
+
   'CommandManifest', 'OpsState', 'CapabilityManifest', 'CorporateChart', 'RoleState',   // v2.4.71/76 — 선언-갱신 이벤트 (변경-트리거·기계 소비 전용 — 사람 알림 가치 0)
 ]);
 
