@@ -36,6 +36,7 @@
  */
 
 const path = require('path');
+const { stampRelayKey } = require('../../runtime/relay-key.cjs');   // §13.13.2 회수 열쇠 부품 (공용)
 const WS_URL = process.env.WS_URL || 'ws://127.0.0.1:7878/ws';
 const TOKEN = process.env.LIVE_BOARD_WS_TOKEN || process.env.WS_TOKEN || '';
 const AGENT_ID = process.env.WS_AGENT_ID || 'ref-agent';
@@ -78,6 +79,9 @@ function send(type, extra) {
     { type, id: 'a-' + now().toString(36) + '-' + (++seq), seq, runId: currentRunId, threadId: THREAD_ID, timestamp: now(), source: 'agent', agentId: AGENT_ID },
     extra,
   );
+  // §13.13.2 — 회수 열쇠는 **소켓으로 나가는 길목에서 한 번**. 표면마다 손으로 넣으면 새 표면이
+  //   생길 때마다 하나씩 빠지고, 빠진 자리는 오류가 아니라 «잘 보낸 것» 처럼 보여요(무음 유실).
+  stampRelayKey(msg);
   try { ws.send(JSON.stringify(msg)); return true; } catch { return false; }
 }
 

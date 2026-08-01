@@ -3607,6 +3607,13 @@ function wsRenderPageDots() {   // 그룹 위치 인디케이터 (점 strip) —
 
 // ---- 입력 송신 (활성 채널 targetAgentId) ----
 function wsCommon() { return { id: 'b-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), source: 'board', timestamp: Date.now() }; }
+// §13.13.2 회수 열쇠 — 운영자가 여기서 보내는 프롬프트도 targeted A2A 라, 열쇠가 없으면 상대가
+//   재시작하는 창에서 무증상으로 사라지고 화면엔 «보냈다» 만 남아요. 이 파일은 모듈 로더 없이
+//   <script> 로 실려서 relay-key.cjs 를 require 할 수 없어요 — 그래서 **여기만** 같은 규칙의
+//   사본을 둬요(자격 조건은 relay-key.cjs 가 정본: targeted + ack/ping 아님 + 열쇠 없음).
+function makeMsgId() { return 'b-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6); }
+const WS_ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);
+function wsStampRelayKey(m) { if (m && m.targetAgentId && !WS_ACK_KINDS.has(m.name) && !m.msgId) m.msgId = makeMsgId(); return m; }
 // v2.4.52 프롬프트 타깃 셀렉터 — 주입 행 우측 셀렉터가 유효 전달 대상을 상시 인디케이팅; 변경 시 현재 선택에 한해 오버라이드 (탭 전환 시 자동으로 리셋)
 let wsTargetOverride = null;
 function wsEffectiveTarget() {   // 유효 전달 대상 채널 키 — 오버라이드 > 활성 탭(그룹이면 대표 워커)
@@ -3729,7 +3736,7 @@ function wsSend(obj) {
   const extra = {};
   if (ch && ch.channelId) extra.channelId = ch.channelId;   // 에코·history 가 같은 채널키로 복원되도록
   if (ch && ch.threadId) extra.threadId = ch.threadId;
-  try { ws.send(JSON.stringify({ ...wsCommon(), targetAgentId: route, ...extra, ...obj })); return true; } catch { return false; }
+  try { ws.send(JSON.stringify(wsStampRelayKey({ ...wsCommon(), targetAgentId: route, ...extra, ...obj }))); return true; } catch { return false; }
 }
 function wsLocalRow(kind, label, body, extra) {
   const a = wsState.active; if (!a || wsIsMon(a)) return;
