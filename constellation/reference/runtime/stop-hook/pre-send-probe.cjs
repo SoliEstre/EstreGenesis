@@ -149,6 +149,13 @@ function classifyMeaningful(o) {
   //   전송 ack 는 정해진 몇 칸만 채우고, 그 밖의 칸이 있으면 사람이 읽으라고 쓴 글이에요.
   //   (발신 쪽 규율은 반대 방향이에요 — 실질 회신을 ack 이름에 실지 말 것. ack 계열은 회수
   //    계층에서 **구조적으로 제외**돼서(§13.13.2) 재전달도 미전달 통지도 없거든요.)
+  // v2.4.129 — **본문 검사는 ack 계열 이름에만.** 첫 판이 이 검사를 흡수 목록 *전체*에 걸었는데,
+  //   그 목록엔 AgentHello·AgentList·History·ConnectionInfo 처럼 **본문이 있는 게 정상**인 이름들이
+  //   있어요. 그래서 필터가 사실상 «본문 없는 것만 흡수» 로 뒤집혔고, 합류 인사 하나가 세션을
+  //   깨우는 걸 라이브에서 봤어요(발효 30분 내). 규범이 겨눈 건 «전송 계층 이름을 응용 내용이
+  //   타는 것» 이고 그건 ack 계열 셋뿐이에요 — 규격이 이름 댄 경우를 넘겨 적용한 게 원인이에요.
+  const ACK_TIER_NAMES = new Set(['Ack', 'AckProcessed', 'AckCumulative']);
+  if (eff && EXCLUDE_NAMES.has(eff) && !ACK_TIER_NAMES.has(eff)) return null;   // 그 밖의 흡수 이름은 본문과 무관하게 흡수
   if (eff && EXCLUDE_NAMES.has(eff)) {
     const v = msg.value;
     // 전송 칸 목록은 **실측으로 늘어난 목록**이에요 — 첫 판이 tier/nonce 를 빠뜨려서, 상대의
