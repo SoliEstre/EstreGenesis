@@ -1494,17 +1494,29 @@ function wsChanActive(ck, present) {   // C: 접속 시 즉시 보낼 채널 —
   const a = wsHistByChan.get(ck); if (a && a.length) { const e = a[a.length - 1]; if (present.has(e.agentId) || present.has(e.targetAgentId)) return true; }
   return false;
 }
-function wsHistoryPayload() {   // C(lazy load): active 채널 events full + cold/archived stub(키·건수만, 내용은 on-demand)
-  const present = wsPresentIds(), events = [], cold = [];
+// v2.4.129 — **활성 채널도 최근분만 보내요.** 종전엔 활성 채널의 events 를 전량 실었고, 오래 도는
+//   보드에서 그게 첫 페인트를 눌렀어요(운영자 보고 2026-08-01: 「row 가 너무 많아졌다」). 상한을
+//   두되 **조용히 자르지 않아요** — 잘린 사실·건수·가장 오래된 시각을 scope 에 실어야 클라이언트가
+//   «더 있다» 를 알고 이어서 요청할 수 있어요. 축약을 신호 없이 하던 게 정확히 v2.4.89 에서 오진을
+//   유발한 그 부류예요(그때 scope 를 만든 이유).
+const HISTORY_INITIAL_PER_CHAN = Number(process.env.HISTORY_INITIAL_PER_CHAN || 150);
+function wsHistoryPayload() {   // C(lazy load): active 채널 최근분 + cold/archived stub(키·건수만, 내용은 on-demand)
+  const present = wsPresentIds(), events = [], cold = [], truncated = [];
   for (const [ck, a] of wsHistByChan) {
     if (!a.length) continue;
-    if (wsChanActive(ck, present)) { for (const e of a) events.push(e); }
+    if (wsChanActive(ck, present)) {
+      const slice = a.length > HISTORY_INITIAL_PER_CHAN ? a.slice(-HISTORY_INITIAL_PER_CHAN) : a;
+      if (slice.length < a.length) {
+        truncated.push({ key: ck, sent: slice.length, total: a.length, oldestSentTs: slice[0].timestamp || 0 });
+      }
+      for (const e of slice) events.push(e);
+    }
     else cold.push({ key: ck, count: a.length, lastTs: a[a.length - 1].timestamp || 0, role: wsChanRoleOf(ck) });   // v2.4.59 role 동봉 — 그룹 오분류 fix
   }
   events.sort((x, y) => (x.timestamp || 0) - (y.timestamp || 0));
   // v2.4.89 (adopter observation C11b-부수): History 는 **활성 채널의 events + cold/archived 스텁**이라는 정책적 축약본인데,
   // 축약되었다는 신호가 없어 "이 보드 History 는 A2A 를 담지 않는다"는 오진을 유발했다. 정책을 페이로드에 명시한다.
-  const scope = { policy: 'active-channels+stubs', activeEvents: events.length, coldChannels: cold.length, archivedChannels: wsArchivedList().length, note: 'cold/archived 채널 내용은 RequestChannelHistory 로 on-demand — 부재 ≠ 미기록' };
+  const scope = { policy: 'active-channels-recent+stubs', activeEvents: events.length, coldChannels: cold.length, archivedChannels: wsArchivedList().length, perChannelLimit: HISTORY_INITIAL_PER_CHAN, truncated, note: 'cold/archived 채널 내용은 RequestChannelHistory 로 on-demand — 부재 ≠ 미기록. 활성 채널도 최근 perChannelLimit 건만 — truncated[] 의 채널은 beforeTs 를 실어 RequestChannelHistory 로 이어 받으세요'};
   return { events, cold, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests), corporateChart: wsCorpChart || null, roleStates: Object.fromEntries(wsRoleStates) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope + v2.4.90 §13.33 조직 차트/좌석 상태 동봉
 }
 function wsLoadChannel(ck) {   // RequestChannelHistory 응답용 — 메모리(active) 우선, 없으면 archived(cold)에서 로드 + active 복귀
@@ -1552,8 +1564,14 @@ if (fs.existsSync(HISTDIR)) wsLoadAll(); else wsMigrate();
 function wsAgentList() {
   return [...wsAgents.entries()].filter(([, c]) => c.alive).map(([id, c]) => ({ agentId: id, agentName: c.meta.agentName || id, role: wsAgentRole(c) }));
 }
-function wsToBoards(msg) { for (const c of wsConns) if (c.meta.role !== 'agent' && c.alive) c.send(msg); }
-function wsToAll(msg) { for (const c of wsConns) if (c.alive) c.send(msg); }   // 시스템 공지(ServerNotice 등) — 에이전트+board 전체
+// v2.4.129 — **방송 전에 시각을 정규화해요.** wsNormTs 는 여태 «저장·적재 경계» 에만 있었는데,
+//   디스패치는 `wsToBoards(msg); wsRecord(msg);` 순서라 대시보드는 **정규화 전** 프레임을 받아요.
+//   그래서 시각 없는 프레임이 라이브에서는 엉뚱한 자리에 뜨고(소비자가 `timestamp || 0` 을 쓰니
+//   1970년 자리), 새로고침하면 저장분이 정상 시각을 갖고 있어 제자리로 돌아와요 — 「일부 줄이 제
+//   시간이 아닌 위치에」라는 운영자 보고(2026-08-01)의 정확한 모양이에요. 발신자를 고치는 것만으론
+//   부족해요: 시각을 안 싣는 어댑터가 하나만 있어도 같은 증상이 돌아오거든요. 경계에서 막아요.
+function wsToBoards(msg) { wsNormTs(msg); for (const c of wsConns) if (c.meta.role !== 'agent' && c.alive) c.send(msg); }
+function wsToAll(msg) { wsNormTs(msg); for (const c of wsConns) if (c.alive) c.send(msg); }   // 시스템 공지(ServerNotice 등) — 에이전트+board 전체
 // v2.4.88 (adopter question → measured defect): AgentList 갱신이 board 로만 나가고 있었다. 에이전트는 upgrade 직후
 // 스냅샷 1장만 받는데 그 시점은 자기 HELLO **이전**이라, 그 캐시는 자기 자신도 없고 이후 합류자도 영구히 반영되지 않는다
 // (어댑터가 "자기 자신이 목록에 없다"로 관측 — 의도된 self-필터가 아니라 stale 캐시였다). 프레즌스는 에이전트에게도
@@ -2045,7 +2063,24 @@ server.on('upgrade', (req, socket) => {
     if (msg && msg.type === 'CUSTOM' && msg.name === 'CloseChannel') { wsCloseChannelHist(msg.value && msg.value.agentId); wsToBoards(msg); return; }
     if (msg && msg.type === 'CUSTOM' && msg.name === 'DeleteChannelHistory') { wsCloseChannelHist(msg.value && msg.value.agentId); wsToBoards(msg); return; }   // 🗑 영구삭제 — history 파일 제거(persist) + 다른 board 동기 (EstreUF parity)
     // C(lazy): 탭 클릭·세션 복원 시 채널 내용 on-demand 요청 → 해당 채널 events 응답
-    if (msg && msg.type === 'CUSTOM' && msg.name === 'RequestChannelHistory') { const ck = String((msg.value && msg.value.channelKey) || ''); conn.send(wscore.event('CUSTOM', { name: 'ChannelHistory', value: { channelKey: ck, events: wsLoadChannel(ck) } })); return; }
+    // v2.4.129 — `beforeTs` 를 실으면 그 시각 **이전** 구간을 최근순으로 limit 건 돌려줘요(이어받기).
+    //   안 실으면 종전대로 전량 — cold 채널 복원 경로가 그걸 쓰고 있어서 계약을 안 바꿔요.
+    //   `more` 는 «더 있다» 를 명시해요: 빈 배열과 «여기서 끝» 이 같은 모양이면 클라가 영원히 더 물어요.
+    if (msg && msg.type === 'CUSTOM' && msg.name === 'RequestChannelHistory') {
+      const ck = String((msg.value && msg.value.channelKey) || '');
+      const all = wsLoadChannel(ck);
+      const beforeTs = Number((msg.value && msg.value.beforeTs) || 0);
+      if (!beforeTs) { conn.send(wscore.event('CUSTOM', { name: 'ChannelHistory', value: { channelKey: ck, events: all } })); return; }
+      const limit = Math.min(Math.max(Number((msg.value && msg.value.limit) || HISTORY_INITIAL_PER_CHAN), 1), 1000);
+      const older = all.filter((e) => (e.timestamp || 0) < beforeTs);
+      const slice = older.slice(-limit);
+      conn.send(wscore.event('CUSTOM', { name: 'ChannelHistory', value: {
+        channelKey: ck, events: slice, prepend: true,
+        more: older.length > slice.length, remaining: older.length - slice.length,
+        oldestSentTs: slice.length ? (slice[0].timestamp || 0) : 0,
+      } }));
+      return;
+    }
     // D: ✕ 닫기 = 아카이브 → 해당 채널을 archived/(cold)로 이동(active 스캔·cap 제외, 복원 시 cold 로드)
     if (msg && msg.type === 'CUSTOM' && msg.name === 'ArchiveChannel') { wsArchiveChannel(String((msg.value && msg.value.agentId) || (msg.value && msg.value.channelKey) || '')); return; }
     // 첨부 data-URL → 디스크 추출(feedback-atts), 경량 경로 참조로 (history·relay 가벼움)
