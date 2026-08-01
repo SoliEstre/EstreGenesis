@@ -1,6 +1,6 @@
 ---
 name: subscaler
-description: "Tiered model composition — pick the right model tier AND effort per lane instead of running every lane on the main model. Invoke as /subscaler on|off|status, or consult before any Workflow / parallel fan-out to route each lane to a tier. Four tiers (T1 frontier-reasoning → T4 resident-observer), routing by task shape, per-harness binding keys and vendor-exact effort values in plugins/superscalar/model-registry.json (dated, replaceable). Default OFF; recommended ON for fan-outs. Spec: Superscalar.md §5.1."
+description: "Tiered model composition — pick the right model tier AND effort per lane instead of running every lane on the main model. Invoke as /subscaler on|off|status, or consult before any Workflow / parallel fan-out to route each lane to a tier. Five tiers (T1 frontier-reasoning · T1.5 frontier-execution · T2 agentic-execution · T3 bulk-worker · T4 resident-observer), routing by task shape, per-harness binding keys and vendor-exact effort values in plugins/superscalar/model-registry.json (dated, replaceable). Default OFF; recommended ON for fan-outs. Spec: Superscalar.md §5.1."
 ---
 
 # /subscaler — tiered model composition
@@ -29,6 +29,7 @@ Never bind a model id from memory. Model ladders move monthly; the registry carr
 |---|---|---|
 | Architecture · design decisions · ambiguous requirements | **T1** frontier-reasoning | vendor default; step up only on observed failure |
 | Adversarial verification / red-team | **T1**, deliberately a **different family** than the author | raised |
+| Complex multi-step execution with residual judgment (daily-driver main loop, heavyweight implementation lanes) | **T1.5** frontier-execution | default (`high`); don't raise effort to buy deliberation — pair with verification gates (check-first, test gates) |
 | Spec-complete implementation | **T2** agentic-execution | default, dropping a rung once evals hold |
 | Mechanical multi-file edit / migration | **T2** (T3 if each file is independently verifiable) | low–medium |
 | Test authoring | **T2** | medium; raise when tests must infer intent |
@@ -49,8 +50,9 @@ Tier ≠ entitlement. The registry's `planGating` records what each subscription
 - Team/Business seats often do **not** inherit the higher-multiplier headroom of the equivalent personal Pro tier; assuming the paid-team plan buys concurrency is a common planning error.
 - Some harnesses' model pickers lag their own vendor API — a picker default can be a model the API has already shut down. Pin explicitly.
 - Org policy can cap maximum effort per model per role, and in JSON/stream output or background agents **the clamp can apply silently** — a scripted lane may run below the effort you requested with no signal.
+- Invitation-gated models (registry `availability: "restricted access"` — today claude-mythos-5) are listed for **recognition, not planning**: entitlement is per-org/account, so verify the concrete account is enrolled before binding — picker visibility or an allowlist mention is not enrollment.
 
-If the tier you want is unavailable, degrade **down a tier at the same effort** rather than sideways to an unverified model.
+If the tier you want is unavailable — including an invitation-gated model whose enrollment you could not verify — degrade **down a tier at the same effort** rather than sideways to an unverified model.
 
 ## Step 4 — bind per lane, using the harness's own keys
 
