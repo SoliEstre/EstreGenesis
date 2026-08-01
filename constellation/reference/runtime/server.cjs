@@ -390,6 +390,7 @@ const A2A_WINDOW = 120000;                     // reply-window(ms) — 응답 ad
 const _RELAY_PENDING_MAX = Number(process.env.RELAY_PENDING_MAX || 256);     // per-target FIFO cap
 const _RELAY_THRESHOLD_MS = Number(process.env.RELAY_THRESHOLD_MS || 30 * 1000);   // 30s dogfood default; 5*60*1000 for prod
 const _RELAY_MAX_ATTEMPTS = Number(process.env.RELAY_MAX_ATTEMPTS || 3);
+const _RELAY_ABSENT_MAX_MS = Number(process.env.RELAY_ABSENT_MAX_MS || 10 * 60 * 1000);   // v2.4.127 부재 상한 — 돌아오지 않는 수신자 앞 항목을 무한 대기시키지 않아요
 const _RELAY_SCAN_INTERVAL_MS = 10 * 1000;   // scheduler tick
 const _relayPending = new Map();                                            // targetAgentId → Array<{ msgId, payload, firstAt, attempts, hasEmbeddedAttachment }>
 function _hasEmbeddedAttachment(msg) {
@@ -398,11 +399,16 @@ function _hasEmbeddedAttachment(msg) {
   return atts.some((a) => a && (a.source === 'embedded' || a.dataUrl));
 }
 function _relayPendingAdd(tgt, msg) {
-  if (!msg || !msg.msgId) return;                                            // §13.13.2: only msgId-bearing envelopes are tracked
+  // v2.4.127 §13.13.2 — 자격 판정은 **wsRelayKey 한 곳**에서만 나와요. 종전엔 이 함수가 `msg.msgId` 만,
+  //   wsIsAckable() 은 `(msgId || messageId)` 를 봐서 두 문턱이 어긋났어요. 그 틈이 가장 나쁜 변종을 만들어요:
+  //   발신자는 delivered ack 를 받아 «닿았다» 고 읽는데 그 프레임은 재전달 대상이 아니라, 끝내 안 닿아도
+  //   미전달 통지가 안 나가요 — **건강해 보이는 무음 유실**. 한쪽 이름을 맞추는 게 아니라 술어를 합쳐요.
+  const key = wsRelayKey(msg);
+  if (!key) return;
   let q = _relayPending.get(tgt);
   if (!q) { q = []; _relayPending.set(tgt, q); }
   if (q.length >= _RELAY_PENDING_MAX) q.shift();                            // FIFO eviction on cap
-  q.push({ msgId: msg.msgId, payload: msg, firstAt: Date.now(), attempts: 1, hasEmbeddedAttachment: _hasEmbeddedAttachment(msg) });
+  q.push({ msgId: key, payload: msg, firstAt: Date.now(), attempts: 1, hasEmbeddedAttachment: _hasEmbeddedAttachment(msg) });
 }
 function _relayPendingClear(tgt, msgId) {
   const q = _relayPending.get(tgt);
@@ -435,7 +441,18 @@ function _relayScheduleTick() {
         q.splice(i, 1);
         continue;
       }
-      if (!recipientPresent) continue;                                       // defer redelivery until reconnect
+      if (!recipientPresent) {
+        // v2.4.127 — 재접속까지 재전달을 미루는 건 그대로예요(짧은 재기동을 유실로 만들지 않으려고).
+        //   다만 종전엔 여기서 **그냥 continue** 라 attempts 가 영영 안 올라가서, 돌아오지 않는 수신자 앞
+        //   항목은 통지도 없이 큐에 남았어요 — 발신자는 「보냈다」만 쥔 채 끝나요(부재로 위장한 고장).
+        //   그래서 부재에도 **상한 시각**을 둬요: 그 시각을 넘기면 미전달로 종결하고 발신자에게 알려요.
+        if (now_ - e.firstAt >= _RELAY_ABSENT_MAX_MS) {
+          const senderId = (e.payload.agentId) || null;
+          if (senderId) _relayUnreachableEmit(senderId, e, tgt, 'recipient-absent');
+          q.splice(i, 1);
+        }
+        continue;
+      }
       try { d.send(e.payload); e.attempts++; e.firstAt = now_; } catch {}
     }
     if (!q.length) _relayPending.delete(tgt);
@@ -443,12 +460,18 @@ function _relayScheduleTick() {
 }
 setInterval(_relayScheduleTick, _RELAY_SCAN_INTERVAL_MS).unref();
 function wsIsTelemetry(msg) { return msg && (msg.threadId === 'codex-watch' || msg.runId === 'codex-watch' || (msg.type === 'STATE_SNAPSHOT' && msg.scope === 'codex-watch')); }   // watcher telemetry 는 A2A reply-window 에 묶지 않음
-const _WS_ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);   // §13.13 ack/ping류 — 이것 자체는 delivered ack 안 함(ACK storm 방지)
-function wsIsAckable(msg) {   // §13.13 A2A delivered ack 대상: ack/ping류·telemetry 제외, msgId 있을 때만(하위호환 — 클라가 msgId 붙이기 전엔 ack 미발생)
-  if (!msg || wsIsTelemetry(msg)) return false;
-  if (msg.type === 'CUSTOM' && _WS_ACK_KINDS.has(msg.name)) return false;
-  return !!(msg.msgId || msg.messageId);
+const _WS_ACK_KINDS = require('./relay-key.cjs').ACK_KINDS;   // v2.4.127 — 목록은 클라와 **한 곳**에서 (relay-key.cjs). 두 벌로 들면 어긋난 날 ack 스톰이나 무음 유실이 돼요.   // §13.13 ack/ping류 — 이것 자체는 delivered ack 안 함(ACK storm 방지)
+// v2.4.127 §13.13.2 — **회수 자격을 정하는 단 하나의 술어.** ack 문턱(delivered 회신)과 pending 문턱(재전달
+//   등재)이 각자 조건을 들고 있으면 반드시 어긋나요 — 실제로 어긋나 있었고, 그 틈이 「ack 은 오는데 재전달은
+//   안 되는」 상태를 만들었어요. 열쇠를 **돌려주는** 형태로 둔 건 등재 항목의 키까지 같은 곳에서 나오게 하려고예요
+//   (문턱만 합치고 키를 따로 읽으면 같은 드리프트가 한 칸 옆에서 재발해요).
+//   `messageId` 는 레거시 철자예요 — 받아주되 회수 열쇠로 정규화해요. 무시하면 그 어댑터는 조용히 회수 불가가 돼요.
+function wsRelayKey(msg) {
+  if (!msg || wsIsTelemetry(msg)) return null;
+  if (msg.type === 'CUSTOM' && _WS_ACK_KINDS.has(msg.name)) return null;    // ack/ping 류에 ack 를 붙이면 서로 되먹여 스톰이 돼요
+  return msg.msgId || msg.messageId || null;
 }
+function wsIsAckable(msg) { return wsRelayKey(msg) != null; }   // §13.13 delivered ack 대상 = 회수 등재 대상 (같은 술어)
 // 메인(main) 에이전트 — 대상(targetAgentId) 미지정 inbound/CUSTOM 의 우선 수신자(오케스트레이터). 핸드오프로 변경 가능.
 let WS_PRIMARY_ID = process.env.WS_PRIMARY_AGENT || 'main-agent';   // generic default (dashboard WS_LOCAL 과 일관); 다운스트림이 자기 환경 메인 agentId 를 env 로 주입
 function wsPrimaryAgent() { const p = wsAgents.get(WS_PRIMARY_ID); if (p && p.alive) return p; for (const c of wsAgents.values()) if (c.alive) return c; return null; }
@@ -1964,16 +1987,33 @@ server.on('upgrade', (req, socket) => {
       if (msg && msg.type === 'CUSTOM' && msg.name === 'AckProcessed' && msg.value && msg.value.ackFor && tgt) {
         _relayPendingClear(conn.meta.agentId, msg.value.ackFor);
       }
-      if (tgt && wsAgents.has(tgt)) {
-        const d = wsAgents.get(tgt); if (d && d.alive) {
+      // v2.4.127 §13.13.2 — **«대상 미지정» 과 «지정됐는데 지금 없음» 을 가릅니다.** 종전 조건은
+      //   `tgt && wsAgents.has(tgt)` 라, 대상 이름이 명부에 없으면 아래 else 로 흘러 «대상 미지정 폴백» 을
+      //   탔어요. 결과는 한 봉투에 결함 둘이에요: 발신자는 미전달을 못 듣고(무음 유실), 메인은 **자기 앞이
+      //   아닌 메시지를 받아요**(오배달·유출). 지정된 이름은 그 자체가 «메인에게 주라» 가 아니에요 —
+      //   폴백은 «받을 사람을 안 적었을 때» 의 규칙이에요.
+      if (tgt) {
+        const d = wsAgents.get(tgt);
+        if (d && d.alive) {
           d.send(msg);
           if (wsIsAckable(msg) && conn.alive) {   // §13.13 서버 delivered ack — relay 성공 시 발신자에게 자동 회신(전달 계층, board 미표시=과확인 피로 게이팅). 재기동 시 발효.
-            const _ackEv = wscore.event('CUSTOM', { name: 'Ack', value: { ackFor: msg.msgId || msg.messageId, kind: 'delivered', from: tgt } });
+            const _ackEv = wscore.event('CUSTOM', { name: 'Ack', value: { ackFor: wsRelayKey(msg), kind: 'delivered', from: tgt } });
             _ackEv.targetAgentId = conn.meta.agentId; _ackEv.source = 'server';
             conn.send(_ackEv);
           }
-          // §13.13.2 v0.4: register pending entry for msgId-bearing targeted CUSTOM (excludes ack/ping kinds via wsIsAckable check above)
-          if (wsIsAckable(msg)) _relayPendingAdd(tgt, msg);
+          // §13.13.2 v0.4: register pending entry for key-bearing targeted CUSTOM (ack/ping kinds excluded inside wsRelayKey)
+          _relayPendingAdd(tgt, msg);
+        } else if (wsRelayKey(msg)) {
+          // 회수 열쇠가 있으면 얹어요 — 재접속하면 재전달되고, 부재 상한을 넘기면 발신자에게 RelayUnreachable.
+          //   «한 번도 접속한 적 없는 이름» 도 여기로 와요: 오타든 아직 안 뜬 동료든, 판정은 같아요(지금 못 닿음).
+          _relayPendingAdd(tgt, msg);
+          console.warn('[ws] relay 보류 — target=%s 부재(미접속/미상) from=%s key=%s', tgt, conn.meta.agentId, wsRelayKey(msg));
+        } else if (conn.alive) {
+          // 열쇠가 없으면 추적할 수 없어요. 그래도 **조용히 사라지면 안 돼요** — 발신자에게 즉시 알려요.
+          const _ev = wscore.event('CUSTOM', { name: 'RelayUnreachable', value: { msgId: null, targetAgentId: tgt, attemptCount: 0, lastError: 'recipient-absent-untracked' } });
+          _ev.targetAgentId = conn.meta.agentId; _ev.source = 'server';
+          conn.send(_ev);
+          console.warn('[ws] relay 불가 — target=%s 부재 + 회수 열쇠 없음 from=%s', tgt, conn.meta.agentId);
         }
         _a2aPending.set(tgt, { from: conn.meta.agentId, contextId: msg.contextId || msg.threadId, parentId: msg.messageId || msg.id, at: Date.now() });   // §13.8 A2A 요청 기억(응답 페어링용)
       } else {

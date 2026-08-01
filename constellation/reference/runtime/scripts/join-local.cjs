@@ -6,6 +6,7 @@
 
 'use strict';
 const fs = require('fs');
+const { stampRelayKey } = require('../relay-key.cjs');   // §13.13.2 회수 열쇠 부품 (공용)
 const path = require('path');
 
 const DIR = path.resolve(__dirname, '..');
@@ -55,6 +56,9 @@ function log(obj) { try { fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(),
 function send(type, extra) {
   if (!ws || ws.readyState !== 1) return false;
   const msg = Object.assign({ type, id: 'a-' + Date.now().toString(36) + '-' + (++seq), seq, threadId: THREAD_ID, timestamp: Date.now(), source: 'agent', agentId: AGENT_ID }, extra);
+  // §13.13.2 — 회수 열쇠는 **소켓으로 나가는 길목에서 한 번**. 표면마다 손으로 넣으면 새 표면이
+  //   생길 때마다 하나씩 빠지고, 빠진 자리는 오류가 아니라 «잘 보낸 것» 처럼 보여요(무음 유실).
+  stampRelayKey(msg);
   try { ws.send(JSON.stringify(msg)); log({ ev: 'sent', name: msg.name || msg.type }); return true; } catch (e) { log({ ev: 'send-fail', e: String(e) }); return false; }
 }
 function loadOutCursor() { try { return parseInt(fs.readFileSync(OUT_CURSOR, 'utf8'), 10) || 0; } catch { return 0; } }

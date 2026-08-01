@@ -216,6 +216,10 @@ function emitDecisionRequestToOutbox(outboxPath, decisionId, tool, toolInput) {
       re: `[hyperbrief] 결정 시점 감지 — ${tool}. 검토 사안 등록 (전체 브리핑은 에이전트가 생성 시 보강).`
     }
   };
+  // §13.13.2 회수 열쇠 — 이 봉투는 targeted A2A 라, 열쇠가 없으면 서버가 delivered ack 도 pending
+  //   등재도 하지 않아요(상대 재시작 창에서 무증상 유실). 플러그인은 마켓플레이스로 **단독 설치**돼서
+  //   constellation 의 relay-key.cjs 가 옆에 없어요 — 그래서 자격 규칙을 여기 적어요(정본은 그 파일).
+  if (envelope.targetAgentId && !envelope.msgId) envelope.msgId = "hb-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
   const line = JSON.stringify(envelope);
   if (line.indexOf("\n") !== -1) throw new Error("envelope contains newline");
   fs.mkdirSync(path.dirname(outboxPath), { recursive: true });

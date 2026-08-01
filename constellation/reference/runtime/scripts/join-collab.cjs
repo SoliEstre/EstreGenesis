@@ -46,6 +46,7 @@
  *   PARENT_PID      이 pid 가 사라지면 스스로 종료 (§5 고아 방지 — 위 «권장» 구성이면 불필요)
  */
 const fs = require('fs');
+const { stampRelayKey, ACK_KINDS } = require('../relay-key.cjs');   // §13.13.2 회수 열쇠 부품 (공용) — ACK 종류 목록도 여기가 정본
 const path = require('path');
 
 const DIR = process.env.COLLAB_DIR ? path.resolve(process.env.COLLAB_DIR) : path.resolve(__dirname, '..');
@@ -138,7 +139,8 @@ if (!process.env.COLLAB_OUTBOX && process.env.COLLAB_SHARED_OUTBOX_OK !== '1') {
   }
 }
 
-const ACK_KINDS = new Set(['Ack', 'AckProcessed', 'AckCumulative', 'Ping', 'Pong']);   // §13.13 — 서버 pending 비추적이라 여기에 ack 하면 스톰이 돼요
+// §13.13 ACK_KINDS 는 위 relay-key.cjs 에서 받아요 — 여기에 사본을 두면 서버·클라·이 파일 셋이 각자
+//   목록을 들게 되고, 어긋난 날의 증상이 ack 스톰(너무 많이) 또는 무음 유실(너무 적게) 둘 중 하나예요.
 
 // ── §7 저장 시 메타 제외 ────────────────────────────────────────────────────
 // History 는 **재접속마다 전체 이력**이 다시 와요. 그대로 append 하면 저장소가 이력의 세대 수만큼
@@ -160,7 +162,12 @@ function send(type, extra) {
     type, id: 'a-' + Date.now().toString(36) + '-' + (++seq), seq,
     threadId: THREAD_ID, timestamp: Date.now(), source: 'agent', agentId: AGENT_ID,
   }, extra);
-  try { ws.send(JSON.stringify(msg)); log({ ev: 'sent', name: msg.name || msg.type }); return true; }
+  // §13.13.2 — 회수 열쇠는 **소켓으로 나가는 길목에서 한 번**. 표면마다 손으로 넣으면 새 표면이
+  //   생길 때마다 하나씩 빠지고, 빠진 자리는 오류가 아니라 «잘 보낸 것» 처럼 보여요(무음 유실).
+  //   열쇠 없는 봉투는 서버가 delivered ack 도 pending 등재도 안 해서, 상대가 재시작하는 창에 들어가면
+  //   조용히 사라지고 발신자는 그걸 못 알아요.
+  stampRelayKey(msg);
+  try { ws.send(JSON.stringify(msg)); log({ ev: 'sent', name: msg.name || msg.type, msgId: msg.msgId }); return true; }
   catch (e) { log({ ev: 'send-fail', e: String(e) }); return false; }
 }
 
