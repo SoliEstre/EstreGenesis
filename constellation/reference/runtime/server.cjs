@@ -272,6 +272,7 @@ const server = http.createServer((req, res) => {
       if (Array.isArray(entry.atts)) entry.atts = entry.atts.map(storeAtt);   // 첨부 data-URL → 디스크 추출
       try {
         fs.appendFileSync(FEEDBACK, JSON.stringify(entry) + '\n');
+        wsRelayOperatorFeedback(entry);   // v2.4.131 §13.13.4 — 파일은 기록이고, 릴레이가 기상이에요. append 만 하면 «적혔는데 아무도 모름» (실측: 운영자 결정 답변 5건 무음)
         sendJson(res, 200, { ok: true });
       } catch (e) { sendJson(res, 500, { ok: false, error: String(e) }); }
     });
@@ -461,6 +462,7 @@ function _relayScheduleTick() {
 setInterval(_relayScheduleTick, _RELAY_SCAN_INTERVAL_MS).unref();
 function wsIsTelemetry(msg) { return msg && (msg.threadId === 'codex-watch' || msg.runId === 'codex-watch' || (msg.type === 'STATE_SNAPSHOT' && msg.scope === 'codex-watch')); }   // watcher telemetry 는 A2A reply-window 에 묶지 않음
 const _WS_ACK_KINDS = require('./relay-key.cjs').ACK_KINDS;   // v2.4.127 — 목록은 클라와 **한 곳**에서 (relay-key.cjs). 두 벌로 들면 어긋난 날 ack 스톰이나 무음 유실이 돼요.   // §13.13 ack/ping류 — 이것 자체는 delivered ack 안 함(ACK storm 방지)
+const _wsStampRelayKey = require('./relay-key.cjs').stampRelayKey;   // v2.4.131 — 회수 열쇠 발급도 같은 부품에서 (OperatorFeedback 릴레이가 사용)
 // v2.4.127 §13.13.2 — **회수 자격을 정하는 단 하나의 술어.** ack 문턱(delivered 회신)과 pending 문턱(재전달
 //   등재)이 각자 조건을 들고 있으면 반드시 어긋나요 — 실제로 어긋나 있었고, 그 틈이 「ack 은 오는데 재전달은
 //   안 되는」 상태를 만들었어요. 열쇠를 **돌려주는** 형태로 둔 건 등재 항목의 키까지 같은 곳에서 나오게 하려고예요
@@ -1588,6 +1590,25 @@ function wsAgentList() {
 //   1970년 자리), 새로고침하면 저장분이 정상 시각을 갖고 있어 제자리로 돌아와요 — 「일부 줄이 제
 //   시간이 아닌 위치에」라는 운영자 보고(2026-08-01)의 정확한 모양이에요. 발신자를 고치는 것만으론
 //   부족해요: 시각을 안 싣는 어댑터가 하나만 있어도 같은 증상이 돌아오거든요. 경계에서 막아요.
+// v2.4.131 §13.13.4 — 대시보드 피드백(POST /api/feedback)은 **적재만으로 끝나면 안 돼요.**
+//   feedback.jsonl 은 기록(log-of-record)이고, 도착을 아는 층은 따로 있어야 해요. 실측: 운영자가 결정 답변
+//   5건을 넣었는데 어떤 소비자도 그 파일을 보지 않아 에이전트가 못 들었고, 하필 «wake 가 안 된다» 는 신고까지
+//   같은 구멍에 빠졌어요. 파일을 지켜보라고 소비자마다 가르치는 대신, 서버가 기존 파이프라인으로 릴레이해요:
+//   메인 지정 + 회수 열쇠(부재 창 재전달, §13.13.2) + board 미러 + history 영속 + webpush. HTTP 유래라
+//   conn 이 없어서 board-inbound 꼬리를 여기 축약해요.
+function wsRelayOperatorFeedback(entry) {
+  const ev = wscore.event('CUSTOM', { name: 'OperatorFeedback', value: entry });
+  ev.source = 'board';
+  ev.targetAgentId = WS_PRIMARY_ID;
+  _wsStampRelayKey(ev, 'opfb');                    // 열쇠 없는 프레임은 «보냈다≠닿았다» 부류 (v2.4.127)
+  wsNormTs(ev);
+  const d = wsAgents.get(WS_PRIMARY_ID);
+  if (d && d.alive) d.send(ev);
+  _relayPendingAdd(WS_PRIMARY_ID, ev);             // 부재 시 재접속 재전달; 상한 초과는 로그 (HTTP 발신자에겐 회신 채널 없음)
+  wsToBoards(ev);
+  wsRecord(ev);
+  try { push.maybePush(ev); } catch {}
+}
 function wsToBoards(msg) { wsNormTs(msg); for (const c of wsConns) if (c.meta.role !== 'agent' && c.alive) c.send(msg); }
 function wsToAll(msg) { wsNormTs(msg); for (const c of wsConns) if (c.alive) c.send(msg); }   // 시스템 공지(ServerNotice 등) — 에이전트+board 전체
 // v2.4.88 (adopter question → measured defect): AgentList 갱신이 board 로만 나가고 있었다. 에이전트는 upgrade 직후
