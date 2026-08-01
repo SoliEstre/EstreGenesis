@@ -485,6 +485,7 @@ const _WS_EXTERNAL_ROLES = new Set(['collab', 'peer', 'upstream']);   // parties
 // 그 조합은 기동 로그가 명시적으로 경고한다.
 function wsOperatorAuthz(conn) {
   if (conn.meta.role === 'agent') return wsAgentRole(conn) === 'main';
+  if (conn.meta.fwd) return false;
   const ip = conn.meta.ip || '';
   if (_isLoopback || isLoopbackIp(ip)) return true;
   return surfaceAllowed('ui', ip);
@@ -1738,8 +1739,16 @@ server.on('upgrade', (req, socket) => {
         const o = new URL(origin);
         // 같은 출처: 대시보드는 이 서버가 서빙해요. LAN 노출 배포에서 LAN 주소로 열어도 host 가 같아요.
         if (req.headers.host && o.host === req.headers.host) allowed = true;
-        // loopback 페이지(포트가 다른 로컬 개발 서버 등)는 명시 허용.
-        else if (isLoopbackIp(o.hostname) || o.hostname === 'localhost') allowed = true;
+        // v2.4.126 — **loopback 페이지 예외를 뺐어요.** 여기 있던 「포트가 다른 로컬 개발 서버는 명시 허용」이
+        //   이 배포에서 **프록시 없이도 열려 있던 유일한 문**이었어요. 이 기계의 아무 localhost 포트에서
+        //   서빙되는 페이지의 JS 가 이 엔드포인트를 열면, 그 소켓은 키도 HELLO 도 없어 conn.meta.role 이
+        //   undefined 로 남고 **board(=운영자) 갈래**로 분류돼요. 그 뒤로 KeyList(키 원문)·SetMain·
+        //   이력 비가역 삭제·메인 에이전트 프롬프트 주입까지 열려요.
+        //   **결정적 진단자**: 같은 위협에 같은 저자가 쓴 HTTP 쌍둥이 sameOriginPost 에는 이 예외가 없어요.
+        //   독립 판단 둘이 같은 자리에서 갈리면 취향이 아니라 규격의 빈 자리예요 — §13.25.15 가
+        //   「or be a loopback page」로 명시 허용하고 있었고, 그 문장이 틀렸어요.
+        //   대시보드는 이 서버가 서빙하니 위 host-일치 갈래로 통과해요. 정당한 타-출처 배포는 아래
+        //   WS_ALLOWED_ORIGINS 가 덮어요 — 그건 «명시 선언» 이라 이 예외와 성질이 달라요.
       } catch { /* 파싱 불가 Origin → 거부 */ }
       // 운영자가 별도 출처를 쓰는 배포용 탈출구. 비우면 위 두 규칙만 적용돼요.
       if (!allowed) {

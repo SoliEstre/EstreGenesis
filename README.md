@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version: v2.6.58" src="https://img.shields.io/badge/version-v2.6.58-2ea44f?style=for-the-badge" />
+  <img alt="Version: v2.6.59" src="https://img.shields.io/badge/version-v2.6.59-2ea44f?style=for-the-badge" />
   <a href="LICENSE.md"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache_2.0-blue?style=for-the-badge" /></a>
   <img alt="Seed tiers: 3" src="https://img.shields.io/badge/seed_tiers-3-8250df?style=for-the-badge" />
   <img alt="Seed files: 6" src="https://img.shields.io/badge/seed_files-6-0969da?style=for-the-badge" />
@@ -303,7 +303,17 @@ The seed reflects six opinions earned the hard way:
 
 Each tier has its own version. Master is the authoritative evolution track; Lite and Compact are derived regularly from Master but may lag by a release.
 
-**Current**: v2.6.58 (2026-07-30) — **MCP dropped the handshake, and the servers here were still the first revision (dual-era)** — the 2026-07-28 revision makes MCP stateless at the protocol layer: the `initialize` handshake is gone, every request carries its protocol version in `_meta`, and servers **MUST** implement `server/discover`. The four MCP servers in this repository declared `2024-11-05` and implemented `initialize`, `tools/list`, `tools/call` — nothing else. In the specification's compatibility matrix that is the row that fails: a modern client against a legacy server.
+**Current**: v2.6.59 (2026-08-01) — **보안** — **A page served from any local port could become the board's operator (Constellation v2.4.126)** — the WebSocket upgrade's cross-site gate allowed any loopback-origin page: «a local dev server on another port is explicitly permitted». A page served from localhost could therefore open the board's socket, and because it sent no key and no HELLO its connection carried no role — which classified it as the *board* surface, the one the operator uses. `wsOperatorAuthz` then returned true on the socket address alone. That opened key issuance, **key enumeration returning raw values**, revocation, `SetMain`, irreversible history deletion, and prompt injection into the main agent.
+
+The decisive diagnostic was already in the file: the HTTP twin written by the same author against the same threat, `sameOriginPost`, has no such exception. Two independent judgements diverging at one spot is a specification gap rather than a matter of taste — and §13.25.15 did explicitly permit «or be a loopback page», so the implementation was following the specification. The exception is gone; the dashboard is unaffected because this server serves it, so it passes on host equality, and deployments needing a different origin declare it in `WS_ALLOWED_ORIGINS` — a declaration rather than a blanket class.
+
+Second, `wsOperatorAuthz`'s board branch now consults the forwarding-header flag the upgrade already records. One line above it, the agent branch consults it; this branch did not, so behind a reverse proxy — the arrangement §13.25.16 recommends — every remote client presents as local and the branch hands over the highest-privilege verb set. Address cannot answer *which person*, so refusal is the honest verdict, and the path for a legitimate proxied operator is an account concept that remains an open decision.
+
+A third change was written and then withdrawn before shipping, which is worth recording. The history verbs (`CloseChannel`, `DeleteChannelHistory`, `RequestChannelHistory`, `ArchiveChannel`) reach irreversible deletion and restore archived content that the initial payload deliberately abbreviates — and they pass no authorisation predicate at all. A gate for them was added, and the collab smoke test immediately showed reconnect storms: five hellos where the contract permits one. Bisecting proved the gate was the cause — the dispatch is not board-only, so non-main agents were being refused a path they legitimately use. The gate is deferred to a cut that first establishes where the board/agent boundary actually runs. The finding stands; the fix was wrong.
+
+Verification state, stated plainly: three checkers are **red on purpose** right now. This investigation found that two existing checkers were concealing the defect they were written for — one fills in a missing field by hand, the other injects the very event it claims to observe — so the current track makes them honest first and repairs the runtime after. The failures they show are the real state of the code. This release's own changes were bisected against them: with the security patch reverted the same four failures remain, and no others appear with it applied.
+
+Previously: v2.6.58 (2026-07-30) — **MCP dropped the handshake, and the servers here were still the first revision (dual-era)** — the 2026-07-28 revision makes MCP stateless at the protocol layer: the `initialize` handshake is gone, every request carries its protocol version in `_meta`, and servers **MUST** implement `server/discover`. The four MCP servers in this repository declared `2024-11-05` and implemented `initialize`, `tools/list`, `tools/call` — nothing else. In the specification's compatibility matrix that is the row that fails: a modern client against a legacy server.
 
 The migration was small for an unusual reason: none of what the revision deprecates was ever implemented here. No Roots, Sampling, Logging, `ping`, `logging/setLevel`, HTTP+SSE, resources or prompts — so the deprecations cost nothing and there was nothing to remove. The servers were also already stateless in practice: `initialize` was answered but never required, so a request arriving without it was already served.
 
@@ -924,7 +934,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.58 (2026-07-30) — **MCP 가 핸드셰이크를 버렸고, 이 저장소의 서버들은 아직 최초 리비전이었어요 (dual-era)** — 2026-07-28 리비전이 MCP 를 프로토콜 층에서 무상태로 만들었어요: `initialize` 핸드셰이크가 사라지고, 모든 요청이 `_meta` 에 자기 프로토콜 버전을 실으며, 서버는 `server/discover` 를 **반드시** 구현해야 해요. 이 저장소의 MCP 서버 넷은 `2024-11-05` 를 선언하고 `initialize`·`tools/list`·`tools/call` 만 구현했어요 — 그게 전부예요. 스펙의 호환 표에서 그게 **실패하는 칸**이에요: 모던 클라이언트 대 구세대 서버.
+**현재**: v2.6.59 (2026-08-01) — **보안** — **로컬 아무 포트에서 서빙되는 페이지가 보드의 운영자가 될 수 있었어요 (Constellation v2.4.126)** — WebSocket upgrade 의 교차출처 게이트가 loopback 출처 페이지를 통째로 허용하고 있었어요(「포트가 다른 로컬 개발 서버는 명시 허용」). 그래서 localhost 에서 서빙되는 페이지가 보드 소켓을 열 수 있었고, 키도 HELLO 도 안 보냈다는 이유로 그 연결엔 role 이 안 붙어 **운영자가 쓰는 board 표면**으로 분류됐어요. 그다음 `wsOperatorAuthz` 가 소켓 주소만 보고 true 를 돌려줬어요. 열리는 건 키 발급, **키 원문을 돌려주는 열거**, 폐기, `SetMain`, 이력 비가역 삭제, 그리고 메인 에이전트로의 프롬프트 주입이에요.
+
+결정적 진단자는 이미 파일 안에 있었어요 — 같은 저자가 같은 위협에 쓴 HTTP 쌍둥이 `sameOriginPost` 에는 그 예외가 없어요. **독립 판단 둘이 한 자리에서 갈리면 취향이 아니라 규격의 빈 자리**예요. 실제로 §13.25.15 가 「or be a loopback page」로 명시 허용하고 있었으니 구현은 규격을 따른 거였어요. 예외는 제거했고 대시보드는 영향 없어요 — 이 서버가 서빙하니 host 일치로 통과해요. 다른 출처가 필요한 배포는 `WS_ALLOWED_ORIGINS` 로 **선언**해요, 부류를 통째로 여는 것과 성질이 달라요.
+
+둘째로 `wsOperatorAuthz` 의 board 갈래가 이제 전달 헤더 표시를 봐요 — upgrade 가 이미 기록해 두는 값이에요. **한 줄 위의 agent 갈래는 그걸 보는데 이 갈래만 안 봤어요.** 프록시 뒤에서는(§13.25.16 이 권장하는 그 배치) 원격이 전부 로컬로 보이니, 안 보면 이 갈래가 최고권한 동사 집합을 그대로 내줘요. 주소로는 «누구인가» 를 못 답하니 거절이 정직한 판정이고, 프록시 뒤 정당한 운영자를 위한 길은 계정 개념이며 그건 아직 열린 결정이에요.
+
+**셋째 변경은 쓰고 나서 출시 전에 뺐고, 그게 기록할 값어치가 있어요.** 이력 계열 동사(`CloseChannel`·`DeleteChannelHistory`·`RequestChannelHistory`·`ArchiveChannel`)는 비가역 삭제에 닿고 초기 페이로드가 일부러 줄여 놓은 archived 내용을 되살리는데, **인가 술어를 하나도 안 지나요.** 게이트를 넣었더니 collab 스모크가 즉시 재접속 폭주를 보였어요 — 계약이 1회를 규정한 자리에서 5회요. 이분 탐색으로 그 게이트가 원인임을 확정했어요: 그 dispatch 는 board 전용이 아니라서, 비-main 에이전트가 정당하게 쓰는 경로를 거절하고 있었어요. 게이트는 **board/agent 경계가 실제로 어디를 지나는지 먼저 확정하는 컷**으로 미뤄요. 발견은 유효하고 처방이 틀렸어요.
+
+검증 상태를 그대로 적어요: **검사 셋이 지금 일부러 빨개요.** 이번 조사에서 기존 검사 둘이 자기가 겨냥한 결함을 가리고 있다는 게 드러났어요 — 하나는 빠진 필드를 손으로 채우고, 다른 하나는 관측한다고 주장하는 그 이벤트를 스스로 주입해요. 그래서 이번 트랙은 검사를 먼저 정직하게 만들고 런타임을 나중에 고쳐요. 그 빨강이 코드의 실제 상태예요. 이번 릴리스의 변경은 그것들에 대해 이분 탐색했어요 — 보안 패치를 되돌려도 같은 실패 넷이 남고, 적용해도 다른 실패가 안 생겨요.
+
+이전: v2.6.58 (2026-07-30) — **MCP 가 핸드셰이크를 버렸고, 이 저장소의 서버들은 아직 최초 리비전이었어요 (dual-era)** — 2026-07-28 리비전이 MCP 를 프로토콜 층에서 무상태로 만들었어요: `initialize` 핸드셰이크가 사라지고, 모든 요청이 `_meta` 에 자기 프로토콜 버전을 실으며, 서버는 `server/discover` 를 **반드시** 구현해야 해요. 이 저장소의 MCP 서버 넷은 `2024-11-05` 를 선언하고 `initialize`·`tools/list`·`tools/call` 만 구현했어요 — 그게 전부예요. 스펙의 호환 표에서 그게 **실패하는 칸**이에요: 모던 클라이언트 대 구세대 서버.
 
 이전 작업이 작았던 이유가 특이해요 — 이 리비전이 폐기하는 것들을 **여기서는 하나도 구현한 적이 없어요.** Roots·Sampling·Logging·`ping`·`logging/setLevel`·HTTP+SSE·resources·prompts 전부요. 그래서 폐기 비용이 0 이고 제거할 것도 없었어요. 그리고 서버들은 사실상 이미 무상태였어요 — `initialize` 를 답하긴 했지만 **요구하지 않아서**, 그것 없이 온 요청도 이미 처리하고 있었어요.
 
@@ -1610,7 +1630,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.58 (2026-07-30) — **MCP 가 핸드셰이크를 버렸고, 이 저장소의 서버들은 아직 최초 리비전이었어요 (dual-era)** — 2026-07-28 리비전이 MCP 를 프로토콜 층에서 무상태로 만들었어요: `initialize` 핸드셰이크가 사라지고, 모든 요청이 `_meta` 에 자기 프로토콜 버전을 실으며, 서버는 `server/discover` 를 **반드시** 구현해야 해요. 이 저장소의 MCP 서버 넷은 `2024-11-05` 를 선언하고 `initialize`·`tools/list`·`tools/call` 만 구현했어요 — 그게 전부예요. 스펙의 호환 표에서 그게 **실패하는 칸**이에요: 모던 클라이언트 대 구세대 서버.
+**현재**: v2.6.59 (2026-08-01) — **보안** — **로컬 아무 포트에서 서빙되는 페이지가 보드의 운영자가 될 수 있었어요 (Constellation v2.4.126)** — WebSocket upgrade 의 교차출처 게이트가 loopback 출처 페이지를 통째로 허용하고 있었어요(「포트가 다른 로컬 개발 서버는 명시 허용」). 그래서 localhost 에서 서빙되는 페이지가 보드 소켓을 열 수 있었고, 키도 HELLO 도 안 보냈다는 이유로 그 연결엔 role 이 안 붙어 **운영자가 쓰는 board 표면**으로 분류됐어요. 그다음 `wsOperatorAuthz` 가 소켓 주소만 보고 true 를 돌려줬어요. 열리는 건 키 발급, **키 원문을 돌려주는 열거**, 폐기, `SetMain`, 이력 비가역 삭제, 그리고 메인 에이전트로의 프롬프트 주입이에요.
+
+결정적 진단자는 이미 파일 안에 있었어요 — 같은 저자가 같은 위협에 쓴 HTTP 쌍둥이 `sameOriginPost` 에는 그 예외가 없어요. **독립 판단 둘이 한 자리에서 갈리면 취향이 아니라 규격의 빈 자리**예요. 실제로 §13.25.15 가 「or be a loopback page」로 명시 허용하고 있었으니 구현은 규격을 따른 거였어요. 예외는 제거했고 대시보드는 영향 없어요 — 이 서버가 서빙하니 host 일치로 통과해요. 다른 출처가 필요한 배포는 `WS_ALLOWED_ORIGINS` 로 **선언**해요, 부류를 통째로 여는 것과 성질이 달라요.
+
+둘째로 `wsOperatorAuthz` 의 board 갈래가 이제 전달 헤더 표시를 봐요 — upgrade 가 이미 기록해 두는 값이에요. **한 줄 위의 agent 갈래는 그걸 보는데 이 갈래만 안 봤어요.** 프록시 뒤에서는(§13.25.16 이 권장하는 그 배치) 원격이 전부 로컬로 보이니, 안 보면 이 갈래가 최고권한 동사 집합을 그대로 내줘요. 주소로는 «누구인가» 를 못 답하니 거절이 정직한 판정이고, 프록시 뒤 정당한 운영자를 위한 길은 계정 개념이며 그건 아직 열린 결정이에요.
+
+**셋째 변경은 쓰고 나서 출시 전에 뺐고, 그게 기록할 값어치가 있어요.** 이력 계열 동사(`CloseChannel`·`DeleteChannelHistory`·`RequestChannelHistory`·`ArchiveChannel`)는 비가역 삭제에 닿고 초기 페이로드가 일부러 줄여 놓은 archived 내용을 되살리는데, **인가 술어를 하나도 안 지나요.** 게이트를 넣었더니 collab 스모크가 즉시 재접속 폭주를 보였어요 — 계약이 1회를 규정한 자리에서 5회요. 이분 탐색으로 그 게이트가 원인임을 확정했어요: 그 dispatch 는 board 전용이 아니라서, 비-main 에이전트가 정당하게 쓰는 경로를 거절하고 있었어요. 게이트는 **board/agent 경계가 실제로 어디를 지나는지 먼저 확정하는 컷**으로 미뤄요. 발견은 유효하고 처방이 틀렸어요.
+
+검증 상태를 그대로 적어요: **검사 셋이 지금 일부러 빨개요.** 이번 조사에서 기존 검사 둘이 자기가 겨냥한 결함을 가리고 있다는 게 드러났어요 — 하나는 빠진 필드를 손으로 채우고, 다른 하나는 관측한다고 주장하는 그 이벤트를 스스로 주입해요. 그래서 이번 트랙은 검사를 먼저 정직하게 만들고 런타임을 나중에 고쳐요. 그 빨강이 코드의 실제 상태예요. 이번 릴리스의 변경은 그것들에 대해 이분 탐색했어요 — 보안 패치를 되돌려도 같은 실패 넷이 남고, 적용해도 다른 실패가 안 생겨요.
+
+이전: v2.6.58 (2026-07-30) — **MCP 가 핸드셰이크를 버렸고, 이 저장소의 서버들은 아직 최초 리비전이었어요 (dual-era)** — 2026-07-28 리비전이 MCP 를 프로토콜 층에서 무상태로 만들었어요: `initialize` 핸드셰이크가 사라지고, 모든 요청이 `_meta` 에 자기 프로토콜 버전을 실으며, 서버는 `server/discover` 를 **반드시** 구현해야 해요. 이 저장소의 MCP 서버 넷은 `2024-11-05` 를 선언하고 `initialize`·`tools/list`·`tools/call` 만 구현했어요 — 그게 전부예요. 스펙의 호환 표에서 그게 **실패하는 칸**이에요: 모던 클라이언트 대 구세대 서버.
 
 이전 작업이 작았던 이유가 특이해요 — 이 리비전이 폐기하는 것들을 **여기서는 하나도 구현한 적이 없어요.** Roots·Sampling·Logging·`ping`·`logging/setLevel`·HTTP+SSE·resources·prompts 전부요. 그래서 폐기 비용이 0 이고 제거할 것도 없었어요. 그리고 서버들은 사실상 이미 무상태였어요 — `initialize` 를 답하긴 했지만 **요구하지 않아서**, 그것 없이 온 요청도 이미 처리하고 있었어요.
 
@@ -2357,7 +2387,17 @@ Phase 2.5 가 먼저 비기본 `<scope-root>` 를 선택할 수 있음: 일반 �
 
 각 tier 는 자체 버전 보유. 마스터가 권위 있는 진화 트랙; Lite·Compact 는 정기적으로 마스터에서 파생되나 한 릴리스 지연될 수 있음.
 
-**현재**: v2.6.58 (2026-07-30) — **MCP 가 핸드셰이크를 버렸고, 이 저장소의 서버들은 아직 최초 리비전이었어요 (dual-era)** — 2026-07-28 리비전이 MCP 를 프로토콜 층에서 무상태로 만들었어요: `initialize` 핸드셰이크가 사라지고, 모든 요청이 `_meta` 에 자기 프로토콜 버전을 실으며, 서버는 `server/discover` 를 **반드시** 구현해야 해요. 이 저장소의 MCP 서버 넷은 `2024-11-05` 를 선언하고 `initialize`·`tools/list`·`tools/call` 만 구현했어요 — 그게 전부예요. 스펙의 호환 표에서 그게 **실패하는 칸**이에요: 모던 클라이언트 대 구세대 서버.
+**현재**: v2.6.59 (2026-08-01) — **보안** — **로컬 아무 포트에서 서빙되는 페이지가 보드의 운영자가 될 수 있었어요 (Constellation v2.4.126)** — WebSocket upgrade 의 교차출처 게이트가 loopback 출처 페이지를 통째로 허용하고 있었어요(「포트가 다른 로컬 개발 서버는 명시 허용」). 그래서 localhost 에서 서빙되는 페이지가 보드 소켓을 열 수 있었고, 키도 HELLO 도 안 보냈다는 이유로 그 연결엔 role 이 안 붙어 **운영자가 쓰는 board 표면**으로 분류됐어요. 그다음 `wsOperatorAuthz` 가 소켓 주소만 보고 true 를 돌려줬어요. 열리는 건 키 발급, **키 원문을 돌려주는 열거**, 폐기, `SetMain`, 이력 비가역 삭제, 그리고 메인 에이전트로의 프롬프트 주입이에요.
+
+결정적 진단자는 이미 파일 안에 있었어요 — 같은 저자가 같은 위협에 쓴 HTTP 쌍둥이 `sameOriginPost` 에는 그 예외가 없어요. **독립 판단 둘이 한 자리에서 갈리면 취향이 아니라 규격의 빈 자리**예요. 실제로 §13.25.15 가 「or be a loopback page」로 명시 허용하고 있었으니 구현은 규격을 따른 거였어요. 예외는 제거했고 대시보드는 영향 없어요 — 이 서버가 서빙하니 host 일치로 통과해요. 다른 출처가 필요한 배포는 `WS_ALLOWED_ORIGINS` 로 **선언**해요, 부류를 통째로 여는 것과 성질이 달라요.
+
+둘째로 `wsOperatorAuthz` 의 board 갈래가 이제 전달 헤더 표시를 봐요 — upgrade 가 이미 기록해 두는 값이에요. **한 줄 위의 agent 갈래는 그걸 보는데 이 갈래만 안 봤어요.** 프록시 뒤에서는(§13.25.16 이 권장하는 그 배치) 원격이 전부 로컬로 보이니, 안 보면 이 갈래가 최고권한 동사 집합을 그대로 내줘요. 주소로는 «누구인가» 를 못 답하니 거절이 정직한 판정이고, 프록시 뒤 정당한 운영자를 위한 길은 계정 개념이며 그건 아직 열린 결정이에요.
+
+**셋째 변경은 쓰고 나서 출시 전에 뺐고, 그게 기록할 값어치가 있어요.** 이력 계열 동사(`CloseChannel`·`DeleteChannelHistory`·`RequestChannelHistory`·`ArchiveChannel`)는 비가역 삭제에 닿고 초기 페이로드가 일부러 줄여 놓은 archived 내용을 되살리는데, **인가 술어를 하나도 안 지나요.** 게이트를 넣었더니 collab 스모크가 즉시 재접속 폭주를 보였어요 — 계약이 1회를 규정한 자리에서 5회요. 이분 탐색으로 그 게이트가 원인임을 확정했어요: 그 dispatch 는 board 전용이 아니라서, 비-main 에이전트가 정당하게 쓰는 경로를 거절하고 있었어요. 게이트는 **board/agent 경계가 실제로 어디를 지나는지 먼저 확정하는 컷**으로 미뤄요. 발견은 유효하고 처방이 틀렸어요.
+
+검증 상태를 그대로 적어요: **검사 셋이 지금 일부러 빨개요.** 이번 조사에서 기존 검사 둘이 자기가 겨냥한 결함을 가리고 있다는 게 드러났어요 — 하나는 빠진 필드를 손으로 채우고, 다른 하나는 관측한다고 주장하는 그 이벤트를 스스로 주입해요. 그래서 이번 트랙은 검사를 먼저 정직하게 만들고 런타임을 나중에 고쳐요. 그 빨강이 코드의 실제 상태예요. 이번 릴리스의 변경은 그것들에 대해 이분 탐색했어요 — 보안 패치를 되돌려도 같은 실패 넷이 남고, 적용해도 다른 실패가 안 생겨요.
+
+이전: v2.6.58 (2026-07-30) — **MCP 가 핸드셰이크를 버렸고, 이 저장소의 서버들은 아직 최초 리비전이었어요 (dual-era)** — 2026-07-28 리비전이 MCP 를 프로토콜 층에서 무상태로 만들었어요: `initialize` 핸드셰이크가 사라지고, 모든 요청이 `_meta` 에 자기 프로토콜 버전을 실으며, 서버는 `server/discover` 를 **반드시** 구현해야 해요. 이 저장소의 MCP 서버 넷은 `2024-11-05` 를 선언하고 `initialize`·`tools/list`·`tools/call` 만 구현했어요 — 그게 전부예요. 스펙의 호환 표에서 그게 **실패하는 칸**이에요: 모던 클라이언트 대 구세대 서버.
 
 이전 작업이 작았던 이유가 특이해요 — 이 리비전이 폐기하는 것들을 **여기서는 하나도 구현한 적이 없어요.** Roots·Sampling·Logging·`ping`·`logging/setLevel`·HTTP+SSE·resources·prompts 전부요. 그래서 폐기 비용이 0 이고 제거할 것도 없었어요. 그리고 서버들은 사실상 이미 무상태였어요 — `initialize` 를 답하긴 했지만 **요구하지 않아서**, 그것 없이 온 요청도 이미 처리하고 있었어요.
 
