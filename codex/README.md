@@ -52,7 +52,7 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 
 <!-- BEGIN AUTO-INVENTORY (gen-codex-adapter.cjs --write) -->
 
-**Skills projected: 41** across 8 modules · **MCP servers: 4**
+**Skills projected: 44** across 8 modules · **MCP servers: 4**
 
 ### Agent Skills (→ `.agents/skills/<dir>/SKILL.md`)
 
@@ -85,10 +85,13 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 | estregenesis | `egmig` | egmig |
 | estregenesis | `egrich` | egrich |
 | estregenesis | `egup` | egup |
+| estregenesis | `feeda` | feeda |
+| estregenesis | `talka` | talka |
 | greatpractice | `routinize` | routinize |
 | hyperbrief | `hyperbrief` | hyperbrief |
 | hyperbrief | `hyperbrief-revisit` | hyperbrief-revisit |
 | hyperbrief | `hyperbrief-trigger-check` | hyperbrief-trigger-check |
+| superscalar | `ooo` | ooo |
 | superscalar | `subscaler` | subscaler |
 | superscalar | `superscalar` | superscalar |
 | ultrasafe | `ultrasafe-ai-llm-redteam` | ultrasafe-ai-llm-redteam |
