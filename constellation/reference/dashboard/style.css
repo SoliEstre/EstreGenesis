@@ -1148,3 +1148,20 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
     max-height: 62vh; border-bottom: 0; border-radius: 16px 16px 0 0; box-shadow: 0 -8px 28px rgba(0,0,0,.42); }
   .org-pop-head { border-radius: 16px 16px 0 0; }
 }
+
+/* ── 마크다운 풀 렌더 (v2.4.135) — 표·순서목록·인용·구분선·mermaid ────────────────
+   표는 자기 컨테이너 안에서만 가로 스크롤해요: 좁은 pane 에서 표 하나가 페이지 전체를
+   옆으로 밀면, 고친 줄 알았던 좁은-폭 문제가 다른 모양으로 돌아와요. */
+.md-table-wrap { overflow-x: auto; margin: 8px 0; }
+.md-table { border-collapse: collapse; font-size: .92em; min-width: min(100%, 320px); }
+.md-table th, .md-table td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top; }
+.md-table th { background: color-mix(in srgb, var(--panel) 70%, transparent); font-weight: 600; white-space: nowrap; }
+.md-table tr:nth-child(even) td { background: color-mix(in srgb, var(--panel) 35%, transparent); }
+.ws-md-ol { margin: 4px 0 4px 1.2em; padding-left: .6em; }
+.ws-md-ol li, .ws-md-ul li { margin: 2px 0; }
+.md-q { margin: 6px 0; padding: 4px 12px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--panel) 40%, transparent); opacity: .92; }
+.md-hr { border: 0; border-top: 1px solid var(--line); margin: 10px 0; }
+.md-h1 { font-size: 1.14em; } .md-h2 { font-size: 1.07em; } .md-h3 { font-size: 1.02em; }
+.md-mermaid { margin: 8px 0; text-align: center; overflow-x: auto; }
+.md-mermaid svg { max-width: 100%; height: auto; }
+.md-body { line-height: 1.6; }
