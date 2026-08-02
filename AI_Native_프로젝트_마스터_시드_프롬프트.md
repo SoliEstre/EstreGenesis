@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native 프로젝트 마스터 시드 프롬프트 (한국어)
 
-<!-- seed-tier: Master; language: Korean; version: v2.6.1; date: 2026-07-29; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = 가지치기+레지스트리 cut — 운영 규율 §13.x 인라인 → Constellation.md SSoT 포인터화 (invariant 어휘 + 1줄 요지만 시드 유지) + provenance/verbatim redaction + § EG 모듈 레지스트리 (5종 1-테이블) 신설; v2.5.1 = 레지스트리 6종 — Compendium 행 추가 (Migration-B dogfood 후속); v2.6.0 = 레지스트리 7종 — Corporate 행 추가 (역할 기반 에이전트 조직 모듈 신설); v2.6.1 = 모드 R (수용) 추가 — 요청 없이 표준만 건네받았을 때의 계약 (수용=설치·생산 아님 · 순수 규율 기본탑재 / 프로세스·포트·비용·권한은 명시적 요청 · 처신은 인프라보다 먼저 · 부트스트랩은 첫 산출물보다 먼저) -->
+<!-- seed-tier: Master; language: Korean; version: v2.7.0; date: 2026-08-02; counterpart: AI_Native_Project_Master_Seed_Prompt.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = 가지치기+레지스트리 cut — 운영 규율 §13.x 인라인 → Constellation.md SSoT 포인터화 (invariant 어휘 + 1줄 요지만 시드 유지) + provenance/verbatim redaction + § EG 모듈 레지스트리 (5종 1-테이블) 신설; v2.5.1 = 레지스트리 6종 — Compendium 행 추가 (Migration-B dogfood 후속); v2.6.0 = 레지스트리 7종 — Corporate 행 추가 (역할 기반 에이전트 조직 모듈 신설); v2.6.1 = 모드 R (수용) 추가 — 요청 없이 표준만 건네받았을 때의 계약 (수용=설치·생산 아님 · 순수 규율 기본탑재 / 프로세스·포트·비용·권한은 명시적 요청 · 처신은 인프라보다 먼저 · 부트스트랩은 첫 산출물보다 먼저); v2.7.0 = 하네스 티어 — 「묻지 않아도 얼마나 켜져 있나」 축 신설 (seed/lean/active/resident · 기본 lean · Phase 0 에서 묻지 않고 파생 · 규모 아닌 필요로 상승 · 에이전트는 내릴 수만, 올리는 건 운영자 · 자율 실행과 손실 게이트 바닥은 티어와 무관) + 델타 목록에 v2.6.0 · v2.6.1 소급 등재 -->
 
 > **사용법**: 새 프로젝트를 시작할 때 이 파일 전체를 복사해 선택한 AI 코딩 에이전트(Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI 등 어느 것이든)의 첫 대화 입력으로 붙여넣으세요. 이 프롬프트를 읽은 에이전트는 **대화형 부트스트랩 세션**을 시작해 프로젝트 셋업을 단계적으로 안내합니다.
 >
@@ -113,7 +113,7 @@
 >
 > 기본값: 둘 다 `off` (serial, speculation 없음). pace_mode가 **burst** 또는 **sprint**면 `parallel` on 권장. 둘 다 프로젝트 진행 중 전환 가능; speculation은 전역 또는 작업별 scoping 가능.
 
-네 답변이 모두 끝나면 이후 모든 대화는 **그 언어와 말투**로 진행하고, 모든 duration 추정에는 선택한 페이스 모드를 적용. 문서·커밋 메시지는 선택 언어로 작성. 네 결정 모두 Phase 7에서 `AGENTS.md`에 기록.
+네 답변이 모두 끝나면 이후 모든 대화는 **그 언어와 말투**로 진행하고, 모든 duration 추정에는 선택한 페이스 모드를 적용. 문서·커밋 메시지는 선택 언어로 작성. 네 결정 모두 Phase 7에서 `AGENTS.md`에 기록. 그리고 **하네스 티어** (묻지 않아도 얼마나 켜져 있나) 는 다섯 번째 질문이 아니라 위 답들에서 **파생** — 기본 `lean`, 1줄로 선언하고 진행 중 전환 가능 (§ EG 모듈 레지스트리).
 
 ---
 
@@ -1424,6 +1424,9 @@ Phase 7까지 완료되면 다음 메시지로 세션 마무리:
 | 핵심 원칙 #12 (Constellation, 선택적 참조 모듈 — 다중 에이전트 라이브보드: WebSocket + A2A 메시징 + 대시보드 + MCP) + § Constellation 섹션 + 불변 A2A bridge interface (역할 `board`/`main`/`local`/`upstream`/`collab` + 핸드셰이크 + 메시징 + 턴 기반 bridge-daemon + self-wake-watcher 런타임 패턴) + Constellation.md + constellation/*.eux 사양 (gateway-client.eux detail-tier A2A 어댑터) + EstreUX brew-runtime 참조 (빌드-time 의존, 번들/소유 안 함). 파일-기반 조정 (Phase 5) 은 기본값 유지. | v2.0.0 |
 | 핵심 원칙 #13 (실행 스케줄링 — Superscalar, 선택적 참조 모듈: 5-차원 bound `issue_width` 공식 — Anthropic effort band · pace_mode cap · Little's Law throughput · Kanban WIP · `autonomy_available_workers` — + ~30-60k token-horizon crossover 의 cost-benefit-gated dispatch) 와 #14 (자율 실행, 절대 — defined-next-step 은 묻지 않고 진행; gate 는 loss/외부-publish, 새 major-branch 결정 지점, restart-requiring 배포, 또는 명시적 사용자 steering 만) + § 실행 스케줄링 섹션 + Superscalar.md + Phase 0 네 번째 질문 (`execution scheduling: serial/parallel` + `speculation: off/on`) + AGENTS.md Core rules line 1 = 자율 실행 규칙 | v2.3.0 |
 | 운영 규율 §13.x 포인터화 (§ Constellation 의 인라인 본문 → `Constellation.md` SSoT 포인터; 시드는 invariant 어휘 + 1줄 요지만: §13.11 emission · §13.13 ack 계층 · §13.16.6 턴 종료 ritual 6요소 · §13.17 구조화 프롬프트 금지 · §13.19 deadlock · §13.20 blocker · §13.21 fresh-context defer) + provenance/verbatim redaction (msgId · Delegate seq · 정책 # · commit hash 직인용 제거) + § EG 모듈 레지스트리 (5종 모듈 1-테이블: 카테고리 / 채택 트리거 / 본문 raw URL / 플러그인 / 버전 위치) | v2.5.0 |
+| 레지스트리 7종 — Corporate 행 추가 (역할 기반 에이전트 조직 모듈) | v2.6.0 |
+| 모드 R (수용) — 요청 없이 표준만 건네받았을 때의 계약 (수용 = 설치이지 생산 아님 · 순수 규율만 기본 탑재 · 처신이 인프라보다 먼저) | v2.6.1 |
+| 하네스 티어 (seed / lean / active / resident) — § EG 모듈 레지스트리 의 채택 트리거를 재는 기계. 기본 `lean`, Phase 0 에서 묻지 않고 파생, 진행 중 전환 가능 (에이전트는 내릴 수만 · 올리는 건 운영자), 바닥은 티어와 무관 | v2.7.0 |
 
 필터링된 diff 를 번호 메뉴로 제시:
 
@@ -1510,6 +1513,22 @@ Phase 7까지 완료되면 다음 메시지로 세션 마무리:
 ## EG 모듈 레지스트리
 
 본 시드와 같은 repo (EstreGenesis) 가 ship 하는 **선택 모듈 7종**. 도입 카탈로그와 같은 원리 — 메뉴이지 체크리스트가 아니며, 트리거 발화 시에만 채택. 본문 SSoT 는 각 모듈 `.md` (raw URL 최신 `main` = `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/<모듈>.md`; 재현성은 tag 핀). 버전 위치: 각 모듈 `.md` frontmatter `version:` + `plugins/<모듈>/.claude-plugin/plugin.json` + repo 루트 `.claude-plugin/marketplace.json` — 같은 cut 에 동기 (N-way sync 등록부 대상).
+
+**하네스 티어 — 「묻지 않아도 얼마나 켜져 있나」.** 위 채택 트리거를 재는 기계. 모델 effort 처럼 프로젝트 진행 중 전환 가능하고, Phase 0 에서 **묻지 않고 파생** 해 1줄로 선언 (다섯 번째 질문을 만들지 않음).
+
+| 티어 | 켜진 것 | 올라가는 트리거 |
+| --- | --- | --- |
+| `seed` | 시드 1파일 + `.agent/` 기록 자리. 모듈 0 · 프로세스 0 | — |
+| `lean` **(기본)** | + 모듈 스킬, 단 **명시 호출할 때만** | 세션이 압축(compaction)을 넘김 |
+| `active` | + 규칙 기반 자동 발동 (결정 게이트 · 관행 캡처 · 어휘 lint) | **되돌릴 수 없는 결정이 실재** — 배포 · 상용 트래픽 · 데이터 이관 |
+| `resident` | + 상주 프로세스 (라이브보드 · 워커 · 감시자) + 팬아웃 허용 | **에이전트 둘 이상**, 또는 사람 없이 도는 시간이 있음 |
+
+티어는 **규모가 아니라 필요**로 올라감 — 프로젝트가 커서가 아니라, 되돌릴 수 없는 결정이 실제로 있어서 · 에이전트가 실제로 둘이어서. 규모로 올리면 안 쓰는 층을 데리고 다니게 되고, 그 층은 문맥을 먹으면서 값은 하지 않음.
+
+전환 규칙 둘 (불변):
+
+- **에이전트는 내릴 수만 있고, 올리는 건 운영자.** 내리는 건 운영자의 예산을 아끼고 올리는 건 씀 — 브리핑의 심층 티어가 요청으로만 닿는 것과 같은 원리 (누가 값을 치르나). 에이전트는 「올려야 한다」고 *말할* 수는 있음.
+- **바닥은 티어를 따라 내려가지 않음.** 자율 실행 규칙과 손실 / 외부 발행 게이트는 티어와 무관. 티어를 내리는 건 «덜 읽고 덜 끼어드는» 것이지 «덜 조심하는» 것이 아님.
 
 | 모듈 | 카테고리 (1줄) | 채택 트리거 | 본문 | 플러그인 |
 | --- | --- | --- | --- | --- |

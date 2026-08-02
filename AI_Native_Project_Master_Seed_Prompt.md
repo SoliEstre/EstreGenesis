@@ -1,6 +1,6 @@
 # EstreGenesis — AI Native Project Master Seed Prompt (English)
 
-<!-- seed-tier: Master; language: English; version: v2.6.1; date: 2026-07-29; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = pruning+registry cut — §13.x operating disciplines pointerized from inline to the Constellation.md SSoT (seed keeps invariant vocabulary + one-line gists) + provenance/verbatim redaction + § EG Module Registry (one-table of 5 modules) added; v2.5.1 = registry to six — Compendium row added (Migration-B dogfood follow-up); v2.6.0 = registry 7 modules — Corporate row added (new durable-role agent organization module); v2.6.1 = Mode R (Reception) added — the contract for being handed the standard with no request attached (reception is installation not production; default-mount pure discipline, require an explicit request for anything that runs a process, binds a port, spends money or claims authority; conduct binds before infrastructure; bootstrap precedes the first deliverable) -->
+<!-- seed-tier: Master; language: English; version: v2.7.0; date: 2026-08-02; counterpart: AI_Native_프로젝트_마스터_시드_프롬프트.md; changelog: upstream EstreGenesis repository CHANGELOG.md, not target project README.md; v2.5.0 = pruning+registry cut — §13.x operating disciplines pointerized from inline to the Constellation.md SSoT (seed keeps invariant vocabulary + one-line gists) + provenance/verbatim redaction + § EG Module Registry (one-table of 5 modules) added; v2.5.1 = registry to six — Compendium row added (Migration-B dogfood follow-up); v2.6.0 = registry 7 modules — Corporate row added (new durable-role agent organization module); v2.6.1 = Mode R (Reception) added — the contract for being handed the standard with no request attached (reception is installation not production; default-mount pure discipline, require an explicit request for anything that runs a process, binds a port, spends money or claims authority; conduct binds before infrastructure; bootstrap precedes the first deliverable); v2.7.0 = harness tier — new "how much is on when nobody asked" axis (seed/lean/active/resident; default lean; derived at Phase 0 rather than asked; rises on need not size; an agent may only lower it, raising is the operator's call; the autonomy and loss gates are tier-independent) + delta list backfilled with v2.6.0 and v2.6.1 -->
 
 > **How to use**: When starting a new project, copy this entire file and paste it as the first message to any AI coding agent (Claude Code · Cursor · Copilot · Antigravity · Windsurf · Cline · Aider · Continue · Codex CLI · Amazon Q · Gemini CLI, etc.). The agent that reads this prompt will start an **interactive bootstrap session** that guides your project setup step by step.
 >
@@ -113,7 +113,7 @@ Once the pace mode is answered, ask the fourth Phase 0 question:
 >
 > Default if skipped: both `off` (serial, no speculation). If pace_mode is **burst** or **sprint**, I'll recommend `parallel` on. Both switchable mid-project; speculation can be globally toggled or scoped per task.
 
-Once all four are answered, conduct **all subsequent dialogue** in that language and tone, and apply the selected pace mode to every duration estimate. Use the selected language for documents and commit messages. Record all four decisions in `AGENTS.md` at Phase 7.
+Once all four are answered, conduct **all subsequent dialogue** in that language and tone, and apply the selected pace mode to every duration estimate. Use the selected language for documents and commit messages. Record all four decisions in `AGENTS.md` at Phase 7. And the **harness tier** (how much is on when nobody asked) is not a fifth question — it is **derived** from the answers above; default `lean`, declared in one line and switchable mid-project (§ EG Module Registry).
 
 ---
 
@@ -1417,6 +1417,9 @@ Confirm all services give consistent summaries. Any divergence → investigate w
 | Core Principle #12 (Constellation, optional referenced module — multi-agent live board: WebSocket + A2A messaging + dashboard + MCP) + § Constellation section + invariant A2A bridge interface (roles `board`/`main`/`local`/`upstream`/`collab` + handshake + messaging + turn-based bridge-daemon + self-wake-watcher runtime pattern) + Constellation.md + constellation/*.eux specs (gateway-client.eux detail-tier A2A adapter) + EstreUX brew-runtime reference (build-time dependency, not bundled or owned). File-based coordination (Phase 5) remains the default. | v2.0.0 |
 | Core Principles #13 (Execution scheduling — Superscalar, optional referenced module: issue_width formula with five-dimension bounds — Anthropic effort band · pace_mode cap · Little's Law throughput · Kanban WIP · `autonomy_available_workers` — plus cost-benefit-gated dispatch at the ~30-60k token-horizon crossover) and #14 (Autonomous execution, absolute — defined-next-step proceeds without asking; gating only on loss/external-publish, new major-branch decision-point, restart-requiring deploys, or explicit user steering) + § Execution Scheduling section + Superscalar.md + Phase 0 fourth question (`execution scheduling: serial/parallel` + `speculation: off/on`) + AGENTS.md Core rules line 1 = Autonomous execution rule | v2.3.0 |
 | §13.x operating disciplines pointerized (inline bodies in § Constellation → `Constellation.md` SSoT pointers; seed keeps invariant vocabulary + one-line gists: §13.11 emission · §13.13 ack layer · §13.16.6 turn-end ritual 6 elements · §13.17 structured-prompt ban · §13.19 deadlock · §13.20 blocker · §13.21 fresh-context defer) + provenance/verbatim redaction (msgId · Delegate seq · policy # · commit-hash citations removed) + § EG Module Registry (one-table of 5 modules: category / adoption trigger / body raw URL / plugin / version locations) | v2.5.0 |
+| registry to seven — Corporate row added (durable-role agent organization module) | v2.6.0 |
+| Mode R (Reception) — the contract for being handed the standard with no request attached (reception is installation, not production; default-mount pure discipline only; conduct binds before infrastructure) | v2.6.1 |
+| harness tier (seed / lean / active / resident) — the mechanism behind § EG Module Registry's adoption trigger. Default `lean`, derived rather than asked at Phase 0, switchable mid-project (an agent may only lower it; raising is the operator's call), and the floor is tier-independent | v2.7.0 |
 
 Present a filtered diff to the user as a numbered menu:
 
@@ -1503,6 +1506,22 @@ Each deferred row records: option, why deferred, trigger, and adoption work. Whe
 ## EG Module Registry
 
 **Seven optional modules** shipped by the same repo (EstreGenesis) as this seed. Same principle as the Adoption Catalog — a menu, not a checklist; adopt only when a trigger fires. The full-text SSoT is each module's `.md` (raw URL on `main` = `https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/<Module>.md`; pin a tag for reproducibility). Version locations: each module `.md` frontmatter `version:` + `plugins/<module>/.claude-plugin/plugin.json` + repo-root `.claude-plugin/marketplace.json` — synced in the same cut (an N-way sync registry surface).
+
+**Harness tier — "how much is on when nobody asked".** The mechanism behind the adoption-trigger column above. Switchable mid-project like model effort, and **derived rather than asked** at Phase 0 — declared in one line instead of becoming a fifth question.
+
+| Tier | What is on | What raises it |
+| --- | --- | --- |
+| `seed` | The seed file + `.agent/` as a place to record. Zero modules, zero processes | — |
+| `lean` **(default)** | + module skills, but **only when explicitly invoked** | the session outlives a compaction |
+| `active` | + rule-fired automatics (decision gates · practice capture · vocabulary lint) | **irreversible decisions actually exist** — deploys · production traffic · data migration |
+| `resident` | + resident processes (live board · workers · watchers) + fan-out permitted | **two or more agents**, or hours that run with nobody watching |
+
+A tier rises on **need, not size** — not because the project is large, but because irreversible decisions are actually present, or a second agent actually is. Raising it by size means carrying layers nobody uses, and those layers eat context while earning nothing.
+
+Two switching rules (invariant):
+
+- **An agent may only lower it; raising is the operator's call.** Lowering saves the operator's budget, raising spends it — the same principle that puts the deep briefing tier behind an explicit request (whoever pays decides). An agent may *say* it should be raised.
+- **The floor does not move with the tier.** The autonomous-execution rule and the loss / external-publish gates are tier-independent. Lowering the tier means reading less and interrupting less — not being less careful.
 
 | Module | Category (one line) | Adoption trigger | Body | Plugin |
 | --- | --- | --- | --- | --- |
