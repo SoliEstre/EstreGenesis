@@ -107,6 +107,7 @@ State availability in one line each and **wait for a request**. The parenthesis 
 | **Ultrasafe** blocking mode | `active` | Can stop a release. Advisory mode is the default for exactly this reason |
 | Web push / notifications | `resident` | Reaches the user's device outside the session |
 | Scheduled or resident loops | `resident` | Consumes budget while nobody is watching |
+| Scale-out seats — knowledge-graph librarian · code-graph SSoT · judgment memory (Constellation §13.37) | `resident` | Always-on shared infrastructure that earns its cost only past one-operator-one-agent; which tool sits in a seat is a registry fact (`plugins/constellation/tool-registry.json`), and a judgment-memory seat retrieves material — it never decides |
 
 If the user wants everything wired at once, hand off to **`/egrich`** — and even then, keep 4b's costs in the offer rather than enabling silently.
 
