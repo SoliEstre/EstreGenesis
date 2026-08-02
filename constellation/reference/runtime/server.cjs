@@ -440,6 +440,7 @@ const wsConns = new Set();
 const wsAgents = new Map();                    // agentId → conn
 const _a2aPending = new Map();                 // §13.8 A2A reply 페어링: 응답 에이전트 agentId → { from, contextId, parentId, at } (요청 기억)
 const A2A_WINDOW = 120000;                     // reply-window(ms) — 응답 adapter 가 envelope echo 못할 때 fallback
+const _telFillWarn = new Set();                // v2.4.138 — 되돌림이 빈 수신자를 채운 (발신자|이름|수신자) 조합, 조합당 1회만 경고
 
 // §13.13.2 v0.4 at-least-once relay reliability — server-side pending queue + redelivery scheduler.
 //   Per targeted CUSTOM with msgId, retain a pending entry until commitment-tier AckProcessed arrives.
@@ -518,7 +519,10 @@ function _relayScheduleTick() {
   }
 }
 setInterval(_relayScheduleTick, _RELAY_SCAN_INTERVAL_MS).unref();
-function wsIsTelemetry(msg) { return msg && (msg.threadId === 'codex-watch' || msg.runId === 'codex-watch' || (msg.type === 'STATE_SNAPSHOT' && msg.scope === 'codex-watch')); }   // watcher telemetry 는 A2A reply-window 에 묶지 않음
+// v2.4.138 — 판정은 `frame-class.cjs` 한 곳에서. 종전엔 이 자리가 `codex-watch` **한 워처의 이름**
+//   이었고, 규격이 「is tagged」라고만 해서 그게 곧 태그였어요. 그래서 나중에 생긴 좌석 계측이
+//   규격상 telemetry 인데 제외되지 못했고, 응답창 되돌림이 그걸 협업 상대에게 부쳤어요.
+const wsIsTelemetry = require('./frame-class.cjs').isTelemetryFrame;   // watcher telemetry 는 A2A reply-window 에 묶지 않음
 const _WS_ACK_KINDS = require('./relay-key.cjs').ACK_KINDS;   // v2.4.127 — 목록은 클라와 **한 곳**에서 (relay-key.cjs). 두 벌로 들면 어긋난 날 ack 스톰이나 무음 유실이 돼요.   // §13.13 ack/ping류 — 이것 자체는 delivered ack 안 함(ACK storm 방지)
 const _wsStampRelayKey = require('./relay-key.cjs').stampRelayKey;   // v2.4.131 — 회수 열쇠 발급도 같은 부품에서 (OperatorFeedback 릴레이가 사용)
 // v2.4.127 §13.13.2 — **회수 자격을 정하는 단 하나의 술어.** ack 문턱(delivered 회신)과 pending 문턱(재전달
@@ -2152,7 +2156,17 @@ server.on('upgrade', (req, socket) => {
       } else {
         const rp = _a2aPending.get(conn.meta.agentId);            // §13.8 reply-window fallback: 최근 A2A 요청을 받았으면 board 응답을 원 요청자에게 A2A 로 페어링(응답 adapter 가 envelope echo 못할 때)
         if (rp && Date.now() - rp.at < A2A_WINDOW && !wsIsTelemetry(msg) && !(msg.type === 'CUSTOM' && msg.name === 'ConnectionRestored')) {
-          if (msg.targetAgentId == null) msg.targetAgentId = rp.from;
+          // v2.4.138 — 빈 수신자를 채우는 순간은 **한 번은 말해요.** 조용히 채우면 「응답을 짝지음」과
+          //   「남의 계측을 부침」이 완전히 같은 모양이라, 분류에서 빠진 상시 스트림이 상대 세션을
+          //   깨우는 동안에도 이쪽엔 아무 신호가 없어요(실측: 그렇게 165건이 나갔어요).
+          if (msg.targetAgentId == null) {
+            const _k = conn.meta.agentId + '|' + (msg.name || msg.type) + '|' + rp.from;
+            if (!_telFillWarn.has(_k)) {
+              _telFillWarn.add(_k);
+              console.warn('[ws] 응답창 되돌림 — 무대상 %s(from=%s)의 수신자를 %s 로 채웠어요. 관측용 프레임이면 발신 길목에서 telemetry:true 를 찍으세요 (frame-class.cjs).', msg.name || msg.type, conn.meta.agentId, rp.from);
+            }
+            msg.targetAgentId = rp.from;
+          }
           if (msg.contextId == null && rp.contextId) msg.contextId = rp.contextId;
           if (msg.parentId == null && rp.parentId) msg.parentId = rp.parentId;
           const d = wsAgents.get(rp.from); if (d && d.alive && d !== conn) d.send(msg);   // 원 요청자에게도 A2A relay
