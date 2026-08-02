@@ -2493,10 +2493,55 @@ const WS_A2A_INTENT = {   // name → { icon, label, summaryKeys[] } (summaryKey
   OnboardAck:        { icon: '🤝', label: '온보딩',   sum: ['re', 'welcome', 'guide', 'summary', 'policy'] },
   AgentHello:        { icon: '👋', label: '합류',     sum: ['agentName', 'note', 'agentId', 'env'] },
 };
-function wsA2aSummary(spec, v) {   // summary 1줄 — spec.sum 키 순서대로 첫 비어있지 않은 문자열
+// v2.4.137 — **공용 요약 꼬리.** intent 마다 키를 손으로 열거하면 그 목록은 «빠뜨리는» 쪽으로 뒤처져요:
+//   다른 그룹이 자기 어휘로 보내는 순간(실측: 협업 상대의 `topic`) 어느 키에도 안 걸려 미리보기가 빈칸이 돼요.
+//   그래서 각 intent 의 고유 순서는 그대로 두고, 그 **뒤에 공용 꼬리 하나**를 붙여요 — 새로 관측된 방언은
+//   스무 줄이 아니라 이 한 줄에 추가돼요. `topic` 은 `re` 와 같은 역할(무엇에 관한 글인가)이라 바로 옆에 둬요.
+const WS_A2A_SUM_TAIL = ['topic', 're', 'subject', 'summary', 'title', 'headline', 'text', 'message', 'notice', 'reason', 'ask', 'status', 'note', 'body', 'detail', 'label'];
+// 전송 계층 칸(§13.13 어휘표) — 사람이 읽을 내용이 아니라서 «첫 서술 필드» 후보에서 빼요.
+const WS_A2A_TRANSPORT_KEYS = new Set(['msgId', 'messageId', 'targetAgentId', 'agentId', 'threadId', 'contextId', 'parentId', 'seq', 'ts', 'timestamp', 'kind', 'tier', 'nonce', 'ackFor', 'from', 'recipients', 'offline', 'dedupHit', 'attemptCount', 'lastError', 'format', 'promptId', 'runId', 'id']);
+// 관측된 방언 수집기 — «목록에 없어서 마지막 수단으로 집은 키» 를 이름별로 세요. 콘솔에 한 번만 알리고
+//   `window.wsDialectKeys` 로 언제든 읽을 수 있어요. 이게 「계속 수집해서 목록을 갱신」의 기계 부분이에요.
+const wsDialectKeys = new Map();
+window.wsDialectKeys = wsDialectKeys;
+function wsDialectSeen(name, key) {
+  const k = (name || '?') + '.' + key;
+  const n = (wsDialectKeys.get(k) || 0) + 1;
+  wsDialectKeys.set(k, n);
+  if (n === 1) console.info('[a2a] 방언 관측 — %s 의 «%s» 를 요약 키 목록이 모르고 있어요. 반복되면 WS_A2A_SUM_TAIL 에 추가하세요. (window.wsDialectKeys 로 전체 확인)', name || '?', key);
+}
+// 값이 «사람이 읽을 문장» 처럼 생겼는가. 해시·id·토큰은 미리보기에 떠도 아무것도 안 알려줘요
+//   (실측: 어느 상대의 첫 필드가 attachmentSha256 이라 미리보기에 해시가 떴어요).
+function wsProseLike(s) {
+  const x = String(s).trim();
+  if (!x) return false;
+  if (/^[0-9a-f]{16,}$/i.test(x)) return false;                 // 해시
+  if (/^[A-Za-z0-9._-]{20,}$/.test(x) && !/\s/.test(x)) return false;   // 토큰·id 류(공백 없는 긴 식별자)
+  return /\s/.test(x) || x.length >= 6;
+}
+function wsA2aSummary(spec, v) {   // summary 1줄 — intent 고유 순서 → 공용 꼬리 → 첫 «산문» 필드(방언 수집)
   if (v == null) return '';
   if (typeof v === 'string') return v;
-  for (const k of (spec.sum || [])) { const s = v[k]; if (s != null && String(s).trim() !== '' && (typeof s === 'string' || typeof s === 'number')) return String(s); }
+  // 대소문자는 그 자체가 방언 축이에요(TOPIC vs topic). 목록을 두 벌로 늘리지 않고 찾을 때 접어서 봐요.
+  const lower = new Map();
+  for (const k of Object.keys(v)) { const lk = k.toLowerCase(); if (!lower.has(lk)) lower.set(lk, k); }
+  const val = (k) => {
+    const rk = (k in v) ? k : lower.get(String(k).toLowerCase());
+    if (rk == null) return null;
+    const s = v[rk];
+    return (s != null && (typeof s === 'string' || typeof s === 'number') && String(s).trim() !== '') ? String(s) : null;
+  };
+  const pick = (keys) => { for (const k of keys) { const s = val(k); if (s != null) return s; } return ''; };
+  const hit = pick(spec.sum || []) || pick(WS_A2A_SUM_TAIL);
+  if (hit) return hit;
+  // 마지막 수단 — 아직 아무 목록에도 없는 칸. **빈칸으로 두지 않아요**: 빈 미리보기와 «내용 없는
+  //   메시지» 가 같은 모양이면 목록이 낡았다는 사실이 화면에서 사라져요. 산문처럼 생긴 값을 먼저 보고,
+  //   그런 게 없을 때만 아무거나 집어요(그때도 무엇을 집었는지 수집돼요).
+  //   선호 순서는 셋이에요: **문장**(공백 있음) → 산문 같은 값 → 아무거나. 실측에서 「문장이 있는데
+  //   짧은 식별자를 집는」 경우가 나왔어요(freshEvidence 를 두고 fallback 을 집음) — 공백이 그 둘을 갈라요.
+  const cands = Object.keys(v).filter((k) => !WS_A2A_TRANSPORT_KEYS.has(k) && (typeof v[k] === 'string' || typeof v[k] === 'number') && String(v[k]).trim() !== '');
+  const best = cands.find((k) => /\s/.test(String(v[k]).trim()) && wsProseLike(v[k])) || cands.find((k) => wsProseLike(v[k])) || cands[0];
+  if (best) { wsDialectSeen(spec && spec.label, best); return String(v[best]); }
   return '';
 }
 // §13.16.12 Pattern 7 fallback — 미정합 adopter 가 A2A Report 를 envelope 대신 TEXT_MESSAGE.text 에
@@ -3597,7 +3642,7 @@ function onWsEvent(m) {
       else {   // 미분류 CUSTOM 도 카드로 통일 (카드 미표시 항목 카드화). 객체값 → a2acard(generic spec, re > summary 우선 fallback), 비-객체 → text row.
         const v = m.value;
         if (v != null && typeof v === 'object') {
-          const spec = { icon: '✦', label: m.name || 'CUSTOM', sum: ['re', 'text', 'message', 'notice', 'summary', 'label', 'ask', 'body', 'detail'] };
+          const spec = { icon: '✦', label: m.name || 'CUSTOM', sum: [] };   // v2.4.137 — 고유 순서 없음: 공용 꼬리 + 방언 수집이 담당
           wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (m.name || 'CUSTOM'), full: v, src: _src, chan: _chan, chanFull: _chanFull, msgId: m.msgId || m.id, t: _t, ts: _ts });
         } else {
           push('text', `✦ ${m.name || 'CUSTOM'}`, (v == null ? '' : String(v)), true, v);
