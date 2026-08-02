@@ -905,11 +905,17 @@ function attachable({ dropEl, textarea, fileBtn, fileInput, listEl, atts, persis
 }
 
 // ---- 입력란 공용: auto-grow(내용만큼 확장) + Ctrl+Enter 전송 + 상대시간 ----
+// v2.4.133 — 높이 맞춤은 «쓰기→읽기→쓰기» 라 한 번에 전체 레이아웃을 두 번 강제해요. 입력마다 동기로 돌리면
+//   글자당 그 값을 물어요(실측 ~185ms/키, 한글은 자모마다 input 이라 3배). 프레임당 1회로 합쳐요 — 타자는
+//   프레임보다 빠를 수 없으니 보이는 결과는 같고, 비용만 사라져요. 레이아웃 비용 자체는 style.css 의
+//   content-visibility 가 줄여요(둘은 서로를 대신하지 않아요: 여기는 횟수, 저기는 단가).
 function autoGrow(ta) {
-  const fit = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+  let queued = false;
+  const apply = () => { queued = false; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+  const fit = () => { if (queued) return; queued = true; requestAnimationFrame(apply); };
   ta.style.overflowY = 'hidden';
   ta.addEventListener('input', fit);
-  requestAnimationFrame(fit);   // DOM 삽입·값 복원 후 초기 맞춤
+  requestAnimationFrame(apply);   // DOM 삽입·값 복원 후 초기 맞춤
   return fit;
 }
 function onCtrlEnter(ta, fn) {
