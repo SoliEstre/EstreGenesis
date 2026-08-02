@@ -1,6 +1,6 @@
 {
   "generated": "compendium/lint.cjs --reindex",
-  "count": 34,
+  "count": 35,
   "entries": [
     {
       "id": "a2a-intent-family",
@@ -262,6 +262,30 @@
       ]
     },
     {
+      "id": "counsel-reconvergence",
+      "title": "Counsel (reconvergence mode) / Principal–Advisor",
+      "type": "glossary",
+      "register_class": "internal",
+      "owner_spec": "Superscalar.md#151-the-return-contract--counsel-is-not-review",
+      "status": "active",
+      "superseded_by": null,
+      "links": [
+        "divergence-reconvergence",
+        "issue-width"
+      ],
+      "definition": "The reconvergence mode in which a lane's output is offered rather than imposed: the advisor returns a perspective, the principal decides. Producer-Reviewer with the gate removed — the two shapes differ only at the merge, so the mode is declared at dispatch. See owner_spec.",
+      "glosses": [
+        {
+          "register": "expert",
+          "text": "non-gating reconvergence; advisory lane returns a perspective, not a verdict — no retire dependency, so Little's Law does not bind the width"
+        },
+        {
+          "register": "plain",
+          "text": "asking someone for a second opinion instead of asking them for approval — you still decide"
+        }
+      ]
+    },
+    {
       "id": "deadlock-resolution",
       "title": "Deadlock Resolution",
       "type": "glossary",
@@ -360,18 +384,19 @@
       "title": "Divergence–Reconvergence",
       "type": "glossary",
       "register_class": "internal",
-      "owner_spec": "Superscalar.md#15-topology--divergence-reconvergence-and-the-four-patterns",
+      "owner_spec": "Superscalar.md#15-topology--divergence-reconvergence-and-the-pattern-catalog",
       "status": "active",
       "superseded_by": null,
       "links": [
         "issue-width",
-        "speculation-gate"
+        "speculation-gate",
+        "counsel-reconvergence"
       ],
-      "definition": "The fan-out/fan-in topology of parallel sub-agent work — tasks diverge to run independently then reconverge at a barrier where results are merged. One of the four dispatch patterns. See owner_spec.",
+      "definition": "The fan-out/fan-in topology of parallel sub-agent work — tasks diverge to run independently then reconverge at a barrier where results are merged. One of the §1.5 dispatch patterns. See owner_spec.",
       "glosses": [
         {
           "register": "expert",
-          "text": "fan-out → independent execution → reconvergence barrier (merge); one of the four §1.5 patterns"
+          "text": "fan-out → independent execution → reconvergence barrier (merge); one of the §1.5 patterns"
         },
         {
           "register": "plain",
