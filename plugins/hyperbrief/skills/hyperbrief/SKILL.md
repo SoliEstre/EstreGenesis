@@ -1,12 +1,12 @@
 ---
 name: hyperbrief
-version: 0.8.0
-description: Use AFTER hyperbrief-trigger-check returns FULL_HYPERBRIEF, SUMMARY_BRIEF, or MINIMAL_BRIEF. v0.8 adds the SUMMARY_BRIEF tier (Hyperbrief.md §2.5 + §4 SummaryBrief body) — a 3-stage brief that is the DEFAULT floor for sub-threshold decisions, carrying the debiasing set (≥2 options with both gain and loss, no_action_cost, meta_branch, ≥1 key_unknowns, conditional §8 with switch_if) plus a mandatory full_brief_fallback escalation affordance; it omits evidence (MCDA / pre-mortem / Toulmin CIs / node tree) and only evidence. Generates the 8-section decision-delegation brief (JSON IR + deterministic MD/HTML render) and emits a paired Constellation DECISION_REQUEST + HyperbriefCard envelope. MUST run when (a) escalation_sum >= 4, (b) any MUST-trigger fires (irreversibility>=2 / cross-module blast radius / external-party notification / resource threshold / supersedes prior decision), (c) Superscalar fan-out gate just opened a write/deploy/send lane, (d) Constellation A2A DECISION_REQUEST is inbound for response. SKIP when trigger-check returned AUTONOMOUS_DECIDE or BLOCK_FRAMING.
+version: 0.9.0
+description: Use AFTER hyperbrief-trigger-check returns FULL_HYPERBRIEF, SUMMARY_BRIEF, DEEP_BRIEF, or MINIMAL_BRIEF. v0.9 adds the request tier (Hyperbrief.md §2.6) — a bare request for a brief is a SUMMARY_BRIEF rather than the heaviest tier, and DEEP_BRIEF (§0.6) is request-only and the only tier permitted to fan out, so an unnamed fan-out is a defect rather than thoroughness. v0.8 adds the SUMMARY_BRIEF tier (Hyperbrief.md §2.5 + §4 SummaryBrief body) — a 3-stage brief that is the DEFAULT floor for sub-threshold decisions, carrying the debiasing set (≥2 options with both gain and loss, no_action_cost, meta_branch, ≥1 key_unknowns, conditional §8 with switch_if) plus a mandatory full_brief_fallback escalation affordance; it omits evidence (MCDA / pre-mortem / Toulmin CIs / node tree) and only evidence. Generates the 8-section decision-delegation brief (JSON IR + deterministic MD/HTML render) and emits a paired Constellation DECISION_REQUEST + HyperbriefCard envelope. MUST run when (a) escalation_sum >= 4, (b) any MUST-trigger fires (irreversibility>=2 / cross-module blast radius / external-party notification / resource threshold / supersedes prior decision), (c) Superscalar fan-out gate just opened a write/deploy/send lane, (d) Constellation A2A DECISION_REQUEST is inbound for response. SKIP when trigger-check returned AUTONOMOUS_DECIDE or BLOCK_FRAMING.
 ---
 
 # Hyperbrief — 8-section decision brief generation
 
-You are about to produce a Hyperbrief because `hyperbrief-trigger-check` returned `FULL_HYPERBRIEF`, `SUMMARY_BRIEF` (v0.8 — the default floor, §0.5 below), or `MINIMAL_BRIEF` (Cynefin chaotic). **Read the verdict first and take the matching pipeline** — §0 for a full brief, §0.5 for a summary. Running the 9-section pipeline on a `SUMMARY_BRIEF` verdict is not a safe over-delivery: the tier exists because a brief cheap enough to always emit is what closes the gap, and spending full-brief cost on every decision is the alert-fatigue failure §2.4 guards against.
+You are about to produce a Hyperbrief because `hyperbrief-trigger-check` returned `FULL_HYPERBRIEF`, `SUMMARY_BRIEF` (v0.8 — the default floor, §0.5 below), `DEEP_BRIEF` (v0.9 — request-only, §0.6 below), or `MINIMAL_BRIEF` (Cynefin chaotic). **Read the verdict first and take the matching pipeline** — §0 for a full brief, §0.5 for a summary, §0.6 for a deep brief. Running the 9-section pipeline on a `SUMMARY_BRIEF` verdict is not a safe over-delivery: the tier exists because a brief cheap enough to always emit is what closes the gap, and spending full-brief cost on every decision is the alert-fatigue failure §2.4 guards against.
 
 > **Core invariant**: you emit **JSON IR only**. The renderers (or the templates as fallback) produce MD and HTML. Do NOT write MD or HTML directly — it causes representation drift and turns the 8 sections into markdown cosplay.
 
@@ -57,6 +57,25 @@ Single-shot 8-section generation is **discouraged** — sections downstream of �
 **When the reader escalates** (their response matches `full_brief_fallback.trigger_phrases_md`, or they press the button): generate the FullBrief **before answering anything else**, with the **same `decision_id`**, set `escalated_from_tier: "summary"`, and reuse the summary's §6 verbatim — the question did not change. Do **not** add a `decision_lineage.parent_decision_ids` link (that field means supersession; a tier escalation supersedes nothing), do **not** record the escalation as a decision outcome, and do **not** re-ask the question as though the summary had not happened. A reader asking for the evidence has not agreed to anything (AF-29).
 
 **Also write `.hyperbrief/active-profile.json`** at summary-emit time, same as for a full brief (MUST-20) — the tone-drift Stop hook is tier-independent, and a compressed surface is where declared-vs-effective drift is most likely.
+
+## 0.6 DEEP_BRIEF pipeline (v0.9.0) — the full brief plus a verification annex
+
+Reached **only** by an explicit request naming 심층 / deep (Hyperbrief.md §2.6). Neither the rubric nor the tier floor may produce this verdict; if you are here without `request_tier == "DEEP_BRIEF"` in the handoff, that is the defect, not the brief.
+
+```
+1-9. the §0 staged pipeline, unchanged — DEEP is FULL plus, never FULL rearranged
+10.  identify the recommendation's load-bearing claims (the ones that, if false, change §8)
+11.  refute each — independent attempts, each argued from a NAMED lens, not repeated skepticism
+12.  attach `verification_annex`; a claim that survives says so, a claim that falls moves §8
+```
+
+**This is the only tier permitted to fan out**, and that permission is the whole reason the tier exists as a separate name. Fan-out cost is paid in tokens and wall-clock that the operator did not spend on the answer itself; a tier that a rubric could trigger would spend it unasked. Before v0.9 the phrase *brief me* did exactly that, and the module read as heavy when what was heavy was an unrequested fan-out.
+
+**Diversity beats repetition.** Three verifiers given the same instruction produce one opinion three times. Name a distinct lens per attempt — correctness, cost, does-it-reproduce, who-is-harmed — because a claim can be wrong in more than one way and redundancy only catches the way you already suspected.
+
+**The annex is an additive field, not a fourth schema.** Emit the same `FullBrief` IR with an optional `verification_annex`; every existing validator, renderer and stored IR stays correct. A new top-level shape would make the deepest tier also the most likely to fail validation, which is backwards.
+
+**A refuted claim is not an annex footnote.** If verification kills a load-bearing claim, §8 changes and the annex records why. An annex that never moves the recommendation is decoration — and worse, it is decoration that reads as diligence.
 
 **v0.6 pipeline insertion**: between steps 6 and 7, run the **v0.6 slot scan** (§1.v06 below) — check each of the 4 triggers and populate any slot whose trigger fires. Slots are cross-referential (`evaluation_lenses[].methodology_ref` → `recommended_methodology[].id`; `maturity_anchor.anchor_methodology` → `recommended_methodology[].id`), so populate `recommended_methodology` first when multiple v0.6 slots fire together.
 

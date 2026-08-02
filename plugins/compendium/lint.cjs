@@ -38,18 +38,28 @@ function storeLooksReal(store) {
   });
 }
 
+// 조립된 사본은 **자기가 사본이라고 선언**해요 (`.eg-composed`). 발견은 그 표식이 있는 트리를
+//   건너뜁니다. 이름으로 제외하지 않는 이유가 요점이에요 — 배포판을 어디에 두는지는 운용자가 정하고,
+//   다음 사람은 다른 이름을 쓰니까 이름 기반 제외는 그날 조용히 뚫려요. 실측(2026-08-02): 배포판을
+//   워크스페이스 안에 조립하자 저장소가 두 벌이 됐고, 리졸버는 «모호하면 거부» 로 옳게 반응했지만
+//   운용자 눈에는 「저장소를 못 찾는다」로만 보였어요.
+const COMPOSED_MARKER = '.eg-composed';
+function isComposedCopy(dir) { return isFile(path.join(dir, COMPOSED_MARKER)); }
+
 // 한 루트 아래의 저장소 후보: 루트 자신 + 바로 아래 한 겹. 한 겹을 보는 이유는 내부 repo 배치가 흔하고
 //   (EG 자신이 그 형태 — 워크스페이스 밑에 공개 repo 가 들어앉아 있어요) 그 경우 루트만 봐선 못 찾아요.
 function storesUnder(root) {
   const out = [];
   if (!isDir(root)) return out;
   const self = path.join(root, 'compendium');
-  if (storeLooksReal(self)) out.push(self);
+  if (storeLooksReal(self) && !isComposedCopy(root)) out.push(self);
   let kids = [];
   try { kids = fs.readdirSync(root, { withFileTypes: true }); } catch { return out; }
   for (const d of kids) {
     if (!d.isDirectory() || d.name.startsWith('.') || d.name === 'node_modules') continue;
-    const s = path.join(root, d.name, 'compendium');
+    const kid = path.join(root, d.name);
+    if (isComposedCopy(kid)) continue;                     // 조립된 배포판 — 원본이 따로 있어요
+    const s = path.join(kid, 'compendium');
     if (storeLooksReal(s)) out.push(s);
   }
   return out;
