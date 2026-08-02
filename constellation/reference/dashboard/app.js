@@ -39,7 +39,8 @@ const ui = {
   tab: 'dashboard',
   panes: ['dashboard'],       // 표시 중 탭들 (2개면 분할 뷰). boot 에서 복원
   splitFrac: 0.5,             // 분할 좌측 비율 (비율 모드)
-  splitFixed: null,           // { side:'left'|'right', px } 고정폭 모드
+  splitFixed: null,           // { side:'left'|'right', px } 고정폭 모드 (2단 전용)
+  paneW: {},                  // v2.4.134 3단 이상 pane 별 가중치 {pane: fr}
   adhoc: [],                  // 예정작업 즉석 피드백 카드 [{plannedId, title, text, atts}]
   filter: new Set(),          // 비어있으면 전체. Ctrl+클릭으로 다중 선택
   open: new Set(),            // 펼친(고정) 카드 ids
@@ -587,10 +588,11 @@ function renderDecisions() {
     // 비대칭 해소). 의도적 시각화는 previewHtml/previewUrl 슬롯으로 분리 — operator-작성
     // viz 채널이라 raw 유지하되, 검토사안 등재 권한 자체가 신뢰 경계.
     card.innerHTML = `<div class="row"><span class="q">${esc(d.question)}</span> ${projChip(d.project)}${reviewed}</div>
-      <div class="ddetail">${esc(d.detail || '').replace(/\n/g, '<br>')}</div>
+      <div class="ddetail md-body">${mdFull(d.detail || '')}</div>
       ${d.status !== 'resolved' ? `<button type="button" class="dfallback" title="이 브리핑을 한 단계 더 쉬운 말로 다시 써달라고 요청해요">${esc((d.fallback && d.fallback.label) || '🙋 더 쉽게 설명해줘')}</button>` : ''}
       ${d.previewUrl ? `<iframe src="${esc(wsSafeUrl(d.previewUrl))}" sandbox loading="lazy"></iframe>` : ''}
       ${d.previewHtml ? `<div class="dviz">${d.previewHtml}</div>` : ''}${attChips('decision-' + d.id, d.att)}`;
+    requestAnimationFrame(() => mdMount(card));   // v2.4.135 — 브리핑 안의 다이어그램 (삽입 후에만 치수를 잴 수 있어요)
     const fbBtn = card.querySelector('.dfallback');
     if (fbBtn) fbBtn.onclick = async () => {
       fbBtn.disabled = true;
@@ -962,28 +964,70 @@ applyTheme();
 
 // ---- tabs / 분할 뷰 (대시보드 ⇆ 검토사안) ----
 const PANES_KEY = 'constellation-panes', SPLIT_FRAC_KEY = 'constellation-split-frac', SPLIT_FIXED_KEY = 'constellation-split-fixed';
+const PANE_W_KEY = 'constellation-pane-weights';
 const WIDE_W = 1600;   // 이 폭 이상이면 자동 분할
+// v2.4.134 — 분할은 이제 **임의 조합 N단**이에요. 화면 배치는 탭 순서를 따라요: 어떤 순서로 켰든 왼쪽부터
+//   이 순서로 서요. 켠 순서대로 세우면 같은 집합이 매번 다른 자리에 서서 근육기억이 안 생겨요.
+const PANE_ORDER = ['dashboard', 'decisions', 'org', 'wiki'];
+const PANES_MAX = 4;
 function loadPanes() {
-  try { const p = JSON.parse(localStorage.getItem(PANES_KEY)); if (Array.isArray(p) && p.length) { const f = p.filter(x => x === 'dashboard' || x === 'decisions'); if (f.length) return [...new Set(f)]; } } catch {}
+  try { const p = JSON.parse(localStorage.getItem(PANES_KEY)); if (Array.isArray(p) && p.length) { const f = p.filter(x => PANE_ORDER.includes(x)); if (f.length) return [...new Set(f)].slice(0, PANES_MAX); } } catch {}
   return innerWidth >= WIDE_W ? ['dashboard', 'decisions'] : ['dashboard'];
 }
+// pane 별 가중치(fr). 2단의 splitFrac/splitFixed 는 그대로 두고(기존 손잡이 계약 유지), 3단 이상에서만 이 표를 써요.
+function loadPaneW() { try { const w = JSON.parse(localStorage.getItem(PANE_W_KEY)); if (w && typeof w === 'object') return w; } catch {} return {}; }
+function savePaneW() { localStorage.setItem(PANE_W_KEY, JSON.stringify(ui.paneW)); }
+function paneWeight(name) { const v = Number(ui.paneW[name]); return (v > 0.15 && v < 8) ? v : 1; }
 function savePanes() { localStorage.setItem(PANES_KEY, JSON.stringify(ui.panes)); }
+ui.paneW = loadPaneW();
 function loadSplitFrac() { const v = parseFloat(localStorage.getItem(SPLIT_FRAC_KEY)); return (v >= 0.2 && v <= 0.8) ? v : 0.5; }
 function loadSplitFixed() { try { const f = JSON.parse(localStorage.getItem(SPLIT_FIXED_KEY)); if (f && (f.side === 'left' || f.side === 'right') && f.px > 120) return f; } catch {} return null; }
 function applySplitSizing() {
-  const main = $('main'), fx = ui.splitFixed;
-  if (fx) main.style.setProperty('--split-cols', fx.side === 'left' ? `${fx.px}px 12px minmax(0,1fr)` : `minmax(0,1fr) 12px ${fx.px}px`);
-  else { const f = ui.splitFrac; main.style.setProperty('--split-cols', `${f}fr 12px ${1 - f}fr`); }
+  const main = $('main'), n = ui.panes.length;
+  if (n <= 1) { requestAnimationFrame(positionHomeFabs); return; }
+  if (n === 2) {                                    // 2단은 종전 계약 그대로 (비율 + 고정폭 핀)
+    const fx = ui.splitFixed;
+    if (fx) main.style.setProperty('--split-cols', fx.side === 'left' ? `${fx.px}px 12px minmax(0,1fr)` : `minmax(0,1fr) 12px ${fx.px}px`);
+    else { const f = ui.splitFrac; main.style.setProperty('--split-cols', `${f}fr 12px ${1 - f}fr`); }
+  } else {                                          // 3단 이상 — pane 별 가중치
+    main.style.setProperty('--split-cols', ui.panes.map(p => `minmax(0,${paneWeight(p)}fr)`).join(' 12px '));
+  }
   requestAnimationFrame(positionHomeFabs);
 }
+// v2.4.134 — 분리선은 이제 **활성 pane 사이마다** 하나씩이에요(N-1개). 정적 #pane-divider 를 첫 자리에 쓰고,
+//   모자라면 같은 모양의 사본을 만들어 DOM 순서상 그 자리에 끼워요. 이벤트는 main 위임이라 사본도 그대로 작동해요.
+function layoutDividers() {
+  const main = $('main'), panes = ui.panes;
+  const dividers = [...main.querySelectorAll('.pane-divider')];
+  const need = Math.max(0, panes.length - 1);
+  while (dividers.length < need) {                                   // 사본 생성 (정적 1개 + 동적 N-2)
+    const d = $('#pane-divider').cloneNode(true);
+    d.removeAttribute('id'); d.dataset.dyn = '1';
+    d.querySelectorAll('.pin-handle').forEach(h => h.remove());       // 고정폭 핀은 2단 전용 (그 자리에만 의미가 있어요)
+    main.appendChild(d); dividers.push(d);
+  }
+  dividers.forEach((d, i) => {
+    if (i >= need) {                                                  // 남는 분리선: 사본은 없애고 정적 원본은 숨겨요
+      if (d.dataset.dyn) d.remove(); else d.hidden = true;
+      return;
+    }
+    d.hidden = false;
+    d.dataset.l = panes[i]; d.dataset.r = panes[i + 1];
+    const rightPane = document.getElementById('tab-' + panes[i + 1]);
+    if (rightPane) main.insertBefore(d, rightPane);                   // 그리드 배치 = DOM 순서
+  });
+  return [...main.querySelectorAll('.pane-divider')].filter((d) => !d.hidden);
+}
 function applyPanes() {
-  const split = ui.panes.length === 2, main = $('main');
+  const split = ui.panes.length >= 2, main = $('main');
   main.classList.toggle('split', split);
+  main.classList.toggle('split-multi', ui.panes.length > 2);
   document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', ui.panes.includes(b.dataset.tab)));
   document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('active', ui.panes.includes(p.id.replace('tab-', ''))));
   if (typeof syncMobileTabbar === 'function') syncMobileTabbar();   // 하단 탭바 active 동기 (모바일)
-  const dv = $('#pane-divider'); if (dv) dv.hidden = !split;
-  document.querySelectorAll('.pin-handle').forEach(h => h.hidden = !split);
+  layoutDividers();
+  const twoPane = ui.panes.length === 2;
+  document.querySelectorAll('.pin-handle').forEach(h => h.hidden = !twoPane);   // 고정폭 핀 = 2단 전용
   if (split) { applySplitSizing(); updatePinHandles(); }
   const hb = $('#home-btn'), hd = $('#home-btn-dec');
   if (hb) hb.hidden = !ui.panes.includes('dashboard');
@@ -993,19 +1037,29 @@ function applyPanes() {
   // 분할 토글로 대시보드 pane 폭이 바뀌므로(창 resize 아님) 홈·타임라인 중앙 재적용
   if (ui.panes.includes('dashboard')) requestAnimationFrame(() => { if (ui.atHome) applyHome(false); if (ui.tlCentered) centerActiveStage(false); });
 }
+// v2.4.134 — FAB 자리는 분리선이 아니라 **자기 pane 의 실제 오른쪽 끝**에서 파생해요. 분리선 기준은 2단에서만
+//   맞았고, 3단부터는 어느 분리선인지가 정해지지 않아요.
 function positionHomeFabs() {
-  const hb = $('#home-btn'), hd = $('#home-btn-dec'), dv = $('#pane-divider');
-  if (ui.panes.length === 2 && dv && !dv.hidden) {
-    const r = dv.getBoundingClientRect();
-    if (hb) hb.style.right = Math.round(innerWidth - r.left + 14) + 'px';   // 대시보드 FAB → 좌측(대시보드) 영역 우하단
-    if (hd) hd.style.right = '';                                            // 검토 FAB → 화면 우하단(=우측 영역)
-  } else { if (hb) hb.style.right = ''; if (hd) hd.style.right = ''; }
+  const place = (btn, pane) => {
+    if (!btn) return;
+    if (ui.panes.length < 2 || !ui.panes.includes(pane)) { btn.style.right = ''; return; }
+    const p = document.getElementById('tab-' + pane);
+    if (!p) { btn.style.right = ''; return; }
+    const r = p.getBoundingClientRect();
+    btn.style.right = Math.round(innerWidth - r.right + 14) + 'px';
+  };
+  place($('#home-btn'), 'dashboard');
+  place($('#home-btn-dec'), 'decisions');
 }
+// v2.4.134 — Ctrl+탭 = **그 탭 하나를 분할 집합에 넣고 빼기**. 종전 구현은 무엇을 눌러도 대시보드+검토사안
+//   한 쌍으로 고정했어요 — 탭이 둘뿐이던 시절엔 그 둘이 유일한 조합이라 구별이 안 됐고, 넷이 되자 드러났어요.
+//   마지막 하나는 뺄 수 없어요(빈 화면 금지). 상한 4단.
 function setPanes(name, ctrl) {
   let panes = ui.panes.slice();
   if (ctrl) {
-    if (panes.includes(name)) { if (panes.length === 2) panes = panes.filter(p => p !== name); }   // 양쪽 활성 → 제외(토글)
-    else panes = ['dashboard', 'decisions'];                                                       // 추가 → 분할 (좌:대시보드 고정)
+    if (panes.includes(name)) { if (panes.length > 1) panes = panes.filter(p => p !== name); }
+    else if (panes.length < PANES_MAX) panes = panes.concat(name);
+    panes.sort((a, b) => PANE_ORDER.indexOf(a) - PANE_ORDER.indexOf(b));
   } else panes = [name];                                                                           // 일반 클릭 → 단일
   ui.panes = panes; savePanes(); applyPanes();
 }
@@ -1017,20 +1071,41 @@ function updatePinHandles() {
 }
 function setupSplit() {
   const main = $('main'), dv = $('#pane-divider');
-  // 분리선 드래그 = 좌우 비율 (고정폭 해제)
+  // 분리선 드래그 — 2단은 비율(splitFrac), 3단 이상은 **양옆 pane 가중치 이전**. 위임이라 동적 사본도 같이 작동.
   if (dv) {
-    let drag = false;
+    let drag = null;   // 잡고 있는 분리선 엘리먼트
     const move = (e) => {
       if (!drag) return;
       const r = main.getBoundingClientRect(), cx = e.touches ? e.touches[0].clientX : e.clientX;
-      let f = (cx - r.left) / r.width; f = Math.max(0.2, Math.min(0.8, f));
-      ui.splitFrac = f; ui.splitFixed = null; localStorage.removeItem(SPLIT_FIXED_KEY);
-      localStorage.setItem(SPLIT_FRAC_KEY, String(f.toFixed(4))); applySplitSizing(); updatePinHandles();
+      if (ui.panes.length === 2) {
+        let f = (cx - r.left) / r.width; f = Math.max(0.2, Math.min(0.8, f));
+        ui.splitFrac = f; ui.splitFixed = null; localStorage.removeItem(SPLIT_FIXED_KEY);
+        localStorage.setItem(SPLIT_FRAC_KEY, String(f.toFixed(4))); applySplitSizing(); updatePinHandles();
+        return;
+      }
+      const L = drag.dataset.l, R = drag.dataset.r;
+      const lp = document.getElementById('tab-' + L), rp = document.getElementById('tab-' + R);
+      if (!lp || !rp) return;
+      const lr = lp.getBoundingClientRect(), rr = rp.getBoundingClientRect();
+      const span = rr.right - lr.left;                       // 두 pane 이 나눠 갖는 폭
+      if (span < 80) return;
+      const total = paneWeight(L) + paneWeight(R);
+      let lf = ((cx - lr.left) / span) * total;
+      lf = Math.max(0.2, Math.min(total - 0.2, lf));         // 어느 쪽도 완전히 눌리지 않게
+      ui.paneW[L] = Math.round(lf * 1000) / 1000;
+      ui.paneW[R] = Math.round((total - lf) * 1000) / 1000;
+      savePaneW(); applySplitSizing();
     };
-    const up = () => { if (drag) { drag = false; dv.classList.remove('dragging'); document.body.style.userSelect = ''; if (ui.atHome) applyHome(false); if (ui.tlCentered) centerActiveStage(false); } };
-    dv.addEventListener('mousedown', (e) => { drag = true; dv.classList.add('dragging'); document.body.style.userSelect = 'none'; e.preventDefault(); });
-    dv.addEventListener('touchstart', () => { drag = true; dv.classList.add('dragging'); }, { passive: true });
-    dv.addEventListener('dblclick', () => { ui.splitFrac = 0.5; ui.splitFixed = null; localStorage.removeItem(SPLIT_FIXED_KEY); localStorage.setItem(SPLIT_FRAC_KEY, '0.5'); applySplitSizing(); updatePinHandles(); });
+    const up = () => { if (drag) { drag.classList.remove('dragging'); drag = null; document.body.style.userSelect = ''; if (ui.atHome) applyHome(false); if (ui.tlCentered) centerActiveStage(false); } };
+    const grab = (e) => { const d = e.target.closest('.pane-divider'); if (!d || e.target.closest('.pin-handle')) return; drag = d; d.classList.add('dragging'); document.body.style.userSelect = 'none'; if (e.cancelable) e.preventDefault(); };
+    main.addEventListener('mousedown', grab);
+    main.addEventListener('touchstart', grab, { passive: true });
+    main.addEventListener('dblclick', (e) => {
+      const d = e.target.closest('.pane-divider'); if (!d) return;
+      if (ui.panes.length === 2) { ui.splitFrac = 0.5; ui.splitFixed = null; localStorage.removeItem(SPLIT_FIXED_KEY); localStorage.setItem(SPLIT_FRAC_KEY, '0.5'); }
+      else { ui.panes.forEach(p => { ui.paneW[p] = 1; }); savePaneW(); }
+      applySplitSizing(); updatePinHandles();
+    });
     window.addEventListener('mousemove', move); window.addEventListener('touchmove', move, { passive: true });
     window.addEventListener('mouseup', up); window.addEventListener('touchend', up);
     // pane 안쪽 고정-px 핸들 (iOS 손잡이) — divider 양옆에 배치
@@ -1059,7 +1134,7 @@ function setupSplit() {
     const wide = innerWidth >= WIDE_W;
     if (wide && !ui._wasWide && ui.panes.length === 1) setPanes(ui.panes[0] === 'dashboard' ? 'decisions' : 'dashboard', true);
     ui._wasWide = wide;
-    if (ui.panes.length === 2) applySplitSizing();
+    if (ui.panes.length >= 2) applySplitSizing();
   });
 }
 $('#home-btn').innerHTML = `<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3 10.6 12 3.2l9 7.4"/><path d="M5.2 9.3V20.4h13.6V9.3"/><path d="M9.6 20.4v-6.1h4.8v6.1"/></svg>`;
@@ -1622,7 +1697,9 @@ function orgWikiLink(id, label) {
   a.title = '편람 항목 "' + id + '" 을 열어요 — 정의 원본은 스펙(owner_spec)이 SSoT 예요';
   a.onclick = (ev) => {
     ev.preventDefault(); ev.stopPropagation();
-    try { setPanes('wiki'); } catch (e) {}
+    // v2.4.134 — 낱말 링크는 위키를 **곁에** 열어요(추가 분할). 종전엔 보던 탭을 위키로 갈아치워서,
+    //   「이 낱말 뭐지」 한 번에 읽던 화면을 잃었어요. 좁으면 종전대로 단일 전환(4단을 우겨넣지 않아요).
+    try { setPanes('wiki', innerWidth >= WIDE_W && ui.panes.length < PANES_MAX); } catch (e) {}
     try { wikiOpenAside(String(id)); } catch (e) {}
   };
   return a;
@@ -2129,8 +2206,77 @@ function wsSyncAgents(agents) {
   wsRenderTabs(); updateWsConn();
 }
 
-// ---- 미니 마크다운 렌더 (deps0, esc 선행 — 대화(text/user)에만 적용) ----
-function wsMd(src) {
+
+// ---- 마크다운 풀 렌더 (v2.4.135, deps0 · esc 선행) ----
+// 종전 wsMd 는 대화 전용 미니 렌더라 **표·순서목록·인용·mermaid 가 없었어요** — 그리고 없다는 게
+// 파이프 문자가 그대로 보이는 모양으로만 드러나서, 「렌더가 안 된다」 말고는 진단이 안 붙었어요.
+// 보안 규율은 그대로: 원문을 먼저 esc 하고 그 위에서만 태그를 만들어요. mermaid 는 소스를 속성에
+// 담아 두고 textContent 로 주입해요(innerHTML 이면 파싱 전에 <img onerror> 가 실행돼요 — v2.4.12 교훈).
+function mdCells(l) { return l.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim()); }
+function mdIsSep(l) { return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(l || ''); }
+function mdFull(src) {
+  if (!src) return '';
+  const cb = [];
+  let s = String(src).replace(/```([^\n]*)\n?([\s\S]*?)```/g, (_, info, code) => {
+    cb.push({ lang: String(info || '').trim().toLowerCase(), code: code.replace(/\n+$/, '') });
+    return '\u0000CB' + (cb.length - 1) + '\u0000';
+  });
+  s = esc(s);
+  s = s.replace(/`([^`\n]+)`/g, '<code class="ws-code">$1</code>')
+       .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+       .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
+       .replace(/~~([^~\n]+)~~/g, '<del>$1</del>')
+       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  const lines = s.split('\n'), out = [];
+  let list = null;
+  const closeList = () => { if (list) { out.push('</' + list + '>'); list = null; } };
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+    if (/\|/.test(ln) && mdIsSep(lines[i + 1])) {                       // GFM 표
+      closeList();
+      const head = mdCells(ln); let j = i + 2; const body = [];
+      while (j < lines.length && lines[j].trim() && /\|/.test(lines[j])) { body.push(mdCells(lines[j])); j++; }
+      out.push('<div class="md-table-wrap"><table class="md-table"><thead><tr>' + head.map(h => '<th>' + h + '</th>').join('') +
+        '</tr></thead><tbody>' + body.map(r => '<tr>' + r.map(c => '<td>' + c + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>');
+      i = j - 1; continue;
+    }
+    const mH = ln.match(/^(#{1,6})\s+(.*)$/);
+    const mUl = ln.match(/^\s*[-*+]\s+(.*)$/);
+    const mOl = ln.match(/^\s*\d+[.)]\s+(.*)$/);
+    const mQ = ln.match(/^\s*&gt;\s?(.*)$/);
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(ln)) { closeList(); out.push('<hr class="md-hr">'); }
+    else if (mH) { closeList(); out.push('<div class="ws-md-h md-h' + mH[1].length + '">' + mH[2] + '</div>'); }
+    else if (mUl) { if (list !== 'ul') { closeList(); out.push('<ul class="ws-md-ul">'); list = 'ul'; } out.push('<li>' + mUl[1] + '</li>'); }
+    else if (mOl) { if (list !== 'ol') { closeList(); out.push('<ol class="ws-md-ol">'); list = 'ol'; } out.push('<li>' + mOl[1] + '</li>'); }
+    else if (mQ) { closeList(); out.push('<blockquote class="md-q">' + mQ[1] + '</blockquote>'); }
+    else { closeList(); out.push(ln); }
+  }
+  closeList();
+  // 줄바꿈 변환이 **먼저**, 자리표 복원이 **나중**이에요. 뒤집으면 줄바꿈 태그가 다이어그램 소스와
+  //   코드 블록 안까지 들어가서 mermaid 가 파싱에 실패해요(실측 — 첫 판이 정확히 그랬어요).
+  s = out.join('\n');
+  s = s.replace(/\n/g, '<br>');
+  s = s.replace(/\u0000CB(\d+)\u0000/g, (_, i) => {
+    const b = cb[+i];
+    if (b.lang === 'mermaid') return '<div class="md-mermaid" data-mmd="' + esc(b.code) + '">◈ 다이어그램…</div>';
+    return '<pre class="ws-pre"><code>' + esc(b.code) + '</code></pre>';
+  });
+  s = s.replace(/(<\/(?:pre|ul|ol|div|table|blockquote)>|<hr class="md-hr">)<br>/g, '$1')
+       .replace(/<br>(<(?:pre|ul|ol|div|li|table|blockquote|hr))/g, '$1');
+  return s;
+}
+// mermaid 자리표 → 실제 렌더. 보이는 컨테이너에서만 치수를 잴 수 있어서 삽입 **후** 불러요.
+async function mdMount(root) {
+  const nodes = [...(root || document).querySelectorAll('.md-mermaid:not([data-mounted])')];
+  if (!nodes.length) return;
+  for (const n of nodes) { n.dataset.mounted = '1'; n.textContent = n.dataset.mmd || ''; n.classList.add('mermaid'); }
+  try { const m = await ensureMermaid(); await m.run({ nodes }); }
+  catch (e) { for (const n of nodes) { n.classList.remove('mermaid'); n.innerHTML = '<pre class="ws-pre"><code>' + esc(n.dataset.mmd || '') + '</code></pre>'; } }
+}
+
+// 종전 이름 유지 (호출처 다수) — 이제 풀 렌더로 위임해요.
+function wsMd(src) { return mdFull(src); }
+function wsMdLegacy(src) {
   if (!src) return '';
   const cb = [];
   let s = String(src).replace(/```[^\n]*\n?([\s\S]*?)```/g, function (_, code) { cb.push(code.replace(/\n+$/, '')); return '@@CB' + (cb.length - 1) + 'BC@@'; });
@@ -2596,7 +2742,7 @@ function wsRowEl(row, showChan = true) {   // showChan: 출처 뱃지 표시 여
   const k = el('span', 'ws-k ' + row.kind); k.textContent = row.label;
   const md = row.kind === 'text' || row.kind === 'user';   // 대화 내용만 마크다운 렌더
   const b = el('span', 'ws-body' + (row.dim ? ' dim' : '') + (md ? ' ws-md' : ''));
-  if (md) b.innerHTML = wsMd(row.body || ''); else b.textContent = row.body || '';
+  if (md) { b.innerHTML = wsMd(row.body || ''); requestAnimationFrame(() => mdMount(b)); } else b.textContent = row.body || '';
   e.append(t); if (row.src) e.append(wsSrcEl(row)); if (row.chan && showChan) e.append(wsChanEl(row)); e.append(k, b);
   { const _atts = wsAttachments(row.full); if (_atts.length) { const ab = el('div', 'ws-att-row'); for (const a of _atts) ab.appendChild(wsAttChipEl(a)); e.append(ab); } }   // 일반 A2A row 첨부 칩
   row._b = b; row._md = md;
