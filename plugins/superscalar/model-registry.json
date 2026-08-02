@@ -536,5 +536,128 @@
     "GEMINI'S 2026-07-21 DEPRECATION OF temperature, top_p AND top_k IS A BREAKING CHANGE FOR ANY HARNESS THAT PINS THEM, and Gemini CLI docs still expose them via generateContentConfig. Migrate to thinking_level. Note also that the Gemini CLI caps thinking at 8192 tokens (DEFAULT_THINKING_MODE) to prevent runaway loops — an independent ceiling on the CLI path that the API path does not have.",
     "VERIFICATION SCOPE: two MCP servers in this environment (claude.ai Neurabble, claude.ai 법령MCP) require OAuth authorization and were unavailable, so no MCP-sourced cross-check was possible; the user must authorize them via claude.ai connector settings if that matters. Several vendor launch posts return HTTP 403 to fetchers (anthropic.com/news pages, openai.com launch posts, x.ai/news), so claims that live only on those pages are marked secondary throughout rather than silently upgraded. Two Claude Code doc pages exceeded fetch size and were read from persisted files at C:\\Users\\excte\\.claude\\projects\\c--Dev-EstreGenesis\\f9dc17b6-a790-4625-ad20-5c07217899b6\\tool-results\\ — those quotes are verbatim from the vendor page.",
     "T1.5 WAS INTRODUCED ON 2026-08-01 FROM DOGFOOD OBSERVATION, NOT BY THE 2026-07-25 SWEEP. The price fact behind the band is vendor-confirmed (claude-opus-5 is exactly half of claude-fable-5 in both directions), but the temperament claim — thinking converted into action sooner, with a higher slip rate on multi-step work than Fable 5 — is a single-workspace observation with no vendor statement behind it. At the 2026-09-01 revisit, check whether vendor guidance or measurements corroborate the band, and whether other vendors' start-here flagships (gpt-5.6-sol in reasoning.mode standard) belong in it or should stay in T1."
-  ]
+  ],
+  "harnessProfile": {
+    "$comment": [
+      "모델마다 하네스에서 덜어낼 것과 지탱할 것이 달라요. 이 블록은 그 대응표이고, models[] 와 같은 asOf/revisit 를 씁니다 — 별도 주기를 세우면 그 주기를 강제하던 도구가 사라질 때 함께 사라져요.",
+      "증거 계약이 models[] 와 다릅니다. models[] 의 confirmedBy 는 **사양 사실**(문맥 창·가격·effort 이름)이라 공급사 문서 하나로 확정돼요. 여기 실리는 것은 **거동 주장**이고, 공급사가 보증하지 않는 종류예요 — 「이 모델은 이제 맥락 재주입 장치가 필요 없다」를 문서가 말해 주지 않아요. 같은 한 칸에 두 종류를 담으면 약한 근거가 강한 근거의 옷을 입어요.",
+      "status 는 손으로 쓰지 마세요. evidence[] 에서 파생돼야 하고, 검사가 그 파생을 확인해요."
+    ],
+    "evidenceContract": {
+      "grades": {
+        "A": "공급사 1차 문서 · 모델 카드 · 공식 시스템 카드",
+        "B": "공급사 엔지니어의 공개 발화 · 재현 가능한 벤치 리포트 · 표준화된 평가",
+        "C": "신뢰도 높은 매체 분석 · 유료 애널리스트 리포트",
+        "D": "전문가 블로그·영상·컨퍼런스 발표 — 관측은 실재하나 단일 관측자",
+        "E": "커뮤니티/SNS 단발 보고 — 신호이지 근거가 아님"
+      },
+      "confirmedWhen": "evidence 에 A 또는 B 가 1건 이상 있거나, **서로 다른 도메인**의 C/D 가 2건 이상. E 는 단독으로 confirmed 를 만들지 못해요 — 여러 건이면 «다시 볼 것» 신호로만 셉니다.",
+      "unconfirmedIsKept": "근거가 모자란 주장은 지우지 않고 status unconfirmed 로 남겨요. 지우면 다음 조사가 같은 자리를 처음부터 다시 발견해야 하고, 통과시키면 근거 없는 것이 근거 있는 것처럼 굴어요.",
+      "neverAct": "unconfirmed 주장은 하네스 구성을 바꾸는 근거로 쓰지 않아요. 조사 대상 목록일 뿐이에요.",
+      "researchMethod": "신뢰 자료(공급사 문서·모델 카드·엔지니어 발화·벤치)를 기본으로 하고, 그 위에 커뮤니티·SNS 보고를 **합산 신호**로 얹어요. 접근 제약이 있는 표면은 별도 조사 도구를 씁니다. 축당 1패스로 넓게 훑고, 강한 주장만 교차검증으로 좁혀요."
+    },
+    "key": "apiModelId × effort. effort 이름은 모델 사이에 비교가 안 되고(공급사가 명시), 낮은 effort 는 도구 호출 방식 자체를 바꿔요(적게·묶어서) — 그래서 같은 모델이라도 effort 에 따라 덜어낼 것이 달라져요. effort \"*\" 는 «그 모델 전체» 를 뜻해요.",
+    "entries": [
+      {
+        "apiModelId": "claude-opus-5",
+        "effort": "*",
+        "shed": [
+          {
+            "claim": "맥락 재주입 장치 — 긴 작업 중간에 「아까 말한 그거 기억하지?」를 다시 넣어 주던 부류",
+            "why": "긴 작업을 끝까지 끌고 가는 힘이 늘어 앞을 놓치지 않고, 스스로 되짚어 자기 기준과 대조해요. 밖에 검사기를 두면 두 판정이 서로 다른 기준으로 싸우고, 왜 싸우는지는 안 보여요.",
+            "status": "unconfirmed",
+            "evidence": [
+              {
+                "kind": "video",
+                "grade": "D",
+                "domain": "youtube.com",
+                "url": "https://www.youtube.com/watch?v=rdaQSG8KG-g",
+                "note": "단일 관측자의 실사용 보고 — 교차 확인 필요"
+              }
+            ]
+          }
+        ],
+        "prop": [],
+        "advisorFor": []
+      },
+      {
+        "apiModelId": "claude-fable-5",
+        "effort": "*",
+        "shed": [
+          {
+            "claim": "예시 뭉치 — 문체·톤을 맞추려고 20개씩 넣던 부류",
+            "why": "서너 개면 잡히고 말로 설명해도 잡혀요. 오히려 많이 넣으면 그 예시를 흉내 내느라 새 상황에서 갇혀요 — 적게 주는 쪽이 더 자유롭고 더 정확해요.",
+            "status": "unconfirmed",
+            "evidence": [
+              {
+                "kind": "video",
+                "grade": "D",
+                "domain": "youtube.com",
+                "url": "https://www.youtube.com/watch?v=rdaQSG8KG-g",
+                "note": "단일 관측자"
+              }
+            ]
+          }
+        ],
+        "prop": [],
+        "advisorFor": [
+          {
+            "role": "결·표현·독자 반응에 대한 자문",
+            "status": "unconfirmed",
+            "evidence": []
+          }
+        ]
+      },
+      {
+        "apiModelId": "gpt-5.6-sol",
+        "effort": "*",
+        "shed": [
+          {
+            "claim": "도구 사용 규칙 — 「질문에 '최신'이 있으면 검색하라」류의 조건 규칙",
+            "why": "언제 검색·계산·즉답할지를 스스로 정해요. 손으로 쓴 조건 규칙은 항상 예외에서 터지고(그 단어 없이도 검색이 필요한 질문이 널려 있어요), 예외를 메우려 규칙을 늘리면 규칙 더미가 돼요.",
+            "status": "unconfirmed",
+            "evidence": [
+              {
+                "kind": "video",
+                "grade": "D",
+                "domain": "youtube.com",
+                "url": "https://www.youtube.com/watch?v=rdaQSG8KG-g",
+                "note": "단일 관측자"
+              }
+            ]
+          }
+        ],
+        "prop": [],
+        "advisorFor": [
+          {
+            "role": "교차 분석 — 다른 훈련 계보의 반박",
+            "status": "unconfirmed",
+            "evidence": []
+          }
+        ]
+      },
+      {
+        "apiModelId": "*",
+        "effort": "*",
+        "shed": [
+          {
+            "claim": "순서 강제 장치 — 단계를 쪼개 하나씩 확인받게 하던 부류",
+            "why": "세 계보 모두 스스로 계획을 세우는 힘이 세졌고, 우리가 짠 순서보다 나은 순서를 만들기도 해요. 어느 모델을 쓰든 1순위 삭제 후보예요.",
+            "status": "unconfirmed",
+            "evidence": [
+              {
+                "kind": "video",
+                "grade": "D",
+                "domain": "youtube.com",
+                "url": "https://www.youtube.com/watch?v=rdaQSG8KG-g",
+                "note": "단일 관측자"
+              }
+            ]
+          }
+        ],
+        "prop": [],
+        "advisorFor": []
+      }
+    ]
+  }
 }
