@@ -631,8 +631,8 @@
         "shed": [
           {
             "claim": "예시 뭉치 — 문체·톤을 맞추려고 20개씩 넣던 부류",
-            "why": "공급사 문서가 예시 **개수**를 다루지 않아요. 인접 항목(「기존 스킬이 이 모델엔 과도하게 처방적이라 품질을 떨어뜨릴 수 있으니 덜어 보라」)은 있지만 그건 *지시* 이야기지 *예시* 이야기가 아니에요 — 이웃 주장의 근거를 이 주장에 붙이지 않아요. 커뮤니티 합산(2차)에서 다시 봐요.",
-            "status": "unconfirmed",
+            "why": "1차: 공급사 문서가 예시 **개수**를 다루지 않아요. 인접 항목(「기존 스킬이 이 모델엔 과도하게 처방적이라 품질을 떨어뜨릴 수 있으니 덜어 보라」)은 있지만 그건 *지시* 이야기지 *예시* 이야기가 아니에요 — 이웃 주장의 근거를 이 주장에 붙이지 않아요. 2차(2026-08-02 합산): 공통 best-practices 는 개수를 **직접** 다뤄요 — 3~5개면 충분하고 5개 초과는 수확 체감. 같은 문서가 「문체·톤은 서술보다 예시가 가장 신뢰됨」이라고도 하니, 이 확정의 뜻은 **«예시 0» 이 아니라 «뭉치(20)를 3~5 로»** 예요 — 그 이상으로 읽으면 근거 밖이에요.",
+            "status": "confirmed",
             "evidence": [
               {
                 "kind": "video",
@@ -640,6 +640,20 @@
                 "domain": "youtube.com",
                 "url": "https://www.youtube.com/watch?v=rdaQSG8KG-g",
                 "note": "원 관측 — 단일 관측자"
+              },
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+                "note": "「Three to five examples are usually sufficient … diminishing beyond five」 — 개수를 직접 다루는 유일한 1차 문서. 단 같은 문서가 문체·톤 맞춤엔 예시가 최선이라 명시 — 지지 범위는 «20개 뭉치는 과잉» 까지"
+              },
+              {
+                "kind": "analysis",
+                "grade": "D",
+                "domain": "mindstudio.ai",
+                "url": "https://www.mindstudio.ai/blog/how-to-prompt-claude-fable-5-anthropic-engineer-rules",
+                "note": "「strongest raw writer … with no style guidance it already has more edge and fewer clichés」 — 기본 문체가 강해 뭉치 의존이 준다는 별도 도메인 관측"
               }
             ]
           },
@@ -811,6 +825,6 @@
       }
     ],
     "lastResearched": "2026-08-02",
-    "researchLog": "1차 조사(2026-08-02): 공급사 1차 문서 5종 정독. 확증 3 · **반증 2** · 미확정 2. 반증이 나온 게 이 계약의 값이에요 — 지웠으면 다음 조사가 같은 자리를 처음부터 다시 발견했을 거예요. 커뮤니티·SNS 합산은 아직 안 돌렸어요(공급사 문서만으로 A급이 나와서 2차로 미룸)."
+    "researchLog": "1차 조사(2026-08-02): 공급사 1차 문서 5종 정독. 확증 3 · **반증 2** · 미확정 2. 반증이 나온 게 이 계약의 값이에요 — 지웠으면 다음 조사가 같은 자리를 처음부터 다시 발견했을 거예요. 커뮤니티·SNS 합산은 아직 안 돌렸어요(공급사 문서만으로 A급이 나와서 2차로 미룸). 2차 합산(2026-08-02): 남은 미확정 1건(Fable 예시 뭉치)에 개수를 직접 다루는 공통 문서(A) + 별도 도메인 관측(D)을 얹어 confirmed — 뜻은 «예시 0» 이 아니라 «뭉치를 3~5 로». Opus 재주입 refuted 는 계약대로 유지. 이로써 1차가 남긴 미확정 대기열은 비었어요."
   }
 }
