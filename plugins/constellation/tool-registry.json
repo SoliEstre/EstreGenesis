@@ -1,0 +1,100 @@
+{
+  "$comment": [
+    "스케일아웃 자리(§13.37)의 구현 레지스트리 — 스펙은 자리 카테고리와 통합 계약만 말하고, 어떤 도구가 그 자리에 앉을 수 있는지는 여기 삽니다. 카테고리 반감기가 수 개월로 실측된 지형이라(2026-08-02 5축 조사), 이름을 스펙에 박으면 이름이 낡는 속도가 스펙 개정보다 빨라요.",
+    "여기 등재는 «언급»이지 «추천»이 아니에요 — 확인된 사실(confirmedFor)과 확인 못 한 것(unconfirmed)과 주의(caveats)를 나란히 실어요. 더 나은 구현이 나오면 행을 갈아치우는 게 예정된 수명이에요(deprecation 일급).",
+    "행 규율은 model-registry 와 같아요: confirmedBy 없는 행 금지, revisit.date 경과 = 알림, +45일 = FAIL. 확인은 1차 출처(저장소·공식 문서) 실측으로만."
+  ],
+  "asOf": "2026-08-02",
+  "revisit": {
+    "date": "2026-10-31",
+    "watchlist": [
+      "제공업체 native 흡수 — 장기 메모리는 이미 진행(Claude Code auto memory 기본 ON · API memory tool GA · Codex memories); 코드 인덱싱은 Anthropic 이 의도적 no-index 방침이라 서드파티 공간이 남지만 방침 자체가 신호",
+      "SCIP 독립 거버넌스 전환(2026-03) 이후 코드 그래프 층의 프로토콜 표준화 진행",
+      "순위 급변 상시 — GitNexus 가 2개월에 1.2k→42k★; 재조사 때 카테고리 선두를 처음부터 다시 재기",
+      "gbrain 조직 이관 여부(현재 개인 계정) · graphify 라이선스 재조정 후속(BSL/SSPL 류 전환 조짐)"
+    ]
+  },
+  "categories": [
+    {
+      "category": "knowledge-graph-librarian",
+      "seat": "지식그래프 사서 자리 — 워크스페이스의 문서·코드·산출물을 질의 가능한 그래프로 유지하는 전담 자리. 허브에 상주하고 hub·peer 가 MCP 로 SSoT 접근.",
+      "implementations": [
+        {
+          "name": "graphify",
+          "repo": "https://github.com/Graphify-Labs/graphify",
+          "confirmedBy": "https://github.com/Graphify-Labs/graphify (README v8 브랜치 — main 은 낡은 판이니 default branch 로 읽을 것)",
+          "asOf": "2026-08-02",
+          "license": "Apache-2.0 (MIT 에서 재라이선스 이력 — NOTICE 명시)",
+          "confirmedFor": [
+            "일반 스코프 — 코드(36 tree-sitter 문법)+Markdown+PDF+이미지+전사+SQL 스키마 인제스트 (코드는 로컬 AST, LLM 크레딧 0)",
+            "공유 HTTP 배치 공식 1급 — MCP Streamable HTTP + Bearer/X-API-Key 인증, «single shared process can serve the graph for the whole team»",
+            "벤치마크 재현 요건 구비(공개 하네스·커맨드·지출 원장) — 단 자가보고, 독립 재현 미확인, 코드 채점 n=6"
+          ],
+          "unconfirmed": [],
+          "caveats": [
+            "Windows 결함 군집 open — 경로 처리·PowerShell 5.1 인용·인터프리터 감지·watch 타임아웃·UNC (Windows 워크스페이스는 파일럿 최악의 첫 환경)",
+            "증분 갱신 신선도 결함 군집 — ghost 노드 잔존·전체 재추출·stale 산출물 우선 (SSoT 신선도 요구와 직접 충돌)",
+            ".gitignore 조상 규칙이 중첩 파일을 삼키는 조용한 데이터 유실 이슈 보고",
+            "팀 2명 + 단일 통제 주체의 재라이선스 실행력(이미 1회) — 상용(YC S26) 분리선은 현재 «always-on 호스팅 vs 온디맨드 OSS»"
+          ],
+          "avoidFor": []
+        }
+      ]
+    },
+    {
+      "category": "code-graph",
+      "seat": "코드 그래프 SSoT — IDE 가 사람에게 주던 구조 항해(정의·참조·의존)를 에이전트에게 주는 사전 인덱스. 주의: knowledge-graph-librarian 과 «tree-sitter 그래프 over MCP» 로 겹치는 pick-one 관계 — 둘 다 앉히는 건 예외지 기본이 아니에요.",
+      "implementations": [
+        {
+          "name": "codegraph",
+          "repo": "https://github.com/colbymchenry/codegraph",
+          "confirmedBy": "https://github.com/colbymchenry/codegraph",
+          "asOf": "2026-08-02",
+          "license": "MIT",
+          "confirmedFor": [
+            "per-repo 로컬 MCP + OS 파일 워처 자동 싱크 (fail-clean 보강 진행 중 — 과거 6개월 무음-stale 전력 있음)",
+            "20+ 언어, TS/Node 본체 + Rust 파싱 커널(v1.5.0, 2026-07-21) + SQLite FTS5",
+            "지원 하네스에 Hermes Agent 공식 명시"
+          ],
+          "unconfirmed": [
+            "허브 중앙 배치(인덱스를 허브에 두고 다중 에이전트 MCP 공유) — per-project 로컬 전제이며 같은 머신 동시 접근도 SQLite 락 이슈 open"
+          ],
+          "caveats": [
+            "버스팩터 1 — 단독 메인테이너 커밋 93%",
+            "벤치마크(비용 60%↓·토큰 69%↓)는 방법론 공개된 자가보고 — 소형 repo 에선 이득 소멸, 독립 재현 미확인"
+          ],
+          "avoidFor": []
+        }
+      ]
+    },
+    {
+      "category": "judgment-memory",
+      "seat": "판단 기억 — 사람(peer 사용자)별 판단 재료(결정 기록·입장·보정 프로필)를 축적·조회해 스티어링을 줄이고 부재 시 관성 우선순위를 공급하는 자리. **경계: 재료 조회까지예요 — 대리 판단이 아니에요.** 결정 게이트(손실·외부 발행·중대 분기)는 부재와 무관하게 사람 몫이고, 규범 기록은 결정 원장(Hyperbrief §9)이 정본이며 이 자리는 그 아래 저장·검색 층이에요.",
+      "implementations": [
+        {
+          "name": "gbrain",
+          "repo": "https://github.com/garrytan/gbrain",
+          "confirmedBy": "https://github.com/garrytan/gbrain",
+          "asOf": "2026-08-02",
+          "license": "MIT",
+          "confirmedFor": [
+            "팀 모드 실재 — OAuth client_credentials + 소스 단위 격리(--source/--federated-read, SQL 레이어 강제)",
+            "화자(holder)별 판단 기록 — takes(입장/베팅/직감+가중치) + calibration_profile 페이즈",
+            "하이브리드 검색(벡터 HNSW+BM25+융합) + dream cycle(18페이즈 야간 통합) 실재"
+          ],
+          "unconfirmed": [],
+          "caveats": [
+            "공유 소스 안 per-person 읽기 격리 없음 (격리는 소스 단위까지)",
+            "쓰기 prefix 바인딩 시 facts 추출 계열 op 통째 비활성",
+            "«토큰 0» 은 마크다운 링크 문법으로 이미 표기된 참조의 regex 추출에만 참 — 자유 텍스트 추출은 LLM 비용 실재",
+            "시간축 추론 약점 자인(자체 제안서·LongMemEval 유일 열세 카테고리) — 시점 민감 질의는 검증 필요",
+            "개인 계정 소유 + 생성 4개월 + 자가 제작 합성 코퍼스 벤치 — 문서 간 수치 표류 실측(스킬 수·P@5 리프트)"
+          ],
+          "avoidFor": [
+            "대리 판단(부재자 대신 결정) — 유사 시도 최고 성과가 설문 재현 85%·경제 게임 66% 수준, 오귀속 시 책임 경로 부재, 생산 배치 선례 미발견 (2026-08-02 조사)"
+          ]
+        }
+      ]
+    }
+  ]
+}
