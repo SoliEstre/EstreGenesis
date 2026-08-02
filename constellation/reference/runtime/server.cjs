@@ -1605,6 +1605,15 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 최근분 + cold/
   const scope = { policy: 'active-channels-recent+stubs', activeEvents: events.length, coldChannels: cold.length, archivedChannels: wsArchivedList().length, perChannelLimit: HISTORY_INITIAL_PER_CHAN, truncated, note: 'cold/archived 채널 내용은 RequestChannelHistory 로 on-demand — 부재 ≠ 미기록. 활성 채널도 최근 perChannelLimit 건만 — truncated[] 의 채널은 beforeTs 를 실어 RequestChannelHistory 로 이어 받으세요'};
   return { events, cold, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests), corporateChart: wsCorpChart || null, roleStates: Object.fromEntries(wsRoleStates) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope + v2.4.90 §13.33 조직 차트/좌석 상태 동봉
 }
+// v2.4.140 (독립 구현 parity 이식이 원본 감사로 되돌아온 건): History 발송 여부를 payload 에서 **파생**해요.
+//   종전 가드는 payload 키를 손으로 다시 열거했고, v2.4.71(opsStates)·v2.4.76(capManifests) 추가를 못 따라가
+//   «대화·매니페스트·조직 선언 없이 OpsState/CapabilityManifest 만 있는 신생 서버» 에서 History 가 조용히
+//   빠졌어요 — v2.4.90(«선언만 있어도 History 가 나가야»)이 막으려던 바로 그 부류가 가드 자신에서 재발한 거예요.
+//   scope 는 항상 차 있는 메타라 제외하고, 나머지는 어떤 필드든 내용이 있으면 보낼 이유예요. 저장소 키가 또
+//   늘어도(payload 에 싣는 순간) 이 가드는 수정 없이 따라와요 — 열거는 파생으로만.
+function wsHistoryHasContent(h) {
+  return Object.entries(h).some(([k, v]) => k !== 'scope' && (Array.isArray(v) ? v.length > 0 : v && typeof v === 'object' ? Object.keys(v).length > 0 : !!v));
+}
 function wsLoadChannel(ck) {   // RequestChannelHistory 응답용 — 메모리(active) 우선, 없으면 archived(cold)에서 로드 + active 복귀
   let a = wsHistByChan.get(ck);
   if (a && a.length) return a;
@@ -1852,7 +1861,7 @@ function wsSendInitialState(conn) {
   if (!conn || conn.meta._stateSent) return;
   conn.meta._stateSent = true;
   conn.send(wscore.event('CUSTOM', { name: 'AgentList', value: { agents: wsAgentList() } }));   // 먼저 role/이름 — 모니터 a2a 분류(§13.5)·History 재생이 role 을 참조하므로
-  { const _h = wsHistoryPayload(); if (_h.events.length || _h.cold.length || _h.archived.length || Object.keys(_h.manifests).length || _h.corporateChart || Object.keys(_h.roleStates).length) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand). v2.4.90: 대화가 아직 없고 조직 선언만 있는 서버에서도 History 가 나가야 조직도 탭이 채워져요(무-이벤트 silent drop 방지)
+  { const _h = wsHistoryPayload(); if (wsHistoryHasContent(_h)) conn.send(wscore.event('CUSTOM', { name: 'History', value: _h })); }   // C(lazy): active 채널 events + cold/archived stub(내용은 탭 클릭·복원 시 on-demand). v2.4.90 취지(선언만 있어도 History 발송) 그대로, v2.4.140 부터 판정은 손 열거가 아니라 payload 파생 — opsStates·capManifests 누락 드리프트의 재발 방지
 }
 // ──────────────────────────────────────────────────────────────────────────────────────────
 server.on('upgrade', (req, socket) => {
