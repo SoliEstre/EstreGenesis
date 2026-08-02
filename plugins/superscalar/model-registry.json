@@ -712,6 +712,29 @@
               }
             ]
           }
+        ],
+        "avoidFor": [
+          {
+            "role": "보안 점검 레인 — 공격자 시뮬레이션 · 레드팀 · 익스플로잇/공격도구 관련 작업",
+            "why": "이 모델의 안전 분류기가 **공격형 보안 기법**(익스플로잇·멀웨어·공격 도구 제작)을 겨냥하고, 문서가 **선의의 보안 작업도 걸릴 수 있다**고 명시해요. 우리 Ultrasafe 모듈은 스킬 이름부터 web-api-attacker · ai-llm-redteam · social-engineer 이고 관련 어휘가 138곳이라, 그 레인을 이 모델로 돌리면 체계적으로 거부→폴백이에요. **지금 살아 있는 문제**예요 — 열린 결정 gate-ultrasafe-fanout-run 이 공격자 11+ 에이전트를 돌리는 건이라, 라우팅을 안 정하고 실행하면 결과가 폴백 모델 것과 섞여요. 공급사 권장 완화도 폴백 구성이라, 애초에 그 레인을 여기로 안 보내는 게 맞아요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5",
+                "note": "「safety classifiers that target offensive cybersecurity techniques (such as building exploits, malware, or attack tooling) … Benign cybersecurity work and beneficial life sciences tasks may also trigger these safeguards」 + 폴백 구성 권장"
+              },
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5",
+                "note": "「Claude Fable 5 includes safety classifiers that can decline requests」 — refusal 은 200 응답으로 오고 어느 분류기가 거절했는지 보고됨"
+              }
+            ]
+          }
         ]
       },
       {
