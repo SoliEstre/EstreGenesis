@@ -1064,6 +1064,9 @@ function setPanes(name, ctrl) {
   ui.panes = panes; savePanes(); applyPanes();
 }
 document.querySelectorAll('.tab').forEach(t => t.onclick = (e) => setPanes(t.dataset.tab, e.ctrlKey || e.metaKey));
+// v2.4.136 §13.25.17 — 운영자 계정 패널 (login.js). 계정이 0이면 패널이 «지금은 주소 판정» 을 설명해요.
+{ const _lb = document.getElementById('ws-login-btn');
+  if (_lb) _lb.onclick = () => { if (window.egLogin) window.egLogin.openPanel(); }; }
 
 function updatePinHandles() {
   const fx = ui.splitFixed;
