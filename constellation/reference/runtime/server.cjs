@@ -35,6 +35,12 @@ push.init(DIR, { subject: 'mailto:admin@constellation.local' });   // #3b VAPID 
 //   - expose (#5a-4): true 면 WS_BIND 미지정 시 0.0.0.0(LAN 노출) 로 bind. WS_BIND env 가 있으면 그게 우선. 변경은 /api/restart 로 적용(bind-time).
 // 순수 가산: access.json 부재 시 동작 무변화(loopback + 전체 허용). (UI=HTTP 표면 · agent/MCP=WS 표면, MCP 는 HELLO capabilities 로 식별.)
 const ACCESS = process.env.ACCESS_FILE || path.join(DIR, 'access.json');
+// v2.4.136 §13.25.17 — 운영자 계정 층. **계정 0 = 완전 비활성**(가산 규율): 이 줄이 있는 것만으로는
+//   어떤 배포도 바뀌지 않아요. 파일은 key.json·access.json 과 같은 급의 비밀이라 gitignore + 0600.
+const operatorAuth = require('./operator-auth.cjs').createOperatorAuth({
+  file: process.env.OPERATORS_FILE || path.join(DIR, 'operators.json'),
+  log: (...a) => console.log(...a),
+});
 const _accessDefault = () => ({ expose: false, ui: { allowlist: null }, agent: { allowlist: null, requireKey: false }, mcp: { allowlist: null } });
 let accessCfg = _accessDefault();
 function loadAccess() {
@@ -261,6 +267,58 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── v2.4.136 §13.25.17 운영자 계정 엔드포인트 ─────────────────────────────────
+  // 계정이 0이면 whoami 가 `loginRequired:false` 를 돌려주고 화면은 종전 그대로 떠요. 첫 계정 생성은
+  //   «아직 아무도 없을 때만» 열려 있어요(부트스트랩) — 계정이 생긴 뒤의 추가·삭제는 로그인한 운영자만.
+  if (url === '/api/whoami') {
+    return sendJson(res, 200, { loginRequired: operatorAuth.enabled(), operator: operatorAuth.enabled() ? operatorAuth.operatorOfReq(req) : null, operatorCount: operatorAuth.count() });
+  }
+  if (url === '/api/login' && req.method === 'POST') {
+    if (!sameOriginPost(req)) return sendJson(res, 403, CSRF_403);
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+    req.on('end', async () => {
+      let b; try { b = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); }
+      if (!operatorAuth.enabled()) return sendJson(res, 409, { ok: false, error: 'no-operators', hint: '계정이 없어요 — 로그인 층이 꺼져 있어요.' });
+      const r = await operatorAuth.verify(String(b.id || ''), String(b.password || ''));
+      if (!r.ok) return sendJson(res, 401, { ok: false, error: r.error, retryAfterMs: r.retryAfterMs });
+      res.setHeader('Set-Cookie', operatorAuth.setCookieHeader(r.token, !_isLoopback));
+      sendJson(res, 200, { ok: true, operator: r.operator });
+    });
+    return;
+  }
+  if (url === '/api/logout' && req.method === 'POST') {
+    if (!sameOriginPost(req)) return sendJson(res, 403, CSRF_403);
+    operatorAuth.logout(operatorAuth.tokenFromReq(req));
+    res.setHeader('Set-Cookie', operatorAuth.clearCookieHeader());
+    return sendJson(res, 200, { ok: true });
+  }
+  if (url === '/api/operators') {
+    if (req.method === 'GET') {
+      if (operatorAuth.enabled() && !operatorAuth.operatorOfReq(req)) return sendJson(res, 401, { ok: false, error: 'login-required' });
+      return sendJson(res, 200, { ok: true, operators: operatorAuth.list() });
+    }
+    if (req.method === 'POST' || req.method === 'DELETE') {
+      if (!sameOriginPost(req)) return sendJson(res, 403, CSRF_403);
+      // 첫 계정만 무인증 — 그 순간 이후로는 로그인이 문지기예요. 이 예외가 없으면 아무도 시작할 수 없어요.
+      const bootstrap = req.method === 'POST' && !operatorAuth.enabled();
+      if (!bootstrap && operatorAuth.enabled() && !operatorAuth.operatorOfReq(req)) return sendJson(res, 401, { ok: false, error: 'login-required' });
+      if (!bootstrap && !operatorAuth.enabled()) return sendJson(res, 409, { ok: false, error: 'no-operators' });
+      let body = '';
+      req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+      req.on('end', async () => {
+        let b; try { b = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); }
+        if (req.method === 'DELETE') {
+          const me = operatorAuth.operatorOfReq(req);
+          if (me && me.id === b.id && operatorAuth.count() === 1) return sendJson(res, 400, { ok: false, error: 'last-operator', hint: '마지막 계정은 지울 수 없어요 — 지우면 로그인 층이 꺼져 주소 판정으로 돌아가요. 의도한 것이면 파일을 직접 비우세요.' });
+          return sendJson(res, operatorAuth.removeOperator(String(b.id || '')) ? 200 : 404, { ok: true });
+        }
+        try { const o = await operatorAuth.addOperator(b.id, b.name, b.password); sendJson(res, 200, { ok: true, operator: o, bootstrap }); }
+        catch (e) { sendJson(res, 400, { ok: false, error: String((e && e.message) || e) }); }
+      });
+      return;
+    }
+  }
   if (url === '/api/feedback' && req.method === 'POST') {
     if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/feedback POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
     let body = '';
@@ -510,6 +568,10 @@ const _WS_EXTERNAL_ROLES = new Set(['collab', 'peer', 'upstream']);   // parties
 // 그 조합은 기동 로그가 명시적으로 경고한다.
 function wsOperatorAuthz(conn) {
   if (conn.meta.role === 'agent') return wsAgentRole(conn) === 'main';
+  // v2.4.136 §13.25.17 — **계정이 하나라도 있으면 주소가 아니라 계정이 판정해요.** 주소는 «어디서» 를
+  //   답하지 «누구» 를 못 답하고, 프록시 뒤에서는 그 «어디서» 마저 전부 같아 보여요. 계정이 0이면 이
+  //   갈래는 존재하지 않는 것과 같아요(가산 규율) — 종전 판정 그대로 내려가요.
+  if (operatorAuth.enabled()) return !!conn.meta.operator;
   if (conn.meta.fwd) return false;
   const ip = conn.meta.ip || '';
   if (_isLoopback || isLoopbackIp(ip)) return true;
@@ -1846,6 +1908,9 @@ server.on('upgrade', (req, socket) => {
   // `tml-10` — 전달 헤더가 붙어 왔으면 이 주소는 **프록시의 것**이라 loopback 이어도 로컬이 아니에요.
   //   upgrade 때만 헤더를 볼 수 있으니 여기서 표시해 두고, host-local 판정이 그걸 봐요.
   conn.meta.fwd = ipScope.forwardedPresent(req.headers);
+  // v2.4.136 §13.25.17 — 쿠키의 세션을 소켓에 붙여요. 계정이 0이면 항상 null 이라 아무 갈래도 안 바뀌어요.
+  //   upgrade 때만 헤더를 볼 수 있으니 fwd 와 같은 자리에서 한 번만 읽어요.
+  conn.meta.operator = operatorAuth.enabled() ? operatorAuth.operatorOfReq(req) : null;
   try { const u = new URL(req.url, 'http://x').searchParams; const k = u.get('key') || u.get('peerKey') || u.get('upstreamKey') || u.get('collabKey'); conn.meta._urlKey = k; const kr = wsKeyRole(k); if (kr === 'collab') { conn.meta.collab = true; conn.meta.upstreamKey = k; } else if (kr === 'peer') { conn.meta.peer = true; conn.meta.upstreamKey = k; } else if (kr === 'upstream' || wsValidKey(u.get('upstreamKey'))) { conn.meta.upstream = true; conn.meta.upstreamKey = k; } else if (kr === 'local') { conn.meta.localKey = true; conn.meta.upstreamKey = k; }   /* v2.4.101 — local(lk-) 분기가 **이 자리에도** 없었어요. v2.4.99 는 HELLO 본문 경로만 고쳤는데, 레퍼런스 join-local 은 키를 URL 로만 보내요(?key=). 그래서 (a) 그 키는 관측되지 않아 state/lastAgent 가 초기값에 머물고 (b) 원격 local 키 거부 가드가 발동하지 않았어요 — 재기동 후 실측으로 드러난 구멍. 스모크가 두 경로에 다 키를 실어서 URL-only 경로를 시험하지 않았던 것도 같이 고쳤어요. */ if (k != null) console.log('[ws upgrade] key=%s role=%s', keyFp(k), kr); } catch {}   // #168 키 role 판정 · v2.4.0 upstreamKey 보관 (KEY-MGMT 매칭) · v2.4.52 peer(pk-) 분기
   // v2.4.104 §13.25.13 — 기간 지난 키는 여기서 끊어요. 아래 SERVER_HELLO/AgentList/History 보다
   //   **앞**이어야 해요: URL 로 키를 싣는 클라이언트는 HELLO 를 보내기 전에 이미 보드 내용을 받으니까요
@@ -2065,7 +2130,12 @@ server.on('upgrade', (req, socket) => {
             conn.send(_ackEv);
           }
           // §13.13.2 v0.4: register pending entry for key-bearing targeted CUSTOM (ack/ping kinds excluded inside wsRelayKey)
-          _relayPendingAdd(tgt, msg);
+          // v2.4.136 — **자기 자신 앞 프레임은 회수 대상이 아니에요.** 받는 이가 보낸 이면 이미 도착한
+          //   것이고, 게다가 수신 다리는 자기 echo 를 ack 하지 않아요(그래야 ack 이 자기를 반사하지 않아요).
+          //   그래서 이 항목은 **구조적으로 절대 안 지워져요** — 3회 재전달 뒤 반드시 거짓 RelayUnreachable
+          //   로 끝나요. 실측: 메인 다리의 AgentHello 가 자기 자신을 가리켜(WS_MAIN 기본값 = 자기 id)
+          //   접속마다 이 경로를 탔어요. 「보냈는데 못 닿았다」는 통지가 실은 「나에게 보냈다」였어요.
+          if (tgt !== conn.meta.agentId) _relayPendingAdd(tgt, msg);
         } else if (wsRelayKey(msg)) {
           // 회수 열쇠가 있으면 얹어요 — 재접속하면 재전달되고, 부재 상한을 넘기면 발신자에게 RelayUnreachable.
           //   «한 번도 접속한 적 없는 이름» 도 여기로 와요: 오타든 아직 안 뜬 동료든, 판정은 같아요(지금 못 닿음).

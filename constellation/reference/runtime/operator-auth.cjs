@@ -1,0 +1,140 @@
+'use strict';
+// operator-auth.cjs — 보드 운영자 계정 층 (Constellation v2.4.136 §13.25.17, deps-0).
+//
+// **왜 필요한가.** 운영자 판정이 지금은 «주소» 예요 — 이 기계에서 온 접속이면 보드를 넘겨요. 리버스
+// 프록시 뒤에서는 원격이 전부 이 기계처럼 보이니 그 판정이 뒤집혀요. 직전 컷은 전달 헤더를 보고 그
+// 경우를 **거절**하는 데까지 갔는데, 거절은 알아챈 것이지 길을 낸 게 아니에요. 주소는 «어디서» 를 답하고
+// «누구» 를 못 답해요 — 그 자리에 필요한 건 계정이에요.
+//
+// **가산 규율 (이 파일의 계약).** 계정이 하나도 없으면 이 층은 **완전히 꺼져 있어요** — 판정도, 쿠키도,
+// 화면도 종전과 비트 단위로 같아요. 도입 여부가 «계정을 만들었는가» 하나로 정해지는 게 운영자 결정이고,
+// access.json 이 이미 쓰는 가산 패턴과 같은 모양이에요(부재 = 무변화). 그래서 이 파일이 존재하는 것만으로는
+// 아무 배포도 바뀌지 않아요.
+//
+// **저장.** operators.json (서버 옆, gitignore — key.json·access.json 과 같은 급의 비밀 파일).
+//   { operators: [{ id, name, salt, hash, iter, createdAt, lastLoginAt }] }
+//   비밀번호는 scrypt 로만 저장해요. 평문·가역 암호화는 이 파일에 절대 안 들어가요.
+//
+// **세션.** 메모리 전용이에요. 서버가 재기동하면 전원 재로그인 — 이게 옳아요: 세션을 디스크에 두면
+//   그 파일이 비밀 하나 더가 되고, 재기동은 드물고, 재로그인 비용은 몇 초예요.
+
+const fs = require('fs');
+const crypto = require('crypto');
+
+const SCRYPT = { N: 16384, r: 8, p: 1, keylen: 64 };
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;      // 12시간 — 근무 하루를 덮되 무기한은 아니게
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILS = 8;                        // 창당 실패 상한 (id 별 · 느린 해시와 합쳐 대입 방어)
+
+function createOperatorAuth(opts) {
+  const FILE = opts.file;
+  const log = opts.log || (() => {});
+  let store = { operators: [] };
+  const sessions = new Map();                     // token → { id, name, exp }
+  const fails = new Map();                        // id → { n, until }
+
+  function load() {
+    try {
+      const j = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+      store = { operators: Array.isArray(j && j.operators) ? j.operators : [] };
+    } catch { store = { operators: [] }; }
+    return store;
+  }
+  function save() {
+    fs.writeFileSync(FILE, JSON.stringify(store, null, 2));
+    try { fs.chmodSync(FILE, 0o600); } catch {}   // 비밀 파일 권한 (crypto-03 규율)
+  }
+  load();
+  try { fs.watchFile(FILE, { interval: 2000 }, () => load()); } catch {}
+
+  // 계정 0 = 층 자체가 꺼짐. 이 술어가 가산 계약의 전부예요.
+  const enabled = () => store.operators.length > 0;
+
+  function hash(password, salt) {
+    return new Promise((resolve, reject) => {
+      crypto.scrypt(String(password), salt, SCRYPT.keylen, { N: SCRYPT.N, r: SCRYPT.r, p: SCRYPT.p },
+        (e, dk) => (e ? reject(e) : resolve(dk.toString('hex'))));
+    });
+  }
+
+  async function addOperator(id, name, password) {
+    id = String(id || '').trim();
+    if (!/^[a-zA-Z0-9._-]{2,32}$/.test(id)) throw new Error('id 는 영숫자·._- 2~32자');
+    if (String(password || '').length < 8) throw new Error('비밀번호는 8자 이상');
+    if (store.operators.some((o) => o.id === id)) throw new Error('이미 있는 id');
+    const salt = crypto.randomBytes(16).toString('hex');
+    store.operators.push({ id, name: String(name || id).slice(0, 64), salt, hash: await hash(password, salt), kdf: 'scrypt', createdAt: new Date().toISOString(), lastLoginAt: null });
+    save();
+    log('[auth] 운영자 계정 추가 id=%s (총 %d)', id, store.operators.length);
+    return { id, name };
+  }
+
+  function removeOperator(id) {
+    const before = store.operators.length;
+    store.operators = store.operators.filter((o) => o.id !== id);
+    if (store.operators.length === before) return false;
+    for (const [tok, s] of sessions) if (s.id === id) sessions.delete(tok);   // 지운 계정의 세션은 즉시 무효
+    save();
+    log('[auth] 운영자 계정 제거 id=%s (남은 %d%s)', id, store.operators.length, store.operators.length ? '' : ' — 로그인 층 꺼짐');
+    return true;
+  }
+
+  async function verify(id, password) {
+    const now = Date.now();
+    const f = fails.get(id);
+    if (f && f.until > now && f.n >= LOGIN_MAX_FAILS) return { ok: false, error: 'too-many-attempts', retryAfterMs: f.until - now };
+    const op = store.operators.find((o) => o.id === id);
+    // 없는 id 에도 같은 비용을 치러요 — 응답 시간으로 계정 존재 여부가 새지 않게.
+    const salt = op ? op.salt : crypto.randomBytes(16).toString('hex');
+    const got = Buffer.from(await hash(password, salt), 'hex');
+    const want = Buffer.from(op ? op.hash : got.toString('hex'), 'hex');
+    const same = op && got.length === want.length && crypto.timingSafeEqual(got, want);
+    if (!same) {
+      const cur = (f && f.until > now) ? f : { n: 0, until: now + LOGIN_WINDOW_MS };
+      cur.n++; fails.set(id, cur);
+      log('[auth] 로그인 실패 id=%s (창 내 %d/%d)', id, cur.n, LOGIN_MAX_FAILS);
+      return { ok: false, error: 'bad-credentials' };
+    }
+    fails.delete(id);
+    op.lastLoginAt = new Date().toISOString(); save();
+    const token = crypto.randomBytes(32).toString('hex');
+    sessions.set(token, { id: op.id, name: op.name, exp: now + SESSION_TTL_MS });
+    return { ok: true, token, operator: { id: op.id, name: op.name } };
+  }
+
+  function sessionOf(token) {
+    if (!token) return null;
+    const s = sessions.get(token);
+    if (!s) return null;
+    if (s.exp <= Date.now()) { sessions.delete(token); return null; }
+    return s;
+  }
+  function logout(token) { return sessions.delete(token); }
+
+  // 쿠키 파싱 — 요청 헤더에서 세션 토큰만 꺼내요.
+  const COOKIE = 'eg_board_sid';
+  function tokenFromReq(req) {
+    const raw = (req && req.headers && req.headers.cookie) || '';
+    for (const part of raw.split(';')) {
+      const i = part.indexOf('=');
+      if (i > 0 && part.slice(0, i).trim() === COOKIE) return decodeURIComponent(part.slice(i + 1).trim());
+    }
+    return null;
+  }
+  function operatorOfReq(req) { const s = sessionOf(tokenFromReq(req)); return s ? { id: s.id, name: s.name } : null; }
+  // Secure 는 https 일 때만 — loopback http 개발 배치에서 Secure 를 붙이면 쿠키가 아예 저장되지 않아요.
+  function setCookieHeader(token, secure) {
+    return `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}${secure ? '; Secure' : ''}`;
+  }
+  function clearCookieHeader() { return `${COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`; }
+
+  return {
+    enabled, addOperator, removeOperator, verify, logout,
+    operatorOfReq, tokenFromReq, sessionOf, setCookieHeader, clearCookieHeader,
+    list: () => store.operators.map((o) => ({ id: o.id, name: o.name, createdAt: o.createdAt, lastLoginAt: o.lastLoginAt })),
+    count: () => store.operators.length,
+    COOKIE,
+  };
+}
+
+module.exports = { createOperatorAuth, SESSION_TTL_MS };
