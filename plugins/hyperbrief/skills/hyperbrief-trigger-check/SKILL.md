@@ -1,7 +1,7 @@
 ---
 name: hyperbrief-trigger-check
-version: 0.8.0
-description: ALWAYS run BEFORE composing any message that asks the user for a decision, approval, or choice. Cheap escalation rubric (4-score + 5 MUST-trigger conditions) that returns one of {AUTONOMOUS_DECIDE, SUMMARY_BRIEF, FULL_HYPERBRIEF, MINIMAL_BRIEF, BLOCK_FRAMING}. v0.8 adds the brief-tier toggle (Hyperbrief.md §2.5) — the sub-threshold output is no longer always a one-liner; the tier floor (off | summary | full, default summary, set via HB.<tier> command / HYPERBRIEF_BRIEF_TIER env / .hyperbrief/config.json brief_tier) is resolved and the verdict is max(rubric_tier, floor) over BLOCKED_STUB < SUMMARY_BRIEF < FULL_HYPERBRIEF, so no setting can ever lower the tier the rubric demands. Triggered by message-intent patterns ('괜찮을까요','할까요','should we','which option','approve','confirm','choose between','OK to') OR by Superscalar opening a write/deploy/send lane OR by inbound Constellation DECISION_REQUEST. Also routes audience-profile commands (tone L<n>.<n>.<n> + term_pairing L<n>.{E|I|N}.{C|D|B|R|A}[!|?]) to the hyperbrief skill for AudienceProfileFallback population. Invokes the full hyperbrief skill ONLY when outcome != AUTONOMOUS_DECIDE. Skip for pure read-only fan-outs.
+version: 0.9.0
+description: ALWAYS run BEFORE composing any message that asks the user for a decision, approval, or choice. Cheap escalation rubric (4-score + 5 MUST-trigger conditions) that returns one of {AUTONOMOUS_DECIDE, SUMMARY_BRIEF, FULL_HYPERBRIEF, MINIMAL_BRIEF, BLOCK_FRAMING}. v0.8 adds the brief-tier toggle (Hyperbrief.md §2.5) — the sub-threshold output is no longer always a one-liner; the tier floor (off | summary | full, default summary, set via HB.<tier> command / HYPERBRIEF_BRIEF_TIER env / .hyperbrief/config.json brief_tier) is resolved and the verdict is max(rubric_tier, floor) over BLOCKED_STUB < SUMMARY_BRIEF < FULL_HYPERBRIEF, so no setting can ever lower the tier the rubric demands. v0.9 adds the request tier (Hyperbrief.md §2.6) — a bare request for a brief resolves to SUMMARY_BRIEF rather than the heaviest tier, named tiers 요약/상세/심층 map to SUMMARY_BRIEF/FULL_HYPERBRIEF/DEEP_BRIEF, and DEEP_BRIEF is request-only and the only tier permitted to fan out. Triggered by message-intent patterns ('괜찮을까요','할까요','should we','which option','approve','confirm','choose between','OK to') OR by Superscalar opening a write/deploy/send lane OR by inbound Constellation DECISION_REQUEST. Also routes audience-profile commands (tone L<n>.<n>.<n> + term_pairing L<n>.{E|I|N}.{C|D|B|R|A}[!|?]) to the hyperbrief skill for AudienceProfileFallback population. Invokes the full hyperbrief skill ONLY when outcome != AUTONOMOUS_DECIDE. Skip for pure read-only fan-outs.
 ---
 
 # Hyperbrief Trigger Check — the escalation gate
@@ -110,13 +110,33 @@ rubric_tier = FULL_HYPERBRIEF if (escalation_sum >= threshold OR any_must_trigge
 # --- what the TIER FLOOR asks for (v0.8.0, Hyperbrief.md §2.5) ---
 floor = {off: BLOCKED_STUB, summary: SUMMARY_BRIEF, full: FULL_HYPERBRIEF}[brief_tier]
 
+# --- what the REQUEST asks for (v0.9.0, Hyperbrief.md §2.6) ---
+# A bare request for a brief is a SUMMARY. Asking for a brief is not asking for
+# the heaviest one — before v0.9 it was, and that surcharge was never chosen.
+# 심층/deep is request-only: neither the rubric nor the floor may produce it,
+# because its added cost is fan-out and fan-out is paid in someone's tokens.
+request_tier = (
+    DEEP_BRIEF        if user named 심층 / deep
+    else FULL_HYPERBRIEF if user named 상세 / full / detailed
+    else SUMMARY_BRIEF   if user asked for a brief at all (bare or 요약/summary/short)
+    else BLOCKED_STUB    # no request — the rubric and floor decide alone
+)
+
 # --- resolve as a MAX over the lattice. never min, never assignment ---
-#     BLOCKED_STUB  <  SUMMARY_BRIEF  <  FULL_HYPERBRIEF
-verdict = max(rubric_tier, floor)
+#     BLOCKED_STUB  <  SUMMARY_BRIEF  <  FULL_HYPERBRIEF  <  DEEP_BRIEF (request-only)
+verdict = max(rubric_tier, floor, request_tier)
+
+if verdict == DEEP_BRIEF:
+    return DEEP_BRIEF
+    # Full 9-section pipeline + a verification annex: adversarial refutation of the
+    # recommendation's load-bearing claims. This is the only tier that may fan out.
+    # Emitted as FullBrief IR + optional `verification_annex` — NOT a new schema shape.
 
 if verdict == FULL_HYPERBRIEF:
     return FULL_HYPERBRIEF
     # Invoke the `hyperbrief` skill with the staged 9-section generation pipeline.
+    # Do NOT fan out here. Depth of evidence is the deep tier's job, and a fan-out
+    # nobody asked for is what made "brief me" read as expensive.
 
 if verdict == SUMMARY_BRIEF:
     return SUMMARY_BRIEF
@@ -160,10 +180,12 @@ Return a structured handoff to the caller:
 
 ```jsonc
 {
-  "verdict": "AUTONOMOUS_DECIDE" | "SUMMARY_BRIEF" | "FULL_HYPERBRIEF" | "MINIMAL_BRIEF" | "BLOCK_FRAMING",
+  "verdict": "AUTONOMOUS_DECIDE" | "SUMMARY_BRIEF" | "FULL_HYPERBRIEF" | "DEEP_BRIEF" | "MINIMAL_BRIEF" | "BLOCK_FRAMING",
   "brief_tier": "off" | "summary" | "full",              // v0.8: resolved per §6.1
   "brief_tier_source": "session" | "env" | "config" | "default" | "default-after-parse-failure",
   "rubric_tier": "BLOCKED_STUB" | "FULL_HYPERBRIEF",     // v0.8: what the rubric alone asked for, before the floor
+  "request_tier": "BLOCKED_STUB" | "SUMMARY_BRIEF" | "FULL_HYPERBRIEF" | "DEEP_BRIEF",  // v0.9 §2.6: what the ASK asked for
+  "request_tier_phrase": "<the words that named it>" | null,   // null when the request was bare (→ SUMMARY_BRIEF)
 
   "escalation_sum": <int 0-12>,
   "scores": { "irreversibility": <0-3>, "blast_radius": <0-3>, "time_horizon": <0-3>, "reversal_cost": <0-3> },
@@ -176,7 +198,7 @@ Return a structured handoff to the caller:
 }
 ```
 
-If `verdict == FULL_HYPERBRIEF` or `MINIMAL_BRIEF` or `SUMMARY_BRIEF`, immediately invoke the `hyperbrief` skill with this handoff as context — it selects the 9-section or 3-stage pipeline from the verdict. If `verdict == AUTONOMOUS_DECIDE`, proceed with the decision and emit the one-line post-notify (reachable only at `brief_tier: off`). Emitting `rubric_tier` alongside `verdict` is what makes AF-27 auditable after the fact: `verdict` below `rubric_tier` is always a defect, and the pair is the only place that comparison is recoverable. If `verdict == BLOCK_FRAMING`, surface domain confusion to the user before any option enumeration. If `audience_profile_command != null`, the `hyperbrief` skill must also be invoked for command parsing + AudienceProfileFallback population (orthogonal to the verdict path).
+If `verdict` is any brief tier (`SUMMARY_BRIEF` · `FULL_HYPERBRIEF` · `DEEP_BRIEF` · `MINIMAL_BRIEF`), immediately invoke the `hyperbrief` skill with this handoff as context — it selects the pipeline from the verdict. **Only `DEEP_BRIEF` may fan out**; at every other tier the brief is produced in-turn, because a fan-out the operator did not name is a cost they did not choose (§2.6). Emitting `request_tier` alongside `verdict` makes the §2.6 invariant auditable the same way `rubric_tier` makes AF-27 auditable: a `verdict` below `max(rubric_tier, floor, request_tier)` is always a defect, and a `DEEP_BRIEF` verdict whose `request_tier` is not `DEEP_BRIEF` means the request-only rule was violated. If `verdict == AUTONOMOUS_DECIDE`, proceed with the decision and emit the one-line post-notify (reachable only at `brief_tier: off`). Emitting `rubric_tier` alongside `verdict` is what makes AF-27 auditable after the fact: `verdict` below `rubric_tier` is always a defect, and the pair is the only place that comparison is recoverable. If `verdict == BLOCK_FRAMING`, surface domain confusion to the user before any option enumeration. If `audience_profile_command != null`, the `hyperbrief` skill must also be invoked for command parsing + AudienceProfileFallback population (orthogonal to the verdict path).
 
 ## 9. Back-compat (v0.6 cut)
 
