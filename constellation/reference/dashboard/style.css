@@ -142,7 +142,13 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 /* cards */
 .cards { display: flex; flex-direction: column; gap: 10px; }
 .card { position: relative; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--proj, var(--line));
-  border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); transition: opacity .2s, transform .2s, filter .2s, box-shadow .2s; }
+  border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); transition: opacity .2s, transform .2s, filter .2s, box-shadow .2s;
+  /* v2.4.133 — 화면 밖 카드는 레이아웃 계산에서 건너뛰어요. 완료 항목이 쌓이면 보이는 패널 하나가
+     7천 노드가 되고, 그러면 **한 번의 전체 재계산이 ~30ms** 예요. 입력란은 글자마다 높이를 다시 재느라
+     그 재계산을 두 번씩 강제하니 타자가 키당 ~185ms 로 막혔어요(한글은 자모마다 이벤트라 체감 «수십 초
+     뭉침»). 통제 실험: 184.4 → 0.7ms/키, 되돌리면 177.6 재발. `contain` 만으로는 196.7 — 안 듣습니다.
+     off-screen 을 **안 그리는 것**이 유효 성분이에요. intrinsic-size 는 스크롤바 튐 방지용 자리표. */
+  content-visibility: auto; contain-intrinsic-size: auto 140px; }
 .card.dim { opacity: .42; filter: grayscale(.5); transform: scale(.985); }
 .card.expandable { cursor: pointer; }
 .card.expandable .body { padding-left: 10px; }
