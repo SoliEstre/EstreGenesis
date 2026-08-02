@@ -78,6 +78,12 @@ The seed bootstraps the standard itself (`AGENTS.md` SSoT + bridges + `.agent/`)
 
 Discipline costs nothing to have and is wrong to withhold — an agent that could have avoided a misattribution and did not is worse for having waited to be asked. A process, a port, a bill, or an authority claim is the user's to grant.
 
+That split **is** the **harness tier** (seed § EG Module Registry): 4a is `lean`, the default, and every 4b row names the tier it would raise the project to. Declare the resulting tier in step 5 — one line, no question — and remember the two invariants: an agent may only *lower* it, and the floor (autonomy boundary, loss / external-publish gates) does not move with it.
+
+Where the host has no plugin mechanism at all — a plain chat agent, an editor assistant that reads a file and nothing else — 4a's skills cannot mount and the project sits at **`seed`**: the charter and the place to record, and nothing that fires. Say so plainly. That is a complete supported state and the one most adopters are actually in, not a degraded install to apologise for; every conduct default in 4a still binds, because those are the agent's own behaviour and need no infrastructure.
+
+> **Not the seed tier.** §1 above picks Master / Lite / Compact — *how deep the document is*. The harness tier is *how much runs when nobody asked*. They are independent: a Compact seed at `resident` and a Master seed at `lean` are both ordinary.
+
 ### 4a. Default-mounted — do this now, no request needed
 
 - **The skills bundle.** Install the module plugins' skills so they are *invocable*. Installing a skill does not run anything.
@@ -92,17 +98,18 @@ Discipline costs nothing to have and is wrong to withhold — an agent that coul
 
 State availability in one line each and **wait for a request**. The parenthesis is the cost that makes it opt-in, and it belongs in the sentence:
 
-| Available on request | Why it waits |
-|---|---|
-| **Constellation** board server | Runs a process and binds a port; network exposure is a security decision (§13.32.4 loopback-first) |
-| **Constellation** peer-join (someone else hosts) | Joins an existing board — the owner's invitation, not yours to assume (§13.32.2) |
-| **Corporate** organization | Creates seats and a roster, and claims authority over who does what. §15.1 lists the conditions under which *not* setting one up is the right answer — read it before offering |
-| **Ultrasafe** blocking mode | Can stop a release. Advisory mode is the default for exactly this reason |
-| Web push / notifications | Reaches the user's device outside the session |
-| Scheduled or resident loops | Consumes budget while nobody is watching |
+| Available on request | Raises to | Why it waits |
+|---|---|---|
+| Rule-fired automatics — decision-gate check on every decision-shaped message, practice capture, vocabulary lint | `active` | Fires without being called. Earns its cost only where irreversible decisions actually exist; below that it is interruption with no upside |
+| **Constellation** board server | `resident` | Runs a process and binds a port; network exposure is a security decision (§13.32.4 loopback-first) |
+| **Constellation** peer-join (someone else hosts) | `resident` | Joins an existing board — the owner's invitation, not yours to assume (§13.32.2) |
+| **Corporate** organization | `active` | Creates seats and a roster, and claims authority over who does what. §15.1 lists the conditions under which *not* setting one up is the right answer — read it before offering |
+| **Ultrasafe** blocking mode | `active` | Can stop a release. Advisory mode is the default for exactly this reason |
+| Web push / notifications | `resident` | Reaches the user's device outside the session |
+| Scheduled or resident loops | `resident` | Consumes budget while nobody is watching |
 
 If the user wants everything wired at once, hand off to **`/egrich`** — and even then, keep 4b's costs in the offer rather than enabling silently.
 
 ## 5. Report
 
-Four lines: tier + language installed · what the seed created · **what mounted by default** (skills + conduct, in one clause) · what is available but off, and how to turn it on. If you are an autonomous agent following §0.0, end there and wait — do not propose a first project.
+Five lines: seed tier + language installed · what the seed created · **what mounted by default** (skills + conduct, in one clause) · what is available but off, and how to turn it on · **the harness tier this lands on** — normally `lean`, stated not asked, with the one condition that would raise it if the project turns out to have it. If you are an autonomous agent following §0.0, end there and wait — do not propose a first project.
