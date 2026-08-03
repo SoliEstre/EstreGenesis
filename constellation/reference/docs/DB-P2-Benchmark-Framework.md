@@ -7,13 +7,11 @@
 
 ## 1. Purpose — what "실효성 (real effectiveness)" means for Mode-C promotion
 
-The DB-P2-Guide §6.3 gate (N=10 consecutive count-reconcile PASSes + zero read-path errors + `exportJsonl()` round-trip) is a **correctness gate**. It answers exactly one question: "are the two stores in parity?" That question is necessary but not sufficient for the operator's stated promotion rationale, which is broader:
+The DB-P2-Guide §6.3 gate (N=10 consecutive reconcile PASSes + zero read-path errors + `exportJsonl()` round-trip) is a **correctness gate**. It answers exactly one question: **is everything committed to the canonical store also present downstream?** (containment, not count equality — `Constellation.md` §13.38). That question is necessary but not sufficient to justify promotion, because the reason for adopting a database is not merely that it loses nothing.
 
-> "두 솔루션 병행하면서 실효성 벤치마킹을 충분히 진행한 후 자료가 충분히 확보된 시점에서 DB Only로 전환"
->
-> (Run both solutions in parallel, benchmark effectiveness sufficiently, then promote to DB-only when the data is sufficient.)
+The promotion criterion this framework serves is broader: run both backends in parallel, measure effectiveness over a window long enough to be evidence rather than impression, and promote to DB-only once the data supports it.
 
-"실효성 (real effectiveness)" subsumes correctness but adds three further dimensions:
+**Effectiveness** subsumes correctness but adds three further dimensions:
 
 1. **Performance** — does SQLite append/query/recovery actually win (or at least tie) on the operations that matter? Latency p50/p95/p99, throughput under burst, query cost by filter pattern, recovery latency, disk footprint.
 2. **Operational ergonomics** — is SQLite cheaper to operate? Backup time, restore time, cold-start time, WAL-checkpoint impact on tail latency, observability surface (can the operator see what's happening?).
@@ -46,7 +44,7 @@ The §5 / §6.3 gates already define these; this section catalogs them in metric
 | Metric | Definition | Collection point | Promotion relevance |
 |---|---|---|---|
 | `reconcile_pass_rate` | `(PASS_count) / (PASS_count + FAIL_count)` over the benchmark window | `HistoryStoreMux.reconcile()` outcome (L532-537) | Must be 1.0 for ≥ N=10 consecutive checks (§6.3) |
-| `drift_count` | Number of count-reconcile FAILs in the benchmark window | `_recordDrift` invocations (L542-545) | Must be 0 for the promotion-eligibility window (recommended ≥14 days) |
+| `drift_count` | Number of reconcile (containment) FAILs in the benchmark window | `_recordDrift` invocations (L542-545) | Must be 0 for the promotion-eligibility window (recommended ≥14 days) |
 | `partial_fail_count` | Number of partial-dual-write failures in the benchmark window | `_recordPartialFail` invocations (L538-541) | Must be 0 for the promotion-eligibility window (recommended ≥14 days) |
 | `export_jsonl_byte_identical_pass_rate` | Fraction of scheduled `exportJsonl()` diffs against canonical JSONL that come back empty (within §9.1 tolerances) | Scheduled job in §5.3 | Must be 1.0 for the promotion-eligibility window |
 | `event_id_collision_rate` | Count of `INSERT OR IGNORE` invocations where the row was *ignored* (i.e. id already existed) outside the backfill pass | SqliteStore.append on L352 (instrument the ignore branch) | Must be 0 during inline dual-write — collisions during backfill (§4.3) are normal and not counted |
@@ -322,7 +320,7 @@ All must PASS for promotion eligibility:
 1. **Correctness gates from DB-P2-Guide §6.3** (verbatim):
    - Mode B running ≥ 1 full operational cycle (this framework recommends ≥ 30 days per §3.2).
    - Last backfill completed cleanly (no partial-fail in mode-B entry post-check).
-   - **N=10 consecutive count-reconcile PASSes** AT THE TIME OF PROMOTION CHECK.
+   - **N=10 consecutive reconcile (containment) PASSes** AT THE TIME OF PROMOTION CHECK.
    - **Zero read-path errors** during mode B for ≥ 1 operational cycle (this framework recommends the full benchmark window).
    - `exportJsonl()` round-trip verified byte-identical at least once in the benchmark window (this framework recommends the 6-hourly scheduled diff in §5.3 all PASS).
 

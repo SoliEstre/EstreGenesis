@@ -2,6 +2,8 @@
 
 > **Tier**: P1 EG 1차지식 supplement to `DB-P2-Guide.md` (mechanizes the §6.2 B-checklist into a runnable sequence).
 > **Companion to**: `DB-P2-Guide.md` (the discipline + correctness spine) and `DB-P2-Benchmark-Framework.md` (the parallel-run effectiveness gates). This runbook is **operator-facing** — every section is a checklist the operator runs in order, with explicit verify steps and explicit failure handling.
+>
+> **Predicate note**: wherever this runbook says "reconcile", the check is **containment** — every event committed to JSONL is present in SQLite — and never count equality (`Constellation.md` §13.38, `DB-P2-Guide.md` §5.1). Surplus rows in SQLite are expected under normal operation and do not fail anything. Log-line samples quoted below reproduce the emitting implementation's own strings; where such a sample prints two counts, read the counts as context and the PASS/FAIL as the containment verdict.
 
 ---
 
