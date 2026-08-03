@@ -89,13 +89,13 @@ R1 → R2 전환 자체가 본 entry의 첫 학습 — `audience_profile = {2, 2
 
 ### 3.1 톤 fallback 트리거 발화
 
-> "이게 level 2라고? 한국어로 부탁해"
+**입력**: 발행된 브리핑이 선언한 톤 레벨(level 2)과 실제 체감 난이도가 어긋난다는 지적 + 한국어 재작성 요구. 형태상 fallback 트리거 발화인데 재생성이 일어나지 않음.
 
 → 변환: AF-22 (MD brief: 사용자 confusion trigger 발화 but no regen) 자기 인정 + `audience_profile_fallback.trigger_phrases_md` default에 누락 항목 추가 (`한국어로`, `한국말로`, `level 2 라고`, `L2 라고`, `이게 level`, `이게 L`) + 본 entry 브리핑 R1 → R2 (L1/L1/L1) 재렌더.
 
 ### 3.2 단계적 ship 지시
 
-> "반영하되 기존에 추가 patch로 대응하고 있던 부분이 있으니까 그 상태 기준으로 push 한 뒤 도구 추가(임시 patch 대체? 를 지금 할지는 네가 판단.) 버전을 추가 push"
+**입력**: 임시 patch 로 대응 중이던 부분을 그 상태 기준으로 먼저 push 하고, 도구 추가는 별도 버전으로 분리해 push. 임시 patch 를 지금 대체할지 여부는 에이전트 판단에 위임.
 
 → 변환:
 - (a) trigger phrase 추가 + v0.1.1 5 patches 묶음을 **v2.5.23** 으로 먼저 ship.

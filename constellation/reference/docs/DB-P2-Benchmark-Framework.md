@@ -437,4 +437,4 @@ Items needing main upstream / operator decision before the framework is fully op
 
 ## Changelog
 
-- **v0.1 (2026-06-01)**: initial publication. Effectiveness-gate framework supplementing the correctness gates in `DB-P2-Guide.md` §5/§6.3. Authored to support the operator's stated Mode-B → Mode-C promotion rationale ("두 솔루션 병행하면서 실효성 벤치마킹을 충분히 진행한 후 자료가 충분히 확보된 시점에서 DB Only로 전환"). Pairs with `DB-P2-Mode-B-Entry-Runbook.md` (operator entry procedure, same commit).
+- **v0.1 (2026-06-01)**: initial publication. Effectiveness-gate framework supplementing the correctness gates in `DB-P2-Guide.md` §5/§6.3. Authored to supplement the §6.3 correctness gate with the effectiveness evidence a Mode-B → Mode-C promotion needs beyond «nothing was lost». Pairs with `DB-P2-Mode-B-Entry-Runbook.md` (operator entry procedure, same commit).
