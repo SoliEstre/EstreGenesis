@@ -473,4 +473,4 @@ Out of scope for this runbook (see Benchmark Framework §6.3), but the same disc
 
 ## Changelog
 
-- **v0.1 (2026-06-01)**: initial publication. Operator-facing runbook mechanizing `DB-P2-Guide.md` §6.2 B-checklist into a runnable sequence. Pairs with `DB-P2-Benchmark-Framework.md` (effectiveness gates) — both authored to support the operator's stated Mode-B → Mode-C promotion rationale ("두 솔루션 병행하면서 실효성 벤치마킹을 충분히 진행한 후 자료가 충분히 확보된 시점에서 DB Only로 전환").
+- **v0.1 (2026-06-01)**: initial publication. Operator-facing runbook mechanizing `DB-P2-Guide.md` §6.2 B-checklist into a runnable sequence. Pairs with `DB-P2-Benchmark-Framework.md` (effectiveness gates) — both authored so that a Mode-B → Mode-C promotion can be defended with parallel-run data rather than with correctness alone.
