@@ -9,7 +9,7 @@
 
 - **Version**: v0.1 — first publication of EG-side DB P2 guide.
 - **Date**: 2026-05-31.
-- **Tier**: P1 (EG 1차지식 — discipline / contract / gate recommendation). Not a wire-format spec; not normative on main's `server.cjs` line shape. The two normative anchors are the **mode chain** (§2) and the **count-reconcile gate** (§5) — everything else is recommendation tuned for the current single-server / single-main / file-state-backed deployment.
+- **Tier**: P1 (EG 1차지식 — discipline / contract / gate recommendation). Not a wire-format spec; not normative on main's `server.cjs` line shape. The two normative anchors are the **mode chain** (§2) and the **reconciliation gate** (§5) — everything else is recommendation tuned for the current single-server / single-main / file-state-backed deployment.
 - **Provenance pins**:
   - **seq 79 DB RRP** (`m-mpt4mzo9-78`, 2026-05-31) — the originating agreement that fixed the three-mode migration shape: `HistoryStore` abstraction (P1) → `JsonlStore` + `SqliteStore` dual-write (P2) → db-primary (P3). The mode-letter naming (A / B / C) is this guide's convenience handle on top of seq 79's chain; the chain itself is unchanged.
   - **seq 144 trigger** (`m-mptlrmm3-143`, 2026-05-31) — main upstream Delegate requesting the EG-side P2 guide. This is the document that satisfies that delegate.
@@ -17,7 +17,7 @@
 - **What this document is**:
   1. A migration-mode contract (mode-A jsonl-only · mode-B dual-write · mode-C db-primary).
   2. A backend-selection gate (`node:sqlite` primary + `better-sqlite3` fallback, deterministic per startup).
-  3. A parity gate (count reconcile) that is the *only* safe signal for mode-B → mode-C promotion.
+  3. A containment gate (§5) that is the *only* safe signal for mode-B → mode-C promotion.
   4. A failure-recovery cookbook tied to the existing §13.20 BlockerManifest discipline.
 - **What this document is NOT**:
   - A server.cjs line spec (main owns that — see §10 cross-links).
@@ -63,8 +63,8 @@ jsonl-only      dual-write+backfill    db-primary
 - **Invariants**:
   - Atomic dual-write (no event in only one store after a successful append).
   - No orphan (an event in JSONL must also be in SQLite once backfill completes).
-  - Count reconcile (§5): `JsonlStore.count() == SqliteStore.count()` after backfill, and at every periodic checkpoint thereafter.
-- **Mode-switch criteria** (B → C): see §6 — operator-driven opt-in after N consecutive count-reconcile PASSes + zero read-path errors for ≥1 operational cycle. This is the only safe promotion signal; do not auto-promote.
+  - Reconcile (§5): every event in `JsonlStore` is present in `SqliteStore` — after backfill, and at every periodic checkpoint thereafter. Surplus in SQLite is reported, never judged (retention policies differ by design).
+- **Mode-switch criteria** (B → C): see §6 — operator-driven opt-in after N consecutive reconcile PASSes + zero read-path errors for ≥1 operational cycle. This is the only safe promotion signal; do not auto-promote.
 - **Rollback path** (B → A): triggered automatically on (a) count drift (§5), (b) WAL corruption (§7.2), or (c) repeated partial-dual-write failures (§7.3). Operator flips `modes.historyBackend = "jsonl"` back; SQLite file is preserved on disk for forensic review but no longer written to. The mode-B → mode-A rollback is *non-destructive* on JSONL (JSONL was the canonical store throughout mode B).
 
 ### 2.3 Mode C — `db-primary` (terminal state, opt-in)
@@ -174,9 +174,9 @@ Backfill is **separate from inline dual-writes**. It is NOT executed once per ev
 
 ### 4.2 Backfill flow
 
-1. **Pre-check**: on mode-B entry, the server checks `SqliteStore.count()`. If 0, run full backfill. If >0 but < `JsonlStore.count()`, run partial backfill (resume from `max(id)` in SQLite — `INSERT OR IGNORE` makes this safe). If `>= JsonlStore.count()`, skip backfill (and trigger an immediate count-reconcile check per §5).
+1. **Pre-check**: on mode-B entry, the server checks `SqliteStore.count()`. If 0, run full backfill. If >0 but < `JsonlStore.count()`, run partial backfill (resume from `max(id)` in SQLite — `INSERT OR IGNORE` makes this safe). If `>= JsonlStore.count()`, skip backfill (and trigger an immediate reconcile check per §5).
 2. **Backfill pass**: stream the JSONL file line-by-line, batch events into chunks of ~500–1000, wrap each chunk in a SQLite transaction, and `INSERT OR IGNORE` each event by id.
-3. **Post-check**: after backfill completes, run a count-reconcile (§5). If PASS, mode B is fully active. If FAIL, abort mode-B promotion (revert `modes.historyBackend` to `jsonl`), log the diff, and surface as `BlockerManifest` per §7.5.
+3. **Post-check**: after backfill completes, run a reconcile check (§5). If PASS, mode B is fully active. If FAIL, abort mode-B promotion (revert `modes.historyBackend` to `jsonl`), log the diff, and surface as `BlockerManifest` per §7.5.
 
 ### 4.3 Idempotency
 
@@ -194,15 +194,20 @@ Backfill runs at mode-B entry, before any new inline events arrive (because mode
 
 ---
 
-## 5. Count-reconciliation gate
+## 5. Reconciliation gate
 
 ### 5.1 The contract
 
 ```
-JsonlStore.count()  ==  SqliteStore.count()
+verdict     :  every event in JsonlStore  ∈  SqliteStore     (containment, one-way)
+report-only :  SqliteStore \ JsonlStore                       (surplus — never a verdict input)
 ```
 
-This equality is the **only safe signal** that the SQLite backend has parity with the JSONL backend. Without it, mode-B → mode-C promotion is unsafe.
+The gate asks **"is everything we committed also downstream?"**, and nothing else. It is a directional obligation, so it is measured directionally. This is normative — see `Constellation.md` §13.38.
+
+**Do not compare raw counts.** The two stores are configured with different retention policies deliberately: `JsonlStore` caps per channel (a bounded ring, re-applied on boot rebuild) because an unbounded floor defeats the purpose of a floor, while SQLite accumulates without that cap because long-term retention is the reason it was adopted at all. Once any channel exceeds the cap, the counts diverge by design and keep diverging. A count-equality check therefore fails on every boot while reporting nothing about loss — it makes the feature working indistinguishable from the feature broken, and the resulting gate is red forever, which is operationally the same as having no gate (§5.5).
+
+Surplus in SQLite is not drift. It is the product being purchased.
 
 ### 5.2 When to check
 
@@ -210,29 +215,39 @@ This equality is the **only safe signal** that the SQLite backend has parity wit
 - **Periodically during mode B** — recommended cadence: every N=10 minutes, or every K=100 new events, whichever comes first. Main may tune.
 - **Before mode-C promotion** (§6) — operator opt-in requires N=10 consecutive PASSes.
 
+These three are consumers of **one** verdict. None of them may re-derive a comparison of its own: correcting the gate while a consumer still asks the old question leaves the behavior unchanged and the correction looking complete.
+
 ### 5.3 What "mismatch" means
 
-If `JsonlStore.count() != SqliteStore.count()`, do NOT auto-resolve. Instead:
+A mismatch is `only_in_jsonl` being non-empty — that is, something committed to the canonical store is missing downstream. `only_in_sqlite` being non-empty is **not** a mismatch and does not gate anything. When a genuine mismatch occurs, do NOT auto-resolve. Instead:
 
 1. Abort the mode-B → mode-C promotion (if pending).
-2. Generate a **discrepancy report** — list of event ids present in one store but not the other. The discrepancy report is a structured JSON object:
+2. Generate a **discrepancy report**. `only_in_jsonl` carries the verdict; the remaining fields are context for interpreting it, and the retention policies in force on both sides are part of that context — surplus reported without them invites the reader to re-derive the count comparison by hand, which is the same defect one layer up:
    ```json
    {
      "ts": "2026-05-31T...Z",
-     "jsonl_count": 12345,
-     "sqlite_count": 12343,
+     "verdict": "FAIL",
      "only_in_jsonl": ["evt-abc", "evt-def"],
-     "only_in_sqlite": [],
-     "investigation_hint": "two events missing from SQLite — check for partial-dual-write failure in §7.3"
+     "surplus_in_sqlite": 27657,
+     "retention": { "jsonl": "per-channel ring cap", "sqlite": "unbounded (retention is the purpose)" },
+     "jsonl_count": 12345,
+     "sqlite_count": 40000,
+     "investigation_hint": "two events missing from SQLite — check for partial-dual-write failure in §7.3; surplus is expected and does not gate"
    }
    ```
-3. Surface the discrepancy as a `BlockerManifest` per §7.5 (subject = operator; reason = parity gate failed; eg_side_action_waiting = mode-C promotion).
+3. Surface the discrepancy as a `BlockerManifest` per §7.5 (subject = operator; reason = containment gate failed; eg_side_action_waiting = mode-C promotion).
 4. Continue running in mode B (do not auto-rollback to mode A unless drift recurs — see §7.4 for the auto-rollback trigger).
 5. Require operator review before either (a) re-running backfill, (b) rolling back to mode A, or (c) accepting the drift and proceeding.
 
 ### 5.4 Why no auto-resolve
 
-The count gate exists precisely because dual-write atomicity is not perfect (race conditions, crash recovery, transaction-abort timing). Auto-resolving a drift would mask the underlying defect; operator review forces the discipline of understanding *why* the drift occurred before continuing.
+The gate exists precisely because dual-write atomicity is not perfect (race conditions, crash recovery, transaction-abort timing). Auto-resolving a drift would mask the underlying defect; operator review forces the discipline of understanding *why* the drift occurred before continuing.
+
+### 5.5 A gate that cannot pass is a gate that is off
+
+If this check fails on every run under correct operation, its output has stopped carrying information — every result is red, the §7.4 auto-revert it drives fires on schedule, and a signal that never varies is one nobody reads. The response to that state is to re-examine the check **against its contract**, not to tune its threshold: raising a tolerance until the red stops buys silence, not correctness, and it removes the only instrument that would have caught the real defect.
+
+This is why §5.1 is stated as a contract rather than as a comparison. A comparison can be adjusted until it passes. A contract can only be met or not met.
 
 ---
 
@@ -257,7 +272,7 @@ Before flipping `modes.historyBackend = "sqlite"`, the operator MUST verify:
 
 - [ ] Mode B has been running for ≥ 1 full operational cycle (recommended: 24 hours of typical traffic).
 - [ ] Last backfill completed cleanly (no partial-fail in the mode-B entry post-check).
-- [ ] **N = 10 consecutive count-reconcile PASSes** (this is the parity floor — see §5).
+- [ ] **N = 10 consecutive reconcile PASSes** (this is the containment floor — see §5).
   - Rationale for N=10: balances detection-sensitivity-of-rare-drift against operator wait time. With N=10 at 10-minute cadence, this is ~100 minutes of clean parity before promotion. Main / operator may tune N upward (more conservative) but should not tune below 10.
 - [ ] **Zero read-path errors** during mode B for ≥ 1 operational cycle (24 hours recommended). Read-path errors include: `SqliteStore.read*()` throwing, return shape mismatch vs `JsonlStore.read*()` for the same query, or any client-visible inconsistency.
 - [ ] `exportJsonl()` round-trip verified (§9) — operator runs `SqliteStore.exportJsonl()` once and confirms the output JSONL is byte-equivalent (within event-ordering tolerance) to the canonical JSONL file. This is the safety-net verification.
@@ -270,7 +285,7 @@ operator flip + B-checklist      → mode B  (dual-write + backfill)
 operator flip + C-checklist      → mode C  (db-primary)
 ```
 
-There is no shortcut. A → C direct promotion is not supported; the operator must pass through mode B (and its parity gate) to reach mode C. This is by design — mode B is the *only* place where the count-reconcile gate has both stores available to compare.
+There is no shortcut. A → C direct promotion is not supported; the operator must pass through mode B (and its parity gate) to reach mode C. This is by design — mode B is the *only* place where the reconciliation gate has both stores available to compare.
 
 ---
 
@@ -308,13 +323,13 @@ Recovery (logical transaction discipline):
 
 ### 7.4 Count drift mid-mode-B → auto-revert to mode A
 
-If the periodic count-reconcile (§5.2) detects drift twice within a short window (recommended: 2 drifts within 30 minutes), the server SHOULD auto-revert to mode A:
+If the periodic reconcile check (§5.2) detects a containment failure twice within a short window (recommended: 2 drifts within 30 minutes), the server SHOULD auto-revert to mode A:
 
 1. Set `modes.historyBackend = "jsonl"` (in-memory; do NOT mutate `state.json` automatically — leave that for the operator to confirm, so the operator's intent is preserved across restarts).
 2. Stop writing to SQLite (subsequent writes go only to JSONL).
 3. Emit a `BlockerManifest` per §13.20 with:
    - `subject = "operator"` (the human who flipped to mode B)
-   - `reason = "DB P2 mode-B count drift detected (count-reconcile FAIL × 2 within 30min); auto-reverted to mode A in-memory"`
+   - `reason = "DB P2 mode-B containment failure detected (reconcile FAIL × 2 within 30min — events committed to JSONL missing from SQLite); auto-reverted to mode A in-memory"`
    - `eg_side_action_waiting = "operator review of discrepancy report + decision: re-enter mode B (re-run backfill) OR persist mode A (set state.json modes.historyBackend=jsonl)"`
    - Initial tier: `2-explicit` (this is a parity failure, not a polite nudge).
 
@@ -392,7 +407,7 @@ This is part of the §6.3 mode-C opt-in checklist.
 
 ## 10. Cross-links
 
-- **`Constellation.md` §13.20 — BlockerManifest discipline**: the wire-shape and escalation-tier rules for surfacing DB P2 failures. All §7 failure modes emit a `BlockerManifest`; the count-reconcile gate (§5) and the mode-C promotion gate (§6.3) are observable on the live board through this discipline. This guide does not re-spec §13.20 — it consumes it.
+- **`Constellation.md` §13.20 — BlockerManifest discipline**: the wire-shape and escalation-tier rules for surfacing DB P2 failures. All §7 failure modes emit a `BlockerManifest`; the reconciliation gate (§5) and the mode-C promotion gate (§6.3) are observable on the live board through this discipline. This guide does not re-spec §13.20 — it consumes it.
 - **`Constellation.md` §13.19.4 — `ReviewSLAAck`**: if main needs to defer DB P2 work (e.g. mode-B implementation is blocked on an unrelated production fire), the deferral is captured via `ReviewSLAAck` with `eta` set to a realistic re-engagement time. Pairs with §13.20 — the blocker manifest tracks the wait; the `ReviewSLAAck` records the agreed-upon deferral budget.
 - **`Constellation.md` §13.13 — A2A ack tier**: event id stamping (referenced in §8 `events.id`) flows from the §13.13 server-bridge-stamped msgId surface. The `id` column mirrors that.
 - **Seed RRP**: seq 79 DB RRP (`m-mpt4mzo9-78`, 2026-05-31) — the originating agreement.
