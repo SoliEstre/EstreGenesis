@@ -1195,3 +1195,18 @@ body.eg-login-locked > main, body.eg-login-locked > header { filter: blur(2px); 
 .eg-lp-add input { background: var(--bg); color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font: inherit; }
 .eg-lp-add button, .eg-lp-logout { padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: inherit; font: inherit; cursor: pointer; }
 .eg-lp-logout { margin-top: 10px; width: 100%; }
+
+/* ── 현재 작업 접기 (항목별 + 전체) ─────────────────────────────────────────
+   접힘은 «제목만 남기기» 예요. 자식을 하나씩 열거해 숨기면 나중에 붙는 요소가
+   조용히 안 접혀요 — 그래서 제목을 빼고 전부 숨겨요(열거 대신 여집합).
+   높이가 바뀌므로 JS 쪽에서 --cur-h 를 다시 재요(afterFold). */
+.cur-top:not(.open) > *:not(.ctitle) { display: none; }
+.cur-top:not(.open) .ctitle { margin-bottom: 0; }
+.cur-fold { background: none; border: 0; cursor: pointer; padding: 2px 6px; margin-left: 6px;
+  display: inline-flex; align-items: center; vertical-align: middle; }
+.cur-fold .chev { width: 0; height: 0; border-left: 5px solid var(--muted);
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent; transition: transform .2s; }
+.cur-top.open .cur-fold .chev, .cur-fold.all.open .chev { transform: rotate(90deg); border-left-color: var(--accent); }
+.cur-fold:hover .chev { border-left-color: var(--accent); }
+.cur-fold.all { float: right; }
+.ctitle .cur-fold { float: right; }
