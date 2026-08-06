@@ -133,6 +133,33 @@ function toggleOpen(id, card) {
   if (ui.open.has(id)) { ui.open.delete(id); card.classList.remove('open'); }
   else { ui.open.add(id); card.classList.add('open'); }
 }
+// 현재 작업 접기/펼치기 뒤에 **반드시** 불러야 해요.
+// 왜: 예정 섹션 헤더의 sticky 위치가 `--cur-h`(현재 밴드 실측 높이)에 매여 있어서, 높이를 바꾸고
+//   다시 안 재면 화면은 «접혔는데» 아래 섹션이 옛 높이만큼 밀린 채로 있어요 — 렌더는 성공한
+//   것처럼 보이고 레이아웃만 틀려요. 접힘은 높이를 바꾸는 조작이라 이게 짝이에요.
+function afterFold() {
+  setCurHeight();
+  syncCurFoldAllBtn();
+  if (ui.atHome) requestAnimationFrame(() => centerCurrent(false));
+}
+// 전체 토글의 표시는 **실제 상태에서 파생**해요 — 자체 플래그를 들면 개별 토글과 어긋나요.
+function curAllOpen() { const k = ui._curKeys || []; return k.length > 0 && k.every((x) => ui.open.has(x)); }
+function curAnyOpen() { return (ui._curKeys || []).some((x) => ui.open.has(x)); }
+function syncCurFoldAllBtn() {
+  const b = $('#cur-fold-all'); if (!b) return;
+  const any = curAnyOpen();
+  b.classList.toggle('open', any);
+  b.title = any ? '현재 작업 전체 접기' : '현재 작업 전체 펼치기';
+  b.setAttribute('aria-expanded', any ? 'true' : 'false');
+  b.hidden = !(ui._curKeys || []).length;
+}
+function curFoldAll() {
+  const keys = ui._curKeys || []; if (!keys.length) return;
+  const collapse = curAnyOpen();   // 하나라도 펼쳐져 있으면 «전부 접기», 전부 접혔으면 «전부 펼치기»
+  for (const k of keys) { if (collapse) ui.open.delete(k); else ui.open.add(k); }
+  document.querySelectorAll('#current .cur-top').forEach((c) => c.classList.toggle('open', !collapse));
+  afterFold();
+}
 
 // ---- render ----
 function renderAll() {
@@ -335,18 +362,30 @@ function renderDone() {
 function renderCurrent() {
   const cur = ui.state.current; const box = $('#current'); box.innerHTML = '';
   const items = Array.isArray(cur) ? cur : (cur ? [cur] : []);   // 멀티(배열) / 단일(객체) / 없음
-  if (!items.length) { box.innerHTML = '<div class="empty">현재 작업 없음</div>'; return; }
+  const foldAll = $('#cur-fold-all'); if (foldAll) foldAll.onclick = curFoldAll;
+  if (!items.length) { box.innerHTML = '<div class="empty">현재 작업 없음</div>'; ui._curKeys = []; syncCurFoldAllBtn(); return; }
   const single = items.length === 1 && !(items[0].sub && items[0].sub.length);   // 단일·하위없음 = 기존 중앙정렬 경로
   let firstTl = null;
+  ui._curKeys = [];
   items.forEach((top, ti) => {
     if (ti > 0) box.append(el('div', 'cur-sep'));                 // 상위 작업 간 상하 구분선
     // blockedBy 가 실제 하위와 매칭될 때만 has-blocker (범위초과 → dangling 연결선 방지, codex P2 검증)
     const subMatched = !!(top.sub && top.sub.some((s, si) => top.blockedBy === si || (s.id != null && top.blockedBy === s.id)));
-    const card = el('div', 'cur-top' + (subMatched ? ' has-blocker' : ''));
+    // 접힘 키는 **위치가 아니라 내용**에서 파생해요 — 인덱스로 잡으면 상위 작업 하나가 끝나 빠질 때
+    //   아래 것들이 한 칸씩 밀려서 «사용자가 접어 둔 카드» 가 다른 카드로 옮겨 붙어요.
+    const key = 'cur:' + (top.id != null ? top.id : (top.ref || top.title || ti));
+    ui._curKeys.push(key);
+    applyDefaultOpen(key, true);   // 현재 작업은 기본 펼침 — 접힘은 사용자가 고른 상태예요
+    const card = el('div', 'cur-top' + (subMatched ? ' has-blocker' : '') + (ui.open.has(key) ? ' open' : ''));
     const ct = el('div', 'ctitle', `${projChip(top.project)} ${esc(top.title)} ${top.ref ? `<span class="ref">${esc(top.ref)}</span>` : ''}`);
     const cfb = el('button', 'pln-fb ctx-fb', '💬 피드백'); cfb.title = '이 작업에 피드백 — 검토사안에 입력 카드 추가';
     cfb.onclick = () => openContextFeedback('current', 'current-' + ti, top.title);
-    ct.append(cfb); card.append(ct);
+    const cfold = el('button', 'cur-fold', '<span class="chev"></span>');
+    cfold.type = 'button';
+    cfold.title = '이 작업 접기/펼치기';
+    cfold.setAttribute('aria-label', '이 작업 접기/펼치기');
+    cfold.onclick = (e) => { e.stopPropagation(); toggleOpen(key, card); afterFold(); };
+    ct.append(cfb, cfold); card.append(ct);
     if (top.att && top.att.length) card.insertAdjacentHTML('beforeend', attChips('current-' + ti, top.att));
     const tl = el('div', 'timeline');
     (top.stages || []).forEach(s => {
@@ -374,6 +413,7 @@ function renderCurrent() {
     }
     box.append(card);
   });
+  syncCurFoldAllBtn();
   // 가로 타임라인 중앙 추적은 단일 상위(하위 없음)일 때만 (멀티는 카드별 독립이라 생략)
   if (single && firstTl) {
     firstTl.addEventListener('wheel', (e) => { if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) ui.tlCentered = false; }, { passive: true });
