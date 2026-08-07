@@ -2241,6 +2241,15 @@ function wsSyncAgents(agents) {
   let anyUnhidden = false;
   for (const a of agents) {
     const c = wsChannel(a.agentId, a.agentName);
+    // ⚠ **열린 사안 (2026-08-08)**: 폴백이 `'local'` 이라 **역할을 모르는 채널이 로컬 그룹에 앉아요.**
+    //   서버 쪽 §3.1 은 「모르는 kind 는 등록 경계에서 거부, 기본값으로 강제 금지」라고 규범으로 적고
+    //   있는데 이 줄이 그 반대예요. 실측 — 어느 그룹에도 안 속한 `role=undefined` 채널이 존재하고
+    //   (`*-a2a-dispatch`), 세션 순서에 따라 그게 로컬 그룹 첫 멤버가 될 수 있어요.
+    //   **여기서 폴백을 바로 없애지 않는 이유**: 그러면 그 채널들이 어느 그룹에도 안 떠서 **화면에서
+    //   사라져요** — 오분류(보임)보다 부재(안 보임)가 더 나쁜 교환이에요. 처방은 «미분류» 그룹을
+    //   따로 만들어 렌더는 하되 전송 대표에서 제외하는 것이고, 그건 별도 결정이에요.
+    //   그때까지의 완화는 `wsGroupRep` 이 **화면의 첫 탭**을 대표로 쓰게 한 것 — 오분류가 남아도
+    //   운영자가 그 자리에서 보게 돼요(숨은 채널이 대상이 되는 상태는 닫혔어요).
     c.role = (wsBackends[a.agentId] && wsBackends[a.agentId].role) || a.role || 'local';   // §13.1 role; C1: backends.json overlay 가 board-worker 등 선언 role 우선
     if (c.hidden) { c.hidden = false; anyUnhidden = true; }   // FIX: agent 가 AgentList 에 present 면 닫힌 탭에서 자동 복원 (새로고침 후 업스트림 등이 archived stub 으로 처리됐다가 실제 연결돼 있을 때)
   }
@@ -3354,7 +3363,11 @@ function wsIsMon(id) { return id === WS_MON_UP || id === WS_MON_LOCAL || id === 
 function wsIsGroup(id) { return typeof id === 'string' && id.indexOf('group:') === 0; }
 function wsGroupMembers(gkey) {
   const r = gkey === 'group:up' ? 'upstream' : gkey === 'group:main' ? 'main' : gkey === 'group:collab' ? 'collab' : gkey === 'group:board-worker' ? 'board-worker' : gkey === 'group:peer' ? 'peer' : gkey === 'group:roundtable' ? 'roundtable' : 'local';
-  const mem = [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id)).map(([id]) => id);
+  // ⚠ **`hidden` 을 빼요.** 종전엔 여기가 hidden 을 포함해서, 렌더러(byRole 은 `!c.hidden`)와
+  //   멤버십이 갈렸어요 — 그러면 **화면에 없는 채널이 그룹 «대표» 가 되어 전송 대상**이 돼요.
+  //   운영자가 보는 첫 탭과 실제로 글이 가는 곳이 다른 상태고, 증상이 「왜 대화 대상이 저 사람이냐」예요
+  //   (2026-08-08 운영자 관측). 같은 질문을 두 함수가 각자 답하면 그 둘은 반드시 갈라져요.
+  const mem = [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id) && !c.hidden).map(([id]) => id);
   if (gkey === 'group:up' && wsState.channels.has(WS_MON_UP)) mem.push(WS_MON_UP);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_LOCAL)) mem.push(WS_MON_LOCAL);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_COLLAB)) mem.push(WS_MON_COLLAB);   // group:main 병합에 Main↔Collab 취합(§13.9 collab peer)
@@ -3367,7 +3380,12 @@ function wsGroupMembers(gkey) {
 function wsGroupRep(gkey) {
   // 그룹 탭의 *대표 워커* — group:up→업스트림 / group:main→메인 으로 입력·라우팅 한 화면에서. group:main 이면 WS_LOCAL(메인) 우선, 그 외 그룹은 비-모니터 첫 멤버.
   if (gkey === 'group:main' && wsState.channels.has(WS_LOCAL)) return WS_LOCAL;
-  for (const cid of wsGroupMembers(gkey)) { if (!wsIsMon(cid)) return cid; }
+  // **운영자가 보는 순서로** 골라요. 종전엔 `wsState.channels` 의 **삽입 순서** 첫 멤버였는데, 렌더러는
+  //   사용자 지정 탭 순서(wsApplyOrder)를 적용해요 — 그래서 «맨 왼쪽 탭» 과 «대표» 가 서로 달랐어요.
+  //   탭을 끌어 옮겨도 전송 대상은 안 따라오는 상태였고, 그건 화면이 거짓말하는 부류예요.
+  const g = wsComputeGroups().find((x) => x.key === gkey);
+  const ordered = g ? g.tabs : wsGroupMembers(gkey);
+  for (const cid of ordered) { if (!wsIsMon(cid)) return cid; }
   return null;
 }
 function onWsEvent(m) {
