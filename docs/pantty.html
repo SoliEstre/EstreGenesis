@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pantty — seat-driving substrate · EstreGenesis</title>
+  <meta name="description" content="Pantty v0.1.0 — a specification-stage seat-driving module for EstreGenesis 2.6.x. It defines the five-operation harness adapter contract for optional resident seats; the mandatory materialize–compact–re-inject cycle; dispatch, expansion, and obedience as separate injection-safety layers; liveness that proves capability rather than presence; and unattended recovery that preserves session continuity while distinguishing means, work, and provider-refusal failures. Extracted from Constellation §13.35, which is now a pointer table; the reference runtime remains at constellation/reference/runtime/pantty/. No plugin ships at this version.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="shared/shared.css">
+  <link rel="stylesheet" href="shared/themes.css">
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var levels = ['general', 'dev', 'expert'];
+      var aud = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(aud) === -1) aud = 'general';
+      html.setAttribute('data-audience', aud);
+      var langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages
+        : [navigator.language || navigator.userLanguage || ''];
+      var detected = 'en';
+      for (var i = 0; i < langs.length; i++) {
+        if (typeof langs[i] === 'string' && langs[i].toLowerCase().indexOf('ko') === 0) { detected = 'ko'; break; }
+      }
+      var lang = localStorage.getItem('eg-promo-lang') || detected;
+      html.setAttribute('lang', lang);
+    })();
+  </script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
+      <nav class="nav">
+        <a href="index.html" data-en="Home" data-ko="홈">Home</a>
+        <a href="docs.html" data-en="Docs" data-ko="문서">Docs</a>
+        <a href="modules.html" class="active" data-en="Modules" data-ko="모듈">Modules</a>
+        <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <div class="controls">
+        <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
+        <div class="control-group"><span class="control-label" data-en="Level" data-ko="레벨">Level</span><div class="aud-toggle"><button data-aud-btn="general" data-en="general" data-ko="일반">general</button><button data-aud-btn="dev" data-en="dev" data-ko="개발">dev</button></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-wide">
+    <section class="hero">
+      <h1>Pantty</h1>
+      <p class="spec-source"><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Pantty.md" target="_blank" rel="noopener" data-en="Full spec (AI-readable): Pantty.md →" data-ko="전문 스펙 원문 (AI-readable): Pantty.md →">Full spec (AI-readable): Pantty.md →</a></p>
+      <p class="tagline" data-aud="general" data-en="The safety and recovery layer between a shared board and an AI seat that stays open across many tasks — so long-lived context can be compacted, interrupted, observed and revived without silently losing the work." data-ko="공유 보드와 여러 작업에 걸쳐 열린 채로 남는 AI 자리 사이의 안전·복구 계층이에요. 오래 사는 컨텍스트를 조용히 잃지 않으면서 압축하고, 중단하고, 관찰하고, 되살릴 수 있게 해요.">The safety and recovery layer between a shared board and a long-lived AI seat.</p>
+      <p class="tagline" data-aud="dev" data-en="A harness-agnostic, board-aware seat-driving contract for optional resident seats: five adapter operations, a mandatory materialize–compact–re-inject cycle, three distinct injection-safety layers, capability-level liveness, and unattended recovery with session-preserving means diversity." data-ko="선택형 resident seat을 위한 하네스 독립적·보드 인식형 seat-driving 계약이에요. 어댑터 연산 5개, 필수 materialize–compact–re-inject 사이클, 서로 다른 injection-safety 계층 3개, capability 수준의 liveness, 세션을 보존하는 수단 다양성 기반 무인 복구를 정의해요.">A harness-agnostic, board-aware seat-driving contract for optional resident seats.</p>
+      <div class="badges">
+        <span class="badge">v0.1.0</span>
+        <span class="badge">seat-driving</span>
+        <span class="badge">EstreGenesis 2.6.x</span>
+        <span class="badge" data-en="specification stage" data-ko="스펙 단계">specification stage</span>
+        <span class="badge" data-en="resident is optional" data-ko="resident는 선택 사항">resident is optional</span>
+        <span class="badge" data-en="no plugin yet" data-ko="아직 플러그인 없음">no plugin yet</span>
+        <span class="badge">Apache-2.0</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="What Pantty is" data-ko="Pantty란 무엇인가요?">What Pantty is</h2>
+      <h2 data-aud="dev" data-en="What Pantty is" data-ko="Pantty란 무엇인가요?">What Pantty is</h2>
+
+      <p data-aud="general" data-en="A board seat can be started fresh for each job, or one live AI session can stay open while the board keeps sending work into it. The second shape can preserve judgment across jobs, but it also lives long enough to fill its context window, become wedged, lose its connection, or misread board text as a command. Pantty defines the thin layer that makes that long-lived shape controllable and recoverable." data-ko="보드 자리는 작업마다 새로 시작할 수도 있고, 하나의 살아 있는 AI 세션을 계속 열어 둔 채 보드가 그 안으로 일을 보낼 수도 있어요. 두 번째 형태는 작업 사이의 판단을 이어 갈 수 있지만, 컨텍스트 창이 찰 만큼 오래 살고, 멈춰 버리거나, 연결을 잃거나, 보드의 텍스트를 명령으로 잘못 읽을 수도 있어요. Pantty는 그 오래 사는 형태를 제어하고 복구할 수 있게 하는 얇은 계층이에요.">A seat may start per job or remain open while the board keeps sending work. Pantty makes the long-lived form controllable and recoverable.</p>
+      <p data-aud="dev" data-en="A seat is a board participant backed by a harness session. Turn-spawned mode starts a harness process per delegation; resident mode keeps one live session open and drives it through an adapter. Resuming a turn-spawned session already preserves the system prompt, tools, memory and charter, so residency is not justified by preamble savings, and comparable turns need not be faster. Its narrow case is external cancellation, decomposed context accounting, control over the compaction boundary, a shorter wake path, unattended recovery, and diversity of means." data-ko="seat은 하네스 세션으로 뒷받침되는 보드 참여자예요. turn-spawned 모드는 위임마다 하네스 프로세스를 시작하고, resident 모드는 하나의 살아 있는 세션을 열어 둔 채 어댑터로 구동해요. turn-spawned 세션을 resume해도 system prompt·도구·메모리·charter가 이미 보존되므로 residency를 preamble 절감으로 정당화할 수 없고, 같은 작업이 반드시 더 빠른 것도 아니에요. 좁고 정확한 근거는 외부 취소, 분해된 컨텍스트 계측, compaction 경계 제어, 더 짧은 wake 경로, 무인 복구, 수단 다양성이에요.">A resident seat is an option beside turn-spawned operation, justified narrowly by control and recovery rather than preamble savings.</p>
+
+      <p data-aud="general" data-en="Resident mode is an option, not an upgrade every project must take. If a harness cannot safely compact, cancel and prove that work finished, the seat stays turn-spawned. A deployment with no resident seats is complete rather than deficient." data-ko="resident 모드는 모든 프로젝트가 받아야 하는 업그레이드가 아니라 선택 사항이에요. 하네스가 안전하게 compact하고, cancel하고, 작업 종료를 증명할 수 없다면 seat은 turn-spawned로 남아요. resident seat이 하나도 없는 배치도 부족한 구성이 아니라 완전한 구성이에요.">Resident mode is optional. A harness that cannot meet the contract stays turn-spawned.</p>
+      <p data-aud="dev" data-en="Pantty specifies only the harness-agnostic, board-aware layer that vendor session objects do not already supply. Vendor capabilities are volatile and belong in a dated harness registry, not in this specification. As vendors absorb residency, cancellation, context accounting, compaction and enumeration, this module is expected to shrink rather than grow a parallel implementation." data-ko="Pantty는 벤더 session object가 이미 제공하지 않는 하네스 독립적·보드 인식형 계층만 명세해요. 벤더 capability는 변동성이 크므로 이 스펙이 아니라 날짜가 붙은 harness registry에 속해요. 벤더가 residency·cancellation·context accounting·compaction·enumeration을 흡수할수록 이 모듈은 병렬 구현을 키우는 대신 줄어들어야 해요.">Pantty owns the durable contract; a dated registry owns the current per-harness answer.</p>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="The core idea" data-ko="핵심 아이디어">The core idea</h4>
+        <h4 data-aud="dev" data-en="Central thesis" data-ko="핵심 명제">Central thesis</h4>
+        <p data-aud="general" data-en="Keeping a session open is only useful if it can cross its context boundary without forgetting the procedure, and come back after failure without waiting for someone to notice." data-ko="세션을 계속 열어 두는 건 절차를 잊지 않고 컨텍스트 경계를 건널 수 있고, 실패 뒤에 누군가 알아차리기를 기다리지 않고 돌아올 수 있을 때만 값이 있어요.">A long-lived session must cross its context boundary without losing the procedure and recover without waiting to be noticed.</p>
+        <p data-aud="dev" data-en="Residency earns its complexity only when the adapter controls the boundary, keeps board-authored data out of the command channel, distinguishes presence from capability, and preserves the same seat and session through unattended recovery." data-ko="residency는 어댑터가 경계를 제어하고, 보드가 작성한 데이터를 명령 채널에서 분리하고, 존재와 capability를 구별하고, 무인 복구를 거쳐 같은 seat과 session을 보존할 때만 복잡성의 값을 해요.">Control the boundary, separate data from commands, prove capability, and recover the same session.</p>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="One owner per inbox" data-ko="inbox마다 owner 하나">One owner per inbox</h3>
+          <p data-aud="general" data-en="A second live session cannot silently take over a seat's incoming work. If an inbox already has a live owner, a new session must refuse the claim unless the current holder is explicitly named." data-ko="두 번째 살아 있는 세션이 seat의 들어오는 일을 조용히 가로챌 수 없어요. inbox에 이미 live owner가 있으면 새 세션은 현재 holder가 명시되지 않는 한 claim을 거부해야 해요.">A second live session cannot silently take over a seat's incoming work.</p>
+          <p data-aud="dev" data-en="Last-registrant-wins ownership fails as absence: the dispossessed session simply stops receiving messages. Pantty requires a live-owner conflict to be explicit, with any override naming the current holder." data-ko="last-registrant-wins ownership은 오류가 아니라 부재로 실패해요. 밀려난 세션이 메시지를 받지 못할 뿐이에요. Pantty는 live-owner 충돌을 명시적으로 만들고, override가 현재 holder를 이름으로 지정하게 해요.">Live-owner conflicts are explicit; overrides name the current holder.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Identity survives restart" data-ko="restart를 건너는 identity">Identity survives restart</h3>
+          <p data-aud="general" data-en="Restarting the program does not create a new seat. The seat keeps the same identity, so messages addressed before the restart still have a destination." data-ko="프로그램을 다시 시작해도 새 seat이 생기지 않아요. seat은 같은 identity를 유지하므로 restart 전에 보낸 메시지도 여전히 목적지를 가져요.">Restarting the program does not create a new seat.</p>
+          <p data-aud="dev" data-en="Seat identity is stable across process and session recreation. The session is an implementation detail; changing the declared identity would orphan every message addressed to the predecessor." data-ko="seat identity는 process와 session 재생성을 건너 안정적으로 유지돼요. session은 구현 세부사항이고, 선언된 identity를 바꾸면 이전 seat으로 보낸 모든 메시지가 고아가 돼요.">The session is an implementation detail; declared seat identity remains stable.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="The five things every resident adapter must do" data-ko="모든 resident adapter가 해야 하는 다섯 가지">The five things every resident adapter must do</h2>
+      <h2 data-aud="dev" data-en="The five-operation driving-layer contract" data-ko="다섯 연산 driving-layer 계약">The five-operation driving-layer contract</h2>
+
+      <p data-aud="general" data-en="The brand of AI harness does not change the contract. A resident adapter must be able to send one job and know when that job — not merely the program — ended, stop a job from outside it, report what part of the context can actually be reclaimed, run the complete compaction cycle, and prove that the seat can do work." data-ko="AI 하네스의 종류가 달라도 계약은 바뀌지 않아요. resident adapter는 작업 하나를 보내고 프로그램이 아니라 그 작업이 언제 끝났는지 알아야 하고, 작업 밖에서 중단할 수 있어야 하고, 컨텍스트 중 실제로 회수 가능한 부분을 알려야 하고, 완전한 compaction cycle을 실행해야 하고, seat이 실제로 일할 수 있음을 증명해야 해요.">The harness may change; the five-operation contract does not.</p>
+      <p data-aud="dev" data-en="All five operations are mandatory for resident mode. Their surface syntax may vary by harness, but an adapter that lacks any one of them does not partially satisfy the contract: it runs the seat turn-spawned." data-ko="다섯 연산은 resident 모드에서 모두 필수예요. 표면 문법은 하네스마다 달라도 되지만, 하나라도 빠진 adapter는 계약을 부분 충족한 것이 아니에요. 그 seat을 turn-spawned로 실행해야 해요.">All five are mandatory; missing one means turn-spawned operation.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3><code>submit(text) → turn-end signal</code></h3>
+          <p data-aud="general" data-en="Send one unit of work and receive a clear signal that this unit finished. 「The program is still running」 and 「the program exited」 are different facts and cannot stand in for completion." data-ko="작업 단위 하나를 보내고 그 단위가 끝났다는 명확한 신호를 받아요. 「프로그램이 아직 실행 중이에요」와 「프로그램이 종료됐어요」는 다른 사실이고 completion을 대신할 수 없어요.">Send one unit of work and receive a determinate signal that the unit finished.</p>
+          <p data-aud="dev" data-en="The turn-end signal must be distinguishable from process liveness and process exit. Cursor advancement later depends on evidence that this submission was processed, not on a generic success envelope." data-ko="turn-end signal은 process liveness와 process exit와 구별돼야 해요. 이후의 cursor advance는 generic success envelope가 아니라 이 submission이 처리됐다는 증거에 의존해요.">Turn completion is distinct from process state and envelope status.</p>
+        </div>
+        <div class="card">
+          <h3><code>cancel</code></h3>
+          <p data-aud="general" data-en="Stop an in-flight turn from outside that turn. Without cancellation, one bad or endless turn can make the resident seat unreachable for as long as the turn lasts." data-ko="진행 중인 turn을 그 turn의 바깥에서 멈춰요. cancellation이 없으면 잘못되거나 끝나지 않는 turn 하나가 이어지는 동안 resident seat 전체가 응답 불가가 될 수 있어요.">Stop an in-flight turn from outside that turn.</p>
+          <p data-aud="dev" data-en="External cancellation preserves the supervisor's ability to bound wall-clock unresponsiveness. A resident seat without it is strictly less controllable than a turn-spawned process whose supervisor owns a ceiling." data-ko="외부 cancellation은 supervisor가 wall-clock 무응답 시간을 제한할 수 있게 해요. 이것이 없는 resident seat은 supervisor가 ceiling을 소유하는 turn-spawned process보다 엄격하게 덜 제어 가능해요.">External cancellation keeps wall-clock unresponsiveness bounded.</p>
+        </div>
+        <div class="card">
+          <h3><code>context signal</code></h3>
+          <p data-aud="general" data-en="Report context as two parts: what compaction can reclaim and what it cannot. A single total hides whether compaction has room to help." data-ko="컨텍스트를 compaction으로 회수할 수 있는 부분과 회수할 수 없는 부분으로 나눠 알려요. 합계 하나만 있으면 compaction이 실제로 도움을 줄 여지가 있는지 숨겨져요.">Report the reclaimable and fixed parts separately.</p>
+          <p data-aud="dev" data-en="The fixed floor — tool definitions, skills and deferred surfaces — is re-sent every turn and does not shrink. A policy keyed to an undifferentiated total can see the total rise after a successful compaction and thrash." data-ko="tool definition·skill·deferred surface로 이루어진 fixed floor는 매 turn 다시 보내지고 줄지 않아요. 분해되지 않은 total에 묶인 정책은 성공적인 compaction 뒤에도 total이 오르는 것을 보고 thrash할 수 있어요.">A decomposed signal prevents policies from treating the non-reclaimable floor as compaction pressure.</p>
+        </div>
+        <div class="card">
+          <h3><code>compaction cycle</code></h3>
+          <p data-aud="general" data-en="Save what only the live context knows, compact at a chosen boundary, then read that saved handoff into the fresh context. Compacting alone is not the cycle." data-ko="살아 있는 컨텍스트만 알고 있는 것을 저장하고, 선택한 경계에서 compact한 뒤, 저장한 handoff를 새 컨텍스트로 다시 읽어 넣어요. compact만 하는 것은 cycle이 아니에요.">Materialize before, compact, and re-inject after.</p>
+          <p data-aud="dev" data-en="The adapter triggers the boundary and must have a pre-compaction hook. Section §3 defines the complete gate; the next section explains why it is the first harness capability to evaluate." data-ko="adapter가 경계를 trigger하고 pre-compaction hook을 가져야 해요. §3이 완전한 gate를 정의하고, 다음 섹션이 왜 이것을 가장 먼저 평가해야 하는지 설명해요.">The adapter owns the boundary and the full three-part cycle.</p>
+        </div>
+        <div class="card">
+          <h3><code>liveness</code></h3>
+          <p data-aud="general" data-en="Prove that the seat can perform the kind of work being asserted. Seeing a process, a port or a cheap ping only proves those things exist." data-ko="seat이 주장하는 종류의 일을 실제로 수행할 수 있음을 증명해요. process·port·값싼 ping을 보는 것은 그 요소들이 존재한다는 것만 증명해요.">Prove capability, not mere presence.</p>
+          <p data-aud="dev" data-en="A liveness signal exercises the path it claims. When a true probe costs an inference turn, the next real submission is the honest probe; alarm on its missing completion instead of substituting a cheaper adjacent signal." data-ko="liveness signal은 자기가 주장하는 경로를 실제로 실행해요. 진짜 probe가 inference turn을 소비한다면 다음 실제 submission을 정직한 probe로 쓰고, 더 싼 인접 신호로 대체하는 대신 completion 부재에 alarm을 걸어요.">Exercise the asserted work path, or use the next real submission as the probe.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="The hardest gate: crossing the context boundary" data-ko="가장 어려운 gate: 컨텍스트 경계 건너기">The hardest gate: crossing the context boundary</h2>
+      <h2 data-aud="dev" data-en="The mandatory compaction cycle" data-ko="필수 compaction cycle">The mandatory compaction cycle</h2>
+
+      <p data-aud="general" data-en="A resident seat eventually outlives its context window. Compaction is therefore a normal part of its life, not an emergency clean-up. The dangerous failure is a compact operation that succeeds technically while throwing away the procedure detail the seat needed to continue. Pantty treats the boundary as a three-part transaction." data-ko="resident seat은 결국 자기 컨텍스트 창보다 오래 살아요. 그래서 compaction은 비상 정리가 아니라 정상적인 생명 주기의 일부예요. 위험한 실패는 compact 연산 자체는 기술적으로 성공했지만 seat이 계속 일하는 데 필요한 절차 세부사항을 버리는 경우예요. Pantty는 그 경계를 세 부분으로 이루어진 transaction으로 다뤄요.">Compaction is a normal lifecycle event, and the boundary is a three-part transaction.</p>
+      <p data-aud="dev" data-en="A summary is worst at preserving in-flight procedure detail, agreed policy and precise resume pointers. Those values must leave volatile context before compaction and return afterward. A harness that exposes compaction but cannot fire the pre-compaction hook fails resident mode because the loss is silent and repeats at every boundary." data-ko="summary는 진행 중인 절차 세부사항·합의된 정책·정확한 resume pointer를 보존하는 데 가장 약해요. 이런 값은 compaction 전에 volatile context를 떠나야 하고, 끝난 뒤 다시 들어와야 해요. compaction은 제공하지만 pre-compaction hook을 실행할 수 없는 하네스는 손실이 조용하고 모든 경계에서 반복되므로 resident 모드에 실패해요.">Compaction without a pre-hook is a silent, repeating loss and fails resident mode.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="1. Materialize before" data-ko="1. 먼저 materialize">1. Materialize before</h3>
+          <p data-aud="general" data-en="Write everything that exists only in the live conversation to durable storage before compaction begins: where the work stopped, what procedure is in flight, and what must happen next." data-ko="compaction이 시작되기 전에 살아 있는 대화 안에만 있는 모든 것을 durable storage에 써요. 일이 멈춘 위치, 진행 중인 절차, 다음에 일어나야 하는 일을 남겨요.">Write volatile procedure detail and resume pointers to durable storage first.</p>
+          <p data-aud="dev" data-en="The natural carrier is a pre-compaction hook. Materialization must complete before the harness mutates the context; a handoff attempted afterward is already operating from the lossy summary." data-ko="자연스러운 carrier는 pre-compaction hook이에요. materialization은 하네스가 컨텍스트를 바꾸기 전에 완료돼야 해요. 이후에 handoff를 만들면 이미 손실이 있는 summary에서 작업하는 셈이에요.">A pre-compaction hook completes the durable handoff before context mutation.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="2. Compact at a chosen boundary" data-ko="2. 선택한 경계에서 compact">2. Compact at a chosen boundary</h3>
+          <p data-aud="general" data-en="The adapter chooses a safe stopping point and triggers compaction there instead of waiting for the harness to discover its own threshold in the middle of a task." data-ko="adapter가 안전한 멈춤 지점을 고르고 그곳에서 compaction을 trigger해요. 하네스가 작업 도중 자기 threshold를 발견할 때까지 기다리지 않아요.">The adapter chooses the boundary instead of discovering it mid-task.</p>
+          <p data-aud="dev" data-en="Harness auto-compaction may remain as a last resort, but it cannot be the only mechanism. Resident mode's value is control over when the judgment boundary falls." data-ko="harness auto-compaction은 최후 수단으로 남을 수 있지만 유일한 메커니즘이면 안 돼요. resident 모드의 가치는 판단 경계가 언제 놓일지 제어하는 데 있어요.">Auto-compaction may be a fallback, never the only boundary mechanism.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="3. Re-inject after" data-ko="3. 끝난 뒤 re-inject">3. Re-inject after</h3>
+          <p data-aud="general" data-en="Read the durable handoff back into the fresh context before ordinary work resumes. Otherwise the seat wakes with a broad summary and must rediscover its own procedure." data-ko="일반 작업을 재개하기 전에 durable handoff를 새 컨텍스트로 다시 읽어 넣어요. 그러지 않으면 seat은 넓은 summary만 가진 채 깨어나 자기 절차를 다시 찾아야 해요.">Read the handoff into the fresh context before work resumes.</p>
+          <p data-aud="dev" data-en="Re-injection closes the cycle. Materializing without reading back merely moves the missing detail to a file the fresh context does not know to consult." data-ko="re-injection이 cycle을 닫아요. 다시 읽지 않는 materialization은 빠진 세부사항을 새 컨텍스트가 참고할 줄 모르는 파일로 옮길 뿐이에요.">A durable handoff only helps when the fresh context actually receives it.</p>
+        </div>
+      </div>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="Check this first" data-ko="이것부터 확인해요">Check this first</h4>
+        <h4 data-aud="dev" data-en="The single hardest harness gate" data-ko="가장 어려운 단일 harness gate">The single hardest harness gate</h4>
+        <p data-aud="general" data-en="If the harness cannot save the handoff before it compacts, do not run the seat resident. Turn-spawned operation is safer because it re-reads durable instructions on every turn by construction." data-ko="하네스가 compact 전에 handoff를 저장할 수 없다면 seat을 resident로 실행하면 안 돼요. turn-spawned 모드는 구성상 매 turn마다 durable instruction을 다시 읽으므로 더 안전해요.">No pre-compaction handoff means no resident seat.</p>
+        <p data-aud="dev" data-en="This is the first capability to test because a false positive looks healthy: compaction returns success, the seat continues, and only the procedure detail is gone. The failure is silent, cumulative and exactly where summaries are weakest." data-ko="false positive가 건강해 보이므로 이 capability를 가장 먼저 시험해야 해요. compaction은 성공을 반환하고 seat은 계속 움직이지만 절차 세부사항만 사라져요. 실패는 조용하고 누적되며 summary가 가장 약한 지점에 있어요.">A technically successful compaction can still be a resident-mode failure.</p>
+      </div>
+
+      <p data-aud="general" data-en="Compaction is not mainly a way to lower cost. Much of every turn may be a fixed floor that compaction cannot reclaim. Its value is continuity: the seat keeps the detailed judgment needed to continue, and the adapter chooses a safe boundary instead of meeting one unexpectedly." data-ko="compaction은 주로 비용을 낮추는 수단이 아니에요. 매 turn의 큰 부분은 compaction이 회수할 수 없는 fixed floor일 수 있어요. 가치는 continuity에 있어요. seat이 계속하는 데 필요한 세밀한 판단을 유지하고, adapter가 경계를 갑자기 만나는 대신 안전한 위치를 골라요.">Compaction is a judgment-continuity mechanism, not primarily a cost lever.</p>
+      <p data-aud="dev" data-en="A successful cycle can cut the reclaimable category sharply while barely moving the total because the fixed floor dominates. Policies therefore act on the decomposed signal, and the benefit is measured in boundary control and continuity rather than token-total reduction." data-ko="fixed floor가 지배하면 성공적인 cycle이 reclaimable category를 크게 줄여도 total은 거의 움직이지 않을 수 있어요. 그래서 정책은 분해된 signal에 따라 행동하고, 이점은 token total 절감이 아니라 boundary control과 continuity로 평가해요.">Use the decomposed context signal; total-token movement is not the success criterion.</p>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Board text is data, not a command" data-ko="보드 텍스트는 명령이 아니라 데이터예요">Board text is data, not a command</h2>
+      <h2 data-aud="dev" data-en="Three separate layers of injection safety" data-ko="서로 다른 injection-safety 계층 세 개">Three separate layers of injection safety</h2>
+
+      <p data-aud="general" data-en="Some harnesses accept commands and ordinary messages through the same input. A board message that begins with a command marker can then erase context or change a setting while the transport reports a clean success. Pantty separates three different ways text can cause action, because a wrapper that closes one does not close the other two." data-ko="일부 하네스는 명령과 일반 메시지를 같은 input으로 받아요. 그러면 command marker로 시작하는 보드 메시지가 컨텍스트를 지우거나 설정을 바꾸면서 transport는 깨끗한 success를 보고할 수 있어요. Pantty는 텍스트가 행동을 일으키는 서로 다른 세 방식을 분리해요. 한 계층을 닫는 wrapper가 나머지 둘을 닫지는 않기 때문이에요.">A wrapper may close command dispatch while expansion and model obedience remain open.</p>
+      <p data-aud="dev" data-en="Dispatch and expansion occur before the model; obedience occurs after content reaches it. Treating all three as one prompt-injection problem assigns controls to the wrong layer. Board-authored content is unconditionally data, and authorship is decided from message type and sender identity at routing time — never inferred from the body." data-ko="dispatch와 expansion은 모델 전에 일어나고, obedience는 content가 모델에 도달한 뒤 일어나요. 셋을 하나의 prompt-injection 문제로 다루면 control이 잘못된 계층에 배치돼요. 보드가 작성한 content는 무조건 data이고, authorship은 body에서 추론하지 않고 routing 시점의 message type과 sender identity로 결정해요.">Authorship is a routing fact, not a property inferred from command-looking text.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="Dispatch — does the harness execute the input?" data-ko="Dispatch — 하네스가 input을 실행하나요?">Dispatch — does the harness execute the input?</h3>
+          <p data-aud="general" data-en="The input parser may treat a leading marker as a command before the AI sees anything. Where that rule is based on the first character, the adapter owns that position with a constant prefix so board content can never occupy it." data-ko="input parser는 AI가 아무것도 보기 전에 앞쪽 marker를 명령으로 처리할 수 있어요. 규칙이 첫 문자에 기반한다면 adapter가 constant prefix로 그 위치를 소유해서 board content가 절대 그 자리를 차지하지 못하게 해요.">Close a positional dispatch rule structurally by owning the first character.</p>
+          <p data-aud="dev" data-en="The predicate must be measured and recorded with the harness build, transport, driver, submission path, revisit date and stored run artifacts. The corpus includes a control that really dispatches. The builder uses an adapter-owned constant prefix and refuses rather than returns a violating string; board-controlled metadata in the header is validated, not merely escaped." data-ko="predicate는 harness build·transport·driver·submission path·revisit date·stored run artifact와 함께 측정하고 기록해야 해요. corpus에는 실제로 dispatch되는 control이 포함돼요. builder는 adapter-owned constant prefix를 쓰고 위반 문자열을 반환하지 않고 거부해요. header의 board-controlled metadata는 단순 escape가 아니라 validation을 거쳐요.">Measure the exact predicate, bind it to artifacts, and enforce the invariant at construction.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Expansion — does the harness resolve embedded references?" data-ko="Expansion — 하네스가 embedded reference를 해소하나요?">Expansion — does the harness resolve embedded references?</h3>
+          <p data-aud="general" data-en="A file, resource or routing reference may be recognized anywhere inside the message. A safe first character does not stop this because the harness scans the rest of the body before the AI sees it." data-ko="파일·resource·routing reference가 메시지 body 어디에서든 인식될 수 있어요. 하네스가 AI보다 먼저 body의 나머지를 scan하므로 안전한 첫 문자만으로는 이것을 막지 못해요.">A leading header does not close anywhere-in-body expansion.</p>
+          <p data-aud="dev" data-en="String framing cannot generally close this layer. The adapter makes expansion constructs observable — for example by carrying a count of constructs passed through — while the effective control remains the seat's authority over what expanded resources can expose or reach." data-ko="string framing으로는 이 계층을 일반적으로 닫을 수 없어요. adapter는 통과시킨 construct count 같은 정보를 실어 expansion construct를 관찰 가능하게 만들고, 실제 control은 expanded resource가 무엇을 노출하거나 도달할 수 있는지 정하는 seat authority에 남아요.">Make expansion observable; constrain its consequences through authority.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Obedience — will the model act on shown instructions?" data-ko="Obedience — 모델이 보이는 지시를 따르나요?">Obedience — will the model act on shown instructions?</h3>
+          <p data-aud="general" data-en="Ordinary prose can ask the AI to run a procedure without resembling a harness command at all. Headers and delimiters can explain that the text is data, but they cannot force the model to ignore it." data-ko="일반 산문도 하네스 명령처럼 보이지 않으면서 AI에게 절차 실행을 요구할 수 있어요. header와 delimiter는 텍스트가 data라고 설명할 수 있지만 모델이 그것을 무시하도록 강제할 수는 없어요.">Framing is a request to the model, not a security boundary.</p>
+          <p data-aud="dev" data-en="The control is tool authority and approval mode. A wrapper that proves board data cannot hit the dispatch parser has closed dispatch only; it cannot claim that expansion and obedience are also closed." data-ko="control은 tool authority와 approval mode예요. board data가 dispatch parser에 닿지 못함을 증명한 wrapper는 dispatch만 닫은 것이고 expansion과 obedience까지 닫았다고 주장할 수 없어요.">Constrain obedience through tools and approvals, not wrapper wording.</p>
+        </div>
+      </div>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="Two doors, not one door with a switch" data-ko="switch가 달린 문 하나가 아니라 문 두 개">Two doors, not one door with a switch</h4>
+        <h4 data-aud="dev" data-en="Authorship becomes a type" data-ko="authorship를 type으로 만들어요">Authorship becomes a type</h4>
+        <p data-aud="general" data-en="Board messages always pass through the data guard. Procedure commands created by the adapter use a separate entrance. A board message has no route into the command entrance, even when its text looks exactly like a command." data-ko="보드 메시지는 언제나 data guard를 통과해요. adapter가 만든 procedure command는 별도의 입구를 사용해요. 보드 메시지는 텍스트가 명령과 똑같이 보여도 command 입구로 가는 경로가 없어요.">Board-authored data and adapter-authored commands use separate entrances.</p>
+        <p data-aud="dev" data-en="The reference shape exposes two typed submission entry points rather than one entry point with a flag. Board content cannot reach the procedure-command path. Copies of the guard in different languages share explicit constants and a cross-process conformance corpus in a declared encoding." data-ko="reference shape은 flag가 달린 entry point 하나 대신 typed submission entry point 두 개를 노출해요. board content는 procedure-command path에 닿을 수 없어요. 서로 다른 언어의 guard 사본은 명시적인 constant와 선언된 encoding으로 process 경계를 건너는 conformance corpus를 공유해요.">Separate typed entry points encode the routing rule as structure rather than convention.</p>
+      </div>
+
+      <p data-aud="general" data-en="A clean success message is not proof that the AI handled the work. The harness may reject or decline to dispatch an input and still return success with no model turn. The board advances its intake position only when there is evidence that processing occurred." data-ko="깨끗한 success 메시지는 AI가 일을 처리했다는 증거가 아니에요. 하네스가 input을 거부하거나 dispatch하지 않으면서도 model turn 없이 success를 반환할 수 있어요. 보드는 processing이 일어났다는 증거가 있을 때만 intake 위치를 advance해요.">Advance the intake cursor on processing evidence, never envelope status alone.</p>
+      <p data-aud="dev" data-en="Structured content blocks are not automatically safer. A harness may inspect only the last text block, so a header in an earlier block is not a prefix at all. When the measured predicate has that shape, the invariant binds the last block and the safe arrangement is a single block." data-ko="structured content block이 자동으로 더 안전한 것은 아니에요. 하네스가 마지막 text block만 검사할 수 있으므로 앞선 block의 header는 prefix가 아니에요. 측정된 predicate가 그런 형태라면 invariant는 마지막 block에 걸리고 안전한 배열은 single block이에요.">The invariant follows the measured parser, including which text block it inspects.</p>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Recovery must work while nobody is watching" data-ko="아무도 보고 있지 않을 때도 복구돼야 해요">Recovery must work while nobody is watching</h2>
+      <h2 data-aud="dev" data-en="Unattended recovery requirements" data-ko="무인 복구 요구사항">Unattended recovery requirements</h2>
+
+      <p data-aud="general" data-en="The costly failure is not a slow turn. It is a seat that stopped, raised nothing, and waits for a person to notice. A tool update, reboot, expired credential or wedged supervisor can all produce that same silence. Pantty requires recovery that notices the right failure, preserves the same work, and verifies that the seat truly came back." data-ko="비용이 큰 실패는 느린 turn이 아니에요. seat이 멈추고 아무 신호도 올리지 않은 채 누군가 알아차리기를 기다리는 상태예요. tool update·reboot·expired credential·wedged supervisor가 모두 같은 침묵을 만들 수 있어요. Pantty는 올바른 실패를 감지하고, 같은 작업을 보존하고, seat이 실제로 돌아왔는지 검증하는 복구를 요구해요.">Recovery must detect silence, preserve the work, and verify revival.</p>
+      <p data-aud="dev" data-en="The recovery contract applies to both resident seats and turn-spawned supervisors; only the subject being restarted changes. It separates observation failure from death, work failure from means failure, and provider refusal from both, because each class requires a different response." data-ko="recovery contract는 resident seat과 turn-spawned supervisor 모두에 적용되고 다시 시작하는 대상만 달라요. observation failure와 death, work failure와 means failure, provider refusal를 서로 분리해요. 각 class가 다른 응답을 요구하기 때문이에요.">Both seat shapes need the same recovery properties and failure classification.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="Three health states" data-ko="health state 세 개">Three health states</h3>
+          <p data-aud="general" data-en="A probe reports healthy, dead or unknown. Unknown means the check could not observe the seat. It neither triggers a restart nor disappears silently." data-ko="probe는 healthy·dead·unknown을 보고해요. unknown은 check가 seat을 관찰하지 못했다는 뜻이에요. restart를 trigger하지도 않고 조용히 사라지지도 않아요.">Health is <code>ok</code>, <code>dead</code> or <code>unknown</code>.</p>
+          <p data-aud="dev" data-en="Folding unknown into ok can leave a dead seat untouched indefinitely; folding it into dead restarts healthy seats. Therefore unknown is visible, alerts appropriately, and never triggers a restart by itself." data-ko="unknown을 ok에 합치면 dead seat을 무기한 그대로 둘 수 있고, dead에 합치면 healthy seat을 restart해요. 그래서 unknown은 보이고 적절한 alert를 올리며 그 자체로 restart를 trigger하지 않아요.">Observation failure is its own state with its own response.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Heartbeat from the work loop" data-ko="work loop에서 나오는 heartbeat">Heartbeat from the work loop</h3>
+          <p data-aud="general" data-en="The heartbeat comes from inside the loop that actually performs work. A separate timer can keep saying 「alive」 while the work loop has been stuck for hours." data-ko="heartbeat는 실제로 일을 수행하는 loop 안에서 나와요. 별도 timer는 work loop가 몇 시간 동안 멈춰 있어도 계속 「alive」라고 말할 수 있어요.">The heartbeat must prove the work loop is moving.</p>
+          <p data-aud="dev" data-en="Process presence, a bound port and a 200 response are adjacent signals. A stale in-loop heartbeat means death even when the process remains enumerable." data-ko="process presence·bound port·200 response는 인접 신호일 뿐이에요. process가 여전히 enumerate돼도 in-loop heartbeat가 stale이면 death예요.">A live process with a stale work-loop heartbeat is a dead seat.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Read the outcome envelope" data-ko="outcome envelope를 읽어요">Read the outcome envelope</h3>
+          <p data-aud="general" data-en="A program can exit successfully after reaching a turn ceiling, exhausting a budget or failing midway. Recovery and cursor movement use the result produced by the harness, not the exit code." data-ko="프로그램은 turn ceiling에 닿거나 budget을 소진하거나 중간에 실패한 뒤에도 성공 exit를 할 수 있어요. recovery와 cursor movement는 exit code가 아니라 하네스가 만든 result를 사용해요.">Exit status is not task outcome.</p>
+          <p data-aud="dev" data-en="Requesting an outcome envelope without parsing it preserves the defect. Completion is conditioned on the parsed result and the state the seat was asked to change." data-ko="outcome envelope를 요청하고 parse하지 않으면 결함은 그대로예요. completion은 parsed result와 seat이 바꾸도록 요청받은 state에 조건을 걸어요.">Request, parse and act on the result envelope.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Verify the restart" data-ko="restart를 검증해요">Verify the restart</h3>
+          <p data-aud="general" data-en="Starting a replacement is an attempt, not a recovery. The layer probes again and clears the failure count only after the new subject is proven healthy." data-ko="replacement를 시작한 것은 시도이지 recovery가 아니에요. 계층은 다시 probe하고 새 대상이 healthy로 증명된 뒤에만 failure count를 지워요.">Restarted is not the same as revived.</p>
+          <p data-aud="dev" data-en="A wedged single-instance holder is removed before its replacement starts. Re-probing distinguishes a successful restart from a replacement rejected by the old lock and keeps backoff state truthful." data-ko="wedged single-instance holder는 replacement를 시작하기 전에 제거해요. re-probe는 성공한 restart와 old lock 때문에 거부된 replacement를 구별하고 backoff state를 정확하게 유지해요.">Re-probe before declaring recovery or resetting backoff.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Carry the same session" data-ko="같은 session을 이어 가요">Carry the same session</h3>
+          <p data-aud="general" data-en="Recovery keeps the session handle, the position in the incoming work and the seat's charter binding. Returning with a blank session is reinitialization, not recovery." data-ko="recovery는 session handle·들어오는 작업의 위치·seat의 charter binding을 유지해요. 빈 session으로 돌아오는 것은 recovery가 아니라 reinitialization이에요.">Recovery preserves session continuity.</p>
+          <p data-aud="dev" data-en="Session-continuity state survives process restart and means failure untouched. The tool used to reach a session may fail while the session itself remains valid." data-ko="session-continuity state는 process restart와 means failure를 건너 그대로 유지돼요. session에 닿는 데 쓰는 tool이 실패해도 session 자체는 여전히 유효할 수 있어요.">Do not discard intact session state because one access path failed.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Separate means failure from work failure" data-ko="means failure와 work failure를 분리해요">Separate means failure from work failure</h3>
+          <p data-aud="general" data-en="A broken tool path and a bad task are different problems. Only a broken means moves down the fallback ladder; a work failure does not abandon an otherwise healthy engine." data-ko="고장 난 tool path와 잘못된 task는 서로 다른 문제예요. broken means만 fallback ladder를 내려가고, work failure는 건강한 engine을 버리지 않아요.">Demote the means only when the means failed.</p>
+          <p data-aud="dev" data-en="The ladder drops one assumption per rung: pinned engine and model → same engine without pins → a different engine without pins. Means failures move a persisted demotion floor downward; a bounded run of successful turns returns it toward the top." data-ko="ladder는 rung마다 assumption 하나를 내려놓아요. pinned engine과 model → pin이 없는 같은 engine → pin이 없는 다른 engine 순서예요. means failure는 persisted demotion floor를 아래로 옮기고, 제한된 수의 successful turn이 그것을 위로 되돌려요.">Order the ladder by assumptions removed, and make demotion reversible.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Treat provider refusal as a third class" data-ko="provider refusal을 세 번째 class로 다뤄요">Treat provider refusal as a third class</h3>
+          <p data-aud="general" data-en="A usage limit means the tool and task may both be fine while one provider is temporarily unavailable. It does not count as a means failure, and another provider's rung may still run immediately." data-ko="usage limit은 tool과 task가 모두 정상인데 provider 하나만 일시적으로 unavailable한 상태일 수 있어요. means failure로 세지 않고, 다른 provider의 rung은 즉시 실행 가능할 수 있어요.">A temporary capacity refusal is neither a work failure nor a means failure.</p>
+          <p data-aud="dev" data-en="The persisted demotion floor records means judgment; the running rung is derived per turn as the first rung at or below that floor whose provider is not blocked. If all are blocked, wait until the earliest known unblock, keep the wait visible and keep transport upkeep alive. Parse reset times opportunistically, cap parsed deadlines, and fall back to bounded re-probes when parsing fails." data-ko="persisted demotion floor는 means judgment를 기록하고, running rung은 매 turn마다 그 floor 이하에서 provider가 block되지 않은 첫 rung으로 도출해요. 모두 block되면 가장 이른 known unblock까지 기다리고, wait를 보이게 유지하며 transport upkeep은 계속 돌려요. reset time은 가능할 때 parse하고, parsed deadline에는 cap을 두며, parsing이 실패하면 bounded re-probe로 fallback해요.">Keep means demotion persistent, provider blocks temporary, and waits observable.</p>
+        </div>
+      </div>
+
+      <div class="callout headline">
+        <h4 data-aud="general" data-en="Recovery must outlive the workspace" data-ko="recovery는 workspace보다 오래 살아야 해요">Recovery must outlive the workspace</h4>
+        <h4 data-aud="dev" data-en="The recovery layer needs an external parent" data-ko="recovery layer에는 외부 parent가 필요해요">The recovery layer needs an external parent</h4>
+        <p data-aud="general" data-en="The thing that brings the seat back cannot die with the same workspace. It belongs under an operating-system scheduler or service manager, and its frequent healthy check must leave a healthy seat untouched." data-ko="seat을 되살리는 대상이 같은 workspace와 함께 죽으면 안 돼요. operating-system scheduler나 service manager 아래에 있어야 하고, 자주 도는 healthy check는 건강한 seat을 건드리지 않아야 해요.">The recovery parent must survive the workspace and be non-destructive when healthy.</p>
+        <p data-aud="dev" data-en="A supervisor supervised only by another workspace supervisor relocates the failure. Recovery scripts are also part of the checked surface: registration, status and removal paths must be mechanically executable on the target host, including encoding and parseability checks." data-ko="다른 workspace supervisor만이 supervisor를 감시하면 실패 위치만 옮겨요. recovery script 자체도 checked surface의 일부예요. registration·status·removal path가 encoding과 parseability를 포함해 target host에서 기계적으로 실행 가능함을 단언해야 해요.">The external parent, healthy no-op behavior and script loadability are all mechanically checked.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Alive is not the same as able to work" data-ko="살아 있음과 일할 수 있음은 달라요">Alive is not the same as able to work</h2>
+      <h2 data-aud="dev" data-en="Capability liveness and derived telemetry" data-ko="capability liveness와 derived telemetry">Capability liveness and derived telemetry</h2>
+
+      <p data-aud="general" data-en="A seat may appear in a session list and answer a cheap ping while being unable to run a single AI turn. The board therefore treats presence as one fact and capability as another. The same rule applies to the status it displays: model, effort and context values come from the harness record, not from what a setting says should be running." data-ko="seat이 session list에 보이고 값싼 ping에 답하면서도 AI turn 하나를 실행하지 못할 수 있어요. 그래서 보드는 presence와 capability를 서로 다른 사실로 다뤄요. 표시하는 status에도 같은 규칙이 적용돼요. model·effort·context 값은 실행되어야 한다고 설정된 값이 아니라 harness record에서 와요.">Presence and declared configuration never substitute for capability and recorded state.</p>
+      <p data-aud="dev" data-en="A non-inference probe cannot establish inference capability. Telemetry is a read-only projection over records the harness already emitted, while liveness actively proves the work path. The two are complementary and neither is inferred from the other." data-ko="non-inference probe는 inference capability를 증명할 수 없어요. telemetry는 하네스가 이미 emit한 record 위의 read-only projection이고, liveness는 work path를 능동적으로 증명해요. 둘은 서로 보완하지만 어느 쪽도 다른 쪽에서 추론하지 않아요.">Telemetry reads recorded state; liveness exercises capability.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h3 data-en="Derive, never declare" data-ko="declare하지 말고 derive해요">Derive, never declare</h3>
+          <p data-aud="general" data-en="The board displays what the harness actually recorded. A requested model switch and the model that performed the next turn may differ, and only the record can reveal that gap." data-ko="보드는 하네스가 실제로 기록한 것을 표시해요. 요청된 model switch와 다음 turn을 수행한 model은 다를 수 있고, record만 그 차이를 드러낼 수 있어요.">Display recorded execution, not intended configuration.</p>
+          <p data-aud="dev" data-en="The reader carries no model names, effort names or defaults. Model, effort, context occupancy, in-flight tool, last activity and harness version are extracted from the harness transcript." data-ko="reader는 model name·effort name·default를 가지고 있지 않아요. model·effort·context occupancy·in-flight tool·last activity·harness version을 harness transcript에서 추출해요.">A literal default in the reader is a declaration that can outrank measurement.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Absence is unknown, not zero" data-ko="absence는 zero가 아니라 unknown이에요">Absence is unknown, not zero</h3>
+          <p data-aud="general" data-en="No record means unknown, and an old record means stale. Neither becomes idle or zero, because zero claims the seat was measured and found empty." data-ko="record가 없으면 unknown이고 오래된 record면 stale이에요. 어느 쪽도 idle이나 zero가 되지 않아요. zero는 seat을 측정했고 비어 있음을 확인했다는 주장이기 때문이에요.">No record is <code>unknown</code>; an old record is <code>stale</code>.</p>
+          <p data-aud="dev" data-en="Null values accompany unknown state, and a staleness bound separates a current measurement from an old one. Instrument absence never becomes a seat-state assertion." data-ko="unknown state에는 null value가 따라오고, staleness bound가 현재 measurement와 오래된 것을 분리해요. instrument absence가 seat-state assertion으로 바뀌지 않아요.">The instrument's silence is not a measurement of the seat.</p>
+        </div>
+        <div class="card">
+          <h3 data-en="Free and change-triggered" data-ko="무료이고 change-triggered예요">Free and change-triggered</h3>
+          <p data-aud="general" data-en="Telemetry reads a file already written by the harness, so it costs no extra AI turn and stays available independently of any optional echo feature. It sends an update only when the displayed state meaningfully changes." data-ko="telemetry는 하네스가 이미 쓴 파일을 읽으므로 추가 AI turn 비용이 없고 optional echo 기능과 독립적으로 계속 사용할 수 있어요. 표시 state가 의미 있게 바뀔 때만 update를 보내요.">Telemetry costs no model turn and emits only on meaningful change.</p>
+          <p data-aud="dev" data-en="The reader spawns nothing and calls no network surface, so it is ungated by the echo switch. Continuously moving values are quantized before latest-wins comparison to prevent per-tick broadcasts. Per-harness extraction details remain volatile registry data." data-ko="reader는 아무것도 spawn하지 않고 network surface도 호출하지 않으므로 echo switch의 gate를 받지 않아요. 계속 움직이는 값은 latest-wins 비교 전에 quantize해서 per-tick broadcast를 막아요. 하네스별 extraction detail은 변동성 있는 registry data로 남아요.">Read-only, ungated, quantized and latest-wins.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="When resident mode is worth using" data-ko="resident 모드가 값하는 때">When resident mode is worth using</h2>
+      <h2 data-aud="dev" data-en="Adoption thresholds" data-ko="도입 임계값">Adoption thresholds</h2>
+
+      <p data-aud="general" data-en="Pantty does not make a resident seat the default. Resident mode is worth considering when a seat must keep working across many board turns, needs an external stop button and a chosen compaction boundary, and must recover without somebody watching it. If any mandatory adapter operation is unavailable — especially the pre-compaction handoff — use the simpler turn-spawned shape." data-ko="Pantty는 resident seat을 기본값으로 만들지 않아요. seat이 많은 board turn을 건너 계속 일해야 하고, 외부 stop과 선택된 compaction boundary가 필요하고, 누군가 지켜보지 않아도 복구돼야 할 때 resident 모드를 고려할 값이 있어요. 필수 adapter 연산 중 하나라도 없으면, 특히 pre-compaction handoff가 없으면 더 단순한 turn-spawned 형태를 사용해요.">Resident mode earns adoption only when continuity, control and unattended recovery are required and the complete contract is available.</p>
+      <p data-aud="dev" data-en="Evaluate the compaction gate first, then cancellation, decomposed context accounting, determinate turn completion and capability liveness. Residency is not an answer to preamble overhead or a claim that a held-open process is inherently healthier. Both seat shapes still need outcome parsing and unattended recovery." data-ko="compaction gate를 먼저 평가하고, 그다음 cancellation·decomposed context accounting·determinate turn completion·capability liveness를 평가해요. residency는 preamble overhead의 답도 아니고 열린 process가 본질적으로 더 건강하다는 주장도 아니에요. 두 seat 형태 모두 outcome parsing과 unattended recovery가 필요해요.">Check the hardest gate first and keep the adoption case narrow.</p>
+
+      <table class="data">
+        <thead>
+          <tr>
+            <th data-en="Question" data-ko="질문">Question</th>
+            <th data-en="Resident requires" data-ko="resident 요구사항">Resident requires</th>
+            <th data-en="If absent" data-ko="없을 때">If absent</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-en="Can the seat cross compaction without losing procedure detail?" data-ko="seat이 절차 세부사항을 잃지 않고 compaction을 건널 수 있나요?">Can the seat cross compaction without losing procedure detail?</td>
+            <td data-en="Pre-hook, adapter-triggered compact, post-injection" data-ko="pre-hook·adapter-triggered compact·post-injection">Pre-hook, adapter-triggered compact, post-injection</td>
+            <td data-en="Run turn-spawned" data-ko="turn-spawned로 실행해요">Run turn-spawned</td>
+          </tr>
+          <tr>
+            <td data-en="Can an in-flight turn be stopped externally?" data-ko="진행 중인 turn을 외부에서 멈출 수 있나요?">Can an in-flight turn be stopped externally?</td>
+            <td data-en="Adapter-level cancel" data-ko="adapter 수준 cancel">Adapter-level cancel</td>
+            <td data-en="Run turn-spawned with a supervisor ceiling" data-ko="supervisor ceiling이 있는 turn-spawned로 실행해요">Run turn-spawned with a supervisor ceiling</td>
+          </tr>
+          <tr>
+            <td data-en="Can policy see reclaimable pressure separately?" data-ko="정책이 reclaimable pressure를 따로 볼 수 있나요?">Can policy see reclaimable pressure separately?</td>
+            <td data-en="Decomposed context signal" data-ko="분해된 context signal">Decomposed context signal</td>
+            <td data-en="Do not automate resident compaction policy" data-ko="resident compaction policy를 자동화하지 않아요">Do not automate resident compaction policy</td>
+          </tr>
+          <tr>
+            <td data-en="Can completion and capability be proven?" data-ko="completion과 capability를 증명할 수 있나요?">Can completion and capability be proven?</td>
+            <td data-en="Turn-end evidence plus work-path liveness" data-ko="turn-end evidence와 work-path liveness">Turn-end evidence plus work-path liveness</td>
+            <td data-en="Do not advance the cursor or declare health" data-ko="cursor를 advance하거나 health를 declare하지 않아요">Do not advance the cursor or declare health</td>
+          </tr>
+          <tr>
+            <td data-en="Does the deployment need unattended continuity?" data-ko="배치에 무인 continuity가 필요한가요?">Does the deployment need unattended continuity?</td>
+            <td data-en="External recovery parent and session-preserving ladder" data-ko="외부 recovery parent와 session-preserving ladder">External recovery parent and session-preserving ladder</td>
+            <td data-en="The simpler seat shape may be the better fit" data-ko="더 단순한 seat 형태가 더 잘 맞을 수 있어요">The simpler seat shape may be the better fit</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="install-pantty">
+      <h2 data-en="Availability" data-ko="제공 상태">Availability</h2>
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">v0.1</span>
+          <span class="step-title" data-en="Specification only — nothing to install" data-ko="스펙 전용 — 설치할 것이 없어요">Specification only — nothing to install</span>
+        </div>
+        <p class="step-desc" data-en="Pantty v0.1.0 is a specification-stage module and ships no plugin. There is no marketplace entry, install command, skill or slash command at this version. Pantty.md is the contract for evaluating or implementing a seat-driving adapter; the existing reference runtime remains under constellation/reference/runtime/pantty/." data-ko="Pantty v0.1.0은 스펙 단계 모듈이고 플러그인을 제공하지 않아요. 이 버전에는 marketplace entry·install command·skill·slash command가 없어요. Pantty.md가 seat-driving adapter를 평가하거나 구현하기 위한 계약이고, 기존 reference runtime은 constellation/reference/runtime/pantty/ 아래에 그대로 있어요.">Pantty v0.1.0 is specification-only. It ships no plugin and has nothing to install.</p>
+      </div>
+    </section>
+
+    <section id="evaluation-checklist">
+      <h2 data-en="Evaluation checklist" data-ko="평가 체크리스트">Evaluation checklist</h2>
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">1</span>
+          <span class="step-title" data-en="Test the compaction boundary first" data-ko="compaction boundary를 먼저 시험해요">Test the compaction boundary first</span>
+        </div>
+        <p class="step-desc" data-en="Verify that the adapter can materialize an in-flight handoff before compaction, trigger compaction at its chosen boundary, and inject that handoff into the fresh context before work resumes. A harness that only exposes compact does not pass." data-ko="adapter가 compaction 전에 in-flight handoff를 materialize하고, 선택한 boundary에서 compaction을 trigger하고, 작업 재개 전에 그 handoff를 fresh context에 inject할 수 있는지 검증해요. compact만 노출하는 하네스는 통과하지 못해요.">Verify the complete materialize–compact–re-inject cycle, not merely a compact operation.</p>
+      </div>
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">2</span>
+          <span class="step-title" data-en="Measure the real submission path" data-ko="실제 submission path를 측정해요">Measure the real submission path</span>
+        </div>
+        <p class="step-desc" data-en="Establish the dispatch predicate on the exact harness build, transport and driver the adapter will use. Keep the successful observations, the deliberately dispatching control and the conformance artifacts together. A result measured through one path does not transfer automatically to another." data-ko="adapter가 사용할 정확한 harness build·transport·driver에서 dispatch predicate를 확인해요. 성공 observation·의도적으로 dispatch되는 control·conformance artifact를 함께 유지해요. 한 path에서 측정한 결과는 다른 path로 자동 이전되지 않아요.">Bind dispatch safety to the exact measured submission path and its stored artifacts.</p>
+      </div>
+      <div class="install-step-card">
+        <div class="step-header">
+          <span class="step-num">3</span>
+          <span class="step-title" data-en="Prove recovery preserves the seat" data-ko="recovery가 seat을 보존하는지 증명해요">Prove recovery preserves the seat</span>
+        </div>
+        <p class="step-desc" data-en="Exercise dead, unknown, means-failure, work-failure and provider-refusal paths. Confirm that restarts are re-probed, backoff clears only after verified recovery, the session handle and intake cursor remain intact, waits stay visible, and the external recovery parent survives the workspace." data-ko="dead·unknown·means-failure·work-failure·provider-refusal path를 실행해요. restart 뒤 re-probe가 일어나고, verified recovery 뒤에만 backoff가 지워지고, session handle과 intake cursor가 유지되고, wait가 보이며, 외부 recovery parent가 workspace보다 오래 사는지 확인해요.">Exercise the failure classes and verify continuity, visibility and revival.</p>
+      </div>
+    </section>
+
+    <section id="use-cases">
+      <h2 data-aud="general" data-en="Use cases — three situations where Pantty earns its keep" data-ko="사용 가이드 — Pantty가 값을 하는 세 가지 상황">Use cases — three situations where Pantty earns its keep</h2>
+      <h2 data-aud="dev" data-en="Use cases — three scenarios" data-ko="사용 사례 — 세 가지 시나리오">Use cases — three scenarios</h2>
+
+      <div class="use-cases-stack">
+        <div class="card use-case-card">
+          <h3 data-aud="general" data-en="A seat works across many context boundaries" data-ko="seat이 여러 컨텍스트 경계를 건너 일해요">A seat works across many context boundaries</h3>
+          <h3 data-aud="dev" data-en="Preserving procedure detail through controlled compaction" data-ko="controlled compaction으로 절차 세부사항을 보존해요">Preserving procedure detail through controlled compaction</h3>
+          <p data-aud="general"><strong data-en="When this happens" data-ko="이런 상황이에요">When this happens</strong>: <span data-en="One board seat owns a long-running stream of related work and must keep the exact procedure, decisions and resume point when its context fills." data-ko="하나의 board seat이 서로 이어진 장기 작업 흐름을 맡고 있고, 컨텍스트가 찰 때도 정확한 절차·결정·resume point를 유지해야 해요.">A long-running seat must keep exact procedure detail when its context fills.</span></p>
+          <p data-aud="dev"><strong data-en="When this happens" data-ko="이런 상황이에요">When this happens</strong>: <span data-en="The reclaimable context approaches policy pressure while the seat is mid-procedure. The adapter selects a boundary, completes the pre-hook handoff, compacts, and injects the handoff before accepting ordinary work again." data-ko="seat이 절차 중간에 있는 동안 reclaimable context가 policy pressure에 가까워져요. adapter가 boundary를 고르고, pre-hook handoff를 완료하고, compact한 뒤, 일반 작업을 다시 받기 전에 handoff를 inject해요.">Reclaimable pressure rises while the seat is mid-procedure; the adapter controls the complete boundary.</span></p>
+          <p data-aud="general" data-en="What happens: The seat resumes with the detail needed to continue instead of a broad summary and a rediscovery task." data-ko="결과: seat이 넓은 summary와 재발견 작업만 가진 채 깨어나는 대신 계속하는 데 필요한 세부사항을 갖고 resume해요.">Outcome: the seat resumes with procedure detail rather than rediscovering its work.</p>
+          <p data-aud="dev" data-en="What happens: Compaction becomes a planned judgment boundary with a durable before-and-after handoff, while the decomposed context signal prevents fixed-floor thrashing." data-ko="결과: compaction이 durable before-and-after handoff를 가진 계획된 judgment boundary가 되고, 분해된 context signal이 fixed-floor thrashing을 막아요.">Outcome: a planned judgment boundary with durable continuity and no fixed-floor thrashing.</p>
+        </div>
+
+        <div class="card use-case-card">
+          <h3 data-aud="general" data-en="A board message looks like a harness command" data-ko="보드 메시지가 harness command처럼 보여요">A board message looks like a harness command</h3>
+          <h3 data-aud="dev" data-en="Keeping board-authored data out of the command parser" data-ko="board-authored data를 command parser 밖에 둬요">Keeping board-authored data out of the command parser</h3>
+          <p data-aud="general"><strong data-en="When this happens" data-ko="이런 상황이에요">When this happens</strong>: <span data-en="A message begins with a marker the harness normally treats as a command, or contains a file or routing reference elsewhere in its body." data-ko="메시지가 하네스가 평소 명령으로 처리하는 marker로 시작하거나 body 다른 위치에 file·routing reference를 포함해요.">A board message resembles a command or contains an expandable reference.</span></p>
+          <p data-aud="dev"><strong data-en="When this happens" data-ko="이런 상황이에요">When this happens</strong>: <span data-en="The measured parser dispatches on a positional predicate while expansion matches anywhere in the body. The typed board-data path constructs a constant-prefix single block, validates header metadata and records expansion constructs without claiming that framing controls model obedience." data-ko="측정된 parser가 positional predicate로 dispatch하고 expansion은 body 어디에서든 match해요. typed board-data path가 constant-prefix single block을 만들고, header metadata를 validate하고, framing이 model obedience를 제어한다고 주장하지 않으면서 expansion construct를 기록해요.">Dispatch is positional, expansion is anywhere-in-body, and obedience remains an authority question.</span></p>
+          <p data-aud="general" data-en="What happens: The message reaches the AI as data rather than silently executing a harness command, while the remaining expansion and obedience risks stay visible and controlled at their own layers." data-ko="결과: 메시지가 하네스 명령을 조용히 실행하는 대신 data로 AI에 도달하고, 남아 있는 expansion·obedience 위험은 각자 자기 계층에서 보이고 제어돼요.">Outcome: dispatch is structurally closed without disguising the remaining layers.</p>
+          <p data-aud="dev" data-en="What happens: Cursor advancement waits for processing evidence, command authorship stays a routing type, and changing the build or submission path invalidates the recorded predicate until it is measured again." data-ko="결과: cursor advance가 processing evidence를 기다리고, command authorship가 routing type으로 남고, build나 submission path가 바뀌면 다시 측정할 때까지 recorded predicate가 무효가 돼요.">Outcome: safe routing, evidence-based completion and explicit measurement drift.</p>
+        </div>
+
+        <div class="card use-case-card">
+          <h3 data-aud="general" data-en="The seat must return after nobody notices it stopped" data-ko="아무도 멈춤을 보지 못해도 seat이 돌아와야 해요">The seat must return after nobody notices it stopped</h3>
+          <h3 data-aud="dev" data-en="Unattended recovery across tool and provider failures" data-ko="tool·provider failure를 건너는 무인 복구">Unattended recovery across tool and provider failures</h3>
+          <p data-aud="general"><strong data-en="When this happens" data-ko="이런 상황이에요">When this happens</strong>: <span data-en="A reboot, tool update, expired credential, stuck work loop or temporary provider limit interrupts the path while no person is watching." data-ko="reboot·tool update·expired credential·stuck work loop·temporary provider limit가 아무도 보고 있지 않을 때 path를 중단해요.">The path fails while nobody is watching.</span></p>
+          <p data-aud="dev"><strong data-en="When this happens" data-ko="이런 상황이에요">When this happens</strong>: <span data-en="The external recovery parent reads a stale in-loop heartbeat or a failed turn result, classifies the failure, preserves continuity state, chooses a viable rung, and verifies the recovered work path before clearing backoff." data-ko="외부 recovery parent가 stale in-loop heartbeat나 failed turn result를 읽고, failure를 classify하고, continuity state를 보존하고, viable rung을 고르고, backoff를 지우기 전에 recovered work path를 검증해요.">The recovery layer classifies the failure and selects the response without discarding the session.</span></p>
+          <p data-aud="general" data-en="What happens: A broken access method moves to a less-assumptive alternative, a temporary usage limit waits or uses another provider, and the same seat resumes instead of returning blank." data-ko="결과: 고장 난 access method는 assumption이 더 적은 대안으로 이동하고, temporary usage limit은 기다리거나 다른 provider를 사용하고, 같은 seat이 빈 상태로 돌아오는 대신 resume해요.">Outcome: the path changes when necessary while the seat and its work remain the same.</p>
+          <p data-aud="dev" data-en="What happens: Means demotion, provider blocking and work failure remain separate state machines; the running rung is derived, waits are visible, transport upkeep continues, and revival is a verified state rather than a restart log entry." data-ko="결과: means demotion·provider blocking·work failure가 서로 다른 state machine으로 남고, running rung은 derive되고, wait는 보이고, transport upkeep은 계속되며, revival은 restart log entry가 아니라 verified state가 돼요.">Outcome: classified recovery with session continuity and verified revival.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Where Pantty came from" data-ko="Pantty가 나온 곳">Where Pantty came from</h2>
+      <h2 data-aud="dev" data-en="Extraction boundary and reference runtime" data-ko="추출 경계와 reference runtime">Extraction boundary and reference runtime</h2>
+      <p data-aud="general" data-en="Pantty was extracted from Constellation §13.35 so the seat-driving contract could stand on its own. That Constellation section is now a pointer table rather than a second copy of the rules. The existing reference runtime remains in constellation/reference/runtime/pantty/." data-ko="Pantty는 seat-driving 계약이 독립적으로 설 수 있도록 Constellation §13.35에서 추출됐어요. 그 Constellation 섹션은 이제 규칙의 두 번째 사본이 아니라 pointer table이에요. 기존 reference runtime은 constellation/reference/runtime/pantty/에 그대로 있어요.">Pantty was extracted from Constellation §13.35; the former section is now a pointer table, and the reference runtime remains in place.</p>
+      <p data-aud="dev" data-en="The extraction changes ownership of the specification, not the location or status of the reference runtime. The module remains part of EstreGenesis 2.6.x at the seat-driving layer, and harness-specific capability claims remain outside the durable contract." data-ko="추출은 reference runtime의 위치나 상태가 아니라 specification ownership을 바꿔요. 모듈은 EstreGenesis 2.6.x의 seat-driving layer에 남고, 하네스별 capability claim은 durable contract 밖에 있어요.">The specification moved; the runtime did not.</p>
+    </section>
+
+    <section>
+      <h2 data-aud="general" data-en="Want to read more?" data-ko="더 자세히 알고 싶다면">Want to read more?</h2>
+      <h2 data-aud="dev" data-en="Read the full spec" data-ko="전체 스펙 보기">Read the full spec</h2>
+      <p data-en="The full Pantty.md rulebook is in the EstreGenesis repository. It covers: §1 the five-operation driving-layer contract; §2 seat identity and one-owner inbox rules; §3 the mandatory materialize–compact–re-inject cycle and why the pre-compaction hook is the hardest gate; §4 dispatch, expansion and obedience as three distinct injection-safety layers, together with measurement artifacts, typed submission paths and processing evidence; §5 capability-level liveness; §6 unattended recovery, three-state health, in-loop heartbeats, outcome parsing, verified restart, session continuity, means diversity and provider-refusal waits; §7 the expectation that the module shrinks as vendors absorb its mechanics; and §8 telemetry derived from harness records rather than declared settings. The reference runtime lives at constellation/reference/runtime/pantty/." data-ko="전체 Pantty.md 규칙집이 EstreGenesis 저장소에 있어요. 다루는 내용은 이래요. §1 다섯 연산 driving-layer 계약, §2 seat identity와 one-owner inbox 규칙, §3 필수 materialize–compact–re-inject cycle과 pre-compaction hook이 가장 어려운 gate인 이유, §4 서로 다른 injection-safety 계층인 dispatch·expansion·obedience와 measurement artifact·typed submission path·processing evidence, §5 capability 수준 liveness, §6 무인 복구·three-state health·in-loop heartbeat·outcome parsing·verified restart·session continuity·means diversity·provider-refusal wait, §7 벤더가 mechanics를 흡수할수록 모듈이 줄어들어야 한다는 posture, §8 declared setting이 아니라 harness record에서 derive되는 telemetry예요. reference runtime은 constellation/reference/runtime/pantty/에 있어요.">The full Pantty.md rulebook is in the EstreGenesis repository.</p>
+      <p><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/Pantty.md" target="_blank" rel="noopener">github.com/SoliEstre/EstreGenesis/blob/main/Pantty.md →</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>EstreGenesis · Apache-2.0 · <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank">github.com/SoliEstre/EstreGenesis</a></p>
+    <div class="footer-style"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
+  </footer>
+
+  <script src="shared/data.js"></script>
+  <script src="shared/i18n.js"></script>
+  <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
+  <script src="shared/copy.js"></script>
+</body>
+</html>
