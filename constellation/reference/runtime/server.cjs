@@ -109,6 +109,26 @@ function reqIsHostLocal(req) {
 //   지켜요 — 계정이 0이면 그 층은 «존재하지 않는» 것이고, 없는 것을 요구하면 그 배포는 재시작
 //   엔드포인트를 잃어요. 그래서 계정이 있을 때만 세션을 요구하고, **노출된 상태에서 계정이 0이면
 //   그 사실을 매번 말해요** — 강제할 수 없는 자리를 조용히 두지 않는 게 요점이에요.
+// **로그인 화면이 오버레이일 뿐이면 로그인이 아니에요.** 실측(2026-08-07): 계정이 1개 있고
+//   `loginRequired:true` 인 상태에서 쿠키 없이 `/api/state` 를 부르면 보드 전체 상태가 그대로
+//   돌아왔어요 — 예정·완료·검토사안·프로젝트 전부. 개발자 도구로 레이어를 걷을 필요도 없고
+//   `curl` 한 줄이면 됐어요. 화면은 가렸는데 데이터는 안 가렸던 자리예요.
+// 가산 계약은 여기서도 같아요 — 계정이 0이면 그 층은 존재하지 않으니 요구할 수 없어요.
+//   그때는 통과시키되, 노출 상태면 그 사실을 말해요(조용히 열어두지 않아요).
+let _readGateWarned = false;
+function readGate(req, res, what) {
+  if (!operatorAuth.enabled()) {
+    if (accessCfg.expose && !_readGateWarned) {
+      _readGateWarned = true;
+      console.warn('[server] ⚠ %s — 노출 상태인데 운영자 계정이 0이라 인증 없이 보드 상태를 읽을 수 있어요. 계정을 만드세요 (이 경고는 한 번만).', what);
+    }
+    return true;
+  }
+  if (operatorAuth.operatorOfReq(req)) return true;
+  sendJson(res, 401, { ok: false, error: 'login-required', hint: what + ' 은 운영자 로그인이 필요해요.' });
+  return false;
+}
+
 function adminGate(req, res, what) {
   if (!reqIsHostLocal(req)) { sendJson(res, 403, { ok: false, error: what + ' 은 로컬(loopback)에서만 가능해요.' }); return false; }
   if (operatorAuth.enabled()) {
@@ -267,12 +287,14 @@ const server = http.createServer((req, res) => {
   }
 
   if (url === '/api/state') {
+    if (!readGate(req, res, '보드 상태 조회')) return;
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     res.end(readState());
     return;
   }
 
   if (url === '/api/events') {
+    if (!readGate(req, res, '보드 상태 스트림')) return;
     res.writeHead(200, {
       'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
@@ -1937,6 +1959,14 @@ server.on('upgrade', (req, socket) => {
       }
       if (!allowed) {
         console.warn('[ws upgrade] CSWSH 거부 — 교차출처 Origin=%s (host=%s)', origin, req.headers.host || '?');
+        socket.destroy(); return;
+      }
+      // 같은 출처까지 통과했으면 이제 «누가» 를 물어요. 여기까지 온 Origin 은 브라우저이고,
+      //   브라우저 갈래(대시보드)는 키도 HELLO 도 없이 AgentList + History 전체를 받아요. HTTP 쪽
+      //   readGate 만 걸고 이 소켓을 열어두면 같은 데이터가 옆문으로 그대로 나가요.
+      if (operatorAuth.enabled() && !operatorAuth.operatorOfReq(req)) {
+        console.warn('[ws upgrade] §13.25.17 미인증 브라우저 거부 — Origin=%s (계정 %d개, 세션 없음)', origin, operatorAuth.count());
+        socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
         socket.destroy(); return;
       }
     } }

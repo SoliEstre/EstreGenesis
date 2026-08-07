@@ -38,10 +38,22 @@ function createOperatorAuth(opts) {
   //   그리고 `mode` 는 **새로 만들 때만** 적용되니, 이미 느슨한 파일을 덮어쓰면 권한이 그대로예요.
   //   그래서 셋을 함께 해요: ⓐ 적재 시 경화(기존 파일 구제) ⓑ 임시 파일을 0600 으로 만들어
   //   원자적 교체(창 제거 + 부분 쓰기 방지) ⓒ 교체 후 한 번 더 확인.
+  // 시도한 뒤 **다시 재요.** 안 바뀌었으면 그 플랫폼이 이 권한을 표현하지 못하는 것이고, 그때는
+  //   매 적재마다 조용히 같은 시도를 반복하는 대신 **한 번 말하고 그만해요** — 수렴하지 않는 교정은
+  //   「고쳤다」와 「고칠 수 없다」를 같은 침묵으로 만들어요. (Windows 에서 실측: 0644 로 읽히고
+  //   chmod 가 반영되지 않아요. 배포 대상인 리눅스에서는 정상 동작해요.)
+  let _hardenGaveUp = false;
   function harden(p) {
     try {
-      const m = fs.statSync(p).mode & 0o777;
-      if (m & 0o077) { fs.chmodSync(p, 0o600); log('[operator-auth] crypto-03 권한 경화 ' + m.toString(8) + ' → 600'); }
+      const before = fs.statSync(p).mode & 0o777;
+      if (!(before & 0o077)) return;
+      fs.chmodSync(p, 0o600);
+      const after = fs.statSync(p).mode & 0o777;
+      if (!(after & 0o077)) { log('[operator-auth] crypto-03 권한 경화 ' + before.toString(8) + ' → ' + after.toString(8)); return; }
+      if (!_hardenGaveUp) {
+        _hardenGaveUp = true;
+        log('[operator-auth] ⚠ crypto-03 권한을 이 플랫폼이 표현하지 못해요 (' + before.toString(8) + ' 유지). 파일 권한으로는 이 비밀을 못 지켜요 — 이 경고는 한 번만.');
+      }
     } catch { /* 없으면 할 일 없음 */ }
   }
   function load() {
