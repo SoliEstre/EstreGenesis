@@ -55,3 +55,7 @@ constellation/reference/runtime/*.jsonl
 # Installed modules and the lockfile are dev-only harness state; runtime stays dependency-zero.
 constellation/node_modules/
 constellation/package-lock.json
+
+# 컴파일된 파이썬 바이트코드 — 기계 특정(cpython-NNN)이고 아무도 읽지 않아요.
+__pycache__/
+*.pyc

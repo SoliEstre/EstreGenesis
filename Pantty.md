@@ -1,4 +1,4 @@
-<!-- module: Pantty; layer: seat-driving; part-of: EstreGenesis 2.6.x; version: v0.1.0; date: 2026-08-06; status: initial extraction from Constellation §13.35 — reference runtime unchanged; license: Apache-2.0 -->
+<!-- module: Pantty; layer: seat-driving; part-of: EstreGenesis 2.6.x; version: v0.1.1; date: 2026-08-06; status: initial extraction from Constellation §13.35 — reference runtime unchanged; license: Apache-2.0 -->
 
 # Pantty — Seat-driving substrate
 
@@ -76,7 +76,7 @@ The reference implementation makes that declaration a **type rather than a disci
 
 Where the guard necessarily exists in more than one language — the driving layer follows the harness SDK while the reference runtime does not — the copies MUST be bound by a **conformance corpus run against both**, not by review. Shared constants belong in the measurement record both read; character classes MUST be written explicitly, because the shorthand classes differ in Unicode coverage between languages and produce two implementations that hold the same regex and answer differently. The corpus MUST cross the process boundary in a declared encoding: a comparison harness that lets the two sides receive different bytes reports agreement it never tested.
 
-Reference implementation at `constellation/reference/runtime/pantty/`: `dispatch-facts.json` carries the measurement (predicate, sigils, the observation corpus, the harness build, and a revisit date) and is the single place the sigil set is defined; `submit-envelope.cjs` builds submissions against it and refuses rather than returns on violation; `measure-dispatch.py` re-runs the corpus against a live seat to detect drift, including a deliberately destructive control whose purpose is to show the instrument can still fail. What is maintained here is not a denylist of commands but a **drift detector for one invariant** — the command set may grow without bound and the invariant is indifferent to it, but a change in the predicate invalidates the whole arrangement at once.
+Reference implementation at `pantty/`: `dispatch-facts.json` carries the measurement (predicate, sigils, the observation corpus, the harness build, and a revisit date) and is the single place the sigil set is defined; `submit-envelope.cjs` builds submissions against it and refuses rather than returns on violation; `measure-dispatch.py` re-runs the corpus against a live seat to detect drift, including a deliberately destructive control whose purpose is to show the instrument can still fail. What is maintained here is not a denylist of commands but a **drift detector for one invariant** — the command set may grow without bound and the invariant is indifferent to it, but a change in the predicate invalidates the whole arrangement at once.
 
 *Formerly Constellation.md §13.35.4.*
 
@@ -146,6 +146,6 @@ Emission is change-triggered and latest-wins, like any other declaration event (
 
 ## Cross-links
 
-Constellation.md §13.16.6 (watcher and cycle discipline the turn-spawned shape rests on) · Constellation.md §13.23 (board-worker projection — the charter is where a seat's procedure lives) · Constellation.md §13.25.11 (declaration binding) · Constellation.md §13.27 (residency, wall-clock ceilings, and completion-by-state) · Constellation.md §13.31 (board state schema and the compact-survival guard) · Constellation.md §3.1 (key management for seat identity) · reference implementation: `constellation/reference/runtime/pantty/`.
+Constellation.md §13.16.6 (watcher and cycle discipline the turn-spawned shape rests on) · Constellation.md §13.23 (board-worker projection — the charter is where a seat's procedure lives) · Constellation.md §13.25.11 (declaration binding) · Constellation.md §13.27 (residency, wall-clock ceilings, and completion-by-state) · Constellation.md §13.31 (board state schema and the compact-survival guard) · Constellation.md §3.1 (key management for seat identity) · reference implementation: `pantty/`.
 
 *Formerly Constellation.md §13.35.9.*
