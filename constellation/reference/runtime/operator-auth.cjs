@@ -33,7 +33,19 @@ function createOperatorAuth(opts) {
   const sessions = new Map();                     // token → { id, name, exp }
   const fails = new Map();                        // id → { n, until }
 
+  // 이 파일은 암호 해시를 담아요. 종전엔 **기본 권한으로 쓰고 그 다음 chmod** 했는데, 그 사이에
+  //   창이 열려요 — umask 에 따라 같은 호스트의 다른 사용자가 읽을 수 있는 상태로 잠깐 존재해요.
+  //   그리고 `mode` 는 **새로 만들 때만** 적용되니, 이미 느슨한 파일을 덮어쓰면 권한이 그대로예요.
+  //   그래서 셋을 함께 해요: ⓐ 적재 시 경화(기존 파일 구제) ⓑ 임시 파일을 0600 으로 만들어
+  //   원자적 교체(창 제거 + 부분 쓰기 방지) ⓒ 교체 후 한 번 더 확인.
+  function harden(p) {
+    try {
+      const m = fs.statSync(p).mode & 0o777;
+      if (m & 0o077) { fs.chmodSync(p, 0o600); log('[operator-auth] crypto-03 권한 경화 ' + m.toString(8) + ' → 600'); }
+    } catch { /* 없으면 할 일 없음 */ }
+  }
   function load() {
+    harden(FILE);
     try {
       const j = JSON.parse(fs.readFileSync(FILE, 'utf8'));
       store = { operators: Array.isArray(j && j.operators) ? j.operators : [] };
@@ -41,8 +53,12 @@ function createOperatorAuth(opts) {
     return store;
   }
   function save() {
-    fs.writeFileSync(FILE, JSON.stringify(store, null, 2));
-    try { fs.chmodSync(FILE, 0o600); } catch {}   // 비밀 파일 권한 (crypto-03 규율)
+    // 원자적 교체 — 임시 파일을 처음부터 0600 으로 만들고 rename 해요. rename 은 권한을 보존해요.
+    const tmp = FILE + '.tmp-' + process.pid;
+    fs.writeFileSync(tmp, JSON.stringify(store, null, 2), { mode: 0o600 });
+    try { fs.chmodSync(tmp, 0o600); } catch {}   // umask 가 mode 를 깎는 플랫폼 대비
+    fs.renameSync(tmp, FILE);
+    harden(FILE);                                 // 되돌림 확인 (관측 불가는 통과가 아니에요)
   }
   load();
   try { fs.watchFile(FILE, { interval: 2000 }, () => load()); } catch {}

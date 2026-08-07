@@ -101,6 +101,26 @@ function reqIsHostLocal(req) {
   return isLoopbackIp(req.socket && req.socket.remoteAddress);
 }
 
+// **loopback 은 방어층이지 신원이 아니에요.** 위 함수는 프록시 경유를 걸러내지만(tml-10), 걸러낸
+//   뒤에 남는 건 «같은 호스트의 누군가» 예요 — 어느 로컬 프로세스든 통과해요. 그리고 이 게이트가
+//   지키는 엔드포인트 중 하나(/api/access POST)는 **bind 주소를 넓히는** 것이라, 로컬 비권한
+//   프로세스가 보드를 전체 주소로 뒤집을 수 있는 권한 상승 경로가 됩니다.
+// 그래서 관리 엔드포인트는 **loopback + 운영자 세션** 둘을 요구해요. 다만 §13.25.17 의 가산 계약을
+//   지켜요 — 계정이 0이면 그 층은 «존재하지 않는» 것이고, 없는 것을 요구하면 그 배포는 재시작
+//   엔드포인트를 잃어요. 그래서 계정이 있을 때만 세션을 요구하고, **노출된 상태에서 계정이 0이면
+//   그 사실을 매번 말해요** — 강제할 수 없는 자리를 조용히 두지 않는 게 요점이에요.
+function adminGate(req, res, what) {
+  if (!reqIsHostLocal(req)) { sendJson(res, 403, { ok: false, error: what + ' 은 로컬(loopback)에서만 가능해요.' }); return false; }
+  if (operatorAuth.enabled()) {
+    if (!operatorAuth.operatorOfReq(req)) { sendJson(res, 401, { ok: false, error: 'login-required', hint: what + ' 은 운영자 로그인이 필요해요 (loopback 만으로는 신원이 아니에요).' }); return false; }
+    return true;
+  }
+  if (accessCfg.expose) {
+    console.warn('[server] ⚠ %s — 노출(expose=true) 상태인데 운영자 계정이 0이라 loopback 만으로 통과했어요. 같은 호스트의 어느 프로세스든 이 엔드포인트를 쓸 수 있어요. 계정을 만드세요.', what);
+  }
+  return true;
+}
+
 const EXT_BY_MIME = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/svg+xml': '.svg', 'application/pdf': '.pdf', 'text/plain': '.txt', 'application/json': '.json' };
 function attExt(mime, name) {
   const fromName = name && /\.[a-z0-9]{1,8}$/i.test(name) ? name.slice(name.lastIndexOf('.')) : '';
@@ -208,7 +228,7 @@ const server = http.createServer((req, res) => {
   if (url === '/api/access') {   // #5a 접근 제어 설정 — GET=조회(UI 게이트 통과분) · POST=loopback 전용(운영자 로컬 관리)
     if (req.method === 'GET') return sendJson(res, 200, { ok: true, access: accessCfg, exposed: !_isLoopback, bind: WS_BIND });
     if (req.method === 'POST') {
-      if (!reqIsHostLocal(req)) return sendJson(res, 403, { ok: false, error: 'access.json 변경은 로컬(loopback)에서만 가능해요.' });
+      if (!adminGate(req, res, 'access.json 변경')) return;
       if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/access POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
       let body = '';
       req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
@@ -229,7 +249,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (url === '/api/restart' && req.method === 'POST') {   // #5a-4 self-restart — 저장한 expose(bind) 적용. loopback 전용.
-    if (!reqIsHostLocal(req)) return sendJson(res, 403, { ok: false, error: '재시작은 로컬(loopback)에서만 가능해요.' });
+    if (!adminGate(req, res, '재시작')) return;
     if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/restart POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
     sendJson(res, 200, { ok: true, restarting: true });
     console.log('[server] #5a-4 /api/restart — restart-self-board.ps1 스폰 후 self-exit (새 서버가 access.json expose 로 bind)');
@@ -385,6 +405,11 @@ const server = http.createServer((req, res) => {
       //   메인이 워커에 부여한 roleDescription 이 그대로 실려요. 즉 라벨(`board-observer` 처럼 추측 가능한 이름)
       //   하나로 **무인증 원격** 당사자가 «끊기지 않는 사슬» 1단계(정찰)를 공짜로 얻었어요 — 라이브 보드에서 실측
       //   (200 / 4.6KB / agentId 노출 확인). local 워커는 정의상 호스트-로컬이라 원격이 이 문서를 받을 이유가 없어요.
+      // 여기는 `adminGate` 를 쓰지 **않아요** — 의도예요. 이 엔드포인트의 당사자는 로컬 워커(에이전트)고
+      //   운영자가 아니라, 로그인을 요구하면 워커가 조인 문서를 못 받아요. 위험 모형도 달라요: 여기서
+      //   막는 건 «원격 정찰» 이고 그건 loopback 판정으로 닫혀요. 반면 adminGate 가 붙은 둘은 상태를
+      //   **바꾸는** 엔드포인트라 «같은 호스트의 누군가» 로는 부족해요. 세 자리 중 둘만 바꾼 게 누락이
+      //   아니라는 걸 여기 적어 둬요.
       if (!reqIsHostLocal(req)) {
         console.warn('[server] §13.25.11 /join/local 원격 거부 ip=%s label=%s', normIp(req.socket.remoteAddress) || '?', label);
         res.writeHead(403, { 'Content-Type': 'text/markdown; charset=utf-8' });
