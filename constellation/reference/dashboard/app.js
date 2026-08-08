@@ -3308,6 +3308,42 @@ function wsSeatBtnSync() {
   }
   btn.title = lines.join('\n');   // title 은 텍스트 속성이라 마크업 해석 안 해요
 }
+// ── 실시간 활성 스트림 (Pantty §8 확장) — AgentActivity 프레임의 «지금 무엇을» 지표 ──────────────
+//   §8 규율: 하네스가 실제로 호출한 도구에서 파생돼요(자유서술 선언 아님). 값은 와이어 유래라
+//   텍스트 노드로만 넣어요(§8.1 esc-only). 관측 전용이라 대화 줄이 아니라 지표로만 렌더해요.
+//   나이를 함께 봐요: 오래된 활동을 «지금» 으로 보이면 «마지막으로 X 함» 을 «지금 X 중» 으로 오독해요.
+let wsActNow = null;   // {tool, summary, ts, agentId} — 최신 1건 latest-wins
+let wsActTimer = null;
+function wsActIntake(m) {
+  const v = (m && m.value) || {};
+  wsActNow = {
+    tool: typeof v.tool === 'string' ? v.tool.slice(0, 32) : '?',
+    summary: typeof v.summary === 'string' ? v.summary.slice(0, 120) : '',
+    ts: Number.isFinite(v.ts) ? v.ts : Date.now(),
+    agentId: typeof m.agentId === 'string' ? m.agentId : '',
+  };
+  wsActSync();
+}
+function wsActInit() {
+  if (document.getElementById('ws-act-now')) return;
+  const b = el('button', 'ws-act-now'); b.id = 'ws-act-now'; b.type = 'button'; b.hidden = true;
+  b.style.cssText = 'font-family:ui-monospace,monospace;font-size:11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  const left = document.getElementById('ws-act-left');   // ⚙(prepend)·🧵·🪑 뒤 — row 방향이라 시각적으로 이들 오른쪽
+  if (left) left.appendChild(b);
+  wsActSync();
+}
+function wsActSync() {
+  const b = document.getElementById('ws-act-now'); if (!b) return;
+  if (!wsActNow) { b.hidden = true; return; }
+  const age = Date.now() - wsActNow.ts;
+  if (age > 90000) { b.hidden = true; wsActNow = null; return; }   // 90초 지나면 «지금» 아님 — 지워요
+  b.hidden = false;
+  b.style.opacity = age > 30000 ? '0.45' : '0.9';   // 30초 넘으면 흐리게 — 흐름이 멈췄다는 관측
+  b.textContent = '⚡ ' + wsActNow.tool + (wsActNow.summary ? ' ' + wsActNow.summary : '');
+  const who = wsActNow.agentId ? wsActNow.agentId + ' · ' : '';
+  b.title = who + '지금: ' + wsActNow.tool + (wsActNow.summary ? ' — ' + wsActNow.summary : '') + ' · ' + new Date(wsActNow.ts).toLocaleTimeString();
+  if (!wsActTimer) wsActTimer = setInterval(() => { try { wsActSync(); } catch {} }, 5000);   // 나이 흐름 반영 (단일 타이머)
+}
 function wsWfBtnSync() {   // v2.4.64 — 입력줄 인디케이터 토글 "Wn/n Sn" (최근 런 done/started + 활동 서브에이전트 수)
   const btn = document.getElementById('ws-wf-inbtn'); if (!btn) return;
   const ids = Object.keys(wsWfRuns).sort((a, b) => ((wsWfRuns[b].updatedAt || 0) - (wsWfRuns[a].updatedAt || 0)));
@@ -3609,6 +3645,10 @@ function onWsEvent(m) {
     //   운영자 보고(2026-08-01): 「주기적으로 SeatTelemetry row 가 뜨고 알림도 온다」. 값은 늘 바뀌니
     //   변경-트리거로 줄여도 대화창에 있는 한 계속 쌓여요. 자리를 옮기는 게 답이지 빈도가 아니에요.
     wsSeatIntake(m.value || {});
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'AgentActivity') {   // Pantty §8 확장 — 실시간 활성 스트림 «지금 무엇을» (telemetry, 스트림 카드 미생성, 도구 호출에서 파생)
+    wsActIntake(m);
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CommandManifest') {   // v2.4.67 — 슬래시 자동완성 매니페스트 (스트림 카드 미생성, live 갱신)
@@ -4945,6 +4985,7 @@ function setupWS() {
   wsLoadBackends();                                   // C1 backend registry overlay (board-worker 분리 + model badge); 부재 시 graceful
   wsWfFabInit();                                      // v2.4.63 에이전트 활동 모니터 토글 fab
   wsOpsStripInit();                                   // v2.4.71 입력줄 상태 스트립 (OpsState)
+  wsActInit();                                        // Pantty §8 확장 — 실시간 활성 스트림 지표 (AgentActivity)
   wsLoadUI();                                         // 팝업 위치·크기·열림 상태 복원
   connectWS();
 }

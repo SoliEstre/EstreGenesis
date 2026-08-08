@@ -1276,7 +1276,7 @@ function wsStore(ck, ev) {
 }
 function wsRecord(msg) {
   if (!msg || !msg.type || msg.type === 'HELLO' || msg.type === 'SERVER_HELLO') return;
-  if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // 제어/transient 제외
+  if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing' || msg.name === 'AgentActivity')) return;   // 제어/transient 제외 (AgentActivity=고빈도 활성 스트림, 방송만·이력 미저장)
   if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
   if (msg.type === 'CUSTOM' && msg.name === 'OpsState') wsOpsStateNote(msg.agentId, msg.value);   // v2.4.71 상태 스트립 선언 캡처
   if (msg.type === 'CUSTOM' && msg.name === 'CapabilityManifest') wsCapManifestNote(msg.agentId, msg.value);   // v2.4.76 계약-표면 능력 선언 캡처
