@@ -1,0 +1,11 @@
+{
+  "name": "eg-pty-host",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pantty §9 terminal-relay PTY host — a SEPARATE component so the deps-0 runtime core acquires no native dependency. Board connection uses Node's built-in WebSocket (Node 22+); node-pty is the only dependency and it lives only here.",
+  "main": "pty-host.cjs",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "node-pty": "^1.1.0"
+  }
+}
