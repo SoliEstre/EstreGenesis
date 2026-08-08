@@ -1,4 +1,4 @@
-<!-- module: Pantty; layer: seat-driving; part-of: EstreGenesis 2.6.x; version: v0.2.0; date: 2026-08-09; status: §8 activity-stream extension (derived «what, now») + reference runtime AgentActivity emitter/classifier/indicator; license: Apache-2.0 -->
+<!-- module: Pantty; layer: seat-driving; part-of: EstreGenesis 2.6.x; version: v0.3.0; date: 2026-08-09; status: §9 relay-mode contract (the board channel as ownership transfer — direct↔relay, the durable core of the terminal-relay track; reference impl pty-host/ is T1–T4, in build) + §8 activity-stream extension; license: Apache-2.0 -->
 
 # Pantty — Seat-driving substrate
 
@@ -154,6 +154,36 @@ Reference: `CUSTOM/name:'AgentActivity'`, telemetry-stamped in `constellation/re
 **Boundary (what this is not).** Telemetry reads; it does not drive. Operator commands into a live seat are §4's jurisdiction and keep its constraints — with one deliberate asymmetry worth stating, because it looks like a contradiction. Section 4 treats a leading slash as a hazard, since board-authored *data* must never dispatch. An operator button (a compaction request, for instance) wants exactly that dispatch. The resolution is not to weaken §4 but to separate the doors: board-authored data keeps the header that occupies the first character, while operator commands travel a distinct path with an explicit allow-list of commands. The discriminator is the door, not the payload.
 
 *Formerly Constellation.md §13.35.8.*
+
+## 9 Relay mode — the board channel as ownership transfer
+
+A seat's channel to the board carries operator and supervisor words to the model: a prompt, a step, a decision. But an operator sometimes wants to reach not the model but **the shell the model's session is running in** — to enter the CLI, type into it, watch it stream. That is a different thing on the same wire, and the confusion between the two is the failure this section exists to prevent. The channel therefore has two **modes**, and the switch between them is not a convenience but a transfer of ownership.
+
+- **direct** (default): board frames — `UserPrompt`, `TEXT_MESSAGE_*`, `STEP_*`. The supervisor and the operator speak to the model.
+- **relay**: raw terminal bytes — the operator's keystrokes to a pseudo-terminal, and the pseudo-terminal's output back. The **model never sees these bytes**; a process does.
+
+**Why the switch is ownership transfer, not a view toggle.** If the channel stayed `direct` while the operator was inside the CLI, the seat would have two input paths open at once — the supervisor injecting prompts through one, the human typing through the other — and §2's *one owner per inbox* forbids exactly that. So entering a CLI session transfers the seat from supervisor to human, and leaving it transfers back. A design that treats the switch as a display preference has reintroduced the two-owner failure and hidden it behind a working screen.
+
+Four rules, and each names a way this class fails silently:
+
+1. **One active mode per seat, and the switch is atomic.** Frames that arrive during the switch are **queued, not dropped** — a dropped frame is "sent but never arrived," which is invisible at every layer (the same silent-drop shape §13's relay reliability is built around). The switch either completes or does not; there is no interval in which a frame can fall between the two modes.
+2. **The mode is declared, because the operator has to know which door they are speaking through.** It travels in the seat's telemetry (§8) as `mode: 'direct' | 'relay'`, latest-wins. A mode that is not on screen reproduces the failure §8 opens with — a source the human reads that does not match the state nobody reads — at the one place it is most dangerous, because typing a shell command into a prompt box, or a sentence into a shell, is a mistake the screen is supposed to prevent.
+3. **In relay, the supervisor queues; it does not spawn.** While a human owns the seat through the terminal, the supervisor MUST hold its delegations in a queue and surface the queue depth on the board, rather than pushing turns into a session a person is driving. Without this rule the two-owner failure returns through the back door: the human works in the terminal while the supervisor, seeing an idle model, starts a turn in the same session.
+4. **Exit is observed, not declared.** The `relay → direct` return is triggered by *observing* the CLI process exit or the shell prompt return in the pseudo-terminal — never by waiting for the human to announce "I'm out." A mode that waits to be told it has ended stays in relay forever the first time nobody says it, and a seat stuck in relay is a seat the supervisor has stopped driving — the unexercised-path failure (§6's recurring shape: the thing that only runs in an uncommon exit never runs).
+
+**The relay bytes travel a third door.** §4 established two: board-authored *data*, which passes through the injection-safety guard and owns the first character, and adapter-or-operator *commands*, which travel a distinct path with an allow-list; §8's boundary note fixed the discriminator as **the door, not the payload.** Relay bytes are neither. They carry no injection-safety header, because they are not shown to the model to obey or ignore — the pseudo-terminal consumes them, and a byte stream to a process is not an utterance to an agent. They are not on the operator-command allow-list, because they are not commands to the board. They are a third content on the same wire, and the discriminator stays the door: the frame family — `PtyOpen` / `PtyData` / `PtyResize` / `PtyClose` from the operator, `TerminalData` / `TerminalExit` back — is its own door, and nothing that arrives on it is ever routed to the model. Conflating this door with the data door (wrapping bytes as a `UserPrompt`) is the injection failure §4 forbids, wearing terminal clothing.
+
+**The relay door is a human door; the model cannot open it.** §4's decision that a board seat's model has no path to arbitrary execution stands unchanged — relay is the *operator* reaching a shell, not the model gaining one. Three layers MUST all pass before the door opens, and the terminal cannot relax any of them:
+
+- **IP scope**, inherited from the board's existing rule and un-relaxable — a setting that could widen it would not be a scope. A public address passes no allow-list; the terminal does not get its own, weaker one.
+- **Operator session** — the existing login. Without it the terminal affordance does not render at all.
+- **Reauth (optional)** — a step-up at terminal entry, valid for a bounded window so re-entry within it does not re-prompt. The current operator-auth factory has *no* step-up primitive (one credential path, one session token); building it is part of this contract, not an assumption it already holds. `requireReauth: false` is the explicit, **recorded** choice that "an operator session is shell authority" — the point of making it a setting is that already-issued read-only session cookies do not silently become shell authority without someone having chosen that.
+
+**Scrollback is credential-bearing.** A pseudo-terminal streams secrets in standard forms — a token echoed on a command line, a key printed by a misfired `cat`. Whether relay bytes are recorded to board history is therefore a masking-gated decision, default **not recorded**; this is §8's activity-stream redaction argument at the scale of a full byte stream rather than a one-line summary, and it is a separate decision that masking must precede, not ride along with.
+
+**Deprecation posture (§7 applies with force here).** The pseudo-terminal host and the terminal widget are *pure runtime code* — the surface a harness vendor's own web or desktop terminal replaces first, and the reason this section's durable content is the contract above and not any xterm. The reference implementation is a **separate component** (`pty-host/`, carrying its own `node-pty`) precisely so the deps-0 runtime core does not acquire a native dependency to host a feature that is expected to be absorbed; it is supervised by the watchdog as a new subject under §6, and it connects to the board as an ordinary agent so its liveness reads through the same AgentList the bridge does. What survives when the runtime is replaced is the mode contract, the third door, and the observed-exit rule — the parts about the board's relationship to a seat, not about any terminal's mechanics.
+
+*New in v0.3.0; reference impl `pty-host/` is the terminal-relay track T1–T4, in build.*
 
 ## Cross-links
 
