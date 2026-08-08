@@ -2076,6 +2076,9 @@ function wsOpsTargetInfo() {
   return { route, ops: wsOpsStates.get(route) || null, bk: wsBackends[route] || null };
 }
 function wsOpsStripSync() {
+  // 좌석 얼굴은 «지금 말 걸고 있는 상대» 를 따라가요 — 타깃이 바뀌는 자리가 여기라서 같이 불러요.
+  //   안 부르면 얼굴이 직전 타깃의 숫자로 남고, 그건 정확히 이번에 고친 부류(출처 불일치)예요.
+  try { wsSeatBtnSync(); } catch {}
   const b = $('#ws-ops-strip'); if (!b) return;
   const t = wsOpsTargetInfo();
   if (!t || (!t.ops && !t.bk)) { b.hidden = true; if (wsOpsMenuOpen) wsOpsMenuClose(); return; }
@@ -3232,22 +3235,51 @@ function wsSeatIntake(v) {
   wsSeats[id] = v || null;
   wsSeatBtnSync();
 }
+// v2.4.145 — 얼굴에 **모델을 함께** 적고, 고르는 기준을 «사전순 첫 좌석» 에서 «지금 말 걸고
+//   있는 상대» 로 바꿔요.
+//
+//   왜 (2026-08-08 운영자 보고 + 실측): 종전엔 `ids[0]` — 사전순 첫 좌석이었어요. 좌석이 하나일
+//   때는 안 물었지만, 계측이 좌석마다 나오기 시작하면 **내가 보는 숫자와 내가 말하는 상대가
+//   갈려요.** 그리고 숫자만 있고 모델이 없어서, 값이 바뀌었을 때 「대화가 길어졌다」인지
+//   「다른 모델의 값으로 갈아탔다」인지 화면에서 구별할 수 없었어요 — 실제로 후자였어요.
+function wsSeatShortModel(m) { return String(m || '').replace(/^claude-/, ''); }
 function wsSeatBtnSync() {
   const btn = document.getElementById('ws-seat-inbtn'); if (!btn) return;
   const ids = Object.keys(wsSeats).sort();
   if (!ids.length) { btn.textContent = '🪑 —'; btn.title = '좌석 계측 없음'; return; }
-  const s = wsSeats[ids[0]] || {};
+  // ① 지금 유효 타깃이 계측을 내는 좌석이면 그 좌석 ② 아니면 main ③ 아니면 첫 좌석.
+  let pick = null;
+  try {
+    const eff = wsEffectiveTarget();
+    if (eff && eff.indexOf('room:') !== 0) {
+      const ch = wsState.channels.get(eff);
+      const route = (ch && ch.routeId) || eff;
+      if (wsSeats[route]) pick = route;
+    }
+  } catch {}
+  if (!pick) pick = ids.find((k) => wsSeats[k] && wsSeats[k].kind === 'main') || ids[0];
+  const s = wsSeats[pick] || {};
   // 문맥은 «모르면 모른다» 예요 — 0 으로 적으면 「비어 있다」는 주장이 돼요 (§13.35.8).
   const ctx = Number.isFinite(s.contextTokens) ? Math.round(s.contextTokens / 1000) + 'k' : '—';
-  const busy = typeof s.inFlightTool === 'string' && s.inFlightTool ? '⚙' : '';
-  btn.textContent = `🪑 ${ctx}${busy}`;
+  const mdl = typeof s.model === 'string' && s.model ? wsSeatShortModel(s.model) : '?';
+  const busy = typeof s.inFlightTool === 'string' && s.inFlightTool ? ' ⚙' : '';
+  // 추측으로 묶인 값에는 `~` 를 붙여요 — 정확한 값과 같은 모양으로 두면 출처 이동이 안 보여요.
+  const approx = s.boundBy === 'mtime' ? '~' : '';
+  btn.textContent = `🪑 ${approx}${mdl} ${ctx}${busy}`;
   const lines = [];
   for (const k of ids) {
     const t = wsSeats[k] || {};
-    const parts = [k, t.status || 'unknown'];
-    if (typeof t.model === 'string') parts.push(t.model);
-    if (typeof t.effort === 'string') parts.push('effort=' + t.effort);
+    const parts = [(k === pick ? '▸ ' : '  ') + k, t.status || 'unknown'];
+    if (typeof t.kind === 'string') parts.push(t.kind);
+    parts.push(typeof t.model === 'string' && t.model ? t.model : '(모델 미상)');
+    if (typeof t.effort === 'string' && t.effort) parts.push('effort=' + t.effort);
+    if (typeof t.declaredModel === 'string' && t.declaredModel && typeof t.model === 'string'
+        && t.model.indexOf(t.declaredModel) < 0) parts.push('선언=' + t.declaredModel + ' ≠ 실측');
     if (Number.isFinite(t.contextTokens)) parts.push('ctx=' + t.contextTokens);
+    // 사다리 1칸이 아니면 «폴백으로 돌고 있다» 예요. 이게 안 보여서 폴백 주차가 정상처럼 보였어요.
+    if (Number.isFinite(t.rung) && t.rung > 0) parts.push('사다리 ' + t.rung + '칸(폴백)');
+    if (Array.isArray(t.quotaBlocked) && t.quotaBlocked.length) parts.push('할당량막힘=' + t.quotaBlocked.join(','));
+    if (typeof t.boundBy === 'string' && t.boundBy !== 'session-file') parts.push('결속=' + t.boundBy + (t.boundBy === 'mtime' ? '(추측)' : ''));
     if (typeof t.inFlightTool === 'string' && t.inFlightTool) parts.push('▶' + t.inFlightTool);
     lines.push(parts.join(' · '));
   }
@@ -3319,9 +3351,12 @@ function wsWfPopRender() {
       + (v.totalTokens ? ` · ${Math.round(v.totalTokens / 1000)}k tok` : '')
       + (v.durationMs ? ` · ${Math.round(v.durationMs / 1000)}s` : '')));
     if (Array.isArray(v.phases) && v.phases.length) b.append(txt('ws-wf-phases', '단계: ' + v.phases.map(String).join(' → ')));
-    for (const a of (v.agents || [])) {
-      const aCls = a.state === 'done' ? 'done' : a.state === 'running' ? 'running' : '';
-      b.append(txt('ws-wf-agent ' + aCls, (a.state === 'done' ? '✓ ' : '⏳ ') + String(a.label || a.id || '?') + (a.preview ? ' — ' + String(a.preview) : '')));
+    for (const g of wsWfByModel(v.agents)) {
+      if (g.header) b.append(txt('ws-wf-sec', g.header));
+      for (const a of g.items) {
+        const aCls = a.state === 'done' ? 'done' : a.state === 'running' ? 'running' : '';
+        b.append(txt('ws-wf-agent ' + aCls, (a.state === 'done' ? '✓ ' : '⏳ ') + String(a.label || a.id || '?') + (a.preview ? ' — ' + String(a.preview) : '')));
+      }
     }
     if (Array.isArray(v.logsTail) && v.logsTail.length) { const lg = el('div', 'ws-wf-logs'); for (const l of v.logsTail) lg.append(txt('ws-wf-log', '· ' + String(l))); b.append(lg); }
   }
@@ -3329,9 +3364,35 @@ function wsWfPopRender() {
   const subs = (wsWfSubs && Array.isArray(wsWfSubs.agents)) ? wsWfSubs.agents : [];
   b.append(txt('ws-wf-sec', `서브에이전트 (${subs.length})`));
   if (!subs.length) b.append(txt('ws-wf-empty', '활동 중인 단독 서브에이전트 없음'));
-  for (const a of subs.slice(0, 12)) {
-    b.append(txt('ws-wf-agent running', `⏳ ${String(a.id || '?')}${a.hint ? ' · ' + String(a.hint) : ''}${a.lastActivityS != null ? ' · ' + a.lastActivityS + 's 전 활동' : ''}${a.sizeKB != null ? ' · ' + a.sizeKB + 'KB' : ''}`));
+  for (const g of wsWfByModel(subs.slice(0, 12))) {
+    if (g.header) b.append(txt('ws-wf-sec', '  ' + g.header));
+    for (const a of g.items) {
+      b.append(txt('ws-wf-agent running', `⏳ ${String(a.id || '?')}${a.hint ? ' · ' + String(a.hint) : ''}${a.lastActivityS != null ? ' · ' + a.lastActivityS + 's 전 활동' : ''}${a.sizeKB != null ? ' · ' + a.sizeKB + 'KB' : ''}${a.effort ? ' · effort=' + String(a.effort) : ''}${Number.isFinite(a.contextTokens) ? ' · ctx=' + Math.round(a.contextTokens / 1000) + 'k' : ''}`));
+    }
   }
+}
+// v2.4.145 — 배경 작업을 **모델별로 묶어요** (운영자 요청: 「백그라운드 작업 표시도 모델별로
+//   분리」). 모델이 하나뿐이거나 전부 미상이면 머리글을 만들지 않아요 — 한 종류인데 구분선을
+//   그리면 없는 구분을 있는 것처럼 보여줘요.
+//
+//   `null` 모델은 «모른다» 고 적어요, 빼지 않아요. 워크플로 journal 의 agentId 와 서브에이전트
+//   기록 파일명이 같은 id 공간인지는 발행 시점에 표본 0으로 **미검증**이라, 조회 실패가 실재해요.
+//   빼 버리면 「에이전트가 없다」로 읽히고, 채워 버리면 라벨이 그럴듯하게 틀려요.
+function wsWfByModel(list) {
+  const items = Array.isArray(list) ? list : [];
+  if (!items.length) return [];
+  const by = new Map();
+  for (const a of items) {
+    const k = (a && typeof a.model === 'string' && a.model) ? a.model : '';
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(a);
+  }
+  if (by.size <= 1) return [{ header: null, items }];
+  const keys = [...by.keys()].sort((x, y) => (x === '' ? 1 : y === '' ? -1 : x.localeCompare(y)));   // 미상은 맨 뒤
+  return keys.map((k) => ({
+    header: (k ? wsSeatShortModel(k) : '모델 미상') + ` (${by.get(k).length})`,
+    items: by.get(k),
+  }));
 }
 function wsLoadBackends() {
   fetch('backends.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(reg => {
