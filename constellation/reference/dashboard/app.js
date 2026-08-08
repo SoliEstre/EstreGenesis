@@ -2087,6 +2087,10 @@ function wsOpsStripSync() {
   if (t.ops && t.ops.effort) txt += '·' + t.ops.effort;
   if (t.ops && t.ops.fast) txt += '·fast';
   if (t.ops && t.ops.superscalar && t.ops.superscalar.mode) txt += ' · ss:' + t.ops.superscalar.mode;   // v2.4.86 — 디스패치 적극성 (Superscalar §5.2)
+  // v2.4.152 — 투기 승인 모드 (Superscalar §4). off 는 **적어요**, 생략하지 않아요 — 생략하면
+  //   「투기 안 함」과 「모르겠음」이 같은 화면이 되고, 이건 토큰을 버릴 수 있는 유일한 디스패치라
+  //   그 둘이 갈리는 게 중요해요. 대신 좁게: `sp:off`.
+  if (t.ops && t.ops.speculation && t.ops.speculation.mode) txt += ' · sp:' + t.ops.speculation.mode;
   if (t.ops && t.ops.subscaler) txt += ' · sub:' + (t.ops.subscaler.on ? 'on' : 'off');
   const _ec = wsEchoState[t.route]; if (_ec && _ec.level && _ec.level !== 'off') txt += ' · 📡' + _ec.level;   // v2.4.81 — 에코 모드 (EchoModeState 공지 기준; off/미공지 = 요약 생략)
   b.textContent = txt;
@@ -2127,6 +2131,25 @@ function wsOpsMenuToggle() {
       if (hasSsCmd) { const h = el('div', 'ws-ops-hint'); h.textContent = 'superscalar 클릭 = /superscalar ' + nextS + ' 전송 (대상이 선언한 명령)'; menu.appendChild(h); }
     }
   }
+  // v2.4.152 — speculation 행 (Superscalar §4 off/auto/on/always). 컨트롤 규율 동일: 타깃이
+  //   /speculation 을 선언한 경우만 actionable. 순환은 **위험이 커지는 순서**로 한 칸씩:
+  //   off→auto→on→always→off. 한 번 클릭이 `off` 에서 `always` 로 건너뛰지 않아요 — 이 축은
+  //   토큰을 버릴 수 있는 유일한 디스패치라, 실수로 한 칸 넘는 것과 세 칸 넘는 것이 달라요.
+  {
+    const sp = t.ops && t.ops.speculation;
+    if (sp) {
+      const hasSpCmd = !!(man && Array.isArray(man.commands) && man.commands.some((c) => c && c.name === '/speculation'));
+      const cur = sp.mode || 'off';
+      const ORDER = ['off', 'auto', 'on', 'always'];
+      const nextP = ORDER[(Math.max(0, ORDER.indexOf(cur)) + 1) % ORDER.length];
+      row('speculation', cur + (sp.autoDemotedFrom ? ' (↓' + sp.autoDemotedFrom + ')' : ''), hasSpCmd ? () => {
+        const promptId = 'p-' + Date.now().toString(36);
+        if (wsSend({ type: 'CUSTOM', name: 'UserPrompt', value: { promptId, text: '/speculation ' + nextP, atts: [] } })) wsLocalRow('user', '🙋 UserPrompt', '/speculation ' + nextP, { promptId });
+        wsOpsMenuClose();
+      } : null);
+      if (hasSpCmd) { const h = el('div', 'ws-ops-hint'); h.textContent = 'speculation 클릭 = /speculation ' + nextP + ' 전송 — 승인자만 바뀌어요, 불가역 장벽은 어느 모드에서도 안 움직여요'; menu.appendChild(h); }
+    }
+  }
   const sub = t.ops && t.ops.subscaler;
   if (sub) {
     const next = sub.on ? 'off' : 'on';
@@ -2162,7 +2185,7 @@ function wsOpsMenuToggle() {
 function wsOpsStripInit() {
   const acts = document.querySelector('.ws-actions'); if (!acts || $('#ws-ops-strip')) return;
   const b = el('button', 'ws-ops-strip'); b.id = 'ws-ops-strip'; b.type = 'button'; b.hidden = true;
-  b.title = '대상 에이전트 운용 상태 (model·effort·subscaler·echo) — 클릭 = 상세/제어';
+  b.title = '대상 에이전트 운용 상태 (model·effort·superscalar·speculation·subscaler·echo) — 클릭 = 상세/제어';
   b.onclick = (e) => { e.stopPropagation(); wsOpsMenuToggle(); };
   const left = document.getElementById('ws-act-left');   // v2.4.80 좌측 그룹 — ⚙ 이 그룹 맨 왼쪽, 🧵 이 그 오른쪽
   if (left) left.prepend(b); else acts.appendChild(b);   // 폴백: 구 마크업이면 종전 위치(.ws-actions 는 row-reverse — 마지막 append = 왼쪽 끝)
