@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pantty — seat-driving substrate · EstreGenesis</title>
-  <meta name="description" content="Pantty v0.1.2 — §8 에 네 번째 성질이 붙었어요: 계측은 좌석에 결속돼야 하고, 결속 방식이 값과 함께 이동해야 해요 (움직이는 출처에 라벨만 붙이면 모호한 지표가 «확신에 찬 틀린» 지표로 승격돼요) — 수단 사다리 칸까지 같은 이유로 포함. a specification-stage seat-driving module for EstreGenesis 2.6.x. It defines the five-operation harness adapter contract for optional resident seats; the mandatory materialize–compact–re-inject cycle; dispatch, expansion, and obedience as separate injection-safety layers; liveness that proves capability rather than presence; and unattended recovery that preserves session continuity while distinguishing means, work, and provider-refusal failures. Extracted from Constellation §13.35, which is now a pointer table; the reference runtime remains at pantty/. No plugin ships at this version.">
+  <meta name="description" content="Pantty v0.2.0 — §8 이 현재시제로 확장됐어요: 계측의 «파생, 선언 아님» 원리를 실시간 활성 스트림으로 이어, 좌석이 «지금 무엇을» 하는지를 서술이 아니라 실제 도구 호출에서 파생해 한 줄로 흘려요. 도구당 프레임이라 telemetry 로 태그해 응답창 자기증식을 막고 이력 기록에서도 빼며, 비용(도구당 프로세스 spawn)이 있어 플래그로 끄고 켜되(에코 게이트 밖) 관측이 작업을 막지 못하고(pre-action 훅은 항상 exit 0), 요약은 render 가 아니라 emission 에서 마스킹해요. a specification-stage seat-driving module for EstreGenesis 2.6.x. It defines the five-operation harness adapter contract for optional resident seats; the mandatory materialize–compact–re-inject cycle; dispatch, expansion, and obedience as separate injection-safety layers; liveness that proves capability rather than presence; and unattended recovery that preserves session continuity while distinguishing means, work, and provider-refusal failures. Extracted from Constellation §13.35, which is now a pointer table; the reference runtime remains at pantty/. No plugin ships at this version.">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="stylesheet" href="shared/shared.css">
   <link rel="stylesheet" href="shared/themes.css">
@@ -54,7 +54,7 @@
       <p class="tagline" data-aud="general" data-en="The safety and recovery layer between a shared board and an AI seat that stays open across many tasks — so long-lived context can be compacted, interrupted, observed and revived without silently losing the work." data-ko="공유 보드와 여러 작업에 걸쳐 열린 채로 남는 AI 자리 사이의 안전·복구 계층이에요. 오래 사는 컨텍스트를 조용히 잃지 않으면서 압축하고, 중단하고, 관찰하고, 되살릴 수 있게 해요.">The safety and recovery layer between a shared board and a long-lived AI seat.</p>
       <p class="tagline" data-aud="dev" data-en="A harness-agnostic, board-aware seat-driving contract for optional resident seats: five adapter operations, a mandatory materialize–compact–re-inject cycle, three distinct injection-safety layers, capability-level liveness, and unattended recovery with session-preserving means diversity." data-ko="선택형 resident seat을 위한 하네스 독립적·보드 인식형 seat-driving 계약이에요. 어댑터 연산 5개, 필수 materialize–compact–re-inject 사이클, 서로 다른 injection-safety 계층 3개, capability 수준의 liveness, 세션을 보존하는 수단 다양성 기반 무인 복구를 정의해요.">A harness-agnostic, board-aware seat-driving contract for optional resident seats.</p>
       <div class="badges">
-        <span class="badge">v0.1.2</span>
+        <span class="badge">v0.2.0</span>
         <span class="badge">seat-driving</span>
         <span class="badge">EstreGenesis 2.6.x</span>
         <span class="badge" data-en="specification stage" data-ko="스펙 단계">specification stage</span>
