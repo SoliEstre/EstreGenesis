@@ -6,7 +6,7 @@
 // spec-derived ~580 lines OR Option B main upstream a28150e copy — see push 368).
 //
 // Scope of this minimal impl:
-//   - JsonlStore: dir + per-channel ring (HIST_CAP=200) + append + query + count
+//   - JsonlStore: dir + per-channel ring (HIST_CAP, 기본 1000 · env 로 조절) + append + query + count
 //                 + exportJsonl + closeChannel + deleteChannel + deleteAll + boot
 //   - HistoryStoreMux: wraps JsonlStore in mode A; mode B/C requests fall back to A
 //                      with onBlocker advisory (full impl deferred)
@@ -25,12 +25,25 @@
 const fs = require('fs');
 const path = require('path');
 
-const HIST_CAP = 200;
+// v2.4.156 — 200 → 1000. **얕은 링이 대화를 지우는 장치였어요**: 2026-08-09 실측으로 한 채널의
+//   200줄이 선언 80 + 합류 57 + ack 58 로 채워져 그날의 대화 전부가 링 밖으로 밀려났어요(운영자가
+//   「비A2A 대화 내역도 사라졌다」로 발견 — 다리측 append-only 로그에서 복구했어요).
+//   소음을 빼는 게 1차 처방이고(아래 SKIP_NAMES + 서버측 선언 제외), 이건 2차 안전여유예요.
+//   **접속 비용은 안 올라가요**: 초기 전송은 서버가 채널당 HISTORY_INITIAL_PER_CHAN(기본 150)으로
+//   따로 잘라 보내고 나머지는 RequestChannelHistory 로 이어받아요. 그래서 깊이는 디스크·메모리만 써요.
+const HIST_CAP = Number(process.env.HIST_CAP || 1000);
 
 // Skip non-storable transport-tier names per history-store.eux @behavior.record
+//
+// 이 목록이 **바닥(floor)** 이에요 — 어느 소비자가 쓰든 저장되지 않아요. 서버는 그 위에 자기 층을
+//   한 겹 더 갖고 있어요(선언 계열처럼 «포착한 뒤 저장만 건너뛰는» 것들 — 순서가 반대면 영속이
+//   끊겨요). 둘의 분담: **순수 전송-티어 이름은 여기**, 포착이 필요한 이름은 서버.
+// v2.4.156 추가분: ack 3종 · 합류 · 접속 통지 — 전부 전송 사실의 통지라 대화 기록이 아니고,
+//   같은 사실이 다리측 로그에 남아요. 실측: 한 채널 200줄 중 ack 58 + 합류 57 = 115 (57%).
 const SKIP_NAMES = new Set([
   'HELLO', 'SERVER_HELLO', 'AgentList', 'Heartbeat',
-  'PersistentAdapterSmoke', 'Typing'
+  'PersistentAdapterSmoke', 'Typing',
+  'Ack', 'AckProcessed', 'AckCumulative', 'AgentHello', 'ConnectionInfo'
 ]);
 
 // Content-derived channel key — filename layout is storage only, NOT authoritative.
@@ -59,7 +72,7 @@ class JsonlStore {
     const key = msgChan(ev);
     const ring = this._getRing(key);
     ring.push(ev);
-    while (ring.length > HIST_CAP) ring.shift(); // bounded HIST_CAP=200
+    while (ring.length > HIST_CAP) ring.shift(); // bounded by HIST_CAP
     if (this.dir) {
       const line = JSON.stringify(ev) + '\n';
       fs.appendFileSync(path.join(this.dir, `${key}.jsonl`), line);
