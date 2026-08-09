@@ -909,9 +909,21 @@ function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (u
   let ttl = (v.ttl == null) ? KEY_TTL_DEFAULT : Number(v.ttl);
   if (!Number.isFinite(ttl) || ttl < 0) return keyError(conn, msg, 'INVALID_TTL', 'ttl must be >= 0');
   if (keyActiveCount() >= KEY_MAX_ACTIVE) return keyError(conn, msg, 'LIMIT_EXCEEDED', `too many active keys (max ${KEY_MAX_ACTIVE})`);
+  // v2.4.158 §13.25.11 — **발급 시 주인을 적을 수 있어요** (`boundAgent`). 안 적으면 종전대로 TOFU 예요.
+  //
+  // 왜 (2026-08-09 실측): 운영자가 어떤 협업자를 **위해** 키를 발급했는데, 그 키가 공용 기계의 env 로
+  //   새어 다른 프로세스가 **먼저** 붙었어요. TOFU 는 「처음 쓴 정체」에 고정하니 결속이 엉뚱한 쪽으로
+  //   갔고, 원래 주인은 자기 키로 못 들어오게 됐어요(fail-closed) — 즉 이 사고는 정체 도용이 아니라
+  //   **선착순 결속**이 만든 거예요. 의도한 주인을 발급자가 아는데 적을 자리가 없던 게 빈 자리였어요.
+  //   강제 층은 새로 안 만들어요: `keyObserveHello` 는 비어 있을 때만 채우고 `keyPinViolation` 이
+  //   불일치를 거부하니, 미리 채워 두면 **첫 사용부터** 그 판정을 받아요.
+  const boundAgent = (v.boundAgent != null && v.boundAgent !== '') ? String(v.boundAgent) : null;
+  if (boundAgent && !/^[A-Za-z0-9._-]{1,64}$/.test(boundAgent)) {
+    return keyError(conn, msg, 'INVALID_BOUND_AGENT', 'boundAgent must match /^[A-Za-z0-9._-]{1,64}$/ (agentId 형식)');
+  }
   const key = wsIssueKey(label, kind);   // 레거시 ws-keys.json + prefix 별 키
   const issuedAt = Date.now();
-  keyStore.keys.push({ key, label, state: 'ISSUED', kind, issuedAt, ttl, roleDescription, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null });
+  keyStore.keys.push({ key, label, state: 'ISSUED', kind, issuedAt, ttl, roleDescription, boundAgent, lastAgent: null, lastSeenAt: null, revokedAt: null, deletedAt: null });
   keySave();
   const keyRef = (keyFind(key) || {}).ref || null;   // v2.4.103 §13.25.12 — 발급자가 이후 연장·폐기로 지목할 핸들
   if (kind === 'local') {   // v2.4.1 §3.6 — wire 응답에 키 자체 안 보냄
@@ -925,14 +937,14 @@ function wsKeyIssue(conn, msg, v) {   // §3.1 + v2.4.1 §3.6 — kind 분기 (u
     try { const fd = fs.openSync(filePath, 'w', 0o600); fs.writeSync(fd, key); fs.fsyncSync(fd); fs.closeSync(fd); try { fs.chmodSync(filePath, 0o600); } catch {} } catch (e) { return keyError(conn, msg, 'LOCAL_FILE_WRITE', 'failed to write local key file: ' + String(e.message || e)); }
     const relFile = path.relative(DIR, filePath).replace(/\\/g, '/');
     const joinHint = `LOCAL_KEY_FILE=${relFile} WS_AGENT_ID=${label} node scripts/join-local.cjs`;
-    wsKeyReply(conn, 'KeyIssued', { kind: 'local', label, roleDescription, ttl, issuedAt, keyRef, expiresAt: keyExpiresAt(keyFind(key) || { ttl: 0, issuedAt }), joinFile: relFile, joinScript: 'scripts/join-local.cjs', joinHint }, msg);
+    wsKeyReply(conn, 'KeyIssued', { kind: 'local', label, roleDescription, boundAgent, ttl, issuedAt, keyRef, expiresAt: keyExpiresAt(keyFind(key) || { ttl: 0, issuedAt }), joinFile: relFile, joinScript: 'scripts/join-local.cjs', joinHint }, msg);
     return;
   }
   const urlParam = kind === 'collab' ? 'key' : kind === 'peer' ? 'peerKey' : 'upstreamKey';   // v2.4.52 peer 전용 파라미터 — upstream 파라미터에 편승 금지 (kind 혼동 방지)
   const mkWs = (host) => `ws://${host}/ws?${urlParam}=${encodeURIComponent(key)}`;
   const joinUrls = wsJoinUrls(mkWs);   // v2.4.85 §13.25.8 — 주소별 전수. joinUrl 은 종전 의미(공개호스트 우선, 없으면 loopback) 그대로 유지 = 무변경 소비자 호환.
   const joinUrl = (joinUrls.find((u) => u.scope === 'public') || joinUrls[0] || {}).url || mkWs('localhost:' + PORT);
-  wsKeyReply(conn, 'KeyIssued', { key, joinUrl, joinUrls, bind: WS_BIND, exposed: !_isLoopback, label, kind, roleDescription, ttl, issuedAt, keyRef, expiresAt: keyExpiresAt(keyFind(key) || { ttl: 0, issuedAt }) }, msg);
+  wsKeyReply(conn, 'KeyIssued', { key, joinUrl, joinUrls, bind: WS_BIND, exposed: !_isLoopback, label, kind, roleDescription, boundAgent, ttl, issuedAt, keyRef, expiresAt: keyExpiresAt(keyFind(key) || { ttl: 0, issuedAt }) }, msg);
 }
 function wsKeyList(conn, msg, v) {   // §3.2 전체 키 enumerate (상태 + connectionStatus + lastAgent + TTL)
   const incRevoked = !!v.includeRevoked, incDeleted = !!v.includeDeleted;
