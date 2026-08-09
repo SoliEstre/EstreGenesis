@@ -58,13 +58,42 @@ const PARENT_PID = process.env.PARENT_PID ? parseInt(process.env.PARENT_PID, 10)
 if (!AGENT_ID) { console.error('[join-collab] WS_AGENT_ID env required'); process.exit(1); }
 
 // ── 키 ──────────────────────────────────────────────────────────────────────
-let key = process.env.COLLAB_KEY || '';
-if (!key && process.env.COLLAB_KEY_FILE) {
+// **자격증명 지정이 둘이면 추측하지 않고 멈춰요** (v2.4.157). 보드 지정에 이미 있던 가드를 키에도
+//   두는 거예요 — 같은 실패를 실측으로 두 번 봤어요.
+//
+// 무엇이 있었나 (2026-08-09): 이 프로세스는 `COLLAB_KEY_FILE` 로 자기 키를 **명시**하고 있었는데,
+//   같은 기계의 다른 프로젝트가 자기 협업 키를 `COLLAB_KEY` 로 환경에 넣어 뒀고, 그 환경을 물려받은
+//   우리 다리가 **남의 자격증명으로 보드에 붙었어요.** 서버 로그엔 그 키의 지문이 남았지만 이쪽은
+//   아무 말도 안 했고, 부작용은 조용했어요: TOFU 가 그 키를 **우리 agentId 에 결속**해서 원래 주인이
+//   자기 키로 못 들어오게 됐고(fail-closed), 그 키를 쓰는 다른 세션도 전부 거부됐어요.
+//   env 가 파일을 이기는 우선순위 자체가 문제예요 — 명시한 쪽이 조용히 지는 규칙이라서요.
+// 그래서: 둘 다 있고 값이 다르면 **거부**. 같으면 통과(중복 지정은 무해). 그리고 어느 쪽을 썼는지와
+//   **지문**을 항상 한 줄 남겨요 — 「내가 지금 누구 키로 붙었나」가 안 보이는 게 이 사고의 절반이에요.
+const _keyFp = (v) => 'fp:' + require('crypto').createHash('sha256').update(String(v)).digest('hex').slice(0, 8);
+let key = '';
+let keySrc = '';
+const _envKey = (process.env.COLLAB_KEY || '').trim();
+let _fileKey = '';
+if (process.env.COLLAB_KEY_FILE) {
   const kf = path.isAbsolute(process.env.COLLAB_KEY_FILE) ? process.env.COLLAB_KEY_FILE : path.join(DIR, process.env.COLLAB_KEY_FILE);
-  try { key = fs.readFileSync(kf, 'utf8').trim(); }
-  catch (e) { console.error('[join-collab] key file read fail:', kf, String(e.message || e)); process.exit(1); }
+  try { _fileKey = fs.readFileSync(kf, 'utf8').trim(); }
+  catch (e) {
+    if (!_envKey) { console.error('[join-collab] key file read fail:', kf, String(e.message || e)); process.exit(1); }
+    console.error('[join-collab] 키 파일을 못 읽어 env 키로 진행해요:', kf, String(e.message || e));
+  }
 }
+if (_envKey && _fileKey && _envKey !== _fileKey) {
+  console.error('[join-collab] 자격증명 지정이 둘인데 서로 달라요 — 어느 쪽인지 추측하지 않고 멈춰요.');
+  console.error('[join-collab]   COLLAB_KEY(env)      = ' + _keyFp(_envKey));
+  console.error('[join-collab]   COLLAB_KEY_FILE      = ' + process.env.COLLAB_KEY_FILE + ' → ' + _keyFp(_fileKey));
+  console.error('[join-collab]   env 는 이 프로세스가 지정한 게 아닐 수 있어요(같은 기계의 다른 프로젝트가 넣어 둔 값을 물려받는 실측 사례가 있어요).');
+  console.error('[join-collab]   하나만 두세요 — 이 자리를 그냥 넘기면 **남의 키로 붙고**, TOFU 가 그 키를 이 agentId 에 결속해 원래 주인을 잠급니다.');
+  process.exit(1);
+}
+if (_fileKey) { key = _fileKey; keySrc = 'COLLAB_KEY_FILE'; }
+else if (_envKey) { key = _envKey; keySrc = 'COLLAB_KEY(env)'; }
 if (!key) { console.error('[join-collab] COLLAB_KEY 또는 COLLAB_KEY_FILE 이 필요해요 (무키 연결은 수락되지만 targeted A2A 가 조용히 사라져요 — §13.25.11)'); process.exit(1); }
+console.error('[join-collab] 키 출처=' + keySrc + ' ' + _keyFp(key) + ' · agentId=' + AGENT_ID);
 
 // 키 접두사 ↔ 질의 파라미터. 서버는 key/peerKey/upstreamKey/collabKey 를 모두 읽지만, 종별 파라미터를
 //   쓰면 «어느 종으로 붙으려 했는가» 가 서버 로그와 거부 메시지에 남아요 (오진 비용이 줄어요).
@@ -92,13 +121,38 @@ if (_URL_ENV && _HOST_ENV) {
 }
 const HOST = _HOST_ENV || ('localhost:' + (process.env.PORT || '7878'));
 const BASE = _URL_ENV || ('ws://' + HOST + '/ws');
+
+// **주소에 담긴 키는 자격증명 지정이에요** (v2.4.157). URL env 는 «어느 보드» 를 말하는 자리인데,
+//   거기에 `?key=` 가 들어 있으면 그건 조용한 세 번째 자격증명 원천이 돼요. 실측 2026-08-09: 기계
+//   수준 `CONSTELLATION_WS_URL` 이 **다른 프로젝트의** 협업 키를 담고 있었고, 그 env 를 물려받은
+//   우리 다리가 그 키로 보드에 붙었어요. TOFU 가 그 키를 우리 agentId 에 결속해 **원래 주인이 자기
+//   키로 못 들어오게** 됐고(fail-closed), 같은 키를 쓰던 다른 세션도 전부 거부됐어요. 이쪽에는
+//   아무 신호도 없었어요 — 서버 로그의 지문만이 유일한 흔적이었어요.
+{
+  const m = /[?&]key=([^&]+)/.exec(BASE);
+  if (m) {
+    const urlKey = decodeURIComponent(m[1]);
+    if (urlKey !== key) {
+      console.error('[join-collab] 주소 안에 다른 키가 들어 있어요 — 어느 쪽인지 추측하지 않고 멈춰요.');
+      console.error('[join-collab]   URL(env) 안의 키 = ' + _keyFp(urlKey));
+      console.error('[join-collab]   이 프로세스가 지정한 키(' + keySrc + ') = ' + _keyFp(key));
+      console.error('[join-collab]   URL 에서 key= 를 빼세요. 주소는 «어느 보드» 를 말하는 자리고 자격증명 자리가 아니에요.');
+      process.exit(1);
+    }
+    console.error('[join-collab] ⚠ 주소(env)에 키가 박혀 있어요 ' + _keyFp(urlKey) + ' — 기계 수준 env 면 이 기계의 모든 도구가 그 자격증명을 물려받아요. 파일로 옮기세요.');
+  }
+}
 const WS_URL = BASE + (BASE.includes('?') ? '&' : '?') + PARAM + '=' + encodeURIComponent(key);
 
 // ── §4 single-instance — agentId **×  보드** 단위 ────────────────────────────
 // agentId 만으로 잠그면 «같은 에이전트가 두 보드에 붙는» 정상 구성을 막아요. 반대로 보드만으로
 //   잠그면 서로 다른 에이전트가 못 붙어요. 충돌하는 건 (agentId, 보드) 짝이에요 — 같은 짝으로
 //   둘이 붙으면 서버가 중복을 close(1005) 하고 양쪽이 backoff 재접속하며 서로를 kick 해요.
-const boardTag = (BASE.replace(/^wss?:\/\//, '').replace(/[^A-Za-z0-9._-]/g, '_')).slice(0, 40);
+// **파일명에 자격증명이 들어가지 않게 질의문을 떼요** (v2.4.157). 보드의 정체는 host+path 고 키는
+//   자격증명이에요. 실측 2026-08-09: 기계 수준 `CONSTELLATION_WS_URL` 이 `?key=ck-…` 를 담고 있어서
+//   이 태그가 `localhost_47878_ws_key_ck-…` 로 만들어졌어요 — 키 조각이 **디스크 파일명으로** 남고,
+//   같은 보드가 키에 따라 다른 태그를 갖게 돼 단일-인스턴스 판정과 감시자의 pid 조회가 둘 다 어긋났어요.
+const boardTag = (BASE.replace(/^wss?:\/\//, '').replace(/\?.*$/, '').replace(/[^A-Za-z0-9._-]/g, '_')).slice(0, 40);
 require('../single-instance.cjs').acquire(path.join(DIR, `.join-collab.${AGENT_ID}.${boardTag}.pid`), 'join-collab');
 
 const STORE = process.env.COLLAB_STORE || path.join(DIR, AGENT_ID + '-inbox.log');
