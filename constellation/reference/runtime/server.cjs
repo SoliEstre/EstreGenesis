@@ -486,6 +486,7 @@ const wscore = require('./ws-core.cjs');
 const wsConns = new Set();
 const wsAgents = new Map();                    // agentId → conn
 const _a2aPending = new Map();                 // §13.8 A2A reply 페어링: 응답 에이전트 agentId → { from, contextId, parentId, at } (요청 기억)
+const wsPtySessions = new Map();               // Pantty §9 — sessionId → 연 board 연결. relay 바이트(TerminalData)를 «연 운영자» 연결에만 보내요(방송 시 다른 board 도 수신 = 셸 출력 유출).
 const A2A_WINDOW = 120000;                     // reply-window(ms) — 응답 adapter 가 envelope echo 못할 때 fallback
 const _telFillWarn = new Set();                // v2.4.138 — 되돌림이 빈 수신자를 채운 (발신자|이름|수신자) 조합, 조합당 1회만 경고
 
@@ -2002,6 +2003,10 @@ server.on('upgrade', (req, socket) => {
   if (!conn.meta._urlKey) wsSendInitialState(conn);
   conn.onclose = () => {
     wsConns.delete(conn);
+    for (const [sid, c] of wsPtySessions) if (c === conn) {   // Pantty §9 — 연 board 이탈 시 세션 정리 + pty-host 에 종료 지시(고아 셸 방지)
+      wsPtySessions.delete(sid);
+      const host = wsAgents.get('pty-host'); if (host && host.alive) { try { host.send({ type: 'CUSTOM', name: 'PtyClose', value: { sessionId: sid } }); } catch {} }
+    }
     keyOnConnClose(conn);                                       // v2.4.0 §4 REVOKED_PENDING 마지막 conn 종료 시 REVOKED 확정
     if (conn.meta.role === 'agent' && conn.meta.agentId && wsAgents.get(conn.meta.agentId) === conn) {
       wsAgents.delete(conn.meta.agentId);
@@ -2240,6 +2245,12 @@ server.on('upgrade', (req, socket) => {
           || (_WS_TEXT_FRAMES.has(msg.type) && _WS_EXTERNAL_ROLES.has(wsAgentRole(conn)))                // §13.13.3 대상 미지정 텍스트 — 외부 당사자(collab/peer/upstream)만. local 미러는 제외(false-wake)
         )) { const p = wsPrimaryAgent(); if (p && p !== conn && p.alive) p.send(msg); }
       }
+      if (msg && msg.type === 'CUSTOM' && (msg.name === 'TerminalData' || msg.name === 'TerminalExit')) {   // Pantty §9 세션 스코핑 — relay 바이트는 «연 운영자» 에게만. 방송하면 다른 board 도 셸 출력을 받아요(렌더 안 해도 수신 = 유출).
+        const owner = msg.value && wsPtySessions.get(msg.value.sessionId);
+        if (owner && owner.alive) owner.send(msg);
+        if (msg.name === 'TerminalExit' && msg.value) wsPtySessions.delete(msg.value.sessionId);
+        return;                                                  // wsToBoards/wsRecord/push 건너뜀 — 스코핑 + 이력 미저장
+      }
       wsToBoards(msg);                                           // 모니터링: 항상 board 로 broadcast (A2A 도 대시보드가 관찰) — 선언 이벤트의 라이브 갱신 경로도 여기
       wsRecord(msg);                                             // 대화 기록 영속
       if (!(msg && msg.type === 'CUSTOM' && WS_CORP_DECL.has(msg.name))) { try { push.maybePush(msg); } catch {} }   // #3b webpush — 의미있는 A2A(noise 제외)면 구독자에게 tickle (탭 닫혀도 도달). v2.4.90: §13.33 선언 2종은 기계 소비 전용이라 사람 알림 가치 0 → 제외
@@ -2297,6 +2308,11 @@ server.on('upgrade', (req, socket) => {
     const target = msg && msg.targetAgentId;
     const dst = target ? wsAgents.get(target) : wsPrimaryAgent();   // 대상 미지정 → 메인 에이전트 우선
     if (dst && dst.alive) dst.send(msg);
+    if (msg && msg.type === 'CUSTOM' && msg.value && msg.value.sessionId && (msg.name === 'PtyOpen' || msg.name === 'PtyData' || msg.name === 'PtyResize' || msg.name === 'PtyClose')) {   // Pantty §9 — Pty* 는 연 운영자→pty-host 전용: 소유 기록, 다른 board·이력 제외(셸 키스트로크는 사적)
+      if (msg.name === 'PtyOpen') wsPtySessions.set(msg.value.sessionId, conn);
+      else if (msg.name === 'PtyClose') wsPtySessions.delete(msg.value.sessionId);
+      return;
+    }
     if (msg && msg.type === 'CUSTOM' && (msg.name === 'SelectionAnswer' || msg.name === 'SelectionCancel') && msg.targetAgentId && msg.msgId) _relayPendingAdd(msg.targetAgentId, msg);   // v2.4.77 at-least-once — 브릿지 delivered-persist ack 가 clear
     for (const c of wsConns) if (c !== conn && c.meta.role !== 'agent' && c.alive) c.send(msg);   // 다른 board 에도 표시(멀티 board·외부 발신 입력 동기) — 보낸 board 는 로컬 표시라 제외
     wsRecord(msg);                                               // 사용자 입력도 기록 영속
