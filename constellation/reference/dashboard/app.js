@@ -2201,8 +2201,30 @@ function connectWS() {
   ws.onerror = () => {};
   ws.onclose = () => { if (wsState.ws === ws) { wsState.open = false; wsState.ws = null; wsState.present = new Set(); updateWsConn(); wsRenderTabs(); scheduleWSReconnect(); } };
 }
+// v2.4.153 §13.25.17 — **거부당한 접속은 죽은 서버와 다른 사건이에요.** 그런데 브라우저는 실패한
+//   WS 핸드셰이크의 HTTP 상태(401)를 스크립트에 안 줘요 — onclose code 1006 뿐이라, 여기서는
+//   「끊김」과 「거부」가 **글자까지 같은 모양**이에요. 그래서 종전엔 3초마다 조용히 재시도만 했고,
+//   운영자에게는 보드가 죽은 것으로 보였어요(2026-08-09 실측: 보드 재기동 후 세션은 메모리라
+//   사라지는데 화면은 그 사실을 한 번도 말하지 않았어요. 로그에만 «미인증 브라우저 거부» 가 쌓였어요).
+//   상태를 못 읽으면 **물어보면 돼요** — /api/whoami 는 세션 없이도 닿는 자리라 그 답이 판별자예요.
+//   그리고 **로그인 막은 페이지 로드 때만 판정**해요 (login.js render()). 재기동 전부터 열려 있던
+//   탭은 그래서 영원히 안 물어봐요 — 이번 사건의 실제 모양이 그거예요(탭은 어제부터 열려 있었고,
+//   그 안의 보드 내용은 restart 이전 화면이라 «멈춘 보드» 로 보여요). 여기서 `refresh()` 를 불러
+//   그 판정을 **다시** 돌려요. 계정 관리 패널(openPanel)이 아니에요 — 그건 다른 표면이에요.
+async function wsCheckAuthGate() {
+  try {
+    const r = await fetch('/api/whoami', { credentials: 'same-origin' });
+    const j = await r.json();
+    const gated = !!(j && j.loginRequired && !j.operator);
+    wsState.authGate = gated;
+    updateWsConn();
+    if (gated) { try { if (window.egLogin) await window.egLogin.refresh(); } catch (_) {} }   // render() 가 로그인 막을 띄워요 (이미 떠 있으면 그대로 둬요 — 입력 중 날림 방지)
+    return gated;
+  } catch (_) { return false; }               // whoami 도 못 닿으면 그건 진짜 서버 문제 — 재시도가 맞아요
+}
 function scheduleWSReconnect() {
   if (wsState.retry) return;
+  wsCheckAuthGate();                          // 재시도 전에 **왜** 끊겼는지 한 번 물어요
   wsState.retry = setTimeout(() => { wsState.retry = null; connectWS(); }, 3000);
 }
 // 탭 복귀 시 끊긴 WS 즉시 재연결 (SSE 와 동일 정책)
@@ -3617,6 +3639,7 @@ function onWsEvent(m) {
       }
     } else { events = []; }
     if (v.manifests && typeof v.manifests === 'object') { for (const k of Object.keys(v.manifests)) wsCmdManifests.set(k, v.manifests[k]); }   // v2.4.67 자동완성 매니페스트 동봉분
+    if (v.seatTelemetry && typeof v.seatTelemetry === 'object') { for (const k of Object.keys(v.seatTelemetry)) { const t = v.seatTelemetry[k]; if (t && typeof t === 'object') wsSeatIntake(t); } }   // v2.4.153 §13.35.8 좌석 계측 동봉분 — 발신기가 변경-트리거라, 한가한 좌석은 이 경로로만 보여요
     if (v.opsStates && typeof v.opsStates === 'object') { for (const k of Object.keys(v.opsStates)) wsOpsStates.set(k, v.opsStates[k]); }   // v2.4.71 운용상태 동봉분
     if (v.corporateChart !== undefined || v.roleStates !== undefined) orgPayloadSeen = true;   // §13.33 서버 persist 동봉 여부 (재생 이벤트가 최신본을 덮지 않게 하는 표식)
     if (v.corporateChart && typeof v.corporateChart === 'object') { orgChart = v.corporateChart; }   // §13.33 조직 구조 동봉분 (단일 객체·latest-wins)
@@ -4568,7 +4591,7 @@ function updateWsConn() {
   if (hdot) hdot.classList.toggle('off', !connected);
   const grpName = active === 'group:up' ? '업스트림 그룹' : active === 'group:main' ? '메인 그룹' : active === 'group:board-worker' ? '보드워커 그룹' : active === 'group:collab' ? '협업 그룹' : '로컬 그룹';
   if (agent) agent.textContent = grp ? grpName : ((ch && ch.name) || '에이전트');
-  if (txt) txt.textContent = !wsState.open ? '서버 연결 끊김' : grp ? '그룹 병합 뷰(시간순)' : mon ? '모니터 (읽기 전용)' : (!ch ? '에이전트 없음' : (ch.connStatus === 'restored' ? '연결 복원됨' : (present ? '연결됨' : '연결 끊김')));
+  if (txt) txt.textContent = (!wsState.open && wsState.authGate) ? '로그인 필요 — 보드는 살아 있어요' : !wsState.open ? '서버 연결 끊김' : grp ? '그룹 병합 뷰(시간순)' : mon ? '모니터 (읽기 전용)' : (!ch ? '에이전트 없음' : (ch.connStatus === 'restored' ? '연결 복원됨' : (present ? '연결됨' : '연결 끊김')));
   if (seq) seq.textContent = (ch && ch.seq != null) ? `· seq ${ch.seq}` : '';
   // §6 project metadata: 프로젝트명 + GitHub repo 링크(없으면 채널키·runId)
   if (meta) {

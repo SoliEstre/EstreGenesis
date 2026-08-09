@@ -1280,6 +1280,7 @@ function wsRecord(msg) {
   if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing' || msg.name === 'AgentActivity' || msg.name === 'TerminalData' || msg.name === 'TerminalExit')) return;   // 제어/transient 제외 (AgentActivity=고빈도 활성 스트림 · Terminal*=relay 바이트 §9 세 번째 문 — 방송만·이력 미저장; 스크롤백은 자격증명 표준 형태라 마스킹 전엔 기본 미저장)
   if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
   if (msg.type === 'CUSTOM' && msg.name === 'OpsState') wsOpsStateNote(msg.agentId, msg.value);   // v2.4.71 상태 스트립 선언 캡처
+  if (msg.type === 'CUSTOM' && msg.name === 'SeatTelemetry') wsSeatTelNote(msg.value);   // v2.4.153 §13.35.8 좌석 계측 latest-wins 캡처 (선언 5종과 같은 배관 — 아래 주석에 왜 이게 빠져 있었는지)
   if (msg.type === 'CUSTOM' && msg.name === 'CapabilityManifest') wsCapManifestNote(msg.agentId, msg.value);   // v2.4.76 계약-표면 능력 선언 캡처
   if (msg.type === 'CUSTOM' && msg.name === 'CorporateChart') wsCorpChartNote(msg.agentId, msg.value);   // v2.4.90 §13.33 조직 구조 선언 캡처 (권한 게이트는 inbound 경계에서 — wsCorpDeclAuthz)
   if (msg.type === 'CUSTOM' && msg.name === 'RoleState') wsRoleStateNote(msg.agentId, msg.value);   // v2.4.90 §13.33 좌석별 생사 선언 캡처
@@ -1355,6 +1356,31 @@ function wsOpsStateNote(agentId, v) {
   wsOpsStates.set(String(agentId), o);
   if (_opsT) return;
   _opsT = setTimeout(() => { _opsT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(OPSSTATES, JSON.stringify(Object.fromEntries(wsOpsStates), null, 1)); } catch {} }, 1000);
+}
+// v2.4.153 §13.35.8 — 좌석 계측 latest-wins 영속: SeatTelemetry CUSTOM.
+//
+// 왜 뒤늦게 생겼나 (2026-08-09 실측): 이 선언 계열 5종(CommandManifest·OpsState·CapabilityManifest·
+//   CorporateChart·RoleState)은 다 persist 맵이 있는데 좌석 계측만 없었어요. 발신기(workflow-mirror)는
+//   **변경-트리거**로만 보내니, 한가한 좌석의 마지막 스냅샷은 이력 링에서 밀려나는 순간 **새로 연
+//   대시보드에는 영원히 안 보여요.** 그 결과가 「선언된 좌석 전부가 계측을 보고한다」 검사의 빨강이었고,
+//   그 좌석이 우연히 턴을 돌면 초록으로 돌아가서 **유휴와 고장이 같은 모양**이었어요. 여기 한 맵이
+//   없어서 화면은 «없음» 을 말했지만 정직한 답은 «오래됨 + 그 시각» 이에요.
+//   짝이 되는 규율: 발신기는 **재접속 때 dedup 기억을 비워** 전량 재선언해요 (§13.23.4 latest-wins).
+const SEATTELS = path.join(HISTDIR, '.seat-telemetry.json');
+const wsSeatTels = new Map();
+try { const _st = JSON.parse(fs.readFileSync(SEATTELS, 'utf8')); for (const k of Object.keys(_st)) wsSeatTels.set(k, _st[k]); } catch {}
+let _seatTelT = null;
+function wsSeatTelNote(v) {
+  if (!v || typeof v !== 'object') return;
+  const seat = (typeof v.seat === 'string') ? v.seat.slice(0, 64) : '';
+  if (!seat) return;                                    // 좌석 이름 없는 계측은 «누구의» 를 답할 수 없어서 안 실어요
+  const o = {};
+  try { const s = JSON.stringify(v); if (s.length <= 8192) Object.assign(o, JSON.parse(s)); else return; } catch { return; }
+  o.persistedAt = Date.now();                           // 저장 시각 — 렌더가 «얼마나 오래됐나» 를 말할 수 있게 (lastActivityAt 과 다른 축이에요)
+  wsSeatTels.set(seat, o);
+  while (wsSeatTels.size > 64) wsSeatTels.delete(wsSeatTels.keys().next().value);
+  if (_seatTelT) return;
+  _seatTelT = setTimeout(() => { _seatTelT = null; try { fs.mkdirSync(HISTDIR, { recursive: true }); fs.writeFileSync(SEATTELS, JSON.stringify(Object.fromEntries(wsSeatTels), null, 1)); } catch {} }, 1000);
 }
 // v2.4.76 — 에이전트별 계약-표면 능력 선언 영속: CapabilityManifest CUSTOM. CommandManifest/OpsState 와
 // 같은 클래스 — 변경-트리거 선언·latest-wins·History 동봉. 슬래시 명령(무엇을 이행하나)·운용 상태(어떤
@@ -1651,7 +1677,7 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 최근분 + cold/
   // v2.4.89 (adopter observation C11b-부수): History 는 **활성 채널의 events + cold/archived 스텁**이라는 정책적 축약본인데,
   // 축약되었다는 신호가 없어 "이 보드 History 는 A2A 를 담지 않는다"는 오진을 유발했다. 정책을 페이로드에 명시한다.
   const scope = { policy: 'active-channels-recent+stubs', activeEvents: events.length, coldChannels: cold.length, archivedChannels: wsArchivedList().length, perChannelLimit: HISTORY_INITIAL_PER_CHAN, truncated, note: 'cold/archived 채널 내용은 RequestChannelHistory 로 on-demand — 부재 ≠ 미기록. 활성 채널도 최근 perChannelLimit 건만 — truncated[] 의 채널은 beforeTs 를 실어 RequestChannelHistory 로 이어 받으세요'};
-  return { events, cold, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests), corporateChart: wsCorpChart || null, roleStates: Object.fromEntries(wsRoleStates) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope + v2.4.90 §13.33 조직 차트/좌석 상태 동봉
+  return { events, cold, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests), corporateChart: wsCorpChart || null, roleStates: Object.fromEntries(wsRoleStates), seatTelemetry: Object.fromEntries(wsSeatTels) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope + v2.4.90 §13.33 조직 차트/좌석 상태 동봉
 }
 // v2.4.140 (독립 구현 parity 이식이 원본 감사로 되돌아온 건): History 발송 여부를 payload 에서 **파생**해요.
 //   종전 가드는 payload 키를 손으로 다시 열거했고, v2.4.71(opsStates)·v2.4.76(capManifests) 추가를 못 따라가
