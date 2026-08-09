@@ -108,6 +108,14 @@ const EXCLUDE_NAMES = new Set([
   //   ack 가 오던 그 상태예요. 프로브의 답은 모델 층에서 나와야 뜻이 있어요. Pong 도 같은 이유로
   //   각성 대상이에요(발신자가 기다리는 답이라, 흡수되면 「죽었다」로 오판해요).
   'SERVER_HELLO', 'HELLO', 'Heartbeat', 'ArtifactChunk',
+  // v2.4.155 — **선언 계열은 각성이 아니에요.** 규격은 이 부류를 「기계 소비 전용·사람에겐 소음」으로
+  //   정하고 Web Push 와 워커 pending 분류기에서 빼는데(§13.23.4 4-소비자 필터), **이 probe 가
+  //   다섯 번째 소비자인데 목록에 없었어요.** 그래서 워커가 에코 모드를 재선언할 때마다 발신 전
+  //   probe 가 BLOCK 을 걸고(요청이 하나도 안 담긴 프레임인데) 사람 눈에도 매 턴 그 줄이 떴어요
+  //   — 실측 2026-08-09: EchoModeState 하나로 하루 20건. 잃는 신호는 0이에요: 선언엔 답할 것이
+  //   없고, 값의 정본은 서버의 latest-wins persist 맵이라 필요하면 언제든 읽어요.
+  //   워커 쪽 목록엔 EchoModeState 가 이미 있었어요 — 같은 개념에 손 목록이 둘이라 생긴 비대칭이에요.
+  'EchoModeState', 'CommandManifest', 'OpsState', 'CapabilityManifest', 'CorporateChart', 'RoleState', 'SeatTelemetry',
   'StateSync', 'StateUpdate', 'BoardState', 'CursorAdvance', 'Presence',
   'OnboardAck',            // 합류 환영 + 가이드 + 모드 선언 (실측 139건, 전부 우리 앞) — 의례
   'UserPromptAccepted',    // promptId + 큐 모드만 (실측 19건) — telemetry

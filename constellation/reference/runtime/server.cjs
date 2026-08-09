@@ -1277,7 +1277,7 @@ function wsStore(ck, ev) {
 }
 function wsRecord(msg) {
   if (!msg || !msg.type || msg.type === 'HELLO' || msg.type === 'SERVER_HELLO') return;
-  if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing' || msg.name === 'AgentActivity' || msg.name === 'TerminalData' || msg.name === 'TerminalExit')) return;   // 제어/transient 제외 (AgentActivity=고빈도 활성 스트림 · Terminal*=relay 바이트 §9 세 번째 문 — 방송만·이력 미저장; 스크롤백은 자격증명 표준 형태라 마스킹 전엔 기본 미저장)
+  if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'AgentHello' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing' || msg.name === 'AgentActivity' || msg.name === 'TerminalData' || msg.name === 'TerminalExit')) return;   // 제어/transient 제외 (AgentActivity=고빈도 활성 스트림 · Terminal*=relay 바이트 §9 세 번째 문 — 방송만·이력 미저장; 스크롤백은 자격증명 표준 형태라 마스킹 전엔 기본 미저장)
   if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
   if (msg.type === 'CUSTOM' && msg.name === 'OpsState') wsOpsStateNote(msg.agentId, msg.value);   // v2.4.71 상태 스트립 선언 캡처
   if (msg.type === 'CUSTOM' && msg.name === 'SeatTelemetry') wsSeatTelNote(msg.value);   // v2.4.153 §13.35.8 좌석 계측 latest-wins 캡처 (선언 5종과 같은 배관 — 아래 주석에 왜 이게 빠져 있었는지)

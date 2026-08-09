@@ -2564,6 +2564,7 @@ function wsToolStat(s) {
 // ---- A2A-intent CUSTOM 카드 (Report·BlockerManifest·ReviewSLAAck·PR* / Deadlock* family — §13.16.9 allowlist) ----
 // 이전엔 ✦ <name> 단일 text row(+hover full)로 흘러 "raw/TEXT" 로 보였다. 이제 아이콘 + envelope summary + 펼침 details 카드.
 // raw JSON 은 timeline 에 직접 노출하지 않음(§1) — 의미 필드만 key/value 로, 전체 원본은 debug drawer.
+const _helloCardAt = new Map();   // agentId → 마지막 «합류» 카드 시각 (반복 접기용)
 const WS_A2A_INTENT = {   // name → { icon, label, summaryKeys[] } (summaryKeys: 한 줄 요약 후보, 앞에서부터 첫 비어있지 않은 값)
   Report:            { icon: '📄', label: 'Report',        sum: ['re', 'subject', 'summary', 'status'] },
   BlockerManifest:   { icon: '🚧', label: 'Blocker',       sum: ['re', 'subject', 'summary', 'reason', 'status'] },
@@ -3914,6 +3915,16 @@ function onWsEvent(m) {
       }
       // SelectionResolved 는 onWsEvent 상단에서 라우팅-무관 조기 처리 (agent-outbound 가드 앞) — 여기 중복 분기 제거
       else if (WS_A2A_INTENT[m.name]) {   // §13.16.9 A2A-intent allowlist(Report·BlockerManifest·ReviewSLAAck·PR* / Deadlock* family) → 카드 form(아이콘+요약+펼침 details), NOT raw/TEXT fallback
+        // v2.4.155 — **반복 합류는 소음이에요.** 한 번은 정보(누가 들어왔나)지만, 다리가 재접속할
+        //   때마다 같은 카드가 쌓여요 — 실측 2026-08-09: 두 보드 이력에 486건(한 어댑터가 200건).
+        //   카드 자체를 없애면 «첫 합류» 도 안 보이니, **같은 이름은 10분에 한 번만** 카드로 만들어요.
+        //   현재 접속 여부는 명부·점이 이미 말해 주니 이 카드가 유일한 표면도 아니에요.
+        if (m.name === 'AgentHello') {
+          const _hk = String(m.agentId || m.threadId || '?');
+          const _ht = _t || Date.now();
+          if (_helloCardAt.has(_hk) && Math.abs(_ht - _helloCardAt.get(_hk)) < 600000) return;
+          _helloCardAt.set(_hk, _ht);
+        }
         const spec = WS_A2A_INTENT[m.name]; const v = m.value || {};
         wsPushRow(chId, { kind: 'a2acard', a2a: { name: m.name, spec, value: v, summary: wsA2aSummary(spec, v) }, _expanded: false, label: (spec.label || m.name || 'CUSTOM'), full: (v && typeof v === 'object') ? v : (v != null ? { value: v } : null), src: _src, chan: _chan, chanFull: _chanFull, msgId: m.msgId || m.id, t: _t, ts: _ts });
       }
