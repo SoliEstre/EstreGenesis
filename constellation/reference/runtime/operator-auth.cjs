@@ -91,7 +91,12 @@ function createOperatorAuth(opts) {
     if (String(password || '').length < 8) throw new Error('비밀번호는 8자 이상');
     if (store.operators.some((o) => o.id === id)) throw new Error('이미 있는 id');
     const salt = crypto.randomBytes(16).toString('hex');
-    store.operators.push({ id, name: String(name || id).slice(0, 64), salt, hash: await hash(password, salt), kdf: 'scrypt', createdAt: new Date().toISOString(), lastLoginAt: null });
+    // 해시를 **push 전에** 계산해요. await 를 push 인자 안에 두면 `store.operators` 를 await 전에
+    //   읽어 놓고, await 동안 watchFile 의 load() 가 `store` 를 새 객체로 갈아치우면 push 는 옛
+    //   배열에 가고 save() 는 빈 새 store 를 써요(계정이 조용히 사라져요). 비동기 경계 사이의
+    //   read-modify-write 라, 경계를 걷어내 store 를 push 시점에 읽게 해요.
+    const h = await hash(password, salt);
+    store.operators.push({ id, name: String(name || id).slice(0, 64), salt, hash: h, kdf: 'scrypt', createdAt: new Date().toISOString(), lastLoginAt: null });
     save();
     log('[auth] 운영자 계정 추가 id=%s (총 %d)', id, store.operators.length);
     return { id, name };
@@ -139,6 +144,37 @@ function createOperatorAuth(opts) {
   }
   function logout(token) { return sessions.delete(token); }
 
+  // §9 재인증(step-up) — 이미 로그인한 세션에 «셸 권한» 을 비밀번호로 한 번 더 확인해요. 지금
+  //   운영자 세션은 «상태 읽기» 를 위해 발급된 거라, 그걸 그대로 셸 권한으로 쓰면 이미 나가 있는
+  //   쿠키 전부가 소급해 셸 권한이 돼요(Pantty §9). 통과하면 그 세션에 시각을 찍고, 창 안에선
+  //   재진입·새 탭이 안 물어요. **새 세션을 만들지 않아요** — 기존 세션에 step-up 시각만 얹어요.
+  //   같은 scrypt 경로 + 실패 throttle 을 verify 와 공유해요.
+  async function reauth(token, password) {
+    const s = sessionOf(token);
+    if (!s) return { ok: false, error: 'no-session' };
+    const now = Date.now();
+    const f = fails.get(s.id);
+    if (f && f.until > now && f.n >= LOGIN_MAX_FAILS) return { ok: false, error: 'too-many-attempts', retryAfterMs: f.until - now };
+    const op = store.operators.find((o) => o.id === s.id);
+    if (!op) return { ok: false, error: 'no-account' };
+    const got = Buffer.from(await hash(password, op.salt), 'hex');
+    const want = Buffer.from(op.hash, 'hex');
+    if (!(got.length === want.length && crypto.timingSafeEqual(got, want))) {
+      const cur = (f && f.until > now) ? f : { n: 0, until: now + LOGIN_WINDOW_MS };
+      cur.n++; fails.set(s.id, cur);
+      return { ok: false, error: 'bad-credentials' };
+    }
+    fails.delete(s.id);
+    s.reauthAt = now;
+    return { ok: true };
+  }
+  // 이 토큰이 windowMs 안에 step-up 을 통과했는가. requireReauth=false 면 호출부가 이걸 안 봐요
+  //   — 그 «안 봄» 이 「운영자 세션 = 셸 권한」 을 명시로 받아들이는 선택이고, 그 선택은 설정에 남아요.
+  function reauthValidFor(token, windowMs) {
+    const s = sessionOf(token);
+    return !!(s && typeof s.reauthAt === 'number' && (Date.now() - s.reauthAt) < Number(windowMs || 0));
+  }
+
   // 쿠키 파싱 — 요청 헤더에서 세션 토큰만 꺼내요.
   const COOKIE = 'eg_board_sid';
   function tokenFromReq(req) {
@@ -157,7 +193,7 @@ function createOperatorAuth(opts) {
   function clearCookieHeader() { return `${COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`; }
 
   return {
-    enabled, addOperator, removeOperator, verify, logout,
+    enabled, addOperator, removeOperator, verify, logout, reauth, reauthValidFor,
     operatorOfReq, tokenFromReq, sessionOf, setCookieHeader, clearCookieHeader,
     list: () => store.operators.map((o) => ({ id: o.id, name: o.name, createdAt: o.createdAt, lastLoginAt: o.lastLoginAt })),
     count: () => store.operators.length,

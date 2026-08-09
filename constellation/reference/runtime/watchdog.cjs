@@ -51,6 +51,10 @@ const PORT = Number(process.env.PORT) || 7878;
 const WS_URL = `ws://${HOST}:${PORT}/ws`;
 const SERVER = process.env.SERVER_PATH || path.join(DIR, 'server.cjs');
 const BRIDGE = process.env.BRIDGE_PATH || path.join(DIR, 'local-bridge.cjs');
+// pty-host 는 **선택 부품** (Pantty §9 terminal.enabled). PTY_HOST_PATH 가 설정된 배포에서만 감독해요 —
+//   부재면 감독도 없어요(가산 규율: 이 파일이 있다는 것만으로 배포가 바뀌지 않음).
+const PTY_HOST = process.env.PTY_HOST_PATH || null;
+const PTY_HOST_ID = process.env.PTY_HOST_ID || 'pty-host';
 const LOG = process.env.LOG_PATH || path.join(DIR, 'watchdog.log');
 const MAIN_ID = process.env.MAIN_ID || 'main-agent';
 const NODE = process.execPath;
@@ -76,10 +80,11 @@ function checkConfig() {
   if (!process.env.BRIDGE_PATH) warn(`BRIDGE_PATH not set — fallback '${BRIDGE}'`);
   if (!fs.existsSync(SERVER)) warn(`SERVER not found at '${SERVER}' — spawn will fail (set SERVER_PATH or place server.cjs next to watchdog)`);
   if (!fs.existsSync(BRIDGE)) warn(`BRIDGE not found at '${BRIDGE}' — spawn will fail (set BRIDGE_PATH or place local-bridge.cjs next to watchdog)`);
+  if (PTY_HOST && !fs.existsSync(PTY_HOST)) warn(`PTY_HOST_PATH set but not found at '${PTY_HOST}' — pty-host spawn will skip (Pantty §9 optional component)`);
 }
 
 // ---- detached spawn (워치독이 죽어도 자식 생존, 자식이 죽으면 워치독이 재감지) ----
-let lastServerSpawn = 0, lastBridgeSpawn = 0;
+let lastServerSpawn = 0, lastBridgeSpawn = 0, lastPtyHostSpawn = 0;
 function spawnDetached(file, cwd, tag) {
   if (!fs.existsSync(file)) { warn(`spawn skip: ${tag} file missing at '${file}'`); return; }
   let out;
@@ -103,6 +108,12 @@ function restartBridge() {
   const now = Date.now(); if (now - lastBridgeSpawn < SPAWN_COOLDOWN) return; lastBridgeSpawn = now;
   log(`[watchdog] main bridge(${MAIN_ID}) MISSING → restart local-bridge.cjs`);
   spawnDetached(BRIDGE, path.dirname(BRIDGE), 'bridge');
+}
+function restartPtyHost() {   // §9 선택 부품 — PTY_HOST_PATH 설정 시에만. cwd=pty-host/ 라 자기 node_modules 의 node-pty 를 해석해요.
+  if (!PTY_HOST) return;
+  const now = Date.now(); if (now - lastPtyHostSpawn < SPAWN_COOLDOWN) return; lastPtyHostSpawn = now;
+  log(`[watchdog] pty-host(${PTY_HOST_ID}) MISSING → restart`);
+  spawnDetached(PTY_HOST, path.dirname(PTY_HOST), 'pty-host');
 }
 
 // ---- 서버 TCP 생존 체크 ----
@@ -130,6 +141,7 @@ function connectWs() {
       const hasMain = agents.some((a) => a.agentId === MAIN_ID);
       if (!hasMain) restartBridge();
       else log(`[watchdog] AgentList ok — agents=${agents.map((a) => a.agentId + ':' + a.role).join(',')}`);
+      if (PTY_HOST && !agents.some((a) => a.agentId === PTY_HOST_ID)) restartPtyHost();   // §9 선택 부품 — 설정된 배포에서만 생사 추적
     }
   };
   ws.onerror = () => {};
