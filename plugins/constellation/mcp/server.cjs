@@ -123,11 +123,33 @@ function getBoardEndpoint() {
   return url;
 }
 
+// v0.3.34 — **키를 파일에서도 읽어요** (`CONSTELLATION_<KIND>_KEY_FILE`).
+//
+// 왜 (2026-08-09 실측): 이 서버는 세션 env 를 그대로 물려받아요. 그래서 공용 기계의 env 에 담긴
+//   **다른 프로젝트의 키**가 그대로 이 서버의 자격증명이 됐고, 그 키가 그쪽 주인에게 결속되지 않은
+//   상태였던 탓에 TOFU 가 우리 정체에 고정해 **원래 주인을 잠갔어요.** env 는 프로세스 트리 전체가
+//   공유하는 자리라 자격증명을 두기에 가장 나쁜 곳인데, 여기엔 파일 경로로 줄 방법이 없었어요.
+//   그래서 join-collab 과 같은 모양을 갖춰요 — 값은 파일에, 경로만 env 로.
+// 우선순위는 **직접 env > 파일** 이 아니라 **파일 > 직접 env** 예요: 파일은 이 배포가 «명시한» 것이고
+//   env 는 물려받았을 수 있어요. 오늘 사고가 정확히 「물려받은 값이 명시한 값을 이기는」 규칙에서 났어요.
+function _keyFromFile(name) {
+  const p = process.env[name + '_FILE'];
+  if (!p) return '';
+  try { return require('fs').readFileSync(p, 'utf8').trim(); } catch (e) {
+    process.stderr.write(`[constellation-mcp] ${name}_FILE 을 못 읽었어요: ${p} (${e.code || e.message})\n`);
+    return '';
+  }
+}
+function _pick(name) { return _keyFromFile(name) || (process.env[name] || '').trim(); }
 function getAuth() {
-  if (process.env.CONSTELLATION_PEER_KEY) return { kind: 'peer', key: process.env.CONSTELLATION_PEER_KEY };   // v0.3.31 — §13.16.11: peer key 는 전용 파라미터로 (upstreamKey 편승 금지, adopter 리포트)
-  if (process.env.CONSTELLATION_UPSTREAM_KEY) return { kind: 'upstream', key: process.env.CONSTELLATION_UPSTREAM_KEY };
-  if (process.env.CONSTELLATION_COLLAB_KEY) return { kind: 'collab', key: process.env.CONSTELLATION_COLLAB_KEY };
-  if (process.env.CONSTELLATION_TOKEN) return { kind: 'token', key: process.env.CONSTELLATION_TOKEN };
+  const peer = _pick('CONSTELLATION_PEER_KEY');
+  if (peer) return { kind: 'peer', key: peer };   // v0.3.31 — §13.16.11: peer key 는 전용 파라미터로 (upstreamKey 편승 금지, adopter 리포트)
+  const up = _pick('CONSTELLATION_UPSTREAM_KEY');
+  if (up) return { kind: 'upstream', key: up };
+  const collab = _pick('CONSTELLATION_COLLAB_KEY');
+  if (collab) return { kind: 'collab', key: collab };
+  const tok = _pick('CONSTELLATION_TOKEN');
+  if (tok) return { kind: 'token', key: tok };
   return { kind: 'local', key: null };
 }
 
