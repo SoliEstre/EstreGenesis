@@ -1286,6 +1286,14 @@ function wsRecord(msg) {
   if (msg.type === 'CUSTOM' && msg.name === 'RoleState') wsRoleStateNote(msg.agentId, msg.value);   // v2.4.90 §13.33 좌석별 생사 선언 캡처
   if (msg.type === 'CUSTOM' && msg.name === 'SelectionPrompt') wsSelPendNote(msg);   // v2.4.74 선택지 타임아웃 추적
   if (msg.type === 'CUSTOM' && (msg.name === 'SelectionAnswer' || msg.name === 'SelectionCancel') && msg.value) wsSelPendClear(msg.value.promptId);   // v2.4.74 응답/취소 = pending 해제
+  // v2.4.154 — **포착한 뒤 저장은 안 해요** (위 제외 목록과 다른 자리인 이유: 그 목록은 포착보다
+  //   먼저 return 해서, 여기 이름을 넣으면 persist 자체가 끊겨요). 이 셋은 전용 persist 맵 + 접속
+  //   페이로드가 **정본**이라 이력에 또 담는 건 순수 중복이고, 이력 링은 유한해서 그 중복이
+  //   **실제 대화를 밀어내요.** 실측 2026-08-09: 좌석 상태 판정 결함으로 선언이 tick 속도로
+  //   진동해 두 보드 채널에 198건이 쌓였어요 — 그날의 대화가 그만큼 링에서 밀렸어요.
+  //   매니페스트류(CommandManifest 등)는 「replay 이중화」로 저장을 **의도**해 둔 항목이라 건드리지
+  //   않아요 — 여기 셋은 payload 경로가 실증돼 있어서 빼도 새로 연 클라이언트가 잃는 게 없어요.
+  if (msg.type === 'CUSTOM' && (msg.name === 'CorporateChart' || msg.name === 'RoleState' || msg.name === 'SeatTelemetry')) return;
   const ck = wsMsgChan(msg), buf = wsBufFor(ck), t = msg.type;
   // 저장 압축: 스트리밍 델타/조각은 버퍼 누적, 완성 시점에 1건만 저장 (런타임 relay 는 불변)
   if (t === 'TEXT_MESSAGE_START') { buf.msg.set(msg.messageId || '_', { type: 'TEXT_MESSAGE', messageId: msg.messageId, role: msg.role, text: '', agentId: msg.agentId, channelId: msg.channelId, threadId: msg.threadId, targetAgentId: msg.targetAgentId, source: msg.source, seq: msg.seq, timestamp: msg.timestamp }); return; }
