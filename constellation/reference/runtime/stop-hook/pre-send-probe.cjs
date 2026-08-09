@@ -98,6 +98,17 @@ const ALLOWLIST = new Set([
 // 실측 비용: 60.2일 창에서 +10건 (하루 0.17건, +2%) — 9건이 실질. 수치 문턱은 두지 않아요:
 // 재보지 않은 값을 규칙에 넣으면 그게 계약이 돼요 (문턱 「회당 10건」은 그렇게 만들려던 값이었어요).
 const SELF_AGENT_ID = process.env.SELF_AGENT_ID || process.env.CONSTELLATION_AGENT_ID || null;
+// v2.4.159 — **사람 앞에 찍기 전에 자격증명을 가려요.** 위 제외 목록은 «이름을 아는» 프레임만 막아요.
+//   이름을 모르는 새 프레임이 키를 담고 오면 그건 다시 평문으로 나가요 — 그래서 출력 길목에도 둬요.
+//   지문(sha256 앞 8자)으로 바꿔서 «어느 키인지» 는 대조할 수 있게 남기고 값은 안 남겨요.
+function redactSecrets(s) {
+  if (typeof s !== 'string' || !s) return s;
+  return s.replace(/\b((?:ck|lk|pk|uk|sk)-)([A-Za-z0-9_-]{6,})\b/g, (m, pfx, body) => {
+    let fp = '';
+    try { fp = require('crypto').createHash('sha256').update(pfx + body).digest('hex').slice(0, 8); } catch (_) { fp = '?'; }
+    return pfx + '<가림 fp:' + fp + '>';
+  });
+}
 const EXCLUDE_NAMES = new Set([
   'Ack', 'AckProcessed', 'AgentHello', 'AgentList', 'History', 'ConnectionInfo',
   // v2.4.129 — **Ping·Pong 을 뺐어요.** 회수 계층에서 제외되는 것과 각성에서 흡수되는 건 다른 질문인데
@@ -116,6 +127,10 @@ const EXCLUDE_NAMES = new Set([
   //   없고, 값의 정본은 서버의 latest-wins persist 맵이라 필요하면 언제든 읽어요.
   //   워커 쪽 목록엔 EchoModeState 가 이미 있었어요 — 같은 개념에 손 목록이 둘이라 생긴 비대칭이에요.
   'EchoModeState', 'CommandManifest', 'OpsState', 'CapabilityManifest', 'CorporateChart', 'RoleState', 'SeatTelemetry',
+  // v2.4.159 — **키 관리 응답은 사람 앞에 펼칠 게 아니에요.** 실측 2026-08-10: 발급 응답이 의미-있는
+  //   인바운드로 분류돼 probe 가 본문을 그대로 찍었고, **키 값이 대화 기록에 평문으로** 남았어요
+  //   (그 키는 즉시 폐기·재발급했어요). 이 프레임의 소비자는 발급을 요청한 **기계**예요.
+  'KeyIssued', 'KeyList', 'KeyRevoked', 'KeyRevokePending', 'CollabKeyIssued',
   'StateSync', 'StateUpdate', 'BoardState', 'CursorAdvance', 'Presence',
   'OnboardAck',            // 합류 환영 + 가이드 + 모드 선언 (실측 139건, 전부 우리 앞) — 의례
   'UserPromptAccepted',    // promptId + 큐 모드만 (실측 19건) — telemetry
@@ -400,7 +415,7 @@ if (result.meaningful.length > 0) {
   for (let i = 0; i < surfaceCount; i++) {
     const m = result.meaningful[i];
     const v = m.body?.msg?.value || m.body?.value || {};
-    console.error(`  - line ${m.idx} ${m.name}: ${JSON.stringify(v).slice(0, 400)}`);
+    console.error(`  - line ${m.idx} ${m.name}: ${redactSecrets(JSON.stringify(v)).slice(0, 400)}`);
   }
   if (result.meaningful.length > MAX_MEANINGFUL_SURFACE) {
     console.error(`[probe] … +${result.meaningful.length - MAX_MEANINGFUL_SURFACE} more meaningful items truncated (cap=${MAX_MEANINGFUL_SURFACE}). Inspect inbox.log directly or raise PROBE_RUNAWAY_BYTES if intentional.`);
