@@ -2221,6 +2221,15 @@ server.on('upgrade', (req, socket) => {
           conn.send(_ev);
           console.warn('[ws] relay 불가 — target=%s 부재 + 회수 열쇠 없음 from=%s', tgt, conn.meta.agentId);
         }
+        // v2.4.152 §13.8 — **직접 회신은 응답창을 닫아요.** 응답창은 「응답 adapter 가 envelope echo 를
+        //   못 할 때」의 폴백이에요. 그 에이전트가 방금 원 요청자를 **명시로 지목해** 답한 순간 그 전제가
+        //   반증돼요 — 지목할 수 있다는 걸 방금 보여 줬으니까요. 그런데 종전엔 RUN_FINISHED 만 창을
+        //   닫아서, 지목해 답한 뒤에도 **120초 동안 무대상 프레임 전부**가 그 상대에게 부쳐졌어요.
+        //   실측(2026-08-09): 좌석이 피어에게 정식 보고를 targeted 로 보낸 7초 뒤, **운영자에게 낼 답**과
+        //   진행·비용 줄이 그 피어에게 갔고 운영자 채널엔 아무것도 안 남았어요. 밖에서 보이는 증상은
+        //   「나한테 보내야 할 걸 A2A 로 보낸다」 였어요 — 폴백이 자기 성공 조건을 못 알아본 형태예요.
+        const _rpSelf = _a2aPending.get(conn.meta.agentId);
+        if (_rpSelf && _rpSelf.from === tgt) _a2aPending.delete(conn.meta.agentId);
         _a2aPending.set(tgt, { from: conn.meta.agentId, contextId: msg.contextId || msg.threadId, parentId: msg.messageId || msg.id, at: Date.now() });   // §13.8 A2A 요청 기억(응답 페어링용)
       } else {
         const rp = _a2aPending.get(conn.meta.agentId);            // §13.8 reply-window fallback: 최근 A2A 요청을 받았으면 board 응답을 원 요청자에게 A2A 로 페어링(응답 adapter 가 envelope echo 못할 때)
