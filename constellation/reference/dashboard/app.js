@@ -4425,6 +4425,7 @@ function setupWsKeyMgmt() {
     else b.textContent = '복사 실패';
   }
   btn.onclick = (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) render(); };
+  panel.addEventListener('click', (e) => e.stopPropagation());   // 패널 내부 클릭은 아래 «바깥 클릭 닫기» 로 버블 안 시켜요 — render() 가 클릭한 버튼(예: 「새 키」)을 제거하면 e.target 이 detached 돼 closest() 가 null → «바깥» 으로 오판해 패널이 닫히던 버그(경계에서 한 번 막아 내부 위젯 추가에도 견고).
   document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('#ws-key-wrap')) panel.hidden = true; });
 
   // ---- UI5 키 관리 모달 ----
