@@ -3344,6 +3344,69 @@ function wsActSync() {
   b.title = who + '지금: ' + wsActNow.tool + (wsActNow.summary ? ' — ' + wsActNow.summary : '') + ' · ' + new Date(wsActNow.ts).toLocaleTimeString();
   if (!wsActTimer) wsActTimer = setInterval(() => { try { wsActSync(); } catch {} }, 5000);   // 나이 흐름 반영 (단일 타이머)
 }
+// ── 터미널 중계 위젯 (Pantty §9 relay 모드) — xterm 으로 pty-host 에 char-mode 로 붙어요 ──────────
+//   §9: relay 바이트는 «세 번째 문» — 모델로 안 가고 pty-host 가 소비해요. 프레임은 targetAgentId=
+//   'pty-host' 로 보내면 서버가 그 에이전트로 릴레이하고, TerminalData 는 방송으로 돌아와 sessionId
+//   로 걸러 렌더해요. 버튼은 대시보드가 보이면(=이미 operator authed) 떠요 — 실제 문은 서버 operator-
+//   auth + pty-host 가 지켜요(§9 인간 문, 모델이 못 엶).
+let wsTermState = null;   // { sessionId, term, fit, el, onResize }
+function wsTermSend(name, value) {
+  const ws = wsState.ws; if (!ws || ws.readyState !== 1) return false;
+  try { ws.send(JSON.stringify({ ...wsCommon(), type: 'CUSTOM', name, targetAgentId: 'pty-host', value })); return true; } catch { return false; }
+}
+function wsTermClose() {
+  if (!wsTermState) return;
+  const s = wsTermState; wsTermState = null;
+  try { wsTermSend('PtyClose', { sessionId: s.sessionId }); } catch {}
+  try { if (s.onResize) window.removeEventListener('resize', s.onResize); } catch {}
+  try { if (s.el && s.el._dragCleanup) s.el._dragCleanup(); } catch {}
+  try { s.term.dispose(); } catch {}
+  try { s.el.remove(); } catch {}
+  const b = document.getElementById('ws-term-btn'); if (b) b.classList.remove('on');
+}
+function wsTermOpen() {
+  if (wsTermState) { wsTermClose(); return; }                 // 토글 닫기
+  if (typeof window.Terminal !== 'function') { wsLocalRow('err', '⚠ 터미널', 'xterm 미로드'); return; }
+  const sessionId = 't-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36);
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;right:24px;bottom:80px;width:680px;height:420px;z-index:270;background:#0b0e14;border:1px solid #2a3140;border-radius:8px;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.5);resize:both;overflow:hidden';
+  const head = document.createElement('div');
+  head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:#151a24;border-bottom:1px solid #2a3140;cursor:move;font-size:12px;color:#9aa4b2;user-select:none';
+  const title = document.createElement('span'); title.textContent = '🖥 terminal · pty-host'; head.appendChild(title);
+  const x = document.createElement('button'); x.textContent = '✕'; x.style.cssText = 'background:none;border:none;color:#9aa4b2;cursor:pointer;font-size:14px;line-height:1'; x.onclick = wsTermClose; head.appendChild(x);
+  const body = document.createElement('div'); body.style.cssText = 'flex:1;min-height:0;padding:4px 6px';
+  box.appendChild(head); box.appendChild(body); document.body.appendChild(box);
+  const term = new window.Terminal({ cursorBlink: true, fontSize: 13, fontFamily: 'ui-monospace,Consolas,monospace', scrollback: 5000, theme: { background: '#0b0e14', foreground: '#cdd3de' } });
+  let fit = null;
+  try { fit = new window.FitAddon.FitAddon(); term.loadAddon(fit); } catch {}
+  term.open(body);
+  try { if (fit) fit.fit(); } catch {}
+  term.onData((d) => wsTermSend('PtyData', { sessionId, data: d }));   // char-mode — 원격 셸이 에코해요
+  const onResize = () => { try { if (fit) fit.fit(); wsTermSend('PtyResize', { sessionId, cols: term.cols, rows: term.rows }); } catch {} };
+  window.addEventListener('resize', onResize);
+  wsTermState = { sessionId, term, fit, el: box, onResize };
+  wsTermSend('PtyOpen', { sessionId, cols: term.cols || 80, rows: term.rows || 24 });
+  term.write('\x1b[90m[opening terminal via pty-host…]\x1b[0m\r\n');
+  term.focus();
+  wsTermDrag(box, head);
+  const b = document.getElementById('ws-term-btn'); if (b) b.classList.add('on');
+}
+function wsTermDrag(box, handle) {   // 간단 드래그 — 헤더 잡고 이동
+  let sx, sy, ox, oy, on = false;
+  handle.addEventListener('mousedown', (e) => { if (e.target.tagName === 'BUTTON') return; on = true; sx = e.clientX; sy = e.clientY; const r = box.getBoundingClientRect(); ox = r.left; oy = r.top; box.style.right = 'auto'; box.style.bottom = 'auto'; box.style.left = ox + 'px'; box.style.top = oy + 'px'; e.preventDefault(); });
+  const mv = (e) => { if (!on) return; box.style.left = (ox + e.clientX - sx) + 'px'; box.style.top = (oy + e.clientY - sy) + 'px'; };
+  const up = () => { on = false; };
+  window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+  box._dragCleanup = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); };
+}
+function wsTermInit() {
+  if (document.getElementById('ws-term-btn')) return;
+  const b = el('button', 'ws-term-btn'); b.id = 'ws-term-btn'; b.type = 'button'; b.textContent = '🖥';
+  b.title = '터미널 — pty-host 에 붙어 셸/CLI 를 중계해요 (Pantty §9 relay). 좌석 CLI 에 들어가면 연결이 direct→relay 로 바뀌어요.';
+  b.onclick = (e) => { e.stopPropagation(); wsTermOpen(); };
+  const left = document.getElementById('ws-act-left');
+  if (left) left.appendChild(b);
+}
 function wsWfBtnSync() {   // v2.4.64 — 입력줄 인디케이터 토글 "Wn/n Sn" (최근 런 done/started + 활동 서브에이전트 수)
   const btn = document.getElementById('ws-wf-inbtn'); if (!btn) return;
   const ids = Object.keys(wsWfRuns).sort((a, b) => ((wsWfRuns[b].updatedAt || 0) - (wsWfRuns[a].updatedAt || 0)));
@@ -3649,6 +3712,16 @@ function onWsEvent(m) {
   }
   if (t === 'CUSTOM' && m.name === 'AgentActivity') {   // Pantty §8 확장 — 실시간 활성 스트림 «지금 무엇을» (telemetry, 스트림 카드 미생성, 도구 호출에서 파생)
     wsActIntake(m);
+    return;
+  }
+  if (t === 'CUSTOM' && (m.name === 'TerminalData' || m.name === 'TerminalExit')) {   // Pantty §9 relay 바이트 → 터미널 위젯 (세 번째 문 — 모델로 안 감, 스트림 카드 미생성)
+    const v = m.value || {};
+    if (wsTermState && v.sessionId === wsTermState.sessionId) {
+      try {
+        if (m.name === 'TerminalData') wsTermState.term.write(v.data || '');
+        else wsTermState.term.write('\r\n\x1b[90m[exited ' + (v.code != null ? v.code : '') + ']\x1b[0m\r\n');
+      } catch {}
+    }
     return;
   }
   if (t === 'CUSTOM' && m.name === 'CommandManifest') {   // v2.4.67 — 슬래시 자동완성 매니페스트 (스트림 카드 미생성, live 갱신)
@@ -4986,6 +5059,7 @@ function setupWS() {
   wsWfFabInit();                                      // v2.4.63 에이전트 활동 모니터 토글 fab
   wsOpsStripInit();                                   // v2.4.71 입력줄 상태 스트립 (OpsState)
   wsActInit();                                        // Pantty §8 확장 — 실시간 활성 스트림 지표 (AgentActivity)
+  wsTermInit();                                       // Pantty §9 — 터미널 중계 버튼 (🖥, relay 모드)
   wsLoadUI();                                         // 팝업 위치·크기·열림 상태 복원
   connectWS();
 }

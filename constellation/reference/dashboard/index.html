@@ -19,6 +19,8 @@
 })();
 </script>
 <link rel="stylesheet" href="/style.css" />
+<link rel="stylesheet" href="/vendor/xterm.css" /><!-- Pantty §9 터미널 위젯 — 로컬 vendor(오프라인·무CDN) -->
+
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="icon" type="image/png" href="/icon-192.png" />
 <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -251,6 +253,8 @@
     <div class="att-body" id="att-body"></div>
   </dialog>
 
+  <script src="/vendor/xterm.js"></script><!-- Pantty §9 터미널 — window.Terminal (app.js 전에 로드) -->
+  <script src="/vendor/addon-fit.js"></script><!-- window.FitAddon -->
   <script src="/login.js"></script>
   <script src="/app.js"></script>
   <script>if ('serviceWorker' in navigator) { addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {})); }</script>
