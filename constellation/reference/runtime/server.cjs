@@ -1228,7 +1228,15 @@ function wsHandleOrch(conn, msg) {
 // === 채널 대화 기록 (v2 — 채널별 파일 + 저장 압축: 델타/조각→완성형 1건, 채널당 cap) ===
 const HISTORY = path.join(DIR, 'ws-history.json');   // 레거시 단일 파일(마이그레이션 원본)
 const HISTDIR = path.join(DIR, 'ws-history');        // 채널별 .jsonl 디렉토리
-const HIST_CAP = 200;                                // 채널당 보관 이벤트 수
+// v2.4.156 — 200 → 1000. **얕은 링은 대화를 지우는 장치예요.** 실측 2026-08-09: 한 채널의 200줄이
+//   선언 80 + 합류 57 + ack 58 로 채워져 그날 대화 전부가 링 밖으로 밀려났어요(운영자가 「비A2A
+//   대화 내역도 사라졌다」로 발견 — 다리측 append-only 로그로 복구). 1차 처방은 소음 제외(아래
+//   wsRecord 층 + history-store 의 floor), 이건 2차 안전여유예요.
+//   **접속 비용은 안 올라가요**: 초기 전송은 HISTORY_INITIAL_PER_CHAN(기본 150)으로 따로 잘라
+//   보내고 나머지는 RequestChannelHistory 로 이어받아요 — 깊이는 디스크·메모리만 써요.
+//   ⚠ 같은 정책이 `history-store.cjs` 에도 있어요(모듈 floor). 두 값이 갈라지면 검사가 잡아요
+//     (`verify-history-policy-parity`) — 이 파일이 라이브 경로고 그 파일이 채택자 경로예요.
+const HIST_CAP = Number(process.env.HIST_CAP || 1000);   // 채널당 보관 이벤트 수
 const wsHistByChan = new Map();                      // 채널키 → events[]
 const wsBuf = new Map();                             // 채널키 → { msg:Map, tool:Map } 스트리밍 누적 버퍼
 const _histT = new Map();                            // 채널키 → debounce 타이머
@@ -1277,7 +1285,7 @@ function wsStore(ck, ev) {
 }
 function wsRecord(msg) {
   if (!msg || !msg.type || msg.type === 'HELLO' || msg.type === 'SERVER_HELLO') return;
-  if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'AgentHello' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing' || msg.name === 'AgentActivity' || msg.name === 'TerminalData' || msg.name === 'TerminalExit')) return;   // 제어/transient 제외 (AgentActivity=고빈도 활성 스트림 · Terminal*=relay 바이트 §9 세 번째 문 — 방송만·이력 미저장; 스크롤백은 자격증명 표준 형태라 마스킹 전엔 기본 미저장)
+  if (msg.type === 'CUSTOM' && (msg.name === 'AgentList' || msg.name === 'AgentHello' || msg.name === 'ConnectionInfo' || msg.name === 'Ack' || msg.name === 'AckProcessed' || msg.name === 'AckCumulative' || msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing' || msg.name === 'AgentActivity' || msg.name === 'TerminalData' || msg.name === 'TerminalExit')) return;   // 제어/transient 제외 (AgentActivity=고빈도 활성 스트림 · Terminal*=relay 바이트 §9 세 번째 문 — 방송만·이력 미저장; 스크롤백은 자격증명 표준 형태라 마스킹 전엔 기본 미저장)
   if (msg.type === 'CUSTOM' && msg.name === 'CommandManifest') wsCmdManifestNote(msg.agentId, msg.value);   // v2.4.67 자동완성 매니페스트 캡처 (저장도 계속 — replay 이중화)
   if (msg.type === 'CUSTOM' && msg.name === 'OpsState') wsOpsStateNote(msg.agentId, msg.value);   // v2.4.71 상태 스트립 선언 캡처
   if (msg.type === 'CUSTOM' && msg.name === 'SeatTelemetry') wsSeatTelNote(msg.value);   // v2.4.153 §13.35.8 좌석 계측 latest-wins 캡처 (선언 5종과 같은 배관 — 아래 주석에 왜 이게 빠져 있었는지)
