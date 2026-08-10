@@ -31,10 +31,24 @@ const path = require('path');
 
 const FACTS_PATH = path.join(__dirname, 'dispatch-facts.json');
 
+// 판정식은 **제출 경로마다 따로** 재요 (§4: 「한 경로에서 잰 판정식은 같은 빌드의 다른 경로로
+// 옮겨가지 않아요 — 드라이버를 바꾸는 건 빌드를 올리는 것과 똑같이 측정을 무효로 만들어요」).
+// 그래서 사실 파일은 갈아끼울 수 있고, **가드 코드는 갈아끼우지 않아요** — 두 번째 하네스가
+// 생겼을 때 이 파일을 복사하는 게 이 모듈이 스스로 금지한 «조용히 갈라지는 사본» 이라서요.
+let _factsPath = process.env.PANTTY_DISPATCH_FACTS || FACTS_PATH;
 let _facts = null;
+
+/** 어느 경로의 실측 사실을 쓸지 고정해요. 바꾸면 캐시를 버려요. */
+function useFacts(p) {
+  if (!p) throw new Error('useFacts 에 경로가 필요해요.');
+  _factsPath = p;
+  _facts = null;
+  return _factsPath;
+}
+
 /** 실측 사실을 읽어요. sigil 목록을 여기 상수로 복제하지 않는 게 요점이에요 — 사본은 조용히 갈라져요. */
 function facts() {
-  if (!_facts) _facts = JSON.parse(fs.readFileSync(FACTS_PATH, 'utf8'));
+  if (!_facts) _facts = JSON.parse(fs.readFileSync(_factsPath, 'utf8'));
   return _facts;
 }
 
@@ -237,6 +251,7 @@ module.exports = {
   HEADER_PREFIX,
   countMentions,
   facts,
+  useFacts,
   sigils,
   startsWithSigil,
   assertSafe,
