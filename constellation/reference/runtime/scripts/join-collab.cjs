@@ -46,8 +46,38 @@
  *   PARENT_PID      이 pid 가 사라지면 스스로 종료 (§5 고아 방지 — 위 «권장» 구성이면 불필요)
  */
 const fs = require('fs');
-const { stampRelayKey, ACK_KINDS } = require('../relay-key.cjs');   // §13.13.2 회수 열쇠 부품 (공용) — ACK 종류 목록도 여기가 정본
 const path = require('path');
+
+// ── 공용 부품 찾기 (2026-08-11, 채택자 보고) ────────────────────────────────────
+// 이 파일은 **제자리에서 실행**하는 게 기본이에요(`COLLAB_DIR` 로 작업 위치만 옮기면 돼요).
+// 그런데 채택자는 «자기 저장소로 복사» 를 시도했고, 그러면 `../relay-key.cjs` 가 트리 밖을
+// 가리켜 MODULE_NOT_FOUND 로 죽어요 — 그 메시지는 «무엇을 어디에 두라는» 말을 안 해줘서,
+// 읽는 사람은 파일이 잘못됐다고 결론내요(실제로 그렇게 보고가 들어왔어요).
+//
+// 부품을 **복사해 넣지 않아요** — 사본은 조용히 갈라지고, 이 저장소가 그걸 여러 번 겪었어요.
+// 대신 «찾을 수 있게» 만들어요: 명시 env → 스크립트 옆 → 원래 자리 순서로 보고, 다 없으면
+// **무엇이 없고 어떻게 지정하는지** 를 말하고 EX_CONFIG(78)로 끝내요. 조용한 실패보다
+// 시끄러운 실패가, 시끄러운 실패보다 «다음 행동을 알려주는» 실패가 나아요.
+function requireRuntime(name) {
+  const roots = [
+    process.env.COLLAB_RUNTIME_DIR && path.resolve(process.env.COLLAB_RUNTIME_DIR),
+    path.resolve(__dirname, '..'),   // 제자리 실행 (기본)
+    __dirname,                       // 부품을 스크립트 옆에 같이 복사한 배치
+  ].filter(Boolean);
+  for (const r of roots) {
+    const p = path.join(r, name);
+    if (fs.existsSync(p)) return require(p);
+  }
+  console.error(`[join-collab] 공용 부품 ${name} 을 못 찾았어요. 찾아본 곳:`);
+  for (const r of roots) console.error(`  - ${path.join(r, name)}`);
+  console.error('[join-collab] 이 파일은 제자리 실행이 기본이에요 — 복사하지 말고 COLLAB_DIR 로 작업 위치만 옮기세요:');
+  console.error('  WS_AGENT_ID=<id> COLLAB_KEY=<키> COLLAB_HOST=<host:port> COLLAB_DIR=<내 프로젝트>/collab \\');
+  console.error(`    node ${path.join(__dirname, path.basename(__filename))}`);
+  console.error('[join-collab] 굳이 복사해야 하면 COLLAB_RUNTIME_DIR 로 부품 위치를 알려주세요.');
+  process.exit(78);   // EX_CONFIG — 감시자가 «되살려도 안 되는» 부류로 세도록
+}
+
+const { stampRelayKey, ACK_KINDS } = requireRuntime('relay-key.cjs');   // §13.13.2 회수 열쇠 부품 (공용) — ACK 종류 목록도 여기가 정본
 
 const DIR = process.env.COLLAB_DIR ? path.resolve(process.env.COLLAB_DIR) : path.resolve(__dirname, '..');
 const AGENT_ID = process.env.WS_AGENT_ID;
@@ -153,7 +183,7 @@ const WS_URL = BASE + (BASE.includes('?') ? '&' : '?') + PARAM + '=' + encodeURI
 //   이 태그가 `localhost_47878_ws_key_ck-…` 로 만들어졌어요 — 키 조각이 **디스크 파일명으로** 남고,
 //   같은 보드가 키에 따라 다른 태그를 갖게 돼 단일-인스턴스 판정과 감시자의 pid 조회가 둘 다 어긋났어요.
 const boardTag = (BASE.replace(/^wss?:\/\//, '').replace(/\?.*$/, '').replace(/[^A-Za-z0-9._-]/g, '_')).slice(0, 40);
-require('../single-instance.cjs').acquire(path.join(DIR, `.join-collab.${AGENT_ID}.${boardTag}.pid`), 'join-collab');
+requireRuntime('single-instance.cjs').acquire(path.join(DIR, `.join-collab.${AGENT_ID}.${boardTag}.pid`), 'join-collab');
 
 const STORE = process.env.COLLAB_STORE || path.join(DIR, AGENT_ID + '-inbox.log');
 const UNDELIVERED = process.env.COLLAB_UNDELIVERED || path.join(DIR, AGENT_ID + '-undelivered.jsonl');
@@ -174,7 +204,7 @@ const OUT_CURSOR_LEGACY = path.join(DIR, '.' + AGENT_ID + '-outbox-cursor');   /
 //   락 단위가 두 보드를 전제하면서 상태 파일 기본값이 보드를 구분하지 않는 게 원인이고, 그 배치를 흡수하면
 //   그 지점이 영구히 조용해져요. 그래서 감지하면 이름을 대고 멈춰요.
 if (!process.env.COLLAB_OUTBOX && process.env.COLLAB_SHARED_OUTBOX_OK !== '1') {
-  const { pidAlive } = require('../single-instance.cjs');
+  const { pidAlive } = requireRuntime('single-instance.cjs');
   const prefix = `.join-collab.${AGENT_ID}.`, mine = `${prefix}${boardTag}.pid`;
   let clash = null;
   let entries = []; try { entries = fs.readdirSync(DIR); } catch {}
@@ -332,7 +362,7 @@ function connect() {
 //   그래서 「처음부터 안 보임」과 「돌다가 사라짐」을 **다른 사건으로** 말해요. 앞의 것은 보호를 걸 수 없다는
 //   뜻이라 조용히 계속하지 않고 멈춰요 — 꺼진 보호를 켜진 것처럼 두는 게 이 파일이 막으려는 결함이에요.
 if (PARENT_PID) {
-  const { pidAlive } = require('../single-instance.cjs');
+  const { pidAlive } = requireRuntime('single-instance.cjs');
   if (!pidAlive(PARENT_PID)) {
     console.error(`[join-collab] PARENT_PID=${PARENT_PID} 가 이 프로세스에서 **처음부터 보이지 않아요** (사라진 게 아니에요).`);
     console.error('[join-collab]   ① 이미 종료됐거나, ② pid 공간이 달라요 — Git Bash/MSYS 의 `$$` 는 MSYS pid 예요.');
