@@ -106,13 +106,23 @@ function connect() {
     // 거절 프레임은 일반 inbound 로 적지 않아요: 종전엔 ev:'inbound' 로 쌓여서 워커가 매 30건을
     //   모델 턴으로 집어 «키 만료 지속» 을 서사했어요. 진단은 ev:'rejected' 줄로 충분하고,
     //   해소 경로는 서버의 KeyExpiringSoon(3중 표면) + main 의 갱신 직무예요.
-    if (!accepted && m && m.name === 'ConnectionRejected') {
+    // **거절은 언제 오든 거절이에요 — `!accepted` 로 가두면 안 돼요.** 참조 서버는 연결을 등록한
+    //   직후 **인가 판정 전에** SERVER_HELLO 를 무조건 보내요(게이트 통과 지점은 HELLO 처리 뒤예요).
+    //   그래서 아래 «거절이 아닌 첫 서버 프레임 = 수락» 이 SERVER_HELLO 로 켜지고, 뒤이어 오는
+    //   ConnectionRejected 는 이 가드에 막혀 재시도 간격을 **아예 못 걸어요**. URL 키 만료만
+    //   업그레이드 단계에서 미리 끊겨 우연히 안 걸렸을 뿐, 정체 불일치·키 요구·허용목록 거절은
+    //   전부 이 방어 밖이었어요 — 한 사유만 막고 나머지엔 무효인 상태였어요 (2026-08-25 실측).
+    if (m && m.name === 'ConnectionRejected') {
+      accepted = false;                                   // 수락으로 세었던 걸 되돌려요 (증거가 뒤집혔어요)
       rejectedUntilRetry = Date.now() + REJECT_RETRY_MS;
       log({ ev: 'rejected', code: m.value && m.value.code, label: m.value && m.value.label, retryInMs: REJECT_RETRY_MS });
       console.error(`[join-local] 서버가 합류를 거절했어요 (${(m.value && m.value.code) || '?'}) — ${Math.round(REJECT_RETRY_MS / 60000)}분 뒤 재시도. 빨리 두드려서 풀리는 종류가 아니에요.`);
       return;
     }
-    if (!accepted) {
+    // SERVER_HELLO 는 «붙었다» 지 «받아줬다» 가 아니에요 — 서버가 인가 전에 보내니 수락 증거에서 빼요.
+    //   다만 **더 좁히지는 않아요**(허용목록 방식으로 «이 이름만 수락» 을 만들면, HELLO 뒤에 아무
+    //   프레임도 안 보내는 서버 판에서 인사가 영영 안 나가 워커가 조용한 유령이 돼요).
+    if (!accepted && m && m.type !== 'SERVER_HELLO') {
       // 거절이 아닌 첫 서버 프레임 = 수락 증거. 여기서만 backoff 를 되돌리고, 인사도 여기서 해요 —
       // 종전엔 인사 2종이 open 직후 타이머로 나가서, 거절당하는 연결에서도 매 사이클 발사됐어요
       // (agenthello-sent 165,424회 실측).
