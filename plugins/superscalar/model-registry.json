@@ -1,15 +1,16 @@
 {
   "$schema": "https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md#51-tiered-model-composition",
   "$comment": "Volatile model facts for the /subscaler tier-composition toggle. The DURABLE contract is the tier vocabulary + the routing rubric in Superscalar.md §5.1; this file carries only the perishable part (which concrete models occupy which tier today, and what each vendor actually accepts as an effort value). Replace the data, keep the vocabulary. Every row is expected to carry a confirmedBy URL — an unverifiable claim belongs in caveats[], not in models[].",
-  "asOf": "2026-07-25",
-  "method": "Six-axis live-source sweep (Anthropic / OpenAI / Google+xAI / open-weight / benchmarks / harness binding), each axis independently fact-checked by an adversarial pass instructed to refute; only vendor-page-confirmed ids and values were promoted here. Corrections applied included one fabricated model id, one shut-down model presented as current, and several mis-attributed benchmark sources. 2026-08-01 structural adjustment (not a data re-sweep): the T1.5 · Frontier Execution band was split out of T1 — the 2026-07-25 sweep recorded the 2x intra-T1 price spread ($10/$50 vs $5/$25) but the tier boundary absorbed it, and a temperament axis (think-to-action latency) surfaced in dogfood that the price rows do not carry. claude-opus-5 moved T1 → T1.5, and a per-account entitlement-check rule was added for invitation-gated models (claude-mythos-5).",
+  "asOf": "2026-09-02",
+  "method": "Six-axis live-source sweep (Anthropic / OpenAI / Google+xAI / open-weight / benchmarks / harness binding), each axis independently fact-checked by an adversarial pass instructed to refute; only vendor-page-confirmed ids and values were promoted here. Corrections applied included one fabricated model id, one shut-down model presented as current, and several mis-attributed benchmark sources. 2026-08-01 structural adjustment (not a data re-sweep): the T1.5 · Frontier Execution band was split out of T1 — the 2026-07-25 sweep recorded the 2x intra-T1 price spread ($10/$50 vs $5/$25) but the tier boundary absorbed it, and a temperament axis (think-to-action latency) surfaced in dogfood that the price rows do not carry. claude-opus-5 moved T1 → T1.5, and a per-account entitlement-check rule was added for invitation-gated models (claude-mythos-5). 2026-09-02 refresh — ANTHROPIC AXIS ONLY, triggered by the 2026-09-01 Fable 5.1 / Mythos 5.1 launch (revisit rule (c): new flagship). Re-derived from the vendor models-overview, per-model overview, what's-new, migration-guide, pricing, model-deprecations and Claude Code model-config pages fetched the same day; two dated watchlist items were re-baselined (Sonnet 5 introductory pricing made permanent; Opus 4.1 retired 2026-08-05 with zero pins found in this estate). OpenAI, Google, xAI and open-weight rows were NOT re-swept in this pass and carry their 2026-07-25 / 2026-08-16 values; their watchlist items stand unverified.",
   "revisit": {
-    "date": "2026-09-01",
-    "trigger": "2026-09-01 is chosen because it is the first date on which a SINGLE revisit re-baselines every dated event in the near window: Opus 4.1's 2026-08-05 retirement, OpenAI's 2026-08-10 chat-latest shutdowns, and Sonnet 5's 2026-08-31 introductory-pricing expiry all land before it, so pricing and id-validity can be re-derived in one pass rather than three. It also matches the observed cadence: Anthropic shipped Fable 5 (2026-06-09), Sonnet 5 (2026-06-30) and Opus 5 (2026-07-24) — 21 and 24 days apart; OpenAI shipped GPT-5.4 (2026-03-05), 5.5 (2026-04-24) and 5.6 (2026-07-09); Google shipped 3.1 Flash-Lite (2026-05-07), 3.5 Flash (2026-05-19) and the 3.6 Flash wave (2026-07-21); Moonshot shipped K3 (2026-07-16) and DeepSeek V4 (2026-04-24). Across the five vendors something material lands roughly every two to three weeks, and per-vendor flagships land every five to eight weeks — so ~5.5 weeks is about one flagship generation of drift, the most staleness this registry can absorb before a tier row is wrong. FORCE AN EARLIER REVISIT, do not wait for 2026-09-01, on any of: (a) 2026-08-05, to confirm nothing in the estate still pins claude-opus-4-1-20250805; (b) 2026-07-27, to check whether Kimi K3 weights actually published, since that single event is what makes a frontier-tier self-hosted lane real; (c) any new flagship announcement from Anthropic, OpenAI or Google, because Opus 5 shipped ONE DAY before this sweep and the whole T1 row would move again; (d) the first observed silent effort clamp or model substitution in a scripted run, which indicates an org-policy or alias-resolution change this registry cannot see; (e) any harness upgrade (Claude Code, Codex, Gemini CLI, Grok Build), since several findings here are version-gated — Opus 5 needs v2.1.219+, org effort limits v2.1.195+, ultracode v2.1.203+, the 20-subagent limit v2.1.217+.",
+    "date": "2026-10-08",
+    "trigger": "2026-10-08 is ~5 weeks after the 2026-09-02 Anthropic-axis refresh (inside the ~5.5-week one-flagship-generation staleness bound the 2026-07-25 sweep set) and lands BEFORE the October shutdown cluster so pins can be moved while they still resolve: claude-haiku-4-5-20251001 retirement floor 2026-10-15, Google's entire 2.5 family shutdown 2026-10-16 (kills Gemini CLI's hardcoded default), OpenAI o-series/o4-mini shutdown 2026-10-23. A second, post-cluster re-baseline right after 2026-10-23 is the follow-on. FORCE AN EARLIER REVISIT on: (a) any Fable 5 deprecation notice (retirement floor 2027-06-09, none announced as of 2026-09-02) — the Claude Code `fable` alias already resolves to 5.1 so a pinned `claude-fable-5` is the only surface that would break; (b) a new flagship from any of the five vendors — the OpenAI/Google/xAI/open-weight rows are already one pass stale; (c) the first observed `The block is bound to a different conversation` 400 or a non-empty input_transformations in any harness here — that is the preserved-thinking check reaching an account older than 2026-08-31, which the vendor says future models will enforce for everyone; (d) any Claude Code release note touching model aliases (`fable`/`best`), since v2.1.255 silently rewrote pinned `claude-fable-5` settings to the alias; (e) the first observed silent effort clamp or model substitution in a scripted run.",
     "gracePeriodDays": 45,
     "watchlist": [
-      "Claude Sonnet 5 introductory pricing ENDS 2026-08-31 — $2/$10 per MTok reverts to standard $3/$15 (batch $1/$5 → $1.50/$7.50). Explicitly dated on the vendor pricing page; a 50% cost increase on the most likely default execution tier. Source: https://platform.claude.com/docs/en/about-claude/pricing",
-      "claude-opus-4-1-20250805 RETIRES 2026-08-05 (11 days after this sweep) — requests will fail. Note the split sourcing a maintainer must reconcile: the 2026-06-05 deprecation notice names claude-opus-4-8 as the replacement of record while the models-overview warning says \"Migrate to Claude Opus 5\". Source: https://platform.claude.com/docs/en/about-claude/model-deprecations",
+      "Claude Fable 5 deprecation notice — none as of 2026-09-02 (Active, retirement not sooner than 2027-06-09), but it is now the superseded model of a live successor at the same price, exactly the position Opus 4.1 was in before its 2026-06-05 notice. Any pin to the literal id claude-fable-5 (not the `fable` alias) is the surface that would break; Claude Code ≥ v2.1.255 already rewrites such pins to the alias on first run. Source: https://platform.claude.com/docs/en/about-claude/model-deprecations",
+      "Preserved-thinking enforcement widening — on Fable 5.1 the «editing earlier turns invalidates thinking blocks» check is enforced only for accounts created on/after 2026-08-31 and the vendor states «Future models are expected to enforce this check for all accounts». Any harness here that injects-and-removes per-turn reminders or rebuilds system/tools mid-session will start returning 400 `The block is bound to a different conversation` on the next model. Probe now with thinking.block_binding.prefix_mismatch_behavior:\"drop_block\" (beta thinking-binding-controls-2026-08-01) and log input_transformations. Source: https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1",
+      "Claude Code `fable` / `best` alias target — as of v2.1.255 `fable` = latest Fable (5.1) and `best` = latest Fable where available else `opus`. Re-check on every Claude Code release note: the alias moved silently this time (pinned claude-fable-5 → auto-rewritten to `fable`), and a future move would change which model a `best` lane bills at. Source: https://code.claude.com/docs/en/model-config",
       "OpenAI shutdown 2026-08-10: gpt-5.2-chat-latest and gpt-5.3-chat-latest (announced 2026-05-08, still live today). Source: https://developers.openai.com/api/docs/deprecations",
       "OpenAI shutdown 2026-10-23: o4-mini-2025-04-16, ft-o4-mini-2025-04-16, o3-mini-2025-01-31, o1-2024-12-17, o1-pro-2025-03-19 — any inherited config pinned to these breaks in under three months. Then 2026-12-11: gpt-5, gpt-5-mini, gpt-5-nano, gpt-5-pro, o3, o3-pro. Source: https://developers.openai.com/api/docs/deprecations",
       "Google shutdown 2026-10-16 for the ENTIRE 2.5 family — gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite. This simultaneously kills the cheapest Gemini ($0.10/$0.40) and Gemini CLI's hardcoded DEFAULT_GEMINI_MODEL, so it forces both a cost-tier and a harness change. Source: https://ai.google.dev/gemini-api/docs/deprecations",
@@ -17,7 +18,7 @@
       "gemini-3.1-pro-preview leaving preview, or a Pro-class successor. The 2026-07-21 launch shipped three Flash-class models and no 3.5/3.6 Pro, leaving 3.1 Pro the only Pro-class Gemini 3 and still preview-labelled five months in. Timing unannounced. Source: https://techcrunch.com/2026/07/21/google-releases-three-new-gemini-models-but-no-3-5-pro/",
       "Gemini 4 — Google stated on 2026-07-21 that it has \"already started our most ambitious pre-training run yet, for Gemini 4\". Confirmed as said; zero timing signal. Source: https://9to5google.com/2026/07/21/gemini-3-6-flash-launch/",
       "Kimi K3 open weights — Moonshot reportedly committed to releasing full weights by 2026-07-27 under a Modified MIT licence. Two days out from this sweep and directly checkable: either the files exist or they don't. Source: https://platform.kimi.ai/docs/pricing/kimi-k3",
-      "A Haiku-class refresh from Anthropic. There is no Haiku 5; claude-haiku-4-5 (Oct 2025, Feb 2025 knowledge cutoff) is the oldest model in the active lineup and the only one with no effort parameter, making it the most likely next refresh. Inferred from absence of evidence across vendor newsroom and docs, NOT a vendor statement.",
+      "A Haiku-class refresh from Anthropic. Still no Haiku 5 as of 2026-09-02: claude-haiku-4-5-20251001 (Oct 2025, Feb 2025 knowledge cutoff) is the oldest active model, the only one with no effort parameter, and its retirement floor 2026-10-15 is the nearest Anthropic lifecycle date — the vendor's 60-day-notice rule means a deprecation notice could land any day. Inferred from absence of evidence, NOT a vendor statement. Source: https://platform.claude.com/docs/en/models/overview",
       "Grok 5 — confirmed in training on Colossus 2 in xAI's 2026-01-28 Series E announcement; the Q1 and Q2 2026 windows both passed with no release. Low confidence on timing. Source (secondary, x.ai returns 403): https://www.nxcode.io/resources/news/grok-5-release-date-latest-news-2026",
       "DeepSeek legacy id removal — deepseek-chat and deepseek-reasoner were stated to deprecate 2026/07/24 15:59 UTC, i.e. already past at time of writing. Verify whether the ids still resolve or now error. Source: https://api-docs.deexseek.com/quick_start/pricing (canonical: https://api-docs.deepseek.com/quick_start/pricing)",
       "T1.5 band membership beyond Anthropic — the band currently holds one model (claude-opus-5). At revisit, check whether gpt-5.6-sol's standard-vs-pro mode split maps onto T1.5-vs-T1 (the vendor prices Sol at the Opus-5 level, $5/$30, with reasoning.mode pro as the deliberation rung), and whether any vendor has since shipped a separate start-here flagship id that belongs in the band.",
@@ -56,13 +57,29 @@
   "models": [
     {
       "provider": "Anthropic",
+      "displayName": "Claude Fable 5.1",
+      "apiModelId": "claude-fable-5-1",
+      "tier": "T1 · Frontier Reasoning",
+      "aliases": [
+        "claude-fable-5-1 (the dateless id is its own pinned snapshot; the alias row repeats it)",
+        "anthropic.claude-fable-5-1 (Amazon Bedrock)",
+        "Claude Code: `fable` → latest Fable; `best` → latest Fable where available, else `opus` (v2.1.255+)"
+      ],
+      "contextWindow": "1M input (default AND maximum, standard per-token price across the whole window) / 128k max output. NOT on the vendor's Batch-API output-300k list (that list names Opus 5, Sonnet 5, Opus 4.8/4.7/4.6, Sonnet 4.6 only). Tokenizer = Fable 5 = the Opus 4.7 line (~30% more tokens than pre-4.7 models for the same text).",
+      "pricingPerMTok": "$10 input / $50 output — same as Fable 5. Cache write $12.50 (5m) / $20 (1h). Cache read $0.25 = 0.025× base (a quarter of Fable 5's $1; every other Claude model is 0.1×). Batch $5 / $25. inference_geo:\"us\" ×1.1 on all categories. Priority Tier: NOT supported (Fable 5 is). Fast mode: not offered (Opus 5 / 4.8 only).",
+      "effort": "output_config.effort = low | medium | high (default) | xhigh | max. Thinking ALWAYS ON — thinking:{type:\"disabled\"} and {type:\"enabled\",budget_tokens:N} both 400; non-default temperature/top_p/top_k 400; assistant prefill 400. Per-message effort change WITHOUT cache invalidation: beta header mid-conversation-output-config-2026-07-01, an effort-only {role:\"system\", content:[], output_config:{effort}} entry in messages (also Mythos 5.1 and Opus 5; Claude API). Vendor calibration: «At medium, results roughly match Claude Fable 5 at lower cost»; «At low, Claude Fable 5.1 is often competitive with Claude Opus and Claude Sonnet models on cost per task while scoring higher» — re-run the effort sweep even if one exists for Fable 5 (level names do not carry across models). Effort-specific shifts: at low it calls search/retrieval less and answers from memory more; at xhigh/max it may draft a long deliverable in thinking and again in the reply (set max_tokens for thinking+reply, or stay at high). Claude Code exposes the same five levels; `ultracode` = xhigh + workflow orchestration (v2.1.203+).",
+      "notes": "Released 2026-09-01. Vendor: «For demanding reasoning and long-horizon agentic work» — «or when your evals on Claude Opus 5 at higher effort still fall short»; the vendor's start-here model stays Opus 5. Latency «Slower»; single requests can run many minutes. Reliable knowledge cutoff Jun 2026 (training cutoff Jun 2026). Status Active (latest); retirement not sooner than 2027-09-01. Successor to Fable 5 in the same tier at the same per-token price; migration is «mostly drop-in» with THREE BREAKING CHANGES: ① forced tool use — tool_choice {type:\"any\"} / {type:\"tool\"} return 400 «tool_choice: type \"tool\" and \"any\" are not supported for this model.» (also on Batches and count_tokens) → keep auto + name the tool in the prompt, strict:true for schema-valid args, or structured outputs; ② thinking blocks are bound to the producing model — Fable 5.1 reads earlier models' blocks, no earlier model reads 5.1's; a router/fallback that moves the conversation off 5.1 drops them silently and unbilled (beta thinking-binding-controls-2026-08-01 reports drops in input_transformations); ③ editing anything before a 5.1 thinking block (system, tools, an earlier message, injected-then-removed reminders, a URL serving different bytes) invalidates every later block → 400 «The block is bound to a different conversation» — ENFORCED for accounts created on/after 2026-08-31, record-only for older accounts unless thinking.block_binding.prefix_mismatch_behavior is set; safe operations: dropping a leading run of thinking blocks, server-side compaction/context editing, moving cache_control, changing effort. Mythos 5.1 does NOT run check ③. FIVE ADDITIVE: per-message effort (see effort); turn-scoped system messages clear_at:\"next_user_message\" (beta mid-conversation-system-clear-at-2026-08-21 — the vendor's replacement for inject-and-delete reminders; cleared copies cost 0 input tokens and must stay in the array byte-for-byte); thinking.display:\"updates\" (beta thinking-display-updates-2026-08-18) returns between-tool-call progress notes as text while reasoning stays hidden (default display is still \"omitted\" = empty blocks = silent-looking agent); cache reads at $0.25; content provenance — every text output carries Anthropic's statistical watermark on every platform, image/video files via Files API carry signed C2PA credentials (no tokens added, no change to requests). Refusals: same stop_details categories as Fable 5 («fewer false positives than Claude Fable 5's did at launch, and finding vulnerabilities in source code is permitted»); fallbacks:\"default\" (beta) retries a declined request on the category's recommended model — permitted targets Opus 4.8 and Opus 5 (Claude Code: cybersecurity → Opus 4.8, biology → Opus 5; togglable via switchModelsOnFlag); a refusal before any output is not billed and fallback credit refunds the cache-switch cost. Data: 30-day retention required, designated Covered Model, no ZDR unless expressly authorized (a request from a ZDR org/workspace returns 400 invalid_request_error). Platforms: Claude API, Amazon Bedrock (anthropic.claude-fable-5-1), Claude Platform on AWS, Google Cloud, Microsoft Foundry — note Opus 5 shows «—» for Claude Platform on AWS while 5.1 is listed. BEHAVIOR SHIFTS vs Fable 5 (vendor-documented, each with a prompt fix — see harnessProfile): parallel tool calling more variable when the next reads are only implied by a coding/computer-use loop; fewer user-facing progress updates, more so at high effort; denser prose in places; less bold/headers/lists in chat (anti-formatting rules written for older models now suppress needed structure); unmarked quotations in summaries; whole-file rewrites for small edits. Claude Code: reach via /model fable (or `best`), never the account default on any plan or provider, minimum Claude Code v2.1.255 (this workspace runs v2.1.258), may bill usage credits depending on plan/seat («Requires usage credits» in the picker; interactive sessions ask consent), hidden under ZDR; settings pinned to `claude-fable-5` are auto-rewritten to the `fable` alias on first run of v2.1.255+. Vendor pages used: overview · what's-new · migration guide · pricing · model-deprecations · Claude Code model-config (https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1 · https://platform.claude.com/docs/en/models/fable-5-1/migration-guide · https://code.claude.com/docs/en/model-config).",
+      "confirmedBy": "https://platform.claude.com/docs/en/models/fable-5-1/overview"
+    },
+    {
+      "provider": "Anthropic",
       "displayName": "Claude Fable 5",
       "apiModelId": "claude-fable-5",
       "tier": "T1 · Frontier Reasoning",
       "contextWindow": "1M input / 128k max output (300k output on Message Batches API with beta header output-300k-2026-03-24)",
       "pricingPerMTok": "$10 input / $50 output",
       "effort": "output_config.effort = low | medium | high (default) | xhigh | max. Thinking ALWAYS ON — thinking:{type:\"disabled\"} and {type:\"enabled\",budget_tokens:N} both 400. In Claude Code thinking cannot be turned off (MAX_THINKING_TOKENS=0 has no effect).",
-      "notes": "Vendor: \"Next-generation intelligence for long-running agents\", \"most capable widely released model\". Comparative latency \"Slower\"; single requests can run many minutes. Best for tasks larger than one sitting. Vendor effort guidance: \"Lower effort settings on Claude Fable 5 still perform well and often exceed xhigh performance on prior models\" — so step DOWN here before stepping across tiers. Unavailable under zero data retention (requires 30-day retention).",
+      "notes": "SUPERSEDED 2026-09-01 by claude-fable-5-1 — same tier, same $10/$50, but cache reads are 4× dearer here ($1 vs $0.25), so any long agentic session that re-reads a cached prefix is strictly cheaper on 5.1. Lifecycle: still Active, retirement not sooner than 2027-06-09, NO deprecation notice as of 2026-09-02 (vendor lists it under «Legacy models (still available)» on the overview, which is a page heading, not a lifecycle status). Two things 5 has that 5.1 dropped: Priority Tier support, and forced tool_choice any/tool. Claude Code ≥ v2.1.255 rewrites a pinned `claude-fable-5` in settings to the `fable` alias on first run (→ 5.1); to stay on 5 pin ANTHROPIC_DEFAULT_FABLE_MODEL=claude-fable-5 or use the full id per invocation. Thinking blocks it produced are readable by 5.1 (forward-compatible); 5.1's are not readable here. Vendor: \"Next-generation intelligence for long-running agents\", \"most capable widely released model\". Comparative latency \"Slower\"; single requests can run many minutes. Best for tasks larger than one sitting. Vendor effort guidance: \"Lower effort settings on Claude Fable 5 still perform well and often exceed xhigh performance on prior models\" — so step DOWN here before stepping across tiers. Unavailable under zero data retention (requires 30-day retention).",
       "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
     },
     {
@@ -72,8 +89,8 @@
       "tier": "T1.5 · Frontier Execution",
       "contextWindow": "1M input / 128k max output (300k on Batch API with output-300k-2026-03-24)",
       "pricingPerMTok": "$5 input / $25 output",
-      "effort": "output_config.effort = low | medium | high (default on Claude API and Claude Code) | xhigh | max. Adaptive thinking on by default. BREAKING: thinking:{type:\"disabled\"} + effort xhigh|max returns 400. In Claude Code, Opus 5 has NO first-run default-effort hold — a level set for another model carries over.",
-      "notes": "Vendor: \"For complex agentic coding and enterprise work\"; the model the docs tell you to start with. Released 2026-07-24 (one day before this sweep). Vendor effort guidance is explicit: \"use low and medium liberally as your primary control for token cost and response time wherever your evals show quality holds\", and \"If you carried effort settings over from an earlier model, run a fresh effort sweep\". Caution for agent harnesses: effort does NOT reliably shorten visible responses on Opus 5 — prompt for length instead. Knowledge cutoff May 2026. Repositioned T1 → T1.5 on 2026-08-01 from dogfood observation (single maintenance workspace, NOT vendor-confirmed): it converts thinking into action sooner than Fable 5, with a higher slip rate on multi-step work — pair a main loop on this model with explicit verification gates (check-first / test gates), and escalate decisions and adversarial review to T1 rather than raising effort, since effort does not reliably buy deliberation here (see the caution above).",
+      "effort": "output_config.effort = low | medium | high (default on Claude API and Claude Code) | xhigh | max. Adaptive thinking on by default. BREAKING: thinking:{type:\"disabled\"} + effort xhigh|max returns 400. In Claude Code, Opus 5 has NO first-run default-effort hold — a level set for another model carries over. Per-message effort change (beta mid-conversation-output-config-2026-07-01) is also supported here, so a fan-out lane can raise effort for one hard step without a cache reset.",
+      "notes": "Vendor: \"For complex agentic coding and enterprise work\"; the model the docs tell you to start with. Released 2026-07-24 (one day before this sweep). Vendor effort guidance is explicit: \"use low and medium liberally as your primary control for token cost and response time wherever your evals show quality holds\", and \"If you carried effort settings over from an earlier model, run a fresh effort sweep\". Caution for agent harnesses: effort does NOT reliably shorten visible responses on Opus 5 — prompt for length instead. Knowledge cutoff May 2026. Repositioned T1 → T1.5 on 2026-08-01 from dogfood observation (single maintenance workspace, NOT vendor-confirmed): it converts thinking into action sooner than Fable 5, with a higher slip rate on multi-step work — pair a main loop on this model with explicit verification gates (check-first / test gates), and escalate decisions and adversarial review to T1 rather than raising effort, since effort does not reliably buy deliberation here (see the caution above). 2026-09-02: remains the vendor's start-here model after the Fable 5.1 launch («For most workloads, start with Claude Opus 5»); it is also the biology-category fallback target for Fable 5.1 refusals (cybersecurity goes to Opus 4.8). Retirement not sooner than 2027-07-24.",
       "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
     },
     {
@@ -82,9 +99,9 @@
       "apiModelId": "claude-sonnet-5",
       "tier": "T2 · Agentic Execution",
       "contextWindow": "1M input / 128k max output",
-      "pricingPerMTok": "$3 input / $15 output standard; introductory $2 / $10 applies through 2026-08-31",
+      "pricingPerMTok": "$2 input / $10 output — PERMANENT since 2026-09-01. The launch note called this introductory pricing through 2026-08-31 with a reversion to $3/$15; the vendor pricing page now states «is now the standard price. The previously scheduled increase … will not occur». Cache write $2.50 / $4, cache read $0.20, batch $1 / $5.",
       "effort": "output_config.effort = low | medium | high (default) | xhigh | max. Adaptive thinking on by default; manual budget_tokens removed; non-default temperature/top_p/top_k return 400.",
-      "notes": "Vendor: \"The best combination of speed and intelligence\"; latency \"Fast\". Native 1M window on the Claude API with no 200K variant. Vendor effort ladder for this model: medium is \"Comparable to Claude Sonnet 4.6 at high effort\" — i.e. the cheap step-down is a generation-over-generation wash, which is the single most useful cost lever in this tier. xhigh reserved for \"the hardest coding and agentic tasks\". Note: mid-conversation system messages are NOT supported on Sonnet 5 (they are on Opus 5 / Opus 4.8 / Fable 5).",
+      "notes": "Vendor: \"The best combination of speed and intelligence\"; latency \"Fast\". Retirement not sooner than 2027-06-30. Native 1M window on the Claude API with no 200K variant. Vendor effort ladder for this model: medium is \"Comparable to Claude Sonnet 4.6 at high effort\" — i.e. the cheap step-down is a generation-over-generation wash, which is the single most useful cost lever in this tier. xhigh reserved for \"the hardest coding and agentic tasks\". Note: mid-conversation system messages are NOT supported on Sonnet 5 (they are on Opus 5 / Opus 4.8 / Fable 5).",
       "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
     },
     {
@@ -114,6 +131,18 @@
     },
     {
       "provider": "Anthropic",
+      "displayName": "Claude Mythos 5.1",
+      "apiModelId": "claude-mythos-5-1",
+      "tier": "T1 · Frontier Reasoning",
+      "availability": "restricted access — Project Glasswing participants only, by invitation; contact the Anthropic, AWS or Google Cloud account team",
+      "contextWindow": "1M input / 128k max output — shares Fable 5.1's specifications exactly.",
+      "pricingPerMTok": "$10 input / $50 output · cache write $12.50 (5m) / $20 (1h) · cache read $0.25 (0.025× — the pricing page confirms the Fable 5.1 cache-read rate applies to Mythos 5.1 too, closing the «open at launch» note) · batch $5 / $25. Priority Tier not supported.",
+      "effort": "Same as Fable 5.1: low | medium | high (default) | xhigh | max; thinking always on; per-message effort beta supported.",
+      "notes": "Released 2026-09-01 as the successor to Mythos 5 (Mythos Preview is deprecated → migrate to Mythos 5 per the deprecations page; Mythos 5 itself is not in the status table). Same capabilities, API surface and breaking changes as Fable 5.1 with two documented differences: it does NOT run the «editing earlier turns invalidates thinking blocks» conversation check, and its safeguards depend on the access program (Fable 5.1 runs the safety classifiers; Mythos 5 ran none). Reads Fable 5.1 thinking blocks. Same 30-day-retention / Covered Model / no-ZDR rule. Binding rule unchanged from 2026-08-01: access is per-org/account, not per-list — registry presence or an allowlist mention is recognition, not entitlement; unverified ⇒ treat as unavailable and degrade down a tier at the same effort. Listed so a maintainer recognizes the id.",
+      "confirmedBy": "https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1"
+    },
+    {
+      "provider": "Anthropic",
       "displayName": "Claude Mythos 5",
       "apiModelId": "claude-mythos-5",
       "tier": "T1 · Frontier Reasoning",
@@ -121,7 +150,7 @@
       "contextWindow": "1M input / 128k max output",
       "pricingPerMTok": "$10 input / $50 output",
       "effort": "Same as Fable 5: effort low–max, thinking always on.",
-      "notes": "Do not plan around this unless your org is already in Project Glasswing — invitation-only limited availability for defensive cybersecurity workflows, no self-serve sign-up. Shares Fable 5's specs and pricing exactly. Listed only so a maintainer recognizes the id if it appears in an org's allowlist; it is the one model where vendor benchmark text puts Opus 5 'far behind' on exploit-development work. Binding rule (2026-08-01): access is per-org/account, not per-list — before binding, verify the concrete account is enrolled; registry presence, picker visibility, or an allowlist mention is recognition, not entitlement. Unverified ⇒ treat as unavailable and degrade down a tier at the same effort.",
+      "notes": "Succeeded 2026-09-01 by claude-mythos-5-1 (same Glasswing gating; cache reads $0.25 there vs $1 here). Do not plan around this unless your org is already in Project Glasswing — invitation-only limited availability for defensive cybersecurity workflows, no self-serve sign-up. Shares Fable 5's specs and pricing exactly. Listed only so a maintainer recognizes the id if it appears in an org's allowlist; it is the one model where vendor benchmark text puts Opus 5 'far behind' on exploit-development work. Binding rule (2026-08-01): access is per-org/account, not per-list — before binding, verify the concrete account is enrolled; registry presence, picker visibility, or an allowlist mention is recognition, not entitlement. Unverified ⇒ treat as unavailable and degrade down a tier at the same effort.",
       "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
     },
     {
@@ -387,7 +416,7 @@
       "taskShape": "Ambiguous-requirement interpretation",
       "tier": "T1 · Frontier Reasoning",
       "effort": "high, with xhigh when the ambiguity spans many files or tools",
-      "why": "Fable 5's documented strength is that it \"investigates before acting\" and self-verifies, which is precisely what an under-specified request needs; a cheaper tier will confidently resolve the ambiguity the wrong way and the error surfaces only after the code is written."
+      "why": "Fable 5's documented strength (carried into Fable 5.1, whose gains the vendor says are «largest at the higher settings») is that it \"investigates before acting\" and self-verifies, which is precisely what an under-specified request needs; a cheaper tier will confidently resolve the ambiguity the wrong way and the error surfaces only after the code is written."
     },
     {
       "taskShape": "Complex multi-step execution with residual judgment (daily-driver main loop, heavyweight implementation lanes)",
@@ -462,10 +491,10 @@
   ],
   "planGating": [
     "Claude Code — Pro: `default` resolves to Sonnet 5. Opus 5 IS selectable (Anthropic calls it \"the strongest model on Claude Pro\"), but Opus with the 1M window \"Requires usage credits\" on Pro — it is included with subscription only on Max/Team/Enterprise. Sonnet 4.6 at 1M needs credits on every plan including Max.",
-    "Claude Code — Max (5x/20x) and Team Premium seats: `default` resolves to Opus 5 (\"Max, Team Premium, Enterprise pay-as-you-go, and Anthropic API: defaults to Opus 5\"). Opus is auto-upgraded to 1M context with no configuration. Fable 5 is never the default on any account type — reach it via /model fable or the `best` alias where the org has access, and it is hidden entirely under zero data retention.",
+    "Claude Code — Max (5x/20x) and Team Premium seats: `default` resolves to Opus 5 (\"Max, Team Premium, Enterprise pay-as-you-go, and Anthropic API: defaults to Opus 5\"). Opus is auto-upgraded to 1M context with no configuration. Fable (5.1 since 2026-09-01 — `fable` resolves to the latest Fable, `best` to the latest Fable where available else `opus`) is never the default on any account type or provider: reach it via /model fable; it needs Claude Code ≥ v2.1.255, may bill usage credits depending on plan and seat tier (the picker shows «Requires usage credits» and interactive sessions ask consent first; Enterprise members on org billing are not prompted), and it is hidden entirely under zero data retention. Settings still pinned to the literal `claude-fable-5` are auto-rewritten to the `fable` alias on the first run of v2.1.255+.",
     "Claude Code — Team Standard and Enterprise subscription seats: `default` resolves to Sonnet 5, not Opus 5 (\"Pro, Team Standard, and Enterprise subscription seats: defaults to Sonnet 5\"). Enterprise pay-as-you-go orgs get Opus 5. Seat billing tier, not company size, decides the tier an agent starts on.",
     "Claude Code — Enterprise governance: admins can disable individual models org-wide or per custom role (Haiku can never be disabled, so every member always retains one usable model), set an organization default model that replaces the account-type default, and — Enterprise only — set a MAXIMUM EFFORT LEVEL PER MODEL PER ROLE. Levels above the cap vanish from the /effort picker and --effort requests run at the cap; the clamp warns in interactive and plain --print runs but \"with json or stream-json output or in background agents, the clamp applies silently.\" A scripted agent can therefore run below its requested effort with no signal.",
-    "Claude Code — Anthropic API key: `default` resolves to Opus 5, full lineup available, `opus`→Opus 5 / `sonnet`→Sonnet 5 / `best`→Fable 5 where entitled. No subscription cap; org TPM/RPM limits apply, and Opus 5 draws on a separate rate-limit bucket from the combined Opus 4.x pool.",
+    "Claude Code — Anthropic API key: `default` resolves to Opus 5, full lineup available, `opus`→Opus 5 / `sonnet`→Sonnet 5 / `best`→Fable 5.1 where entitled. No subscription cap; org TPM/RPM limits apply, and Opus 5 draws on a separate rate-limit bucket from the combined Opus 4.x pool.",
     "Claude Code — third-party providers are a generation behind on aliases: on Microsoft Foundry `default` resolves to Sonnet 4.5, and the `opus` alias still resolves to Opus 4.6 there. Amazon Bedrock and Google Cloud's Agent Platform resolved `default` to Sonnet 4.5 before v2.1.207. Organization effort limits are NOT delivered on Bedrock/Google Cloud/Foundry/Claude Platform on AWS — use availableModels in managed settings instead.",
     "Claude Code — subagent model resolution order (this is where a tiered-composition policy actually lands): CLAUDE_CODE_SUBAGENT_MODEL → per-invocation `model` parameter → subagent frontmatter `model` → main conversation's model. Frontmatter accepts sonnet/opus/haiku/fable, a full id, or `inherit` (the default), and a separate `effort` frontmatter field overrides the session level while that subagent runs. Note the built-in Explore agent no longer forces Haiku: as of v2.1.198 it inherits the main model, capped at Opus on the Claude API — define a project subagent named Explore with `model: haiku` to put exploration back on a cheap lane. Concurrency default is 20 subagents per session (CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS), and ultracode sessions are exempt from that limit.",
     "Claude Code — fast mode: Opus 5 and Opus 4.8 only, at $10/$50 per MTok for up to ~2.5x output tokens/sec. Heavily gated: an API research preview needing the fast-mode-2026-02-01 beta header plus account-manager/waitlist access; in Claude Code it requires usage credits turned on, draws from credits from the first token even when plan usage remains, needs Owner enablement on Team/Enterprise, is CLI-only (not the VS Code extension), and is unavailable on Bedrock/Google Cloud/Foundry/Claude Platform on AWS. Enable at session start — the first enable re-bills the whole context at fast-mode uncached input price. Opus 4.7 fast mode was REMOVED 2026-07-24 while Claude Code still treats 4.7 as fast-mode-capable, so /fast on 4.7 produces API rejections.",
@@ -550,7 +579,7 @@
     "OPENAI'S EFFORT VOCABULARY IS INTERNALLY INCONSISTENT ACROSS FOUR VENDOR PAGES and this was not resolved: config-reference gives model_reasoning_effort = minimal|low|medium|high|xhigh; the subagents page gives ultra|max|xhigh|high|medium|low; the Codex models page shows UI rungs Light/Low, Medium, High, Extra High, Max, Ultra; the API reasoning guide gives none|minimal|low|medium|high|xhigh|max. Whether `ultra` and `max` are valid config.toml or per-agent strings, or only UI labels, is unknown — as is whether they propagate to spawned subagents. Test before relying on the top two rungs.",
     "EXACT SUBSCRIPTION USAGE LIMITS ARE UNPUBLISHED BY ANTHROPIC. No token count, prompt count or weekly-limit number exists in official docs or the help centre for Pro / Max 5x / Max 20x / Team / Enterprise — only relative statements. Every specific figure in circulation (e.g. \"~44,000 tokens per 5-hour window for Pro\") is third-party and unusable for capacity planning. Use /usage. Likewise, whether Max has a Sonnet-specific weekly limit could not be confirmed; the error reference documents only session, weekly, and a model-specific Opus limit.",
     "THE CODEX PER-PLAN MESSAGE BANDS IN planGating ARE VENDOR-PUBLISHED RANGES, NOT GUARANTEES, and the claim that GPT-5.5 remains selectable on every paid plan is inference — the Codex models doc lists it as recommended but makes no plan-gating statement. Whether Free/Go can select any GPT-5.6 model at all is unstated (\"limited model access\"). Whether Terra and Luna are selectable in standard ChatGPT conversations versus only Codex/Work is third-party only.",
-    "RELEASE DATES FOR SEVERAL ANTHROPIC IDS DO NOT EXIST IN VENDOR DOCS. Confirmed this turn: Opus 5 = 2026-07-24, Fable 5 and Mythos 5 = 2026-06-09, Sonnet 5 = 2026-06-30. NOT confirmed: Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6 — the finder inferred these by subtracting a year from the retirement floors (2027-05-28, 2027-04-16, 2027-02-05, 2027-02-17). That inference is undocumented and demonstrably fails elsewhere: claude-haiku-4-5-20251001 has a 2026-10-15 floor, a 12.5-month gap. Treat those four release dates as unknown.",
+    "RELEASE DATES FOR SEVERAL ANTHROPIC IDS DO NOT EXIST IN VENDOR DOCS. Confirmed this turn: Opus 5 = 2026-07-24, Fable 5 and Mythos 5 = 2026-06-09, Sonnet 5 = 2026-06-30. NOT confirmed: Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6 — the finder inferred these by subtracting a year from the retirement floors (2027-05-28, 2027-04-16, 2027-02-05, 2027-02-17). That inference is undocumented and demonstrably fails elsewhere: claude-haiku-4-5-20251001 has a 2026-10-15 floor, a 12.5-month gap. Treat those four release dates as unknown. 2026-09-02 addition: Fable 5.1 and Mythos 5.1 = 2026-09-01 (stated on the per-model overview page).",
     "\"LEGACY\" IS NOT A LIFECYCLE STATUS FOR THE OPUS/SONNET 4.x LINE. Anthropic's Model status table lists claude-opus-4-8, 4-7, 4-6, claude-opus-4-5-20251101, claude-sonnet-4-6, claude-sonnet-4-5-20250929 and claude-haiku-4-5-20251001 all as ACTIVE; only claude-opus-4-1-20250805 is Deprecated. \"Legacy models\" is merely the collapsed-accordion heading on the overview page. Do not tell a maintainer these models are on a deprecation path — they are not, and Opus 4.8 in particular is the designated automatic fallback target.",
     "ONE DIRECT CONTRADICTION I COULD NOT SETTLE: the verifier reported gemini-3-flash-preview listed on the Gemini API pricing page at $0.50 in / $3.00 out with a free tier — which would make it the cheapest thinking-capable Gemini 3 with a full minimal-to-high ladder, a genuine T4 contender. My own fetch of the same page today returned a table that does NOT include it. Because it is contested, I excluded it from the registry. A maintainer evaluating cheap Gemini lanes should re-read that pricing table by hand. Note separately that gemini-3-pro-preview IS retired (shut down 2026-03-09) despite still appearing in Gemini CLI's hardcoded picker.",
     "MOST xAI FACTS REST ON PAGES THAT ARE 404 OR 403. Confirmed from docs.x.ai this turn: grok-4.5's id, aliases, 500k window and tiered pricing; grok-4.3's and grok-build-0.1's pricing. NOT confirmed: any release date for any current Grok model (docs.x.ai/developers/release-notes served content ending July 2025 on fetch), the entire Grok Build CLI flag/config surface (docs.x.ai/build/reference/cli and /build/models both 404), all plan gating (x.ai/news and x.ai/build/changelog return 403), and whether grok-4.3 or grok-4.20-0309-reasoning accept reasoning_effort at all. Grok Build's per-subagent config keys in particular are entirely secondary-sourced.",
@@ -558,10 +587,13 @@
     "OPEN-WEIGHT PRICING AND EFFORT CONTROLS ARE THE THINNEST PART OF THIS REGISTRY. Confirmed verbatim from vendor pages: deepseek-v4-pro and deepseek-v4-flash (ids, 1M context, full price table), glm-5.2 (id, 1M/128K, thinking type + reasoning_effort), kimi-k3 / kimi-k2.7-code / kimi-k2.6 (ids and context windows). NOT confirmed: any Kimi pricing (the vendor pricing pages did not render a table on fetch), glm-5.2 pricing at all, effort value sets for the DeepSeek and Kimi ids, and the Kimi K3 weights release. Qwen is ABSENT from the registry entirely because no Alibaba/DashScope vendor page could be confirmed for qwen3.6-max or qwen3-coder-next — only aggregators, which disagree with each other. A maintainer wanting a Qwen lane must confirm ids on DashScope directly.",
     "LONG-CONTEXT SURCHARGE THRESHOLDS ARE A ROUTING HAZARD THAT VARIES BY VENDOR AND IS EASY TO MISS. GPT-5.6 family and gpt-5.4: prompts >272K input tokens are billed at 2x input and 1.5x output FOR THE FULL REQUEST (confirmed on the Sol, Terra and Luna model pages, though absent from the pricing table). All Grok text models: requests reaching 200k are billed at the higher rate for ALL tokens. gemini-3.1-pro-preview and gemini-2.5-pro: price break at 200k. Anthropic: no premium beyond 200K on the 1M window. A fan-out sized by nominal per-token price will overrun budget on three of four vendors.",
     "FAST MODE MUST NOT BE MODELLED AS A SIMPLE PRICE TIER. It is an API research preview requiring the fast-mode-2026-02-01 beta header plus account-manager or waitlist access, and in Claude Code it additionally requires usage credits on, Owner enablement for Team/Enterprise, is CLI-only, is unavailable on Bedrock/Google Cloud/Foundry/Claude Platform on AWS, draws from credits from the first token even when plan usage remains, and re-bills the entire context at fast-mode uncached input price on first enable in a conversation. Opus 4.7 fast mode was removed 2026-07-24 while Claude Code still advertises it, so /fast on 4.7 produces API rejections.",
-    "CONTENT-BASED AUTOMATIC MODEL FALLBACK CAN CHANGE YOUR TIER WITHOUT ASKING, and it is directly relevant to security-adjacent repos. Fable 5: biology-flagged → re-runs on Opus 5; cybersecurity-flagged → Opus 4.8. Opus 5: cybersecurity-flagged → Opus 4.8; biology-flagged → refusal with no fallback. A flagged request can trip on the FIRST request from CLAUDE.md content or git status alone, and after fallback the session STAYS on the fallback model. If availableModels blocks the fallback target, no fallback happens and the request simply refuses. Requires v2.1.219+; `claude --safe-mode` isolates whether local customizations are the trigger.",
+    "CONTENT-BASED AUTOMATIC MODEL FALLBACK CAN CHANGE YOUR TIER WITHOUT ASKING, and it is directly relevant to security-adjacent repos. Fable 5: biology-flagged → re-runs on Opus 5; cybersecurity-flagged → Opus 4.8. Opus 5: cybersecurity-flagged → Opus 4.8; biology-flagged → refusal with no fallback. A flagged request can trip on the FIRST request from CLAUDE.md content or git status alone, and after fallback the session STAYS on the fallback model. If availableModels blocks the fallback target, no fallback happens and the request simply refuses. Requires v2.1.219+; `claude --safe-mode` isolates whether local customizations are the trigger. 2026-09-02: the same routing applies to Fable 5.1 (biology → Opus 5, cybersecurity → Opus 4.8, per the Claude Code model-config page); the API-side equivalent is fallbacks:\"default\" (beta), whose permitted targets for 5.1 are Opus 4.8 and Opus 5.",
     "GEMINI'S 2026-07-21 DEPRECATION OF temperature, top_p AND top_k IS A BREAKING CHANGE FOR ANY HARNESS THAT PINS THEM, and Gemini CLI docs still expose them via generateContentConfig. Migrate to thinking_level. Note also that the Gemini CLI caps thinking at 8192 tokens (DEFAULT_THINKING_MODE) to prevent runaway loops — an independent ceiling on the CLI path that the API path does not have.",
     "VERIFICATION SCOPE: two MCP servers in this environment (claude.ai Neurabble, claude.ai 법령MCP) require OAuth authorization and were unavailable, so no MCP-sourced cross-check was possible; the user must authorize them via claude.ai connector settings if that matters. Several vendor launch posts return HTTP 403 to fetchers (anthropic.com/news pages, openai.com launch posts, x.ai/news), so claims that live only on those pages are marked secondary throughout rather than silently upgraded. Two Claude Code doc pages exceeded fetch size and were read from persisted files at C:\\Users\\excte\\.claude\\projects\\c--Dev-EstreGenesis\\f9dc17b6-a790-4625-ad20-5c07217899b6\\tool-results\\ — those quotes are verbatim from the vendor page.",
-    "T1.5 WAS INTRODUCED ON 2026-08-01 FROM DOGFOOD OBSERVATION, NOT BY THE 2026-07-25 SWEEP. The price fact behind the band is vendor-confirmed (claude-opus-5 is exactly half of claude-fable-5 in both directions), but the temperament claim — thinking converted into action sooner, with a higher slip rate on multi-step work than Fable 5 — is a single-workspace observation with no vendor statement behind it. At the 2026-09-01 revisit, check whether vendor guidance or measurements corroborate the band, and whether other vendors' start-here flagships (gpt-5.6-sol in reasoning.mode standard) belong in it or should stay in T1."
+    "T1.5 WAS INTRODUCED ON 2026-08-01 FROM DOGFOOD OBSERVATION, NOT BY THE 2026-07-25 SWEEP. The price fact behind the band is vendor-confirmed (claude-opus-5 is exactly half of claude-fable-5 in both directions), but the temperament claim — thinking converted into action sooner, with a higher slip rate on multi-step work than Fable 5 — is a single-workspace observation with no vendor statement behind it. At the 2026-09-01 revisit, check whether vendor guidance or measurements corroborate the band, and whether other vendors' start-here flagships (gpt-5.6-sol in reasoning.mode standard) belong in it or should stay in T1.",
+    "2026-09-02 REFRESH SCOPE WAS ANTHROPIC-ONLY. The Fable 5.1 / Mythos 5.1 rows, the Fable 5 / Mythos 5 / Sonnet 5 / Opus 5 row edits, and the three re-baselined watchlist items were derived from vendor pages fetched that day. Every OpenAI, Google, xAI and open-weight row still carries the 2026-07-25 sweep (grok-4.6 / gemini-3.7-flash rows the 2026-08-16 addition), and their watchlist items — including the 2026-08-10 OpenAI chat-latest shutdown and the 2026-07-27 Kimi K3 weights date, both already past — were NOT re-verified. Treat those rows as one pass stale.",
+    "FABLE 5.1 FACTS NOT CONFIRMED THIS PASS: (a) whether THIS account's seat tier bills Fable 5.1 to usage credits or to plan limits — the vendor says it «depends on plan and seat tier» and the 2026-08-01 rule stands: verify the concrete account, registry presence is recognition not entitlement; (b) the Batch-API 300k-output beta — the vendor's list omits Fable 5.1 (and Fable 5), so assume the 128k synchronous cap on Batches too until a page says otherwise; (c) whether Claude Code's automatic refusal fallback preserves the session's 1M context after switching to Opus 4.8 (the fallback target is a T2 row); (d) the announcement page's «US-only inference 1.1x» is the generic inference_geo multiplier, not a Fable-specific surcharge — recorded as such; (e) no benchmark figure for 5.1 was fetched from a vendor page and none is recorded.",
+    "THE PRESERVED-THINKING CHECK IS ACCOUNT-DATED, NOT MODEL-DATED. On Fable 5.1 the «edited earlier turn ⇒ 400» rule is enforced only for accounts created on/after 2026-08-31; older accounts see it as record-only unless they opt in. A harness that passes evals on an old account can therefore fail on a new one with identical code, and the vendor states future models will enforce it for everyone. Any registry consumer that builds messages[] by hand should run the drop_block probe before binding a lane to this row."
   ],
   "harnessProfile": {
     "$comment": [
@@ -650,6 +682,226 @@
           }
         ],
         "advisorFor": []
+      },
+      {
+        "apiModelId": "claude-fable-5-1",
+        "effort": "*",
+        "shed": [
+          {
+            "claim": "옛 모델용 «서식 억제» 규칙 — «불릿·볼드·헤더 쓰지 마라» 류",
+            "why": "이 모델은 반대 방향으로 기울어요 — 볼드를 덜 쓰고 헤더·목록에 덜 손을 대요. 옛 규칙을 남기면 내용이 필요로 하는 구조까지 눌러요. 지우거나 «언제 서식이 적절한가» 규칙으로 바꿔요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「Claude Fable 5.1 leans the other way: it uses bold less … If your prompt contains anti-formatting language, remove it or replace it with a rule that says when specific formatting is appropriate」"
+              },
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1",
+                "note": "「Less formatting in chat … anti-formatting rules written for those models can suppress structure the content needs」"
+              }
+            ]
+          },
+          {
+            "claim": "진행 서술 억제 지시 — «결과는 마지막에 한꺼번에» 류",
+            "why": "기본값이 이미 Fable 5 보다 중간 보고를 덜 내요(높은 effort 에서 더). 억제 문장이 남아 있으면 에이전트가 몇 분씩 조용해 보여요. 먼저 그 줄을 지우고, 그래도 부족하면 아래 prop 의 문장을 넣어요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「audit your prompt for instructions that suppress narration … system prompt lines such as \"hold all findings for the final response.\" Remove lines like that before adding anything」"
+              }
+            ]
+          },
+          {
+            "claim": "JSON 을 받아내려고 쓰던 강제 tool_choice(any / tool)",
+            "why": "API 가 400 으로 거절해요 — 생각이 항상 켜져 있어서 강제 호출이 생각을 건너뛰고 인자 품질을 떨어뜨리기 때문이라고 공급사가 설명해요. auto + 프롬프트 지목 + strict:true, 또는 structured outputs 로 옮겨요. count_tokens·Batches 에도 같은 검사가 걸려요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1",
+                "note": "「tool_choice: type \"tool\" and \"any\" are not supported for this model.」 + 「Thinking is always on for these models, and a forced tool call would skip it」"
+              },
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/models/fable-5-1/migration-guide",
+                "note": "「Forced tool choice is not supported … The check applies on the Messages API, the Message Batches API, and the token counting endpoint」"
+              }
+            ]
+          },
+          {
+            "claim": "요청마다 넣었다 지우는 리마인더 · 세션 중 system/tools 재작성 · 클라이언트측 제자리 요약",
+            "why": "이제 «앞선 턴 편집» 이라 이후 thinking 블록이 전부 무효가 되고(400 «The block is bound to a different conversation», 2026-08-31 이후 생성 계정부터 강제) 프롬프트 캐시도 그 지점에서 다시 시작해요. 대체는 turn-scoped system message(clear_at) · mid-conversation system/tool 변경 · 서버측 compaction/context editing 이에요. 이 워크스페이스의 compact-handoff 재주입은 «요약 하나 + 새 user 턴» 모양이라 안전한 쪽이에요 — thinking 블록을 안 되돌려 보내니까요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1",
+                "note": "「These patterns invalidate every later thinking block: Editing, reordering, or removing an earlier turn … Injecting per-request text into an earlier turn (a reminder or status line) that you remove on the next request … Rebuilding the top-level system prompt or tools array」"
+              },
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「If you compact on the client, the simplest shape is to replace the whole history with one summary message plus the new user turn and replay nothing else: no thinking blocks carry over, so nothing fails」"
+              }
+            ]
+          }
+        ],
+        "prop": [
+          {
+            "claim": "지탱할 것 — 도구 결과를 돌려줄 때마다 «독립 호출 묶기» 한 줄을 turn-scoped system message 로",
+            "why": "코딩·컴퓨터 사용 루프에서 다음 읽기가 «암시»만 된 경우 한 턴에 하나씩 호출하는 경향이 있어요(품질은 같고 턴·토큰·시간만 늘어요). 공급사 문장을 매 턴 새로 append 하고 옛 사본은 그대로 둬요(지우면 편집이라 캐시·thinking 이 깨져요). beta 헤더 mid-conversation-system-clear-at-2026-08-21, 없으면 tool_result 뒤 text 블록.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「First privately list what you need next; then request every item that doesn't depend on another's result in this one response.」 + 「Append a fresh copy each turn and leave the earlier copies where they are, byte-for-byte」"
+              },
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1",
+                "note": "「Parallel tool calling is more variable. Claude Fable 5.1 may issue one tool call per turn where Claude Fable 5 batched several」"
+              }
+            ]
+          },
+          {
+            "claim": "지탱할 것 — 진행 갱신을 «받고» 있는지부터 확인(display:\"updates\"), 그 다음 서술 요청 한 줄",
+            "why": "도구 호출 사이의 짧은 진행 메모는 thinking 블록으로 오는데 기본 display \"omitted\" 에선 비어 있어요 — 안 요청하면 사용자에게 아예 안 닿아요. beta thinking-display-updates-2026-08-18. 그 위에 사람이 보는 UI 라면 «시작 한 줄 · 중간 갱신 · 마무리 요약» 문장을 system 에 넣어요(이 워크스페이스의 좌석 프롬프트가 이미 그 문장이에요).",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「Set display: \"updates\" (beta, thinking-display-updates-2026-08-18 header) and render each non-empty thinking block as a status line」 + 「Before you start, say in a line what you're about to do; brief updates while you work help the user follow along. Close with a short recap …」"
+              }
+            ]
+          },
+          {
+            "claim": "지탱할 것 — 무인 레인엔 «자율 실행 + 범위=요청» 두 블록",
+            "why": "목표가 분명하면 아주 긴 작업을 방법론 지시 없이 완주하지만, 비동기 작업에서 «다음엔 …하겠다» 로 턴을 끝내거나 이미 요청된 단계를 «적용할까요?» 로 되묻는 경향이 있어요. 첫 문장(사용자가 지켜보고 있지 않다)이 효과의 대부분이고 그대로 써야 해요. 부작용: 모호한 요청에도 덜 물어요 — 사람이 붙어 있는 레인엔 넣지 마세요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「You are operating autonomously. The user is not watching in real time … Stop only for destructive actions or genuine scope changes the user must decide」 + 「The opening sentence … carries much of the effect. Keep it as written」 + 「# Delivering work — The user's request … sets the scope, and the scope is the deliverable」"
+              }
+            ]
+          },
+          {
+            "claim": "지탱할 것 — 클라이언트측 compaction 요약엔 «보존 항목 6종» 지시",
+            "why": "이 모델은 «요약이 무엇을 남겨야 하나» 를 명시하면 잘 따라요. 서버측 compaction 은 이미 그렇게 하고, 클라이언트에서 접으면 공급사 문장을 그대로 써요 — 어려움과 해결 · 시도/보류한 선택지 · 결정·제약·선호(원문대로) · 현재 위치 · 미결·약속 · 재구성 어려운 세부(이름·숫자·날짜·링크). 사용자의 말은 원문 가까이, 모델의 설명은 결론으로 압축.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「Summarize the transcript inside <summary></summary> tags … Be sure to preserve: (1) any difficulties or problems … (6) specific details that would be hard to reconstruct … Weight the two voices differently」"
+              }
+            ]
+          },
+          {
+            "claim": "지탱할 것 — «요청 밖은 고치지 말고 보고» + «테스트는 요청/관례만큼만» 한 단락",
+            "why": "열린 기능 요청에서 인접 코드를 고치거나 동작을 확장하거나 테스트 파일을 필요 이상 커밋하는 경향이 있어요. 공급사 단락을 넣으면 «과제 성공률 변화 없이» 여분과 커밋 테스트가 크게 줄어요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「If, while working or testing, you find a pre-existing bug … don't fix, optimize or extend it in this change … Commit tests only where the task asks for them or this repository already keeps tests for this kind of change」 + 「unrequested additions and committed test code drop substantially with no measurable change in task success」"
+              }
+            ]
+          },
+          {
+            "claim": "지탱할 것 — 파일 편집엔 «전체 재작성 말고 국소 편집» 한 줄",
+            "why": "Fable 5 보다 작은 변경에도 파일 전체를 다시 쓰는 경향이 있어요. 결과는 같지만 출력 토큰·시간이 늘어요. 한 줄로 Fable 5 수준으로 돌아와요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「The number of tokens used to edit files is best minimized, all else being equal. Therefore, when it will not affect the end result, try to surgically edit a file rather than rewrite the entire thing.」"
+              }
+            ]
+          },
+          {
+            "claim": "지탱할 것 — low effort 레인엔 «이름을 알아본다 ≠ 현재 상태를 안다» 검색 유도, 또는 그 턴만 effort 상향",
+            "why": "low 에서 검색·검색형 도구를 Fable 5 보다 덜 부르고 기억으로 답해요. 신선한 정보가 필요한 턴은 per-message effort(beta)로 그 턴만 올리거나 공급사 문장으로 검색을 유도해요 — 이 레지스트리처럼 «빠르게 움직이는 영역(AI 모델·개발 도구)» 을 다루는 레인이 정확히 그 경우예요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「At low effort, Claude Fable 5.1 is less likely than Claude Fable 5 to call a search or retrieval tool, and more likely to answer from memory」 + 「When a query centers on a name you do not confidently recognize, or recognize from a fast-moving area like AI models and developer tools … search before answering」"
+              }
+            ]
+          }
+        ],
+        "avoidFor": [
+          {
+            "role": "보안 점검 레인 — 공격자 시뮬레이션 · 레드팀 · 익스플로잇/공격도구 관련 작업",
+            "why": "Fable 5 와 같은 stop_details 범주의 분류기가 돌아요. 완화된 점 하나: «Fable 5 출시 때보다 오탐이 적고, 소스코드의 취약점 찾기는 허용» 이라고 공급사가 명시해서 **방어적 점검(취약점 탐지)은 이제 보낼 수 있어요.** 그러나 공격형 기법(익스플로잇·멀웨어·공격 도구)은 여전히 거절→폴백(cyber → Opus 4.8) 대상이라, Ultrasafe 의 attacker/redteam 스킬 레인은 계속 여기로 안 보내요. 오탐을 키우는 세 조건(컴파일 확인 문구 · 마이너 언어 · 도구 출력의 base64)은 피할 수 있어요.",
+            "status": "confirmed",
+            "evidence": [
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+                "note": "「Claude Fable 5.1's safety classifiers produce fewer false positives than Claude Fable 5's did at launch, and finding vulnerabilities in source code is permitted. False positives still occur」 + 세 조건(compile-check phrasing · lesser-known languages · base64 in tool output)"
+              },
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "platform.claude.com",
+                "url": "https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1",
+                "note": "「safety classifiers covering the same stop_details categories as Claude Fable 5 … The permitted fallback targets for Claude Fable 5.1 are Claude Opus 4.8 and Claude Opus 5」"
+              },
+              {
+                "kind": "vendor-doc",
+                "grade": "A",
+                "domain": "code.claude.com",
+                "url": "https://code.claude.com/docs/en/model-config",
+                "note": "Claude Code fallback table — Fable 5.1 and Fable 5: Cybersecurity → Opus 4.8, Biology → Opus 5"
+              }
+            ]
+          }
+        ]
       },
       {
         "apiModelId": "claude-fable-5",
