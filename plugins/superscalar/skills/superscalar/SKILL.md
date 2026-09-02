@@ -57,6 +57,8 @@ Open a lane only when `estimated isolation + merge overhead < expected parallel/
 
 Empirical crossover (Entry 02 + 03): ~8k total work + disjoint files = inline wins. ~158k total work = spawn wins. The 30-60k band is where the gate decision flips.
 
+**A lane that passes the gate still has a price tag: its model and effort.** When the main conversation is a T1 (Fable-class) model, an unbound lane inherits that model — and under `ultracode`, its `xhigh` — so the gate's cost input is wrong by up to an order of magnitude unless each lane is bound explicitly. Bind model and effort per lane before dispatch (`/subscaler` Step 0); a PreToolUse guard (`lane-model-guard`) denies unbound `Agent`/`Workflow` lanes while the main is T1.
+
 ## 3. Reorder buffer = worktree isolation (with v0.4 limitation)
 
 Each OoO/speculative task runs in its own `git worktree` + branch. **v0.4 limitation**: `git worktree` worktrees the *parent* repo. If the write target is inside a **nested independent git repo** the parent does not track, the per-lane parent worktree does not contain the nested repo — lanes fall back to **branch isolation on the shared nested repo**. Same-file concurrent writes on the nested repo would produce a real WAW hazard despite `isolation: worktree` being honored at the parent level. Mitigations: (a) re-worktree the nested repo per lane, (b) guarantee file-disjointness + accept branch isolation, (c) detect nested-repo write targets and warn.
