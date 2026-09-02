@@ -15,6 +15,17 @@ The mechanism that makes a tier drop safe is **spec completion before offload**:
 - `/subscaler on` writes it · `/subscaler off` removes it (or sets `"on": false`) · `/subscaler status` reads it back and reports where it would apply next.
 - **Default OFF.** ON is recommended where fan-out has *already* forfeited the shared prompt cache. A delegated subagent starts cache-cold on its own model, so a small, cache-hot, deep-context edit loses money on delegation.
 
+## Step 0 — frontier-main cost gate (when the orchestrator itself is T1)
+
+If the main conversation runs on a T1 model (a Fable-class flagship), **inheritance is the failure mode**: the Agent tool resolves a subagent's model as env pin → per-invocation `model` → frontmatter `model` → *the main model*, and a Workflow `agent()` that omits `opts.model` inherits the same way. Nothing in that chain says "frontier" — it just is. And `ultracode` sends `xhigh` to the model as a session setting, which every unbound lane inherits too. So, before any fan-out on a T1 main:
+
+- **Delegate by default.** Anything below T1 in the Step 2 table leaves the main model — research, collection, mechanical edits, test authoring, summarization — as subagents or Workflow lanes on their own tier. The main model keeps only what Step 2 says to retain.
+- **Bind every lane explicitly — model AND effort.** `model: "sonnet"` (or `"haiku"`) for exploration/collection/mechanical work at `low`–`medium`; `model: "opus"` for adversarial verification and judgment at `high`; `model: "fable"` **only** for a lane whose failure cost justifies T1 — architecture, ambiguous-requirement interpretation, final adversarial review — and name that reason in the lane label. Omitting `model` is not "let the harness choose"; it is choosing the most expensive option silently.
+- **Never let T1 × `xhigh`|`max` exist by inheritance.** The Agent tool has no per-invocation effort, so a Fable lane under an `ultracode` session runs at `xhigh` unless the subagent definition sets `effort`; prefer a Workflow `agent()` with `opts.effort` for such fan-outs, and if a T1 lane genuinely needs the top rung, say so in the script (`// lane-model-guard: allow-fable-xhigh`) or the prompt (`fable-xhigh-ok`).
+- **Step down before stepping across, even on T1.** The vendor's own Fable 5.1 guidance is that `low` is often competitive with Opus/Sonnet on cost per task while scoring higher — so a lane that truly needs T1 usually needs it at `low`/`medium`, not at the top rung.
+
+The reference mechanism is a PreToolUse guard on `Agent|Workflow` that reads the session model from the transcript and denies unbound lanes while the main is T1 — this plugin ships it as `reference/lane-model-guard.cjs` (not auto-wired: add it to your harness's hook settings; the file header shows the Claude Code stanza). A rule that lives only in this file is one compaction away from being forgotten — the 2026-08-02 measurement was two workflows, 24 agents, all inheriting the frontier model with the rule already written down.
+
 ## Step 1 — read the registry, don't recall it
 
 `plugins/superscalar/model-registry.json` is the source of truth for anything perishable: which models occupy which tier, their exact `apiModelId`, context windows, prices, **the vendor's exact effort values**, per-plan availability, and per-harness binding keys. Read it before binding a lane.
@@ -58,7 +69,7 @@ If the tier you want is unavailable — including an invitation-gated model whos
 
 Exact keys per harness live in the registry's `harnessBinding` (Claude Code · Codex CLI · Cursor · Gemini CLI · Kimi Code · router layers). Two rules are spec-level, not data-level:
 
-1. **Prefer per-invocation binding over any global env pin.** A pin can override even explicit per-lane choices, and a value excluded by org allowlist can fall back to the inherited model *silently*. Verify actual application when it matters.
+1. **Prefer per-invocation binding over any global env pin.** A pin can override even explicit per-lane choices, and a value excluded by org allowlist can fall back to the inherited model *silently*. Verify actual application when it matters. (This is also why the Step 0 guard denies rather than pins: `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` would stop the frontier leak but would also override the `opus` you meant for a refutation lane.)
 2. **Bind effort together with the model.** Effort level names are not comparable across models — vendors state this outright — so a stored global effort number applied to whatever model is active is a meaningless number.
 
 ## Step 5 — effort, three load-bearing rules
