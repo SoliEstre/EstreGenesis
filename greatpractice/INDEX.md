@@ -4,14 +4,16 @@
 
 > macro tier 의 always-on chunk summary 예요. ≤300 token cap 으로 본 spec 의 macro entry 들을 1 줄씩 요약. v0.1 은 manual curation, v0.2+ 에 `eg_build_index.cjs` 가 macro entry frontmatter 의 `title` + `binding` + `enforcement_level` 발췌해서 자동 생성해요.
 
-## Macro Tier (v0.1 — 2 entries)
+## Macro Tier (1 entry on disk)
 
-- `communication-discipline` (v0.1.1+ shipped) — A2A · bridge · outbox · inbox cursor 계열의 macro parent. mezzo: outbox-json-validation, pre-send-inbound-check, n-way-sync-registry, session-resume-bridge-spawn, watcher-liveness, a2a-relay-reliability.
-- `release-cadence` (v2.5.55 ratified, N=1 user steering) — Pre-publish 11-item checklist (9 hub-validated + 2 conditional) + N-way sync discipline. mezzo decomposition (8 candidates) scheduled v2.5.56+. enforcement_level: recommended.
+- `release-cadence` (v2.5.55 ratified, N=1 user steering) — Pre-publish 11-item checklist (9 hub-validated + 2 conditional) + N-way sync discipline. mezzo decomposition (8 candidates) shipped v2.5.61. enforcement_level: recommended.
+- (corrected 2026-09-05) an earlier line here listed a `communication-discipline` macro with six mezzo children; no such files exist under `greatpractice/macro/` or `greatpractice/mezzo/` and none ever did — the index had drifted ahead of the tree. The A2A/bridge family currently has three mezzo entries and no macro parent (`outbox-json-validation`, `a2a-relay-echo-verify`, `adopter-report-intake`); a macro is a candidate once a fourth lands. Discovery is `ls greatpractice/*/`, not this list.
 
-## Mezzo Tier (v0.3.5 — 10 entries)
+## Mezzo Tier (12 entries on disk)
 
 - `outbox-json-validation` (v2.5.50 ratified, mandatory) — outbox.jsonl append 는 eg_outbox_push 경유 + roundtrip 검증.
+- `a2a-relay-echo-verify` (v2.6.120 ratified, recommended) — outbox append 는 전송이 아니다: 다리의 `ev:'sent'` 에코를 msgId 로 확인하기 전엔 «보냈다» 라 말하지 않는다 (MISSING → 다리 재spawn + 재발신).
+- `adopter-report-intake` (v2.6.120 ratified, recommended, phronesis_boundary) — 채택자 리포트는 ① HEAD 에서 기전 재현 ② 패치/규격 티어 분리 ③ 가드 먼저(빨강→초록) 다음 수정 ④ 컷 세부 + 뺀 것 + 회귀 하네스로 loop-close.
 - `nested-repo-write-routing` (v2.6.28 ratified, recommended) — 겹치는 쓰기 대상이 있으면 명령이 대상을 이름으로 지목할 것(`git -C <abs>`). 잘못된 대상이 «유효» 하면 조심으로는 신호가 안 나오므로, 상대 규약 커밋 메시지를 거절하는 commit-msg 훅으로 신호를 만든다.
 - release-cadence 계열 8종 (v2.5.61 batch ratified): `n-way-sync-registry` · `package-files-validate` · `bin-entry-validate` · `link-integrity-check` · `dry-run-smoke-test` · `pre-publish-user-gate` · `naming-hygiene-grep` · `auth-2fa-discipline`.
 
