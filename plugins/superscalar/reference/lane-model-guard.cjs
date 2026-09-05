@@ -19,6 +19,11 @@
  *              a fable-class lane with effort xhigh|max              → deny unless «// lane-model-guard: allow-fable-xhigh»
  *              a lane without `effort:` while main is T1 and session effort is xhigh|max → deny
  *            · a named workflow (no script) or an unreadable scriptPath → allow (cannot judge ⇒ pass, never block)
+ *   FORCE pin (Claude Code v2.1.257+): CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1 applies CLAUDE_CODE_SUBAGENT_MODEL (or the
+ *     main model) to EVERY subagent and ignores per-spawn and definition `model` — it sits above the whole resolution
+ *     order (v2.1.251+: per-invocation → frontmatter → CLAUDE_CODE_SUBAGENT_MODEL default → main), so a binding this
+ *     guard approves is void while FORCE is on. The guard reads the env: FORCE on and the forced model empty or T1 while
+ *     the main is T1 ⇒ deny every Agent/Workflow lane; FORCE on with a non-T1 forced model ⇒ allow (all lanes cheap).
  *   Off: env LANE_MODEL_GUARD=off (tell a human why) · «// lane-model-guard: off» inside the script.
  *
  * Hook contract: PreToolUse JSON on stdin. Deny = exit 2 + hookSpecificOutput.permissionDecision:"deny" on stdout
@@ -78,6 +83,15 @@ function judge(input, ctx) {
   const modelNote = model ? `세션 모델 ${model}` : '세션 모델 미상(엄격 적용)';
   const RULE = '규칙: T1(Fable 급)은 «실패 비용이 그 값을 정당화하는 레인» 에만 (Superscalar §5.1.4 · /subscaler Step 0). 탐색·수집·기계적 편집 = sonnet 또는 haiku · 적대 검증·판정 = opus · 필요한 레인만 fable, 그 이유를 label 에.';
 
+  // FORCE 핀은 레인 바인딩 전체를 무효로 만들어요 — 이 가드가 방금 승인한 model 도 포함해서요.
+  if ((tool === 'Agent' || tool === 'Workflow') && ctx && ctx.forceEnv && !/^(0|false|off|)$/i.test(String(ctx.forceEnv))) {
+    const forced = String(ctx.forceModel || '').trim();
+    if (mainFable && (!forced || FABLE.test(forced))) {
+      return deny(`[lane-model-guard] CLAUDE_CODE_SUBAGENT_MODEL_FORCE 가 켜져 있어요 — 모든 서브에이전트가 ${forced ? forced : '(CLAUDE_CODE_SUBAGENT_MODEL 비어 있음 → main ' + (model || '미상') + ')'} 로 강제되고, 호출에 적은 model 은 무시돼요(v2.1.257+). ${modelNote}이라 레인 전부가 Fable 로 가요. FORCE 를 끄거나 CLAUDE_CODE_SUBAGENT_MODEL 을 T1 아닌 모델로 두세요. ${RULE}`);
+    }
+    return allow();   // 비-T1 모델로 전부 강제 — 비용 축에선 안전(반증 레인의 opus 도 덮이지만 그건 품질 축의 선택)
+  }
+
   if (tool === 'Agent') {
     const lm = ti.model;
     if (!lm) {
@@ -118,6 +132,8 @@ function main() {
   const ctx = {
     sessionModel: process.env.LANE_MODEL_GUARD_MODEL || sessionModelFromTranscript(input.transcript_path),
     sessionEffort: (input.effort && input.effort.level) || process.env.CLAUDE_CODE_EFFORT_LEVEL || '',
+    forceEnv: process.env.CLAUDE_CODE_SUBAGENT_MODEL_FORCE || '',
+    forceModel: process.env.CLAUDE_CODE_SUBAGENT_MODEL || '',
   };
   const v = judge(input, ctx);
   if (!v.deny) return process.exit(0);
