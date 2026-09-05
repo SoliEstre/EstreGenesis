@@ -17,6 +17,18 @@ EstreGenesis ships its seven plugins — the kit + six modules — as Claude Cod
 
 ## Install
 
+**Fastest path — the plugin marketplace (codex-cli ≥ 0.153).** Codex reads this repository's existing Claude Code marketplace manifest (`.claude-plugin/marketplace.json`) as-is, so there is nothing EG-specific to generate or copy:
+
+```sh
+codex plugin marketplace add SoliEstre/EstreGenesis          # owner/repo[@ref], HTTPS or SSH URL, or a local path
+codex plugin add estregenesis@estregenesis-plugins            # the kit (/egboot, /egmig, /egup, /egmem, /egrich)
+codex plugin add superscalar@estregenesis-plugins             # any of the eight modules, one per line
+codex plugin list                                             # shows every EG plugin with its version and cache path
+codex plugin marketplace upgrade                              # refresh the Git snapshot after a new EG release
+```
+
+Measured 2026-09-05 on codex-cli 0.153.4: all eight EG plugins install and enable from that manifest with no adapter step. What the marketplace path does **not** cover is the MCP dependency install (step 2 below) — the servers still need their `npm install` once. The manual path below remains for older Codex builds and for project-local copies.
+
 **1. Skills** — materialize the plugin skills into a Codex discovery path (`$HOME/.agents/skills` by default):
 
 ```sh
