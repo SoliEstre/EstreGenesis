@@ -11,7 +11,7 @@ EstreGenesis ships its seven plugins — the kit + six modules — as Claude Cod
 | EG surface | Codex surface | Fidelity |
 | --- | --- | --- |
 | `SKILL.md` (full set — exact count in the inventory below) | Agent Skills (`.agents/skills/`) | **Full** — same frontmatter, same procedure |
-| MCP servers (4) | `config.toml` `[mcp_servers.*]` | **Full** — MCP is cross-vendor; deps-0 stdio servers |
+| MCP servers (4) | `config.toml` `[mcp_servers.*]` | **Full** — MCP is cross-vendor; self-contained stdio servers (each runs from its plugin directory alone) |
 | `AGENTS.md` | `AGENTS.md` | **Native** — Codex's own durable-guidance file |
 | Lifecycle hooks (6) | *(no Codex equivalent)* | **Manual** — invoke the paired skill at the documented moment; see [`AGENTS.md`](AGENTS.md) |
 
@@ -27,7 +27,7 @@ codex plugin list                                             # shows every EG p
 codex plugin marketplace upgrade                              # refresh the Git snapshot after a new EG release
 ```
 
-Measured 2026-09-05 on codex-cli 0.153.4: all eight EG plugins install and enable from that manifest with no adapter step. What the marketplace path does **not** cover is the MCP dependency install (step 2 below) — the servers still need their `npm install` once. The manual path below remains for older Codex builds and for project-local copies.
+Measured 2026-09-05 on codex-cli 0.153.4: all eight EG plugins install and enable from that manifest with no adapter step, and Codex substitutes `${CLAUDE_PLUGIN_ROOT}` in the `mcpServers` declarations itself, so the four MCP servers start from the plugin cache without any `config.toml` stanza. (Installed copies of the servers from v2.6.58 to v2.6.121 exited before their first JSON-RPC line — Codex showed «MCP startup failed: connection closed: initialize response» for all four — because the servers reached outside their plugin directory for a shared file; fixed in v2.6.122, so upgrade the marketplace snapshot if you see that message.) The manual path below remains for older Codex builds and for project-local copies.
 
 **1. Skills** — materialize the plugin skills into a Codex discovery path (`$HOME/.agents/skills` by default):
 
@@ -38,16 +38,7 @@ node codex/gen-codex-adapter.cjs --install --dest ./.agents/skills --copy   # pr
 
 Codex loads a skill's full `SKILL.md` only when it decides to use it (progressive disclosure), so installing the full set costs almost no context.
 
-**2. MCP servers** — three of the four servers need their dependency installed first:
-
-```sh
-cd plugins/constellation/mcp && npm install   # ws
-cd plugins/hyperbrief/mcp   && npm install    # ajv
-cd plugins/ultrasafe/mcp    && npm install    # ajv
-# compendium: deps-0, nothing to install
-```
-
-Then copy the stanzas you want from [`config.toml.example`](config.toml.example) into `~/.codex/config.toml` (global) or a trusted project's `.codex/config.toml`, replacing `__EG_REPO_ROOT__` with your checkout's absolute path.
+**2. MCP servers** — no install step. Each server runs from its plugin directory alone: `hyperbrief` carries its one dependency (`ajv`) in-tree under `plugins/hyperbrief/node_modules/` (generated from `vendor.manifest.json`, not hand-maintained), `constellation` uses the WebSocket client built into Node ≥ 22, and `compendium` / `ultrasafe` are deps-0. Copy the stanzas you want from [`config.toml.example`](config.toml.example) into `~/.codex/config.toml` (global) or a trusted project's `.codex/config.toml`, replacing `__EG_REPO_ROOT__` with your checkout's absolute path.
 
 **3. Guidance** — point Codex at [`AGENTS.md`](AGENTS.md) (or merge its module map + hook-replacement procedures into your project's `AGENTS.md`).
 
@@ -119,11 +110,11 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 
 ### MCP servers (→ `config.toml` `[mcp_servers.*]`)
 
-| Server | source | npm dep |
+| Server | source | deps (as installed — plugin directory alone) |
 | --- | --- | --- |
 | `compendium` | `plugins/compendium/mcp/server.cjs` | — (deps-0) |
-| `constellation` | `plugins/constellation/mcp/server.cjs` | ws |
-| `hyperbrief` | `plugins/hyperbrief/mcp/server.cjs` | ajv |
+| `constellation` | `plugins/constellation/mcp/server.cjs` | ws (optional — platform built-in used when absent) |
+| `hyperbrief` | `plugins/hyperbrief/mcp/server.cjs` | ajv (carried in-tree) |
 | `ultrasafe` | `plugins/ultrasafe/mcp/server.cjs` | — (deps-0) |
 
 <!-- END AUTO-INVENTORY -->

@@ -4,8 +4,9 @@
 #
 # Replace __EG_REPO_ROOT__ with the absolute path to your EstreGenesis checkout,
 # then paste the stanzas you want into ~/.codex/config.toml (global) or a trusted
-# project's .codex/config.toml. Servers with a dependency need `npm install` in their
-# mcp/ directory first (see codex/README.md).
+# project's .codex/config.toml. Each server runs from its plugin directory alone: a
+# dependency is either carried in-tree or replaced by a Node built-in (see codex/README.md);
+# a stanza says so, and only a `npm install needed` note means an install step.
 
 [mcp_servers.compendium]
 command = "node"
@@ -17,13 +18,13 @@ startup_timeout_sec = 15
 command = "node"
 args = ["__EG_REPO_ROOT__/plugins/constellation/mcp/server.cjs"]
 startup_timeout_sec = 15
-  # requires: npm install (ws) in plugins/constellation/mcp/
+  # deps: ws (optional — platform built-in used when absent)
 
 [mcp_servers.hyperbrief]
 command = "node"
 args = ["__EG_REPO_ROOT__/plugins/hyperbrief/mcp/server.cjs"]
 startup_timeout_sec = 15
-  # requires: npm install (ajv) in plugins/hyperbrief/mcp/
+  # deps: ajv (carried in-tree)
 
 [mcp_servers.ultrasafe]
 command = "node"
