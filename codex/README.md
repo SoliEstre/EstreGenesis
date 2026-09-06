@@ -27,7 +27,7 @@ codex plugin list                                             # shows every EG p
 codex plugin marketplace upgrade                              # refresh the Git snapshot after a new EG release
 ```
 
-Measured 2026-09-05 on codex-cli 0.153.4: all eight EG plugins install and enable from that manifest with no adapter step, and Codex substitutes `${CLAUDE_PLUGIN_ROOT}` in the `mcpServers` declarations itself, so the four MCP servers start from the plugin cache without any `config.toml` stanza. (Installed copies of the servers from v2.6.58 to v2.6.121 exited before their first JSON-RPC line — Codex showed «MCP startup failed: connection closed: initialize response» for all four — because the servers reached outside their plugin directory for a shared file; fixed in v2.6.122, so upgrade the marketplace snapshot if you see that message.) The manual path below remains for older Codex builds and for project-local copies.
+Measured 2026-09-05/06 on codex-cli 0.153.4: all eight EG plugins install and enable from that manifest with no adapter step, and the four MCP servers start from the plugin cache without any `config.toml` stanza — through the plugin's **generated `.codex-plugin/plugin.json`**, not through `.claude-plugin/plugin.json`. Codex reads the Claude manifest but substitutes no placeholder in its `mcpServers` entries (`${CLAUDE_PLUGIN_ROOT}`, `${PLUGIN_ROOT}` and the `_DATA` variants all reach the server verbatim, there is no plugin-root environment variable, and the working directory is the thread's), while it does honor `cwd: "."` resolved against the installed plugin directory. Claude Code is the mirror image: it ignores `cwd` and needs the absolute `${CLAUDE_PLUGIN_ROOT}` form. So `gen-codex-adapter.cjs --write` projects each MCP-carrying plugin's Claude manifest into `.codex-plugin/plugin.json` with plugin-relative paths and `cwd: "."`; Codex prefers that file when both are present and still loads the skills. If you see «MCP startup failed: connection closed: initialize response» for the EG servers, run `codex plugin marketplace upgrade` and re-add the plugin — releases before v2.6.123 had no codex manifest (and before v2.6.122 the servers reached outside their plugin directory, which failed on every host). The manual path below remains for older Codex builds and for project-local copies.
 
 **1. Skills** — materialize the plugin skills into a Codex discovery path (`$HOME/.agents/skills` by default):
 
@@ -108,13 +108,13 @@ node scripts/verify-nway-version.cjs         # the codex-adapter axis gates drif
 | ultrasafe | `ultrasafe-threat-model-lifecycle` | ultrasafe-threat-model-lifecycle |
 | ultrasafe | `ultrasafe-web-api-attacker` | ultrasafe-web-api-attacker |
 
-### MCP servers (→ `config.toml` `[mcp_servers.*]`)
+### MCP servers (→ `config.toml` `[mcp_servers.*]`, or the plugin's generated `.codex-plugin/plugin.json` on the marketplace path)
 
-| Server | source | deps (as installed — plugin directory alone) |
-| --- | --- | --- |
-| `compendium` | `plugins/compendium/mcp/server.cjs` | — (deps-0) |
-| `constellation` | `plugins/constellation/mcp/server.cjs` | ws (optional — platform built-in used when absent) |
-| `hyperbrief` | `plugins/hyperbrief/mcp/server.cjs` | ajv (carried in-tree) |
-| `ultrasafe` | `plugins/ultrasafe/mcp/server.cjs` | — (deps-0) |
+| Server | source | deps (as installed — plugin directory alone) | Codex manifest |
+| --- | --- | --- | --- |
+| `compendium` | `plugins/compendium/mcp/server.cjs` | — (deps-0) | `plugins/compendium/.codex-plugin/plugin.json` (generated: `cwd: "."` + plugin-relative paths) |
+| `constellation` | `plugins/constellation/mcp/server.cjs` | ws (optional — platform built-in used when absent) | `plugins/constellation/.codex-plugin/plugin.json` (generated: `cwd: "."` + plugin-relative paths) |
+| `hyperbrief` | `plugins/hyperbrief/mcp/server.cjs` | ajv (carried in-tree) | `plugins/hyperbrief/.codex-plugin/plugin.json` (generated: `cwd: "."` + plugin-relative paths) |
+| `ultrasafe` | `plugins/ultrasafe/mcp/server.cjs` | — (deps-0) | `plugins/ultrasafe/.codex-plugin/plugin.json` (generated: `cwd: "."` + plugin-relative paths) |
 
 <!-- END AUTO-INVENTORY -->

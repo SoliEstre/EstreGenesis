@@ -1,6 +1,6 @@
 ---
 name: hyperbrief-trigger-check
-version: 0.9.1
+version: 0.9.2
 description: ALWAYS run BEFORE composing any message that asks the user for a decision, approval, or choice. Cheap escalation rubric (4-score + 5 MUST-trigger conditions) that returns one of {AUTONOMOUS_DECIDE, SUMMARY_BRIEF, FULL_HYPERBRIEF, MINIMAL_BRIEF, BLOCK_FRAMING}. v0.8 adds the brief-tier toggle (Hyperbrief.md §2.5) — the sub-threshold output is no longer always a one-liner; the tier floor (off | summary | full, default summary, set via HB.<tier> command / HYPERBRIEF_BRIEF_TIER env / .hyperbrief/config.json brief_tier) is resolved and the verdict is max(rubric_tier, floor) over BLOCKED_STUB < SUMMARY_BRIEF < FULL_HYPERBRIEF, so no setting can ever lower the tier the rubric demands. v0.9 adds the request tier (Hyperbrief.md §2.6) — a bare request for a brief resolves to SUMMARY_BRIEF rather than the heaviest tier, named tiers 요약/상세/심층 map to SUMMARY_BRIEF/FULL_HYPERBRIEF/DEEP_BRIEF, and DEEP_BRIEF is request-only and the only tier permitted to fan out. Triggered by message-intent patterns ('괜찮을까요','할까요','should we','which option','approve','confirm','choose between','OK to') OR by Superscalar opening a write/deploy/send lane OR by inbound Constellation DECISION_REQUEST. Also routes audience-profile commands (tone L<n>.<n>.<n> + term_pairing L<n>.{E|I|N}.{C|D|B|R|A}[!|?]) to the hyperbrief skill for AudienceProfileFallback population. Invokes the full hyperbrief skill ONLY when outcome != AUTONOMOUS_DECIDE. Skip for pure read-only fan-outs.
 ---
 

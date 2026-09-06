@@ -13,8 +13,9 @@
     "constellation-mcp": {
       "command": "node",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/mcp/server.cjs"
-      ]
+        "./mcp/server.cjs"
+      ],
+      "cwd": "."
     }
   }
 }
