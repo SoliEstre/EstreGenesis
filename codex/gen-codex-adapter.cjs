@@ -13,9 +13,23 @@
  *
  * Modes:
  *   --write             (maintainer) regenerate codex/config.toml.example + the
- *                       auto-managed inventory block in codex/README.md, in place.
- *   --check             (verify-nway) recompute those two surfaces in memory and
+ *                       auto-managed inventory block in codex/README.md + every
+ *                       plugins/<mod>/.codex-plugin/plugin.json projection, in place.
+ *   --check             (verify-nway) recompute those surfaces in memory and
  *                       assert they match what is committed; exit 1 on drift.
+ *
+ * Codex plugin manifest projection (.codex-plugin/plugin.json) — why it exists:
+ *   Codex reads a Claude Code marketplace and .claude-plugin/plugin.json as-is, but codex-cli
+ *   0.153.4 substitutes NO placeholder in an mcpServers entry (measured 2026-09-06 with a stub
+ *   server that recorded its argv/cwd/env: ${CLAUDE_PLUGIN_ROOT}, ${PLUGIN_ROOT},
+ *   ${CLAUDE_PLUGIN_DATA} and ${PLUGIN_DATA} all arrived verbatim, no plugin-root env var, cwd =
+ *   the thread's working directory). What Codex does honor is `cwd: "."` (resolved against the
+ *   installed plugin directory) with paths relative to it, and when .codex-plugin/plugin.json is
+ *   present next to .claude-plugin/plugin.json Codex takes the MCP declaration from it while
+ *   skills keep loading. Claude Code, conversely, ignores `cwd` and needs the absolute
+ *   ${CLAUDE_PLUGIN_ROOT} form. So each plugin that declares MCP servers gets a GENERATED
+ *   codex manifest: the Claude manifest with `${CLAUDE_PLUGIN_ROOT}/x` rewritten to `./x` and
+ *   `cwd: "."` added. Any other placeholder is a hard error here rather than a silent pass-through.
  *   --install [--dest DIR] [--copy]
  *                       (Codex user) materialize the 22 skills into DIR
  *                       (default: $HOME/.agents/skills) as symlinks, or copies
@@ -130,6 +144,62 @@ function discoverMcp() {
   return servers;
 }
 
+// ── Codex plugin manifest projection ─────────────────────────────────────────
+const CODEX_MANIFEST_NOTE = [
+  '# Generated — do not hand-edit',
+  '',
+  '`plugin.json` here is projected from `../.claude-plugin/plugin.json` by',
+  '`node codex/gen-codex-adapter.cjs --write` (a verify-nway axis fails on drift).',
+  'It exists because codex-cli 0.153.4 substitutes no placeholder in `mcpServers`, but honors',
+  '`cwd: "."` relative to the installed plugin directory; Claude Code needs the absolute',
+  '`${CLAUDE_PLUGIN_ROOT}` form and ignores `cwd`. Same plugin, one manifest per host.',
+  '',
+].join('\n');
+
+function codexManifestDir(mod) { return path.join(PLUGINS, mod, '.codex-plugin'); }
+
+function projectPathValue(value, where) {
+  let s = String(value);
+  if (s.includes('${CLAUDE_PLUGIN_ROOT}/')) s = s.split('${CLAUDE_PLUGIN_ROOT}/').join('./');
+  if (s.includes('${CLAUDE_PLUGIN_ROOT}')) s = s.split('${CLAUDE_PLUGIN_ROOT}').join('.');
+  if (/\$\{[A-Z_]+\}/.test(s)) {
+    throw new Error(`${where}: placeholder ${s.match(/\$\{[A-Z_]+\}/)[0]} has no Codex projection (Codex substitutes nothing in mcpServers) — use a path under the plugin directory instead`);
+  }
+  return s;
+}
+
+// The Claude manifest, with every mcpServers path made plugin-relative and cwd pinned to the plugin dir.
+function projectCodexManifest(mod) {
+  const src = JSON.parse(fs.readFileSync(path.join(PLUGINS, mod, '.claude-plugin', 'plugin.json'), 'utf8'));
+  const block = src.mcpServers || src.mcp;
+  if (!block) return null;
+  const out = JSON.parse(JSON.stringify(src));
+  delete out.mcp;
+  out.mcpServers = {};
+  for (const [name, decl] of Object.entries(block)) {
+    const where = `${mod}/.claude-plugin/plugin.json mcpServers.${name}`;
+    const proj = {};
+    if (decl.command != null) proj.command = projectPathValue(decl.command, where + '.command');
+    if (Array.isArray(decl.args)) proj.args = decl.args.map((a) => projectPathValue(a, where + '.args'));
+    if (decl.env && typeof decl.env === 'object') {
+      proj.env = {};
+      for (const [k, v] of Object.entries(decl.env)) proj.env[k] = projectPathValue(v, where + '.env.' + k);
+    }
+    proj.cwd = '.';
+    out.mcpServers[name] = proj;
+  }
+  return JSON.stringify(out, null, 2) + '\n';
+}
+
+function discoverCodexManifests() {
+  const list = [];
+  for (const mod of listModules()) {
+    const json = projectCodexManifest(mod);
+    if (json) list.push({ module: mod, dir: codexManifestDir(mod), json });
+  }
+  return list;
+}
+
 // ── derived surfaces ─────────────────────────────────────────────────────────
 function renderConfigExample(mcp) {
   const lines = [
@@ -176,12 +246,12 @@ function renderInventory(skills, mcp) {
     }
   }
   out.push('');
-  out.push('### MCP servers (→ `config.toml` `[mcp_servers.*]`)');
+  out.push('### MCP servers (→ `config.toml` `[mcp_servers.*]`, or the plugin\'s generated `.codex-plugin/plugin.json` on the marketplace path)');
   out.push('');
-  out.push('| Server | source | deps (as installed — plugin directory alone) |');
-  out.push('| --- | --- | --- |');
+  out.push('| Server | source | deps (as installed — plugin directory alone) | Codex manifest |');
+  out.push('| --- | --- | --- | --- |');
   for (const s of mcp) {
-    out.push(`| \`${s.module}\` | \`${s.serverRel}\` | ${s.deps.length ? s.depNotes.join(', ') : '— (deps-0)'} |`);
+    out.push(`| \`${s.module}\` | \`${s.serverRel}\` | ${s.deps.length ? s.depNotes.join(', ') : '— (deps-0)'} | \`plugins/${s.module}/.codex-plugin/plugin.json\` (generated: \`cwd: "."\` + plugin-relative paths) |`);
   }
   out.push('');
   out.push(INV_END);
@@ -229,12 +299,18 @@ function main() {
 
   const cfg = renderConfigExample(mcp);
   const inv = renderInventory(skills, mcp);
+  const manifests = discoverCodexManifests();
 
   if (mode === '--write') {
     fs.writeFileSync(CONFIG_EXAMPLE, cfg);
     const readme = fs.readFileSync(README, 'utf8');
     fs.writeFileSync(README, replaceInventoryBlock(readme, inv));
-    console.log(`[write] config.toml.example (${mcp.length} servers) + README inventory (${skills.length} skills) regenerated.`);
+    for (const m of manifests) {
+      fs.mkdirSync(m.dir, { recursive: true });
+      fs.writeFileSync(path.join(m.dir, 'plugin.json'), m.json);
+      fs.writeFileSync(path.join(m.dir, 'GENERATED.md'), CODEX_MANIFEST_NOTE);
+    }
+    console.log(`[write] config.toml.example (${mcp.length} servers) + README inventory (${skills.length} skills) + ${manifests.length} .codex-plugin/plugin.json projections regenerated.`);
     return;
   }
 
@@ -244,8 +320,19 @@ function main() {
     if (curCfg !== cfg) problems.push('codex/config.toml.example out of date — run `node codex/gen-codex-adapter.cjs --write`');
     const readme = fs.existsSync(README) ? fs.readFileSync(README, 'utf8') : '';
     if (!readme.includes(inv)) problems.push('codex/README.md inventory block out of date — run `node codex/gen-codex-adapter.cjs --write`');
+    for (const m of manifests) {
+      const p = path.join(m.dir, 'plugin.json');
+      const cur = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '(missing)';
+      if (cur !== m.json) problems.push(`plugins/${m.module}/.codex-plugin/plugin.json ${cur === '(missing)' ? 'missing' : 'out of date'} — run \`node codex/gen-codex-adapter.cjs --write\``);
+    }
+    // a codex manifest with no Claude source (or in a plugin without MCP) is a stray hand copy
+    for (const mod of listModules()) {
+      if (fs.existsSync(path.join(codexManifestDir(mod), 'plugin.json')) && !manifests.some((m) => m.module === mod)) {
+        problems.push(`plugins/${mod}/.codex-plugin/plugin.json exists but the plugin declares no MCP server — remove it (the projection only exists where paths need translating)`);
+      }
+    }
     if (problems.length) { problems.forEach((p) => console.error('DRIFT ' + p)); process.exit(1); }
-    console.log(`[check] codex adapter in sync (${skills.length} skills, ${mcp.length} MCP servers).`);
+    console.log(`[check] codex adapter in sync (${skills.length} skills, ${mcp.length} MCP servers, ${manifests.length} codex manifests).`);
     return;
   }
 

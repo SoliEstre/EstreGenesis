@@ -1,6 +1,6 @@
 ---
 name: hyperbrief
-version: 0.9.1
+version: 0.9.2
 description: Use AFTER hyperbrief-trigger-check returns FULL_HYPERBRIEF, SUMMARY_BRIEF, DEEP_BRIEF, or MINIMAL_BRIEF. v0.9 adds the request tier (Hyperbrief.md §2.6) — a bare request for a brief is a SUMMARY_BRIEF rather than the heaviest tier, and DEEP_BRIEF (§0.6) is request-only and the only tier permitted to fan out, so an unnamed fan-out is a defect rather than thoroughness. v0.8 adds the SUMMARY_BRIEF tier (Hyperbrief.md §2.5 + §4 SummaryBrief body) — a 3-stage brief that is the DEFAULT floor for sub-threshold decisions, carrying the debiasing set (≥2 options with both gain and loss, no_action_cost, meta_branch, ≥1 key_unknowns, conditional §8 with switch_if) plus a mandatory full_brief_fallback escalation affordance; it omits evidence (MCDA / pre-mortem / Toulmin CIs / node tree) and only evidence. Generates the 8-section decision-delegation brief (JSON IR + deterministic MD/HTML render) and emits a paired Constellation DECISION_REQUEST + HyperbriefCard envelope. MUST run when (a) escalation_sum >= 4, (b) any MUST-trigger fires (irreversibility>=2 / cross-module blast radius / external-party notification / resource threshold / supersedes prior decision), (c) Superscalar fan-out gate just opened a write/deploy/send lane, (d) Constellation A2A DECISION_REQUEST is inbound for response. SKIP when trigger-check returned AUTONOMOUS_DECIDE or BLOCK_FRAMING.
 ---
 
