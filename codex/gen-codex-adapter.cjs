@@ -95,6 +95,21 @@ function externalDeps(serverCjs) {
   return [...deps].sort();
 }
 
+// How a non-builtin dependency is actually satisfied in an installed copy (a plugin directory alone,
+// no `npm install` step): carried in-tree under the plugin's node_modules/, or optional with a
+// platform fallback (declared under optionalDependencies), or — the only case that needs an install —
+// neither. The projection says which, so a reader is not sent to `npm install` for a part that is
+// already there.
+function describeDep(mod, dep) {
+  const carried = [path.join(PLUGINS, mod, 'node_modules', dep), path.join(PLUGINS, mod, 'mcp', 'node_modules', dep)]
+    .some((p) => fs.existsSync(p));
+  if (carried) return `${dep} (carried in-tree)`;
+  const pkgPath = path.join(PLUGINS, mod, 'mcp', 'package.json');
+  const pkg = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, 'utf8')) : {};
+  if (pkg.optionalDependencies && pkg.optionalDependencies[dep]) return `${dep} (optional — platform built-in used when absent)`;
+  return `${dep} (npm install needed)`;
+}
+
 function discoverMcp() {
   const servers = [];
   for (const mod of listModules()) {
@@ -102,11 +117,14 @@ function discoverMcp() {
     const mcpBlock = pj.mcpServers || pj.mcp;      // current schema = mcpServers (legacy `mcp` fallback)
     if (!mcpBlock) continue;
     const serverCjs = path.join(PLUGINS, mod, 'mcp', 'server.cjs');
+    const deps = externalDeps(serverCjs);
     servers.push({
       module: mod,
       canonical: Object.keys(mcpBlock)[0],         // e.g. constellation-mcp
       serverRel: path.relative(REPO, serverCjs).replace(/\\/g, '/'),
-      deps: externalDeps(serverCjs),
+      deps,
+      depNotes: deps.map((d) => describeDep(mod, d)),
+      needsInstall: deps.filter((d) => describeDep(mod, d).endsWith('(npm install needed)')),
     });
   }
   return servers;
@@ -121,12 +139,15 @@ function renderConfigExample(mcp) {
     '#',
     `# Replace ${REPO_PLACEHOLDER} with the absolute path to your EstreGenesis checkout,`,
     '# then paste the stanzas you want into ~/.codex/config.toml (global) or a trusted',
-    "# project's .codex/config.toml. Servers with a dependency need `npm install` in their",
-    '# mcp/ directory first (see codex/README.md).',
+    "# project's .codex/config.toml. Each server runs from its plugin directory alone: a",
+    '# dependency is either carried in-tree or replaced by a Node built-in (see codex/README.md);',
+    '# a stanza says so, and only a `npm install needed` note means an install step.',
     '',
   ];
   for (const s of mcp) {
-    const dep = s.deps.length ? `  # requires: npm install (${s.deps.join(', ')}) in ${path.posix.dirname(s.serverRel)}/` : '  # deps-0';
+    const dep = s.needsInstall.length
+      ? `  # requires: npm install (${s.needsInstall.join(', ')}) in ${path.posix.dirname(s.serverRel)}/`
+      : s.deps.length ? `  # deps: ${s.depNotes.join(', ')}` : '  # deps-0';
     lines.push(`[mcp_servers.${s.module}]${dep ? '' : ''}`);
     lines.push('command = "node"');
     lines.push(`args = ["${REPO_PLACEHOLDER}/${s.serverRel}"]`);
@@ -157,10 +178,10 @@ function renderInventory(skills, mcp) {
   out.push('');
   out.push('### MCP servers (→ `config.toml` `[mcp_servers.*]`)');
   out.push('');
-  out.push('| Server | source | npm dep |');
+  out.push('| Server | source | deps (as installed — plugin directory alone) |');
   out.push('| --- | --- | --- |');
   for (const s of mcp) {
-    out.push(`| \`${s.module}\` | \`${s.serverRel}\` | ${s.deps.length ? s.deps.join(', ') : '— (deps-0)'} |`);
+    out.push(`| \`${s.module}\` | \`${s.serverRel}\` | ${s.deps.length ? s.depNotes.join(', ') : '— (deps-0)'} |`);
   }
   out.push('');
   out.push(INV_END);

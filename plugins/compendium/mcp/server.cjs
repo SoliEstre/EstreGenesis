@@ -16,7 +16,7 @@ const {
   discoverResult,
   complete,
   cacheable,
-} = require("../../_shared/mcp-protocol.cjs");
+} = require("./mcp-protocol.cjs");
 
 const SERVER_INFO = { name: "compendium-mcp", version: require("./package.json").version };
 const CAPABILITIES = { tools: {} };

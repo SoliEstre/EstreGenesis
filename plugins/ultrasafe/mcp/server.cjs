@@ -26,7 +26,7 @@ const {
   discoverResult,
   complete,
   cacheable,
-} = require("../../_shared/mcp-protocol.cjs");
+} = require("./mcp-protocol.cjs");
 
 // 버전은 package.json 에서 읽어요. 여기 상수로 두면 컷마다 **두 번 적어야** 하고, 실제로 이 컷에서
 //   0.2.7 로 동결된 채 pkg 만 올라가 N-way 축이 잡았어요 — 자매 서버들은 이미 동적으로 읽고 있었어요.
