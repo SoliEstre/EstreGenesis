@@ -1,4 +1,4 @@
-<!-- module: Constellation reference; layer: dashboard-render-patterns; part-of: EstreGenesis 2.5; version: v0.1.0; date: 2026-06-01; license: Apache-2.0 -->
+<!-- module: Constellation reference; layer: dashboard-render-patterns; part-of: EstreGenesis 2.5; version: v0.1.1; date: 2026-09-20; license: Apache-2.0 -->
 
 # Dashboard render patterns — Constellation board UI guide
 
@@ -172,6 +172,20 @@ Any other `source` value — `agent`, `<upstream-agentId>`, `<local-worker-agent
 **Implementation outline.** Reference impl: `wsClassifyMessage(msg)` returns one of `'user' | 'board' | 'a2a' | 'self'`, used by the chat-panel router to decide tab assignment and by the agent-side inbound classifier to decide whether to surface the message in the agent's inbox queue. The function uses the negation pattern above. Reference commit: `201ccf7` (initial source-set-agnostic detection — the fix for the upstream-A2A-invisible defect).
 
 **Composition.** This pattern is the **receiver-side** half of the rule codified at `Constellation.md §13.11.3` rule 2. The server-side half (the server may stamp `source` when the sender omits it) is independent — the receiver must not assume the server-stamped value is always `agent`, because upstream senders provide their own `source`.
+
+---
+
+## §9 Channel group placement — one effective-role function, roles shipped with History
+
+**Pattern.** Every place the dashboard asks "which group does this channel belong to" calls the same function, including its fallback for an unknown role. In the reference implementation that function is `wsRoleOf(id)` (`ch.role`, else `main` for the primary id, else `local`), and its three callers are `wsComputeGroups.byRole` (tab strip), `wsGroupMembers` (merged-view membership, send-target representative) and `wsGroupKeyOf` (selection → group page/tab).
+
+**The fix this codifies (v2.4.161).** Membership tested the raw `c.role === r` while the mapping fell back to `group:local` for a role-less channel. A role-less channel therefore belonged to **no** group but was **mapped** to the local group. The desktop view renders the selected channel directly into `#ws-stream`, so it never noticed; the mobile pager (`≤560px`) renders merged group pages only, so the local page showed «no events» for a channel that held 89 rows. The channel that hits this is the main channel whenever the main agent is offline: the server always ships it as active events (never a stub), and the stub path was the only place a role travelled.
+
+**Server half.** `History.roles: {channelKey: role}` covers every channel in `events` and `cold`; the primary id is `main` by identity. The dashboard seeds `ch.role` from it before replay (monitor classification during replay reads `wsRoleOf`), then lets the live `AgentList` override.
+
+**Mobile half.** On first open in pager mode, `wsReplayHistory` requests history for every cold member of the active group's page (swipe already did; first open did not), so a merged page is not silently partial.
+
+**Verification.** `scripts/pw-mobile-realtime.cjs` in the maintenance workspace: an isolated server receives real WS utterances from two agents, is then **restarted with no agent connected**, and the check asserts the main channel's rows are visible on both the desktop stream and the mobile main-group page, and that `wsState.channels.get(primary).role === 'main'`. It fails on the pre-fix runtime + dashboard (three assertions).
 
 ---
 

@@ -1702,10 +1702,21 @@ function wsHistoryPayload() {   // C(lazy load): active 채널 최근분 + cold/
     else cold.push({ key: ck, count: a.length, lastTs: a[a.length - 1].timestamp || 0, role: wsChanRoleOf(ck) });   // v2.4.59 role 동봉 — 그룹 오분류 fix
   }
   events.sort((x, y) => (x.timestamp || 0) - (y.timestamp || 0));
+  // v2.4.161 — **역할은 스텁에만 실려 있었어요.** cold/archived 는 v2.4.59 부터 role 을 동봉했지만, events 로
+  //   가는 활성 채널은 «AgentList 가 role 을 준다» 는 전제로 비워 뒀어요. 그 전제가 깨지는 채널이 하나 있어요:
+  //   메인 채널은 `wsChanActive` 가 **항상** 활성으로 치니(WS_PRIMARY_ID), 메인이 접속 중이 아닐 때도 events 로
+  //   가고 AgentList 엔 없어요 → 대시보드에서 role=undefined. 데스크탑은 채널을 직접 그려서 안 보였고, 모바일
+  //   페이저는 그룹 병합만 그려서 **메인 대화가 통째로 사라졌어요** (2026-09-20 운영자 관측). 역할은 서버가
+  //   HELLO 때 영속해 두고 있으니(.chan-roles.json) 페이로드의 모든 채널에 실어 보내요 — 메인은 무조건 main.
+  const roles = {};
+  for (const ck of new Set([...events.map((e) => e.agentId), ...cold.map((c) => c.key)].filter(Boolean))) {
+    const r = ck === WS_PRIMARY_ID ? 'main' : wsChanRoleOf(ck);
+    if (r) roles[ck] = r;
+  }
   // v2.4.89 (adopter observation C11b-부수): History 는 **활성 채널의 events + cold/archived 스텁**이라는 정책적 축약본인데,
   // 축약되었다는 신호가 없어 "이 보드 History 는 A2A 를 담지 않는다"는 오진을 유발했다. 정책을 페이로드에 명시한다.
   const scope = { policy: 'active-channels-recent+stubs', activeEvents: events.length, coldChannels: cold.length, archivedChannels: wsArchivedList().length, perChannelLimit: HISTORY_INITIAL_PER_CHAN, truncated, note: 'cold/archived 채널 내용은 RequestChannelHistory 로 on-demand — 부재 ≠ 미기록. 활성 채널도 최근 perChannelLimit 건만 — truncated[] 의 채널은 beforeTs 를 실어 RequestChannelHistory 로 이어 받으세요'};
-  return { events, cold, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests), corporateChart: wsCorpChart || null, roleStates: Object.fromEntries(wsRoleStates), seatTelemetry: Object.fromEntries(wsSeatTels) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope + v2.4.90 §13.33 조직 차트/좌석 상태 동봉
+  return { events, cold, roles, archived: wsArchivedList(), scope, manifests: Object.fromEntries(wsCmdManifests), opsStates: Object.fromEntries(wsOpsStates), capManifests: Object.fromEntries(wsCapManifests), corporateChart: wsCorpChart || null, roleStates: Object.fromEntries(wsRoleStates), seatTelemetry: Object.fromEntries(wsSeatTels) };   // v2.4.67 매니페스트 + v2.4.71 운용상태 + v2.4.76 능력선언 + v2.4.89 scope + v2.4.90 §13.33 조직 차트/좌석 상태 동봉
 }
 // v2.4.140 (독립 구현 parity 이식이 원본 감사로 되돌아온 건): History 발송 여부를 payload 에서 **파생**해요.
 //   종전 가드는 payload 키를 손으로 다시 열거했고, v2.4.71(opsStates)·v2.4.76(capManifests) 추가를 못 따라가
