@@ -2404,11 +2404,15 @@ function wsMdLegacy(src) {
 }
 
 // ---- 대화 기록 = 서버 보관. 접속 시 History(active full + cold/archived stub) → 재생 복원, 나머지는 lazy ----
-function wsReplayHistory(events, cold, archived) {
+function wsReplayHistory(events, cold, archived, roles) {
   const keep = new Map(); for (const [id, c] of wsState.channels) keep.set(id, { role: c.role, name: c.name });   // AgentList(먼저 수신)로 설정된 role/name 보존 — a2a 모니터 분류(§13.5)가 role 참조
   wsState.channels.clear(); wsState.active = null;
   for (const t of wsState.textareas.values()) t.remove(); wsState.textareas.clear();   // 채널 입력란 리셋(draft 는 localStorage 유지·재생성 시 복원)
   wsState.replaying = true;
+  // v2.4.161 — 서버가 영속해 둔 role(HELLO 때 기록)을 **events 채널에도** 먼저 심어요. 종전엔 AgentList 에 있는
+  //   채널만 role 을 가졌고, 메인이 접속 중이 아니면 메인 채널이 role=undefined 로 재생돼 어느 그룹에도 안 앉았어요
+  //   (모바일 페이저 = 그룹 병합만 그리니 메인 대화가 통째로 사라진 자리). 라이브 AgentList(keep)가 뒤에 덮어써요.
+  if (roles && typeof roles === 'object') { for (const id of Object.keys(roles)) { if (!roles[id] || wsIsMon(id)) continue; const c = wsChannel(id); if (!c.role) c.role = roles[id]; if (roles[id] === 'main') WS_LOCAL = id; } }
   for (const [id, mt] of keep) { const c = wsChannel(id, mt.name); if (mt.role) c.role = mt.role; }   // 선복원 → 재생 중 wsRoleOf 정확(모니터 Up↔Main/Main↔Local 분류)
   for (const ev of (events || [])) { try { onWsEvent(ev); } catch {} }
   // C(lazy): cold(끊긴)·archived(닫은) 채널은 stub 만 생성 — 탭/드롭다운 표시, 내용은 탭 클릭·복원 시 on-demand
@@ -2434,6 +2438,9 @@ function wsReplayHistory(events, cold, archived) {
   if (wsState.active) wsShowTextarea(wsState.active);   // FIX: 새로고침 복원 시 활성 채널의 textarea 생성·표시·draft 적용 (wsTextareaFor 가 wsDrafts[key] 에서 값 가져옴). 기존엔 wsSetActive 만 wsShowTextarea 호출 → wsReplayHistory 복원 경로에서 textarea 누락.
   if (wsState.debugOpen) wsRenderDebug();
   if (wsState.active) wsMaybeRequestHistory(wsState.active);   // active 가 cold stub 이면 즉시 내용 로드
+  // v2.4.161 — 모바일 페이저는 채널이 아니라 **그룹 병합 페이지**를 보여요. 그러니 열리는 페이지의 cold 멤버도
+  //   같이 당겨요 (swipe 로 들어올 땐 wsActivateFromSwipe 가 이미 그렇게 해요 — 첫 열림만 빠져 있었어요).
+  if (wsState.active && wsPagerOn()) { for (const cid of wsGroupMembers(wsGroupKeyOf(wsState.active))) wsMaybeRequestHistory(cid); }
 }
 function wsMaybeRequestHistory(id) {   // C: cold stub 채널을 처음 열 때 server 에 내용 on-demand 요청
   if (!id || wsIsGroup(id) || wsIsMon(id)) return;
@@ -3573,7 +3580,12 @@ function wsGroupMembers(gkey) {
   //   멤버십이 갈렸어요 — 그러면 **화면에 없는 채널이 그룹 «대표» 가 되어 전송 대상**이 돼요.
   //   운영자가 보는 첫 탭과 실제로 글이 가는 곳이 다른 상태고, 증상이 「왜 대화 대상이 저 사람이냐」예요
   //   (2026-08-08 운영자 관측). 같은 질문을 두 함수가 각자 답하면 그 둘은 반드시 갈라져요.
-  const mem = [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id) && !c.hidden).map(([id]) => id);
+  // v2.4.161 — 소속 판정은 `wsRoleOf`(실효 role) 로. 종전엔 raw `c.role === r` 이라 role 이 **없는** 채널은 어느
+  //   그룹의 멤버도 아니었는데, 반대 방향인 `wsGroupKeyOf` 는 그런 채널을 group:local 로 보냈어요. 같은 질문에
+  //   두 답 — 모바일에선 그 채널의 페이지가 「이 그룹에 아직 수신한 이벤트가 없어요」였고, 데스크탑은 채널을
+  //   직접 그려서 못 봤어요. 실효 role 로 맞추면 «모르는 role → 로컬에 보임» 이 양쪽에서 같은 답이에요
+  //   (오분류가 부재보다 낫다는 2026-08-08 결정 그대로).
+  const mem = [...wsState.channels.entries()].filter(([id, c]) => !wsIsMon(id) && !c.hidden && wsRoleOf(id) === r).map(([id]) => id);
   if (gkey === 'group:up' && wsState.channels.has(WS_MON_UP)) mem.push(WS_MON_UP);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_LOCAL)) mem.push(WS_MON_LOCAL);
   if (gkey === 'group:main' && wsState.channels.has(WS_MON_COLLAB)) mem.push(WS_MON_COLLAB);   // group:main 병합에 Main↔Collab 취합(§13.9 collab peer)
@@ -3645,7 +3657,7 @@ function onWsEvent(m) {
     if (v.corporateChart !== undefined || v.roleStates !== undefined) orgPayloadSeen = true;   // §13.33 서버 persist 동봉 여부 (재생 이벤트가 최신본을 덮지 않게 하는 표식)
     if (v.corporateChart && typeof v.corporateChart === 'object') { orgChart = v.corporateChart; }   // §13.33 조직 구조 동봉분 (단일 객체·latest-wins)
     if (v.roleStates && typeof v.roleStates === 'object') { for (const k of Object.keys(v.roleStates)) roleStates.set(k, v.roleStates[k]); }   // §13.33 좌석 상태 동봉분 (role → state)
-    wsReplayHistory(events, v.cold, v.archived);
+    wsReplayHistory(events, v.cold, v.archived, v.roles);   // v2.4.161 roles — events 로 온 채널의 role 도 서버가 실어요 (메인 부재 시 role=undefined 였던 자리)
     // v2.4.129 — 서버가 «활성 채널도 최근분만» 보냈으면 그 사실이 scope.truncated 에 실려 와요.
     //   기억해 뒀다가 스트림 위쪽 「이전 대화 더 보기」로 보여줘요. 이 신호를 안 쓰면 잘림이 조용해지고,
     //   사용자는 옛 대화가 **사라졌다** 고 읽어요 (v2.4.89 가 겪은 그 오진과 같은 부류예요).
@@ -4017,7 +4029,7 @@ function wsToggleTabEdit() {
 // §13.6 계층 탭 그룹 (업스트림/메인/보드워커/로컬/협업). 그룹 헤더=병합 토글, 탭=단독. 편집 모드 시 드래그 재정렬.
 // §13.6 그룹 계산 (업스트림/메인/보드워커/로컬/협업) — 탭바·모바일 페이저(#3a B)가 동일 집합·순서 사용. 빈 그룹 포함(호출측 필터).
 function wsComputeGroups() {
-  const byRole = (r) => [...wsState.channels.entries()].filter(([id, c]) => c.role === r && !wsIsMon(id) && !c.hidden).map(([id]) => id);
+  const byRole = (r) => [...wsState.channels.entries()].filter(([id, c]) => !wsIsMon(id) && !c.hidden && wsRoleOf(id) === r).map(([id]) => id);   // v2.4.161 실효 role — wsGroupMembers 와 같은 답 (role 없는 채널도 탭에 보여요)
   const has = (id) => wsState.channels.has(id);
   let groups = [
     { key: 'group:up', cls: 'up', label: '업스트림', tabs: byRole('upstream').concat(has(WS_MON_UP) ? [WS_MON_UP] : []) },
@@ -4101,7 +4113,7 @@ function wsGroupKeyOf(id) {   // 채널/모니터 id → 소속 그룹 key (또�
   if (id === WS_MON_LOCAL || id === WS_MON_COLLAB || id === WS_MON_PEER) return 'group:main';
   if (id === WS_MON_BOARD) return 'group:board-worker';
   if (id === WS_MON_PEER_PEER || id === WS_MON_PEER_COLLAB) return 'group:peer';
-  const ch = wsState.channels.get(id); const role = ch && ch.role;
+  const role = wsRoleOf(id);   // v2.4.161 실효 role (wsGroupMembers/byRole 과 같은 함수) — 메인은 WS_LOCAL 이면 role 없이도 main
   return role === 'upstream' ? 'group:up' : role === 'main' ? 'group:main' : role === 'board-worker' ? 'group:board-worker' : role === 'collab' ? 'group:collab' : role === 'peer' ? 'group:peer' : role === 'roundtable' ? 'group:roundtable' : 'group:local';
 }
 function wsPagerGroupKeys() { return wsComputeGroups().filter((g) => g.tabs.length).map((g) => g.key); }   // 비어있지 않은 그룹 = 탭바와 동일 집합
