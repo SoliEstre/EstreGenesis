@@ -231,6 +231,14 @@ function sameOriginPost(req) {
   let h; try { h = new URL(origin).host; } catch { return false; }
   return !!h && h === String(req.headers.host || '');
 }
+// 이 요청이 브라우저 입장에서 https 인가 — 세션 쿠키의 Secure 를 정하는 유일한 질문이에요 (바인드 주소가 아니라).
+//   ① 소켓 자체가 TLS 이거나 ② TLS 종단 프록시가 x-forwarded-proto: https 를 붙였으면 참. ②는 위조돼도 Secure 를
+//   «더 붙이는» 쪽으로만 틀려서(자기 로그인이 안 될 뿐) 신뢰 없이 써도 돼요.
+function reqIsHttps(req) {
+  if (req && req.socket && req.socket.encrypted) return true;
+  const xf = String((req && req.headers && req.headers['x-forwarded-proto']) || '').split(',')[0].trim().toLowerCase();
+  return xf === 'https';
+}
 const CSRF_403 = { ok: false, error: '거부 — 이 요청의 출처(Origin/Sec-Fetch-Site)가 보드와 달라요. 상태를 바꾸는 POST 는 대시보드 자신 또는 비-브라우저 클라이언트에서만 받아요. (Constellation §13.25.11)' };
 
 const server = http.createServer((req, res) => {
@@ -324,7 +332,13 @@ const server = http.createServer((req, res) => {
       if (!operatorAuth.enabled()) return sendJson(res, 409, { ok: false, error: 'no-operators', hint: '계정이 없어요 — 로그인 층이 꺼져 있어요.' });
       const r = await operatorAuth.verify(String(b.id || ''), String(b.password || ''));
       if (!r.ok) return sendJson(res, 401, { ok: false, error: r.error, retryAfterMs: r.retryAfterMs });
-      res.setHeader('Set-Cookie', operatorAuth.setCookieHeader(r.token, !_isLoopback));
+      // v2.4.162 — Secure 는 **이 요청이 https 로 왔을 때만.** 종전엔 바인드 주소(비-loopback)로 정했는데, 그건
+      //   «어디에 떠 있나» 지 «어떻게 왔나» 가 아니에요. 0.0.0.0 에 뜬 보드를 폰이 http://<tailscale-ip>:포트 로
+      //   열면 로그인은 200 인데 브라우저가 Secure 쿠키를 http 원점에 저장하지 않아서(Chrome·Safari 규칙) 새로고침
+      //   직후 다시 로그인 막 — 실측 2026-09-20. http 로 온 요청엔 비밀번호가 이미 평문으로 지나갔으니 Secure 가
+      //   더 지켜 주는 것도 없어요. TLS 종단 프록시 뒤(x-forwarded-proto: https)에선 붙여요 — 헤더 위조는 자기
+      //   로그인만 깨뜨리니 더 붙이는 방향은 안전해요.
+      res.setHeader('Set-Cookie', operatorAuth.setCookieHeader(r.token, reqIsHttps(req)));
       sendJson(res, 200, { ok: true, operator: r.operator });
     });
     return;
