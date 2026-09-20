@@ -522,7 +522,7 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-invite-new:hover { color: var(--ink); }
 
 /* 8방향 리사이즈 핸들 (모든 면·모서리) */
-.ws-rsz { position: absolute; z-index: 62; }
+.ws-rsz { position: absolute; z-index: 62; touch-action: none; }   /* touch-action:none — 손가락 드래그를 브라우저 스크롤/줌이 가로채지 않게 (v2.4.163) */
 .ws-rsz.n { top: 0; left: 10px; right: 10px; height: 6px; cursor: ns-resize; }
 .ws-rsz.s { bottom: 0; left: 10px; right: 10px; height: 6px; cursor: ns-resize; }
 .ws-rsz.e { right: 0; top: 10px; bottom: 10px; width: 6px; cursor: ew-resize; }
@@ -532,6 +532,16 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-rsz.se { bottom: 0; right: 0; width: 15px; height: 15px; cursor: nwse-resize; }
 .ws-rsz.sw { bottom: 0; left: 0; width: 13px; height: 13px; cursor: nesw-resize; }
 .ws-rsz.se::after { content: ""; position: absolute; right: 3px; bottom: 3px; width: 6px; height: 6px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); opacity: .5; }
+/* 손가락 입력(태블릿·펼친 폴더블 — >560px 이라 데스크탑 레이아웃) — 6px 변·13px 모서리는 손가락이 못 잡아요. 잡는 면적만 키우고
+   그림(우하단 그립)은 조금만 키워요. 헤더 오른쪽 끝 ✕ 는 ne 모서리 핸들과 겹치니 버튼을 위로 올려 탭이 버튼에 가게 해요. (v2.4.163) */
+@media (pointer: coarse) {
+  .ws-rsz.n, .ws-rsz.s { height: 14px; left: 24px; right: 24px; }
+  .ws-rsz.e, .ws-rsz.w { width: 14px; top: 24px; bottom: 24px; }
+  .ws-rsz.ne, .ws-rsz.nw, .ws-rsz.se, .ws-rsz.sw { width: 24px; height: 24px; }
+  .ws-rsz.se::after { right: 5px; bottom: 5px; width: 9px; height: 9px; }
+  .ws-pop-head { touch-action: none; }                 /* 헤더 = 이동 손잡이 — 손가락 드래그를 스크롤로 안 넘겨요 */
+  .ws-pop-head .ws-pop-close, .ws-pop-head .ws-arch-btn { position: relative; z-index: 63; }
+}
 
 /* 대화(text/user) 마크다운 렌더 */
 .ws-body.ws-md { white-space: normal; }

@@ -1,4 +1,4 @@
-<!-- module: Constellation reference; layer: dashboard-render-patterns; part-of: EstreGenesis 2.5; version: v0.1.1; date: 2026-09-20; license: Apache-2.0 -->
+<!-- module: Constellation reference; layer: dashboard-render-patterns; part-of: EstreGenesis 2.5; version: v0.1.2; date: 2026-09-20; license: Apache-2.0 -->
 
 # Dashboard render patterns — Constellation board UI guide
 
@@ -186,6 +186,16 @@ Any other `source` value — `agent`, `<upstream-agentId>`, `<local-worker-agent
 **Mobile half.** On first open in pager mode, `wsReplayHistory` requests history for every cold member of the active group's page (swipe already did; first open did not), so a merged page is not silently partial.
 
 **Verification.** `scripts/pw-mobile-realtime.cjs` in the maintenance workspace: an isolated server receives real WS utterances from two agents, is then **restarted with no agent connected**, and the check asserts the main channel's rows are visible on both the desktop stream and the mobile main-group page, and that `wsState.channels.get(primary).role === 'main'`. It fails on the pre-fix runtime + dashboard (three assertions).
+
+---
+
+## §10 Pane gestures — pointer events with capture, finger-sized hit areas
+
+**Pattern.** Every drag gesture on a floating pane (header move, edge/corner resize) listens to **pointer events** (`pointerdown` / `pointermove` / `pointerup` / `pointercancel`) with `setPointerCapture` on the element that started the gesture, and the gesture surfaces declare `touch-action: none`. Mouse, touch and pen then share one code path; capture delivers move/up to the handle even when the finger leaves it; `pointercancel` releases a gesture the system took over (notification shade, rotation). Under `(pointer: coarse)` the hit areas grow (edges ≈14px, corners ≈24px) while the drawn grip stays small, and any control that sits inside a corner's hit area (the header's ✕) is raised above the handles so a tap lands on the control.
+
+**The fix this codifies (v2.4.163).** The realtime pane's move and resize listened to `mousedown`/`mousemove`/`mouseup` only. Touch emulates a mouse *click*, not a mouse *drag*, so on a tablet or an unfolded foldable — wider than the 560px fullscreen breakpoint, hence the desktop layout with its handles — a finger on a handle or the header did nothing, with no error to point at. The workflow-monitor popup already used pointer capture (v2.4.85); the two panes on one screen had different input models. Below the breakpoint the pane is fullscreen by design and has no resize; the header there is not a move handle.
+
+**Verification.** `scripts/pw-mobile-realtime.cjs` (maintenance workspace), tablet phase: a 900×1200 touch context drives real touch sequences through CDP `Input.dispatchTouchEvent` — corner drag grows the pane, header drag moves it, edge drag grows it, the state persists, and a tap on ✕ still closes — and the desktop phase repeats the resize/move with the mouse so the pointer-event conversion cannot regress mouse users. Moves are dispatched at finger speed: instantaneous moves read as a fling and Chrome suppresses the next tap's click, which is an instrumentation artifact, not a pane behavior.
 
 ---
 

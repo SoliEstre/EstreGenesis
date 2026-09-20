@@ -4766,33 +4766,42 @@ function setupMobileTabbar() {
 }
 
 // ---- 8방향 리사이즈 (모든 면·모서리) ----
+// v2.4.163 — 포인터 이벤트 + 캡처. 종전엔 mousedown/mousemove/mouseup 이라 **손가락으로는 아무 일도 안 났어요**
+//   (터치는 탭만 마우스로 흉내 내고 드래그는 안 내요) — 태블릿·펼친 폴더블(>560px, 데스크탑 레이아웃)에서
+//   실시간 창 크기·위치를 못 바꾸던 자리. 캡처를 잡으면 손가락이 핸들 밖으로 나가도 move/up 이 핸들로 와요.
+//   워크플로 모니터 팝업(v2.4.85)이 이미 이 모양이에요 — 같은 화면의 두 창이 다른 입력 모델을 쓸 이유가 없어요.
 function setupWsResize(pop) {
   let rz = null;
+  const MIN = 320;
   pop.querySelectorAll('.ws-rsz').forEach(h => {
-    h.addEventListener('mousedown', (e) => {
+    h.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;   // 우클릭·휠클릭은 리사이즈가 아니에요
       const r = pop.getBoundingClientRect();
-      rz = { dir: h.dataset.dir, x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height, anchor: wsCurrentAnchor() };
+      rz = { id: e.pointerId, dir: h.dataset.dir, x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height, anchor: wsCurrentAnchor() };
       // 리사이즈 진행 중에는 left/top + width/height 로 작업, 종료 시 anchor 기준 정규화
       pop.style.left = r.left + 'px'; pop.style.top = r.top + 'px'; pop.style.right = 'auto'; pop.style.bottom = 'auto';
+      try { h.setPointerCapture(e.pointerId); } catch {}
       e.preventDefault(); e.stopPropagation();
     });
-  });
-  window.addEventListener('mousemove', (e) => {
-    if (!rz) return;
-    const dx = e.clientX - rz.x, dy = e.clientY - rz.y, MIN = 320;
-    let left = rz.left, top = rz.top, w = rz.w, h = rz.h;
-    if (rz.dir.includes('e')) w = Math.max(MIN, rz.w + dx);
-    if (rz.dir.includes('s')) h = Math.max(MIN, rz.h + dy);
-    if (rz.dir.includes('w')) { const nw = Math.max(MIN, rz.w - dx); left = rz.left + (rz.w - nw); w = nw; }
-    if (rz.dir.includes('n')) { const nh = Math.max(MIN, rz.h - dy); top = rz.top + (rz.h - nh); h = nh; }
-    pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.style.width = w + 'px'; pop.style.height = h + 'px';
-  });
-  window.addEventListener('mouseup', () => {
-    if (!rz) return;
-    // 리사이즈 종료 — 현재 rect → active anchor 기준 모서리 거리로 정규화 (화면 resize 시 거리 유지)
-    const r = pop.getBoundingClientRect();
-    wsApplyAnchorPos(pop, wsRectToAnchorPos(r, rz.anchor));
-    rz = null; wsSaveUI();
+    h.addEventListener('pointermove', (e) => {
+      if (!rz || e.pointerId !== rz.id) return;
+      const dx = e.clientX - rz.x, dy = e.clientY - rz.y;
+      let left = rz.left, top = rz.top, w = rz.w, h = rz.h;
+      if (rz.dir.includes('e')) w = Math.max(MIN, Math.min(rz.w + dx, innerWidth - rz.left));       // 뷰포트 밖으로 못 자라요
+      if (rz.dir.includes('s')) h = Math.max(MIN, Math.min(rz.h + dy, innerHeight - rz.top));
+      if (rz.dir.includes('w')) { const nw = Math.max(MIN, Math.min(rz.w - dx, rz.left + rz.w)); left = rz.left + (rz.w - nw); w = nw; }
+      if (rz.dir.includes('n')) { const nh = Math.max(MIN, Math.min(rz.h - dy, rz.top + rz.h)); top = rz.top + (rz.h - nh); h = nh; }
+      pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.style.width = w + 'px'; pop.style.height = h + 'px';
+    });
+    const end = (e) => {
+      if (!rz || e.pointerId !== rz.id) return;
+      // 리사이즈 종료 — 현재 rect → active anchor 기준 모서리 거리로 정규화 (화면 resize 시 거리 유지)
+      const r = pop.getBoundingClientRect();
+      wsApplyAnchorPos(pop, wsRectToAnchorPos(r, rz.anchor));
+      rz = null; wsSaveUI();
+    };
+    h.addEventListener('pointerup', end);
+    h.addEventListener('pointercancel', end);   // 시스템 제스처(알림 서랍·화면 회전)가 가로채면 여기로 — 잡은 채로 남지 않게
   });
 }
 
@@ -5058,27 +5067,34 @@ function setupWS() {
   fab.onclick = () => toggleWsPop();
   if (close) close.onclick = (e) => { e.stopPropagation(); toggleWsPop(false); };
   // 헤더 드래그 — 진행 중에는 left/top, 종료 시 active anchor 기준 모서리 거리로 정규화 (화면 resize 시 거리 유지)
+  // v2.4.163 — 포인터 이벤트 + 캡처 (setupWsResize 와 같은 이유: 마우스 이벤트만 듣던 헤더는 손가락으로 못 옮겼어요).
+  //   모바일 풀스크린(≤560px)에선 CSS 가 위치를 !important 로 고정하니 여기 값이 화면에 안 나타나요 — 그 경우만 건너뛰어요.
   let drag = null;
   if (head) {
-    head.addEventListener('mousedown', (e) => {
-      if (e.target.closest('button, input, select, textarea, a, .ws-collab-panel')) return;   // 인터랙티브 요소(close·collab 라벨 input·패널 등)는 드래그 제외 — 클릭/포커스 보존
+    head.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.target.closest('button, input, select, textarea, a, .ws-collab-panel, .ws-pop-close')) return;   // 인터랙티브 요소(close·collab 라벨 input·패널 등)는 드래그 제외 — 클릭/포커스 보존. ✕ 는 span 이라 이름을 대야 해요
+      if (wsPagerOn()) return;   // 풀스크린 모바일 — 이동 불가(고정)라 잡지 않아요
       const r = pop.getBoundingClientRect();
-      drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, anchor: wsCurrentAnchor() };
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, left: r.left, top: r.top, anchor: wsCurrentAnchor() };
       pop.style.left = r.left + 'px'; pop.style.top = r.top + 'px'; pop.style.right = 'auto'; pop.style.bottom = 'auto';
+      try { head.setPointerCapture(e.pointerId); } catch {}
       e.preventDefault();
     });
-    window.addEventListener('mousemove', (e) => {
-      if (!drag) return;
+    head.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
       pop.style.left = Math.max(0, Math.min(innerWidth - 80, drag.left + (e.clientX - drag.x))) + 'px';
       pop.style.top = Math.max(0, Math.min(innerHeight - 40, drag.top + (e.clientY - drag.y))) + 'px';
     });
-    window.addEventListener('mouseup', () => {
-      if (!drag) return;
+    const endDrag = (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
       // 드래그 종료 — anchor 기준 정규화
       const r = pop.getBoundingClientRect();
       wsApplyAnchorPos(pop, wsRectToAnchorPos(r, drag.anchor));
       drag = null; wsSaveUI();
-    });
+    };
+    head.addEventListener('pointerup', endDrag);
+    head.addEventListener('pointercancel', endDrag);
   }
   setupWsResize(pop);
   wsLoadDrafts();   // 채널별 입력 draft·통일 높이 복원(새로고침 영속)
