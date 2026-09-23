@@ -1,23 +1,24 @@
 # EstreGenesis promotional site
 
-Static HTML/CSS/JS landing for EstreGenesis + Superscalar + Constellation, suitable for X (Twitter) sharing.
+Static HTML/CSS/JS site for EstreGenesis — the seed, the seven installable modules and the specification-only module (Pantty) — published through GitHub Pages from `/docs`.
 
 ## Structure
 
 ```
 docs/
-  index.html           ← landing (3 module cards)
-  superscalar.html     ← A/B charts + Entry 06 metrics + dogfood ledger
-  constellation.html   ← 5 e2e A2A PRs + §13.x protocol family + plugin install
+  index.html           ← landing (seed tiers + module overview)
+  docs.html            ← install + usage hub
+  modules.html         ← every module card + the kit plugin + skill roster
+  superscalar.html     ← A/B charts + Entry 06 metrics + model-profile status (generated block)
+  hyperbrief.html  greatpractice.html  ultrasafe.html  constellation.html
+  compendium.html  corporate.html  pantty.html      ← one page per module
+  llms.txt             ← machine-readable index of the normative files
   shared/
-    data.js            ← single source of truth (SSoT) for all metrics
-    i18n.js            ← bilingual EN ↔ KO toggle
-    theme.js           ← theme switcher (technical / marketing / academic)
-    audience.js        ← audience-level switcher (general / dev / expert)
-    charts.js          ← Chart.js wrapper for Superscalar A/B + Constellation timeline
-    shared.css         ← theme-agnostic base layout
-    themes.css         ← three theme presets (CSS variables)
+    data.js            ← metrics SSoT (release version is written by the cut script)
+    i18n.js · audience.js · theme.js · charts.js · copy.js · shared.css · themes.css
 ```
+
+What keeps these pages current: the release cut writes the version badge and `data.js` meta; module badges and meta descriptions are gated by the maintenance checker's N-way axes; the Superscalar model-profile status block is generated from `plugins/superscalar/model-registry.json` by `node scripts/sync-registry-status.mjs --write` and gated by `--check`. Prose outside those surfaces is hand-written and dated by its commit.
 
 ## Themes (pick by clicking the `tech / market / paper` toggle in the header)
 
@@ -54,7 +55,8 @@ All numbers in `shared/data.js`. Verifiable in the EstreGenesis repo:
 
 - Superscalar Entry 06 → `Superscalar.md` §11
 - Constellation 5 PRs → git log + CHANGELOG.md
-- Ship timeline → CHANGELOG.md
+- Ship timeline → CHANGELOG.md (a historical snapshot of the 2026-06 24h dogfood, v2.4.5 → v2.5.15 — not a live release list)
+- Superscalar model-profile status → `plugins/superscalar/model-registry.json` (generated block, see above)
 - §13.x protocol additions → Constellation.md
 
 ## License
