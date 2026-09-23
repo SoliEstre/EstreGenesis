@@ -62,6 +62,7 @@ let ws = null, connected = false, seq = 0, backoff = 500;
 // 수락 증거(거절이 아닌 서버 첫 프레임) 없이는 backoff 를 되돌리지 않아요.
 const REJECT_RETRY_MS = +(process.env.JOIN_REJECT_RETRY_MS || 5 * 60 * 1000);
 let accepted = false;          // 이번 연결이 «수락» 증거를 받았나 (open 은 증거가 아니에요)
+let refusedThisConn = false;   // 이 연결은 서버가 거절했다 — 닫힐 때까지 거절이에요(뒤이은 방송이 수락으로 뒤집지 못하게)
 let rejectedUntilRetry = 0;    // >now = 직전 연결이 서버 판정으로 거절됨 — 다음 재시도는 이 시각
 function log(obj) { try { fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(), ...obj }) + '\n'); } catch {} }
 function send(type, extra) {
@@ -78,7 +79,7 @@ let outCursor = loadOutCursor();
 // 워커 세션(IDE/CLI 에이전트)이 OUTBOX 에 append 한 줄을 connected 이후 drain 송신.
 // 줄 형식: 완성된 envelope (type/name/targetAgentId/value …) — agentId/seq/timestamp 는 send() 가 보강.
 function drainOutbox() {
-  if (!connected) return;
+  if (!connected || !accepted) return;   // 수락 전엔 비우지 않아요 — 거절될 연결로 보내면 커서만 전진하고 줄은 사라져요
   let data = ''; try { data = fs.readFileSync(OUTBOX, 'utf8'); } catch { return; }
   const lines = data.split('\n').filter(Boolean);
   for (let i = outCursor; i < lines.length; i++) {
@@ -95,7 +96,7 @@ function connect() {
     // backoff 를 여기서 되돌리지 않아요 — open 은 «TCP 가 붙었다» 지 «서버가 받아줬다» 가 아니에요.
     // 거절은 open **뒤에** 프레임으로 오니까, 여기서 리셋하면 지수 백오프가 매 사이클 무효화돼요
     // (그게 2Hz × 19만 회의 기제였어요). 리셋은 수락 증거를 받은 onmessage 쪽에서 해요.
-    connected = true; accepted = false;
+    connected = true; accepted = false; refusedThisConn = false;
     send('HELLO', { clientId: AGENT_ID + '-1', agentName: AGENT_NAME, role: 'local', protocolVersion: '0.3', runId: null, capabilities: { inbound: ['UserPrompt', 'Command', 'Cancel', 'Delegate', 'OnboardAck', 'WorkerAck'], outbound: ['CUSTOM'] } });
     console.log(`[join-local] connected; HELLO sent (role=local). 메인(${MAIN}) Delegate 대기.`);
     log({ ev: 'connected' });
@@ -112,7 +113,9 @@ function connect() {
     //   ConnectionRejected 는 이 가드에 막혀 재시도 간격을 **아예 못 걸어요**. URL 키 만료만
     //   업그레이드 단계에서 미리 끊겨 우연히 안 걸렸을 뿐, 정체 불일치·키 요구·허용목록 거절은
     //   전부 이 방어 밖이었어요 — 한 사유만 막고 나머지엔 무효인 상태였어요 (2026-08-25 실측).
-    if (m && m.name === 'ConnectionRejected') {
+    // 서버가 낸 것만 거절이에요 — 서버는 에이전트가 보낸 같은 이름의 프레임도 중계해요(source 'agent').
+    if (m && m.name === 'ConnectionRejected' && m.source === 'server') {
+      refusedThisConn = true;
       accepted = false;                                   // 수락으로 세었던 걸 되돌려요 (증거가 뒤집혔어요)
       rejectedUntilRetry = Date.now() + REJECT_RETRY_MS;
       log({ ev: 'rejected', code: m.value && m.value.code, label: m.value && m.value.label, retryInMs: REJECT_RETRY_MS });
@@ -122,6 +125,8 @@ function connect() {
     // SERVER_HELLO 는 «붙었다» 지 «받아줬다» 가 아니에요 — 서버가 인가 전에 보내니 수락 증거에서 빼요.
     //   다만 **더 좁히지는 않아요**(허용목록 방식으로 «이 이름만 수락» 을 만들면, HELLO 뒤에 아무
     //   프레임도 안 보내는 서버 판에서 인사가 영영 안 나가 워커가 조용한 유령이 돼요).
+    // 거절된 연결로 온 나머지는 쓰지 않아요 — 여기서 인사하거나 ack 하면 거절된 소켓으로 발신이 나가요.
+    if (refusedThisConn) return;
     if (!accepted && m && m.type !== 'SERVER_HELLO') {
       // 거절이 아닌 첫 서버 프레임 = 수락 증거. 여기서만 backoff 를 되돌리고, 인사도 여기서 해요 —
       // 종전엔 인사 2종이 open 직후 타이머로 나가서, 거절당하는 연결에서도 매 사이클 발사됐어요
