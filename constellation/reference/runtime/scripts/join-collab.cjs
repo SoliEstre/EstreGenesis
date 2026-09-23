@@ -238,6 +238,14 @@ const UNDELIVERED_NAMES = new Set(['RelayUnreachable']);
 
 let ws = null, connected = false, seq = 0, backoff = 500;
 let selfIntroSent = false;   // §2 — **연결당 1회**. AgentList 는 갱신마다 오므로 매번 보내면 인사 폭주가 돼요.
+// ── 결정론적 거절의 재시도 간격 — scripts/join-local.cjs 와 같은 규약 ──────────
+// 서버는 소켓을 **연 다음에** 거절해요(ConnectionRejected + close). 그래서 onopen 에서 backoff 를 되돌리면
+//   지수 백오프가 매 사이클 500ms 로 초기화돼요 — open 은 «TCP 가 붙었다» 지 «서버가 받아줬다» 가 아니에요.
+//   이 파일엔 그 규약이 빠져 있었어요(join-local 만 고쳐졌어요): 만료 키 하나로 재부팅 직후부터 ~2Hz 재접속,
+//   40분에 4,600회 이상 실측. 열쇠 거절은 빨리 두드려서 안 풀려요 — 재시도는 «연장되면 알아차리기» 용이라 5분이면 돼요.
+const REJECT_RETRY_MS = +(process.env.JOIN_REJECT_RETRY_MS || 5 * 60 * 1000);
+let accepted = false;          // 이번 연결이 «수락» 증거를 받았나 (open 도 SERVER_HELLO 도 증거가 아니에요)
+let rejectedUntilRetry = 0;    // >now = 직전 연결이 서버 판정으로 거절됨 — 다음 재시도는 이 시각
 
 function log(obj) { try { fs.appendFileSync(STORE, JSON.stringify(Object.assign({ t: Date.now() }, obj)) + '\n'); } catch {} }
 function send(type, extra) {
@@ -274,7 +282,8 @@ let outCursor = (() => {
   return 0;
 })();
 function drainOutbox() {
-  if (!connected) return;
+  // 수락 전엔 비우지 않아요 — 거절당할 연결로 보내면 커서만 전진하고 줄은 사라져요(무음 유실).
+  if (!connected || !accepted) return;
   let data = ''; try { data = fs.readFileSync(OUTBOX, 'utf8'); } catch { return; }
   const lines = data.split('\n').filter(Boolean);
   for (let i = outCursor; i < lines.length; i++) {
@@ -286,9 +295,14 @@ function drainOutbox() {
 
 function connect() {
   console.log(`[join-collab] connecting ${WS_URL.replace(key, '<key>')} (agentId=${AGENT_ID} role=${ROLE} kind=${KIND})`);
-  ws = new WebSocket(WS_URL);
-  ws.onopen = () => {
-    connected = true; backoff = 500; selfIntroSent = false;
+  // 핸들러는 **자기 소켓**에만 반응해요 — 늦게 도착한 옛 소켓의 이벤트가 새 연결 상태를 지우지 않게.
+  const sock = new WebSocket(WS_URL);
+  ws = sock;
+  let refusedHere = false;   // 이 연결은 서버가 거절했다 — 끝날 때까지 거절이에요(뒤에 오는 방송이 수락으로 뒤집지 못하게)
+  sock.onopen = () => {
+    if (ws !== sock) return;
+    // backoff 는 여기서 되돌리지 않아요 — 수락 증거를 받은 onmessage 쪽에서 해요.
+    connected = true; accepted = false; selfIntroSent = false;
     // §2 HELLO 전체 필드. capabilities 는 «내가 무엇을 받을 수 있는가» 라 서버·상대가 라우팅에 써요.
     send('HELLO', {
       clientId: AGENT_ID + '-' + process.pid, agentName: AGENT_NAME, role: ROLE, protocolVersion: '0.3', runId: null,
@@ -296,9 +310,29 @@ function connect() {
     });
     log({ ev: 'connected', role: ROLE, kind: KIND });
   };
-  ws.onmessage = (e) => {
+  sock.onmessage = (e) => {
+    if (ws !== sock) return;
     let m; try { m = JSON.parse(e.data); } catch { return; }
     const name = m && (m.name || m.type);
+
+    // ── 수락/거절 판정 — 다른 무엇보다 먼저예요 ────────────────────────────────
+    // 거절은 언제 오든 거절이에요(서버는 SERVER_HELLO 를 인가 판정 **전에** 보내요 — TOFU 불일치는 그 뒤에 와요).
+    //   거절 프레임은 일반 inbound 로 적지 않아요: 적으면 깨우는 쪽 필터에 따라 기록 오염이나 기상 폭주가 돼요.
+    //   **서버가 낸 것만** 거절이에요 — 서버는 에이전트가 보낸 같은 이름의 프레임도 중계하니(source 는 'agent'
+    //   로 찍혀요), 이름만 보면 아무 피어나 수락된 연결을 «거절됨» 으로 뒤집을 수 있어요.
+    if (m && m.name === 'ConnectionRejected' && m.source === 'server') {
+      accepted = false; refusedHere = true;
+      rejectedUntilRetry = Date.now() + REJECT_RETRY_MS;
+      const v = m.value || {};
+      log({ ev: 'rejected', code: v.code, label: v.label, retryInMs: REJECT_RETRY_MS });
+      console.error(`[join-collab] 서버가 합류를 거절했어요 (${v.code || '?'}) — ${Math.round(REJECT_RETRY_MS / 60000)}분 뒤 재시도. 빨리 두드려서 풀리는 종류가 아니에요.`);
+      return;
+    }
+    // 거절된 연결로 온 나머지는 쓰지 않아요 — 서버가 «이 연결로 받은 상태는 무효» 라고 하는 연결이에요.
+    //   여기서 AgentList 에 인사하거나 ack 하면 거절된 소켓으로 발신이 나가요.
+    if (refusedHere) return;
+    // 거절이 아닌 첫 서버 프레임(SERVER_HELLO 제외) = 수락 증거. backoff 리셋은 여기서만.
+    if (!accepted && m && m.type !== 'SERVER_HELLO') { accepted = true; rejectedUntilRetry = 0; backoff = 500; }
 
     // §7 — 메타는 한 줄 요약만. 본문을 남기지 않는 게 요점이에요.
     if (META_NAMES.has(name) || m.type === 'History' || m.type === 'AgentList' || m.type === 'SERVER_HELLO') {
@@ -340,14 +374,34 @@ function connect() {
       log({ ev: 'ackprocessed-sent', ackFor: m.msgId, to: m.agentId || '(server-consumed)' });
     }
   };
-  ws.onerror = (err) => { log({ ev: 'ws-error', e: String((err && err.message) || err) }); };
-  ws.onclose = (ev) => {
-    connected = false; ws = null;
-    log({ ev: 'closed', code: ev && ev.code });
-    // close(1005) 가 반복되면 거의 항상 **같은 agentId 중복 접속**이에요 — §4 가드가 있으면 여기까지 안 와요.
-    if (ev && ev.code === 1005) console.error('[join-collab] close(1005) — 같은 agentId 중복 접속일 가능성이 높아요. 다른 인스턴스를 먼저 정리하세요.');
-    setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 8000);
+  // 재연결은 error·close **양쪽에서** 예약해요 — 일부 런타임(Node 22 / undici 6.27)은 error 뒤 close 를 안 내서,
+  //   close 전용이면 재연결 체인이 조용히 끝나요(local-bridge.cjs 가 채택자 보고 C10 으로 이미 고친 자리).
+  //   중복은 소켓 세대 확인이 흡수해요: 먼저 온 쪽이 ws 를 비우면 나중 것은 «내 소켓이 아님» 으로 빠져요.
+  sock.onerror = (err) => {
+    if (ws !== sock) return;
+    log({ ev: 'ws-error', e: String((err && err.message) || err) });
+    try { if (sock.readyState === 1) sock.close(); } catch {}
+    scheduleReconnect(sock, 'error', undefined);
   };
+  sock.onclose = (ev) => { scheduleReconnect(sock, 'close', ev && ev.code); };
+}
+
+function scheduleReconnect(sock, why, code) {
+  if (ws !== sock) return;   // 이 소켓의 끝은 한 번만 처리해요
+  const wasAccepted = accepted;
+  connected = false; accepted = false; ws = null;
+  // 거절 프레임 없이 4003/4403 으로 닫혀도 서버 판정 거절이에요(프레임을 싣지 않던 옛 서버 · 프레임 유실).
+  //   수락된 뒤의 4003(열쇠 폐기로 끊김)은 여기 안 걸려요 — 다음 접속이 거절 프레임으로 다시 말해 줘요.
+  if (!wasAccepted && (code === 4003 || code === 4403) && !(rejectedUntilRetry > Date.now())) {
+    rejectedUntilRetry = Date.now() + REJECT_RETRY_MS;
+    log({ ev: 'rejected', code: 'close-' + code, retryInMs: REJECT_RETRY_MS });
+  }
+  // 거절당한 연결의 재시도는 지수 사다리가 아니라 REJECT_RETRY_MS 예요 — 사다리 상한(8초)이 거절 대기를 깎지 않게.
+  const wait = rejectedUntilRetry > Date.now() ? Math.max(rejectedUntilRetry - Date.now(), 1000) : backoff;
+  log({ ev: 'closed', code, why, retryInMs: wait });
+  // close(1005) 가 반복되면 거의 항상 **같은 agentId 중복 접속**이에요 — §4 가드가 있으면 여기까지 안 와요.
+  if (code === 1005) console.error('[join-collab] close(1005) — 같은 agentId 중복 접속일 가능성이 높아요. 다른 인스턴스를 먼저 정리하세요.');
+  setTimeout(connect, wait); backoff = Math.min(backoff * 2, 8000);
 }
 
 // ── §5 고아 방지 ────────────────────────────────────────────────────────────
