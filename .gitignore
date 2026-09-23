@@ -11,6 +11,10 @@ constellation/reference/runtime/.*-bridge.lock
 # join-local / watchdog / 기타 client 가 동일 패턴으로 lock 파일 생성.
 constellation/reference/runtime/.*.pid
 constellation/reference/runtime/scripts/.*.pid
+# v2.6.130 후속 — 게이트웨이 클라이언트도 자기 옆에 lock 을 쓰고, join-local 은 런타임 폴더에 local-<id>.log 를 써요.
+#   제자리 실행(검사 포함)의 부산물이 공개 저장소에 한 번 섞였어요 — 규율이 아니라 무시 규칙으로 막아요.
+constellation/reference/gateway/main/.*.pid
+constellation/reference/runtime/local-*.log
 # v2.4.43 (#3b webpush) — push.cjs 가 생성하는 VAPID 개인키 + 구독 저장 (배포별 런타임, 절대 추적 금지).
 constellation/reference/runtime/.vapid.json
 constellation/reference/runtime/.push-subs.json
