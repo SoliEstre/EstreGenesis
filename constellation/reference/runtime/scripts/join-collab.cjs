@@ -46,6 +46,7 @@
  *   PARENT_PID      이 pid 가 사라지면 스스로 종료 (§5 고아 방지 — 위 «권장» 구성이면 불필요)
  */
 const fs = require('fs');
+const redactUrl = (u) => String(u).replace(/([?&](?:key|peerKey|upstreamKey|collabKey|token)=)[^&#\s]*/gi, '$1<redacted>');   // v2.4.165 — 로그에 찍는 주소는 자격증명 파라미터를 **모든 출현**에서 가려요(첫 출현만 가리던 .replace(key) · 접두 자르기 대신)
 const path = require('path');
 
 // ── 공용 부품 찾기 (2026-08-11, 채택자 보고) ────────────────────────────────────
@@ -143,7 +144,7 @@ if (_URL_ENV && _HOST_ENV) {
   let _u = null; try { _u = new URL(_URL_ENV); } catch {}
   if (_u && _u.host && _u.host !== _HOST_ENV) {
     console.error('[join-collab] 보드 지정이 둘인데 서로 달라요 — 어느 쪽을 뜻하는지 추측하지 않고 멈춰요.');
-    console.error(`[join-collab]   CONSTELLATION_WS_URL=${_URL_ENV}   (host=${_u.host})`);
+    console.error(`[join-collab]   CONSTELLATION_WS_URL=${redactUrl(_URL_ENV)}   (host=${_u.host})`);
     console.error(`[join-collab]   COLLAB_HOST=${_HOST_ENV}`);
     console.error('[join-collab]   하나만 두세요. 스크립트가 COLLAB_HOST 로 지목했는데 환경에 URL 이 떠 있으면 조용히 다른 보드로 갑니다.');
     process.exit(1);
@@ -294,7 +295,7 @@ function drainOutbox() {
 }
 
 function connect() {
-  console.log(`[join-collab] connecting ${WS_URL.replace(key, '<key>')} (agentId=${AGENT_ID} role=${ROLE} kind=${KIND})`);
+  console.log(`[join-collab] connecting ${redactUrl(WS_URL)} (agentId=${AGENT_ID} role=${ROLE} kind=${KIND})`);
   // 핸들러는 **자기 소켓**에만 반응해요 — 늦게 도착한 옛 소켓의 이벤트가 새 연결 상태를 지우지 않게.
   const sock = new WebSocket(WS_URL);
   ws = sock;

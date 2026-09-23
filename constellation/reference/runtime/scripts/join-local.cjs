@@ -6,6 +6,7 @@
 
 'use strict';
 const fs = require('fs');
+const redactUrl = (u) => String(u).replace(/([?&](?:key|peerKey|upstreamKey|collabKey|token)=)[^&#\s]*/gi, '$1<redacted>');   // v2.4.165 — 로그에 찍는 주소는 자격증명 파라미터를 **모든 출현**에서 가려요(첫 출현만 가리던 .replace(key) · 접두 자르기 대신)
 const { stampRelayKey } = require('../relay-key.cjs');   // §13.13.2 회수 열쇠 부품 (공용)
 const path = require('path');
 
@@ -90,7 +91,7 @@ function drainOutbox() {
 }
 
 function connect() {
-  console.log(`[join-local] connecting ${WS_URL.replace(key, '<key>')} (agentId=${AGENT_ID})`);
+  console.log(`[join-local] connecting ${redactUrl(WS_URL)} (agentId=${AGENT_ID})`);
   ws = new WebSocket(WS_URL);
   ws.onopen = () => {
     // backoff 를 여기서 되돌리지 않아요 — open 은 «TCP 가 붙었다» 지 «서버가 받아줬다» 가 아니에요.

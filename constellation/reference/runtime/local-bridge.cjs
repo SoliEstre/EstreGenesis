@@ -45,6 +45,7 @@ const DIR = __dirname;
 const INBOX = process.env.WS_INBOX ? path.resolve(process.env.WS_INBOX) : path.join(DIR, 'inbox.jsonl');
 const OUTBOX = process.env.WS_OUTBOX ? path.resolve(process.env.WS_OUTBOX) : path.join(DIR, 'outbox.jsonl');
 const url = TOKEN ? `${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : WS_URL;
+const redactUrl = (u) => String(u).replace(/([?&](?:key|peerKey|upstreamKey|collabKey|token)=)[^&#\s]*/gi, '$1<redacted>');   // v2.4.165 — 로그에 찍는 주소는 자격증명 파라미터를 **모든 출현**에서 가려요(첫 출현만 가리던 .replace(key) · 접두 자르기 대신)
 
 // --- single-instance guard (WS_AGENT_ID 당 브릿지 1개 — 중복 인스턴스 → flap 방지) ---
 // 동일 agentId 브릿지가 2+ 이면 서버 register(HELLO) 의 prior-close + 각 브릿지 reconnect backoff 가
@@ -279,7 +280,7 @@ function emit(line) {
 
 // ---- 연결 + 자동 재연결 ----
 function connect() {
-  console.log('[bridge] connecting', url, 'as', AGENT_ID);
+  console.log('[bridge] connecting', redactUrl(url), 'as', AGENT_ID);
   ws = new WebSocket(url);
   ws.onopen = () => {
     connected = true; backoff = 500;

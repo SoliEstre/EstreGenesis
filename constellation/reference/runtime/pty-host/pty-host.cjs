@@ -15,7 +15,7 @@
 //   watchdog 이 §6 대로 등재하면 무인 복구가 공짜예요.
 //
 // 프레임 계약 (§9):
-//   운영자→호스트:  PtyOpen{sessionId,cols,rows,shell?,cwd?} · PtyData{sessionId,data}
+//   운영자→호스트:  PtyOpen{sessionId,cols,rows} · PtyData{sessionId,data}   (셸·작업 폴더는 PTY_SHELL·PTY_CWD — 프레임이 못 골라요, v2.4.165)
 //                    PtyResize{sessionId,cols,rows} · PtyClose{sessionId}
 //   호스트→운영자:  TerminalData{sessionId,data} · TerminalExit{sessionId,code}
 //   TerminalData/Exit 는 telemetry 태그 — 모델 wake·응답창 짝짓기에서 빠져요(이건 «답할 메시지» 가
@@ -37,10 +37,12 @@ function createHost({ send, pty, id = 'pty-host', defaultShell } = {}) {
 
   function open(sid, v) {
     if (sessions.has(sid)) return;                       // 재개는 §9 T3 — 지금은 중복 open 무시
-    const p = pty.spawn(v.shell || SHELL, [], {
+    // v2.4.165 Pantty §9 — 셸과 작업 폴더는 **호스트 운영자**가 정해요(PTY_SHELL · PTY_CWD). 프레임이 고르게 두면
+    //   중계 문을 연 쪽이 호스트에서 임의 실행 파일을 띄울 수 있어요 — 프레임의 shell·cwd 는 읽지 않아요.
+    const p = pty.spawn(SHELL, [], {
       name: 'xterm-256color',
       cols: Number(v.cols) || 80, rows: Number(v.rows) || 24,
-      cwd: v.cwd || os.homedir(), env: process.env,
+      cwd: process.env.PTY_CWD || os.homedir(), env: process.env,
     });
     sessions.set(sid, p);
     p.onData((d) => send({ type: 'CUSTOM', name: 'TerminalData', telemetry: true, agentId: id, value: { sessionId: sid, data: d } }));
@@ -71,12 +73,13 @@ function connect() {
   const pty = loadPty(); if (!pty) process.exit(3);
   if (typeof WebSocket === 'undefined') { console.error('[pty-host] 내장 WebSocket 부재 — Node ≥22 필요'); process.exit(3); }
   const URL = process.env.BOARD_WS_URL || 'ws://127.0.0.1:27878/ws';
+  const redactUrl = (u) => String(u).replace(/([?&](?:key|peerKey|upstreamKey|collabKey|token)=)[^&#\s]*/gi, '$1<redacted>');   // v2.4.165 — 로그에 찍는 주소는 자격증명 파라미터를 **모든 출현**에서 가려요(첫 출현만 가리던 .replace(key) · 접두 자르기 대신)
   const ID = process.env.PTY_HOST_ID || 'pty-host';
   const ws = new WebSocket(URL);
   const host = createHost({ send: (f) => { try { ws.send(JSON.stringify(f)); } catch (_) {} }, pty, id: ID });
   ws.addEventListener('open', () => {
     ws.send(JSON.stringify({ type: 'HELLO', agentId: ID, role: 'agent', name: 'pty-host', kind: 'local' }));
-    console.error('[pty-host] connected ' + URL + ' as ' + ID);
+    console.error('[pty-host] connected ' + redactUrl(URL) + ' as ' + ID);
   });
   ws.addEventListener('message', (e) => {
     let m; try { m = JSON.parse(typeof e.data === 'string' ? e.data : String(e.data)); } catch (_) { return; }
