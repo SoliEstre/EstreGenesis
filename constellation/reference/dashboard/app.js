@@ -3397,7 +3397,9 @@ function wsTermClose() {
 function wsTermOpen() {
   if (wsTermState) { wsTermClose(); return; }                 // 토글 닫기
   if (typeof window.Terminal !== 'function') { wsLocalRow('err', '⚠ 터미널', 'xterm 미로드'); return; }
-  const sessionId = 't-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36);
+  // v2.4.165 Pantty §9 — 세션 ID 는 128비트 난수예요. 종전 «시각 + 2^20 미만 Math.random» 은 추측 가능했어요.
+  //   서버가 모양(t- + 32 hex)을 검사해 다른 모양은 거절해요. 소유 검사가 주 방어이고, 이건 심층 방어예요.
+  const sessionId = 't-' + Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
   const box = document.createElement('div');
   box.style.cssText = 'position:fixed;right:24px;bottom:80px;width:680px;height:420px;z-index:270;background:#0b0e14;border:1px solid #2a3140;border-radius:8px;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.5);resize:both;overflow:hidden';
   const head = document.createElement('div');
@@ -3757,6 +3759,13 @@ function onWsEvent(m) {
         if (m.name === 'TerminalData') wsTermState.term.write(v.data || '');
         else wsTermState.term.write('\r\n\x1b[90m[exited ' + (v.code != null ? v.code : '') + ']\x1b[0m\r\n');
       } catch {}
+    }
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'PtyRejected') {   // v2.4.165 — 서버가 중계를 거절했어요(소유 아님 · 세션 중복 · 모양 불일치). 조용히 막히지 않게 위젯에 적어요.
+    const v = m.value || {};
+    if (wsTermState && (!v.sessionId || v.sessionId === wsTermState.sessionId)) {
+      try { wsTermState.term.write('\r\n\x1b[31m[relay refused: ' + String(v.code || '?') + ']\x1b[0m\r\n'); } catch {}
     }
     return;
   }

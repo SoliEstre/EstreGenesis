@@ -500,6 +500,12 @@ const wscore = require('./ws-core.cjs');
 const wsConns = new Set();
 const wsAgents = new Map();                    // agentId → conn
 const _a2aPending = new Map();                 // §13.8 A2A reply 페어링: 응답 에이전트 agentId → { from, contextId, parentId, at } (요청 기억)
+// v2.4.165 Pantty §9 — 중계 문의 서버 쪽 규칙. 호스트 이름은 예약되고(루프백 전용 · 살아 있는 호스트를 밀어낼 수 없음),
+//   입력 가족(Pty*)은 인가된 보드 연결만 · 세션을 연 연결만 · 등록된 호스트에게만 가요. 출력 가족(Terminal*)은 등록된 호스트만 내요.
+const PTY_HOST_ID = process.env.PTY_HOST_ID || 'pty-host';
+const PTY_IN = new Set(['PtyOpen', 'PtyData', 'PtyResize', 'PtyClose']);
+const PTY_OUT = new Set(['TerminalData', 'TerminalExit']);
+const PTY_SID_RE = /^t-[0-9a-f]{32}$/;   // 128비트 — 대시보드가 crypto.getRandomValues 로 만들어요
 const wsPtySessions = new Map();               // Pantty §9 — sessionId → 연 board 연결. relay 바이트(TerminalData)를 «연 운영자» 연결에만 보내요(방송 시 다른 board 도 수신 = 셸 출력 유출).
 const A2A_WINDOW = 120000;                     // reply-window(ms) — 응답 adapter 가 envelope echo 못할 때 fallback
 const _telFillWarn = new Set();                // v2.4.138 — 되돌림이 빈 수신자를 채운 (발신자|이름|수신자) 조합, 조합당 1회만 경고
@@ -642,6 +648,14 @@ function wsOperatorAuthz(conn) {
   const ip = conn.meta.ip || '';
   if (_isLoopback || isLoopbackIp(ip)) return true;
   return surfaceAllowed('ui', ip);
+}
+// v2.4.165 §13.25.18 — **보드 연결** = 열쇠를 내밀지 않았고, 에이전트가 아니고, 거절되지 않았고, 운영자 인가를 통과한 연결.
+//   종전엔 «HELLO 를 안 보냈다» 만으로 보드 연결이 됐어요. 그래서 노출된 보드에선 허용 주소의 아무 연결이나 로그인 없이
+//   (계정이 있어도) 접속 즉시 이력 전체를 받고, 보드 방송을 보고, 채널 이력을 지우고, main 앞으로 프롬프트를 넣고,
+//   HELLO 전에 보낸 프레임으로 아무 agentId 나 사칭할 수 있었어요 — HTTP 대시보드는 로그인에 막혀 있는데 WS 는 안 막혀 있었어요.
+//   판정은 **쓰는 순간마다** 해요 — 허용목록은 실행 중에 바뀔 수 있어서(/api/access) 접속 때 굳히면 낡아요.
+function wsIsBoard(conn) {
+  return !!conn && conn.meta.role !== 'agent' && !conn.meta._urlKey && !conn.meta.rejected && wsOperatorAuthz(conn);
 }
 // 업스트림 등록키 레지스트리 (영속, gitignore). 메인이 발급 → 사용자 경유 업스트림에 전달 → 그 키로 upstream role.
 const crypto = require('crypto');
@@ -1811,8 +1825,11 @@ function wsRelayOperatorFeedback(entry) {
   wsRecord(ev);
   try { push.maybePush(ev); } catch {}
 }
-function wsToBoards(msg) { wsNormTs(msg); for (const c of wsConns) if (c.meta.role !== 'agent' && c.alive) c.send(msg); }
-function wsToAll(msg) { wsNormTs(msg); for (const c of wsConns) if (c.alive) c.send(msg); }   // 시스템 공지(ServerNotice 등) — 에이전트+board 전체
+function wsToBoards(msg) { wsNormTs(msg); for (const c of wsConns) if (c.alive && wsIsBoard(c)) c.send(msg); }   // v2.4.165 — 인가된 보드 연결만
+// v2.4.165 — «전체» 는 에이전트 + 인가된 보드예요. HELLO 판정 전의 연결(열쇠를 든 채 대기 중 · 인가 없는 무키)은 빠져요:
+//   §13.25.14 가 «열쇠를 든 연결은 판정 뒤에만 보드 상태를 받는다» 고 정했는데, 명단 방송이 그 유예를 비켜 가서
+//   판정 전 연결이 «수락 증거» 로 오인할 프레임까지 받았어요(채택자 실측: 거절보다 명단이 먼저 옴).
+function wsToAll(msg) { wsNormTs(msg); for (const c of wsConns) if (c.alive && (c.meta.role === 'agent' || wsIsBoard(c))) c.send(msg); }   // 시스템 공지(ServerNotice 등) — 에이전트+board 전체
 // v2.4.88 (adopter question → measured defect): AgentList 갱신이 board 로만 나가고 있었다. 에이전트는 upgrade 직후
 // 스냅샷 1장만 받는데 그 시점은 자기 HELLO **이전**이라, 그 캐시는 자기 자신도 없고 이후 합류자도 영구히 반영되지 않는다
 // (어댑터가 "자기 자신이 목록에 없다"로 관측 — 의도된 self-필터가 아니라 stale 캐시였다). 프레즌스는 에이전트에게도
@@ -2079,12 +2096,13 @@ server.on('upgrade', (req, socket) => {
   //   **없어요** — 판정에 필요한 agentId 가 HELLO 에만 있으니까요. 그래서 위치를 옮기는 대신 상태를 미뤄요.
   //   가르는 기준은 **IP 가 아니라 키 제시 여부**예요: 역프록시 뒤에서는 원격도 전부 loopback 으로 보여서
   //   IP 기준은 조용히 무력화돼요. 무키 연결(대시보드 — HELLO 를 아예 안 보내요)은 종전 그대로예요.
-  if (!conn.meta._urlKey) wsSendInitialState(conn);
+  // v2.4.165 — 접속 즉시 상태는 **인가된 보드 연결**에만. 무키 에이전트는 HELLO 통과 지점에서 받아요(_stateSent 가드로 1회).
+  if (!conn.meta._urlKey && wsIsBoard(conn)) wsSendInitialState(conn);
   conn.onclose = () => {
     wsConns.delete(conn);
     for (const [sid, c] of wsPtySessions) if (c === conn) {   // Pantty §9 — 연 board 이탈 시 세션 정리 + pty-host 에 종료 지시(고아 셸 방지)
       wsPtySessions.delete(sid);
-      const host = wsAgents.get('pty-host'); if (host && host.alive) { try { host.send({ type: 'CUSTOM', name: 'PtyClose', value: { sessionId: sid } }); } catch {} }
+      const host = wsAgents.get(PTY_HOST_ID); if (host && host.alive) { try { host.send({ type: 'CUSTOM', name: 'PtyClose', value: { sessionId: sid } }); } catch {} }
     }
     keyOnConnClose(conn);                                       // v2.4.0 §4 REVOKED_PENDING 마지막 conn 종료 시 REVOKED 확정
     if (conn.meta.role === 'agent' && conn.meta.agentId && wsAgents.get(conn.meta.agentId) === conn) {
@@ -2093,6 +2111,13 @@ server.on('upgrade', (req, socket) => {
     }
   };
   conn.onmessage = (msg) => {
+    // v2.4.165 §13.25.14 — **거절한 연결은 아무것도 더 싣지 못해요.** 거절(_reject)은 사유를 보낸 뒤 close 를 50ms
+    //   미루는데(사유가 flush 될 틈), 그 연결엔 HELLO 가 이미 세운 role='agent' 와 **선언한 agentId** 가 남아 있어서
+    //   HELLO 뒤에 붙여 보낸 프레임이 그 50ms 안에 **선언 이름으로 중계**됐어요(격리 보드 재현: 다른 agentId 에 결속된
+    //   열쇠로 HELLO+Report 를 한 번에 → 거절됐는데 main 이 사칭 이름의 Report 를 받음). 허용목록 밖 주소도 같은 경로라
+    //   허용목록이 막으려는 쪽이 한 방에 끼워 넣을 수 있었어요. role 을 지우는 건 답이 아니에요 — 그러면 프레임이
+    //   보드(운영자) 표면 경로로 떨어져요. 그래서 표시를 세우고 여기서 전부 버려요.
+    if (conn.meta.rejected) return;
     if (msg && msg.type === 'HELLO') {                          // 에이전트 등록 (agentId 별, 동일 id 재접속 시 기존 대체)
       conn.meta.role = 'agent';
       const _hadId = !!(msg.agentId && String(msg.agentId).trim());   // agentId 명시 여부 — 누락(익명)은 매 재연결 새 탭 폭증(아래 랜덤 fallback)이라 등록 거부
@@ -2113,6 +2138,8 @@ server.on('upgrade', (req, socket) => {
         // 파이프라인된 후속 프레임이 전송 계층에서 사라지고 클라이언트는 "SERVER_HELLO 받고 정상 종료 = 전송 성공"으로
         // 오인했다 (어댑터가 리포트를 보냈다고 믿었는데 보드에 없던 실사례). ConnectionRejected 이벤트 + close code 4403.
         const _reject = (code, reason, hint) => {
+          conn.meta.rejected = code;   // v2.4.165 — 이 순간부터 이 연결의 프레임은 전부 버려요(위 onmessage 첫 줄). 사유 전송보다 먼저.
+          wsConns.delete(conn);        //   방송 대상에서도 빼요 — 안 빼면 close 전 50ms 동안 명단·알림 방송을 계속 받아요(onclose 의 삭제와 중복돼도 무해).
           // v2.4.99 — `code` 를 **본문에도** 싣습니다. 종전엔 기계가 읽을 코드가 close frame(4403, code) 에만 있어서,
           //   ConnectionRejected 를 받은 어댑터는 사람용 문장을 문자열 매칭하는 수밖에 없었어요. 거부 사유에 따라
           //   분기(키 재발급 vs 로컬에서 재시도 vs 다른 종 키)해야 하는데 그 분기를 코드로 쓸 수가 없었던 거예요.
@@ -2164,6 +2191,22 @@ server.on('upgrade', (req, socket) => {
             return;
           }
         }
+        // v2.4.165 Pantty §9 — **중계 호스트 이름은 예약돼요.** 종전엔 아무 HELLO 나 'pty-host' 를 선언하면 진짜 호스트를
+        //   밀어내고(prev.close) 그 뒤 운영자의 키 입력을 전부 받았어요. 호스트는 셸을 띄우는 자리라, 보드 호스트 자신에서
+        //   (루프백 · 프록시 아님) 온 연결만 그 이름을 쓰고, 살아 있는 호스트를 다른 연결이 밀어낼 수 없어요.
+        if (conn.meta.agentId === PTY_HOST_ID) {
+          if (!isLoopbackIp(_ip) || conn.meta.fwd) {
+            console.warn('[ws HELLO] 예약 이름 %s 을 원격에서 선언 ip=%s — 거부', PTY_HOST_ID, _ip || '?');
+            _reject('reserved-id', 'the terminal relay host id is reserved for a host-local connection', 'Pantty §9 — pty-host 는 보드 호스트 자신에서만 붙어요.');
+            return;
+          }
+          const _cur = wsAgents.get(PTY_HOST_ID);
+          if (_cur && _cur !== conn && _cur.alive) {
+            console.warn('[ws HELLO] 예약 이름 %s — 이미 등록된 호스트가 살아 있어요, 새 연결 거부', PTY_HOST_ID);
+            _reject('reserved-id', 'a terminal relay host is already registered and alive', 'Pantty §9 — 기존 호스트가 끊긴 뒤에 다시 붙으세요.');
+            return;
+          }
+        }
       }
       console.log('[ws HELLO]%s agent=%s ip=%s ua=%s upstreamKey=%s → role=%s', _hadId ? '' : ' [ANON]', conn.meta.agentId, conn.remoteAddr || '?', (conn.ua || '').slice(0, 50) || '-', keyFp(msg.upstreamKey), wsAgentRole(conn));   // role 전환 audit + 출처(ip/ua)
       if (!_hadId) { console.log('[ws HELLO][ANON] 익명 HELLO 등록 거부(AgentList/relay/탭 제외) raw=%s', JSON.stringify(msg).slice(0, 240)); return; }   // 익명(agentId 누락) = 보드 탭 미생성·relay 제외, 출처 로깅만
@@ -2193,6 +2236,18 @@ server.on('upgrade', (req, socket) => {
       if (conn.meta.anonymous) return;                           // 익명 클라(agentId 누락) 메시지 무시 — relay/기록/탭 일절 안 함
       if (wsHandleOrch(conn, msg)) return;                       // 오케스트레이션 CUSTOM(RegisterUpstreamKey/RevokeUpstreamKey/SetMain/HandoffReady)
       if (msg && msg.type === 'CUSTOM' && (msg.name === 'Heartbeat' || msg.name === 'PersistentAdapterSmoke' || msg.name === 'Typing')) return;   // liveness/transient — relay·board·기록 안 함
+      // v2.4.165 Pantty §9 — **중계 문은 사람의 문이에요, 모델은 못 열어요.** 종전엔 에이전트 경로의 지목 중계가 이름을
+      //   안 봐서, 등록된 에이전트(MCP a2a_emit 으로 움직이는 좌석 · 원격 열쇠 보유자 포함)가 'pty-host' 앞으로 PtyOpen/PtyData
+      //   를 보내 셸을 열 수 있었고, 그 키 입력이 모든 보드에 방송되고 이력에도 남았어요. 입력 가족은 에이전트에게 닫혀 있고,
+      //   출력 가족(TerminalData/Exit)은 **등록된 호스트 연결**만 낼 수 있어요(사칭 출력이 소유자 화면에 끼는 걸 막아요).
+      if (msg && msg.type === 'CUSTOM' && PTY_IN.has(msg.name)) {
+        if (!conn.meta._ptyDenyLogged) { conn.meta._ptyDenyLogged = true; console.warn('[ws pty] 에이전트 %s 가 %s 를 보냄 — 중계 문은 운영자 전용, drop', conn.meta.agentId, msg.name); }
+        return;
+      }
+      if (msg && msg.type === 'CUSTOM' && PTY_OUT.has(msg.name) && wsAgents.get(PTY_HOST_ID) !== conn) {
+        if (!conn.meta._ptyOutDenyLogged) { conn.meta._ptyOutDenyLogged = true; console.warn('[ws pty] 호스트가 아닌 %s 가 %s 를 보냄 — drop', conn.meta.agentId, msg.name); }
+        return;
+      }
       // v2.4.99 §13.25.11 (Ultrasafe it-1 se-02/se-04) — envelope 의 `agentId`·`source` 는 **인증된 연결 정체로
       //   덮어써요.** 종전엔 `== null` 일 때만 채웠고 값이 있으면 **검증 없이 통과**시켜, 남의 이름으로 보낸 메시지가
       //   그대로 relay 되고 ws-history 에 영속됐어요. `source` 는 더 나빴어요 — 주석이 "client-set 우선" 이라
@@ -2344,6 +2399,14 @@ server.on('upgrade', (req, socket) => {
       if (!(msg && msg.type === 'CUSTOM' && WS_CORP_DECL.has(msg.name))) { try { push.maybePush(msg); } catch {} }   // #3b webpush — 의미있는 A2A(noise 제외)면 구독자에게 tickle (탭 닫혀도 도달). v2.4.90: §13.33 선언 2종은 기계 소비 전용이라 사람 알림 가치 0 → 제외
       return;
     }
+    // v2.4.165 §13.25.18 — 여기부터는 **보드(운영자) 표면** 경로예요. 인가된 보드 연결이 아니면 전부 버려요.
+    //   HELLO 를 안 보냈다는 건 «보드다» 의 증거가 아니에요: 열쇠를 든 에이전트가 HELLO 를 건너뛰면 requireKey 도
+    //   정체 고정도 안 걸린 채 이 경로로 들어왔고, 운영자 세션 없는 원격 연결도 그랬어요(채널 이력 삭제 · 프롬프트 주입 ·
+    //   HELLO 전 프레임의 agentId 사칭까지 격리 보드에서 재현). 연결당 한 번만 로그해요.
+    if (!wsIsBoard(conn)) {
+      if (!conn.meta._boardDenyLogged) { conn.meta._boardDenyLogged = true; console.warn('[ws board] 인가 없는 보드 표면 프레임 drop ip=%s key=%s name=%s', normIp(conn.meta.ip) || '?', conn.meta._urlKey ? keyFp(conn.meta._urlKey) : '(none)', (msg && (msg.name || msg.type)) || '?'); }
+      return;
+    }
     // 오케스트레이션 (board/사용자발 SetMain·RegisterUpstreamKey 등)
     if (wsHandleOrch(conn, msg)) return;
     // v2.4.90 §13.33.4 — board 표면발 조직 선언도 같은 게이트(운영자 authz). 미달이면 relay·다른 board·기록 전에 drop + 로그.
@@ -2392,17 +2455,35 @@ server.on('upgrade', (req, socket) => {
       const _iss = (wsSelPend.get(_pid) || {}).agentId || wsSelDone.get(_pid);
       if (_iss) { msg.targetAgentId = _iss; if (!msg.msgId) msg.msgId = 'sel-ans-' + _pid + '-' + Date.now(); }
     }
+    // v2.4.165 Pantty §9 — 중계 입력 가족은 **이 블록만** 지나가요(일반 라우팅보다 앞). 종전엔 일반 라우팅이 먼저
+    //   pty-host 로 보낸 뒤에야 소유를 «기록» 했어요 — 보낸 보드가 그 세션의 주인인지 한 번도 대조하지 않았고, 이미 있는
+    //   세션 ID 로 PtyOpen 하면 주인이 바뀌어 셸 출력까지 가로챌 수 있었어요. 이제: 모양 검사(128비트) → 여는 쪽은 빈 ID 만 ·
+    //   나머지는 주인만 → 등록된 호스트에게만 전달(클라이언트가 적은 대상은 무시) → 거절은 PtyRejected 로 알려요.
+    //   (이 경로에 들어온 연결은 이미 인가된 보드예요 — 위 wsIsBoard 게이트.)
+    if (msg && msg.type === 'CUSTOM' && PTY_IN.has(msg.name)) {
+      const sid = msg.value && msg.value.sessionId;
+      const deny = (code) => {
+        console.warn('[ws pty] %s 거부(%s) sid=%s', msg.name, code, typeof sid === 'string' ? sid.slice(0, 12) + '…' : '(none)');
+        try { conn.send(wscore.event('CUSTOM', { name: 'PtyRejected', value: { sessionId: typeof sid === 'string' ? sid : null, code } })); } catch {}
+      };
+      if (typeof sid !== 'string' || !PTY_SID_RE.test(sid)) { deny('bad-session-id'); return; }
+      const owner = wsPtySessions.get(sid);
+      if (msg.name === 'PtyOpen') {
+        if (owner && owner !== conn) { deny('session-exists'); return; }
+        wsPtySessions.set(sid, conn);
+      } else if (owner !== conn) { deny('not-owner'); return; }
+      if (msg.name === 'PtyClose') wsPtySessions.delete(sid);
+      const host = wsAgents.get(PTY_HOST_ID);
+      if (host && host.alive) host.send(msg);
+      else if (msg.name === 'PtyOpen') deny('host-offline');
+      return;
+    }
     // 대시보드/사용자 inbound → targetAgentId 라우팅 (없으면 에이전트 1개일 때 그쪽)
     const target = msg && msg.targetAgentId;
     const dst = target ? wsAgents.get(target) : wsPrimaryAgent();   // 대상 미지정 → 메인 에이전트 우선
     if (dst && dst.alive) dst.send(msg);
-    if (msg && msg.type === 'CUSTOM' && msg.value && msg.value.sessionId && (msg.name === 'PtyOpen' || msg.name === 'PtyData' || msg.name === 'PtyResize' || msg.name === 'PtyClose')) {   // Pantty §9 — Pty* 는 연 운영자→pty-host 전용: 소유 기록, 다른 board·이력 제외(셸 키스트로크는 사적)
-      if (msg.name === 'PtyOpen') wsPtySessions.set(msg.value.sessionId, conn);
-      else if (msg.name === 'PtyClose') wsPtySessions.delete(msg.value.sessionId);
-      return;
-    }
     if (msg && msg.type === 'CUSTOM' && (msg.name === 'SelectionAnswer' || msg.name === 'SelectionCancel') && msg.targetAgentId && msg.msgId) _relayPendingAdd(msg.targetAgentId, msg);   // v2.4.77 at-least-once — 브릿지 delivered-persist ack 가 clear
-    for (const c of wsConns) if (c !== conn && c.meta.role !== 'agent' && c.alive) c.send(msg);   // 다른 board 에도 표시(멀티 board·외부 발신 입력 동기) — 보낸 board 는 로컬 표시라 제외
+    for (const c of wsConns) if (c !== conn && c.alive && wsIsBoard(c)) c.send(msg);   // 다른 board 에도 표시(멀티 board·외부 발신 입력 동기) — 보낸 board 는 로컬 표시라 제외
     wsRecord(msg);                                               // 사용자 입력도 기록 영속
   };
 });

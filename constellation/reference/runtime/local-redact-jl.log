@@ -1,0 +1,12 @@
+{"t":1790136253972,"ev":"ws-error","e":"[object ErrorEvent]"}
+{"t":1790136253973,"ev":"closed","code":1006,"retryInMs":500}
+{"t":1790136254477,"ev":"ws-error","e":"[object ErrorEvent]"}
+{"t":1790136254478,"ev":"closed","code":1006,"retryInMs":1000}
+{"t":1790136255486,"ev":"ws-error","e":"[object ErrorEvent]"}
+{"t":1790136255487,"ev":"closed","code":1006,"retryInMs":2000}
+{"t":1790136373776,"ev":"ws-error","e":"[object ErrorEvent]"}
+{"t":1790136373777,"ev":"closed","code":1006,"retryInMs":500}
+{"t":1790136374286,"ev":"ws-error","e":"[object ErrorEvent]"}
+{"t":1790136374287,"ev":"closed","code":1006,"retryInMs":1000}
+{"t":1790136375295,"ev":"ws-error","e":"[object ErrorEvent]"}
+{"t":1790136375296,"ev":"closed","code":1006,"retryInMs":2000}

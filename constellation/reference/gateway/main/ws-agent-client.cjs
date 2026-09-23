@@ -43,7 +43,7 @@ const AGENT_ID = process.env.WS_AGENT_ID || 'ref-agent';
 
 // single-instance 가드 (2026-06-07 incident 후속): 같은 agentId 로 중복 spawn 차단.
 // lock 파일은 caller 가 실행하는 디렉토리 기준 — agentId 별 분리로 다른 agentId 는 동시 운영 가능.
-require('../../runtime/single-instance').acquire(
+require('../../runtime/single-instance.cjs').acquire(   // v2.4.165 — 확장자 명시: 없으면 .cjs 로 해석되지 않아 기동 즉시 죽었어요
   path.join(process.cwd(), `.ws-agent-client.${AGENT_ID}.pid`),
   'ws-agent-client',
 );
@@ -57,6 +57,7 @@ const TELEMETRY_THREAD_IDS = new Set((process.env.WS_TELEMETRY_THREADS || '').sp
 if (!TOKEN && !UPSTREAM_KEY) console.warn('[ws] LIVE_BOARD_WS_TOKEN / WS_UPSTREAM_KEY 미설정 — 무인증 접속 (dev 기본). 의도면 무시, 아니면 환경변수 설정.');
 let url = TOKEN ? `${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : WS_URL;
 if (UPSTREAM_KEY) url += `${url.includes('?') ? '&' : '?'}upstreamKey=${encodeURIComponent(UPSTREAM_KEY)}`;
+const redactUrl = (u) => String(u).replace(/([?&](?:key|peerKey|upstreamKey|collabKey|token)=)[^&#\s]*/gi, '$1<redacted>');   // v2.4.165 — 로그에 찍는 주소는 자격증명 파라미터를 **모든 출현**에서 가려요(첫 출현만 가리던 .replace(key) · 접두 자르기 대신)
 
 const THREAD_ID = 'ref-thread';
 let ws = null;
@@ -175,7 +176,7 @@ async function demoRun() {
 
 // ---- 연결 + 자동 재연결(backoff) ----
 function connect() {
-  console.log('[ws] connecting', url);
+  console.log('[ws] connecting', redactUrl(url));
   ws = new WebSocket(url);
   ws.onopen = () => {
     connected = true; backoff = 500;

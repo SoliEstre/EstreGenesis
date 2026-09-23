@@ -119,7 +119,11 @@ class WSConn {
     if (!this.alive) return;
     let payload = Buffer.alloc(0);
     if (Number.isInteger(code) && code >= 1000 && code <= 4999) {
-      const r = Buffer.from(String(reason || '').slice(0, 120), 'utf8');
+      // v2.4.165 — 상한은 **바이트**예요: 제어 프레임 payload 125바이트(RFC 6455 §5.5) − 코드 2바이트 = 사유 123바이트.
+      //   종전엔 글자 수(120)로 잘라서 한글 사유는 42자만 넘어도 규격 위반 프레임이 됐고, 받는 쪽은 사유 대신 1002 로
+      //   끊을 수 있어요 — «왜 끊겼는지» 를 전하려던 사유가 오히려 사라지는 방향이에요(채택자 지적). UTF-8 경계에서 잘라요.
+      let r = Buffer.from(String(reason || ''), 'utf8');
+      if (r.length > 123) { let n = 123; while (n > 0 && (r[n] & 0xc0) === 0x80) n--; r = r.subarray(0, n); }
       payload = Buffer.concat([Buffer.from([(code >> 8) & 0xff, code & 0xff]), r]);
     }
     try { this.socket.write(encodeFrame(payload, 0x8)); this.socket.end(); } catch {}

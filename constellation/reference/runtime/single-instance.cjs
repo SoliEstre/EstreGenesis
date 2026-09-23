@@ -8,7 +8,7 @@
  * AgentHello 폭주 + inbox 폭증 + Stop hook surface 폭발 → API Usage Policy block.
  *
  * 패턴:
- *   const { acquire } = require('<runtime>/single-instance');
+ *   const { acquire } = require('<runtime>/single-instance.cjs');   // 확장자까지 — 없으면 .cjs 로 해석되지 않아요
  *   acquire(path.join(DIR, `.<basename>.${AGENT_ID}.pid`), '<basename>');
  *
  * agentId 별 lock 파일을 권장 (서로 다른 agentId 는 동시 운영 가능).
