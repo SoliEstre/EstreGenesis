@@ -1983,6 +1983,7 @@ function wsRoomMessage(conn, msg) {                          // roomId 실린 CU
   }
   if (msg.notice === true && msg.msgId) { room._notices.push(msg.msgId); if (room._notices.length > 50) room._notices.shift(); }
   if (msg.agentId == null && !fromBoard) msg.agentId = sender;
+  if (msg.source === 'server') { console.warn('[ws room] §13.25.13 source=server 를 단 %s 발화 → 정정 (room=%s name=%s)', fromBoard ? 'board' : 'agent', room.roomId, msg.name || msg.type); msg.source = null; }   // v2.4.166 — 'server' 는 서버만 (보드 경로와 같은 규칙)
   if (msg.source == null) msg.source = fromBoard ? 'board' : 'agent';
   // fan-out: 참여자 전원(발신자 제외) — 기존 1:1 relay 기계(pending/재전달/AckProcessed) 계승 (§13.30.4-1)
   let delivered = 0, offline = [];
@@ -2407,6 +2408,14 @@ server.on('upgrade', (req, socket) => {
       if (!conn.meta._boardDenyLogged) { conn.meta._boardDenyLogged = true; console.warn('[ws board] 인가 없는 보드 표면 프레임 drop ip=%s key=%s name=%s', normIp(conn.meta.ip) || '?', conn.meta._urlKey ? keyFp(conn.meta._urlKey) : '(none)', (msg && (msg.name || msg.type)) || '?'); }
       return;
     }
+    // v2.4.166 §13.25.13 짝 — 'server' 는 서버만 달아요. 클라이언트는 source 가 server 인 거절만 믿는데(열림 ≠ 수락),
+    //   종전 이 경로는 비어 있을 때만 채워서 인가된 보드 연결이 거절을 «서버 발» 로 꾸며 에이전트 연결을 5분 정지시킬
+    //   수 있었어요. 에이전트 경로는 v2.4.99 부터 정정해요. **이 경로의 맨 앞**에서 고쳐요 — 아래의 방송(CloseChannel 등)·
+    //   룸·중계가 전부 정정된 값을 보게요(중간에 두면 그 앞에서 return 하는 갈래가 원래 값을 그대로 내보내요).
+    if (msg && msg.source === 'server') {
+      if (!conn.meta._srcServerLogged) { conn.meta._srcServerLogged = true; console.warn('[ws] §13.25.13 board 연결이 source=server 를 달았어요 → %s 로 정정 (name=%s)', conn.meta.collab ? 'collab' : 'board', msg.name || msg.type); }
+      msg.source = conn.meta.collab ? 'collab' : 'board';
+    }
     // 오케스트레이션 (board/사용자발 SetMain·RegisterUpstreamKey 등)
     if (wsHandleOrch(conn, msg)) return;
     // v2.4.90 §13.33.4 — board 표면발 조직 선언도 같은 게이트(운영자 authz). 미달이면 relay·다른 board·기록 전에 drop + 로그.
@@ -2440,7 +2449,7 @@ server.on('upgrade', (req, socket) => {
     if (msg && msg.type === 'CUSTOM' && msg.name === 'ArchiveChannel') { wsArchiveChannel(String((msg.value && msg.value.agentId) || (msg.value && msg.value.channelKey) || '')); return; }
     // 첨부 data-URL → 디스크 추출(feedback-atts), 경량 경로 참조로 (history·relay 가벼움)
     if (msg && msg.type === 'CUSTOM' && msg.name === 'UserPrompt' && msg.value && Array.isArray(msg.value.atts) && msg.value.atts.length) msg.value.atts = msg.value.atts.map(storeAtt);
-    // v2.2.4 source_stamp_truth (server.eux derive) — board/사용자/협업 폴백
+    // v2.2.4 source_stamp_truth (server.eux derive) — board/사용자/협업 폴백 ('server' 는 이 경로 맨 앞에서 이미 비웠어요)
     if (msg && msg.source == null) msg.source = conn.meta.collab ? 'collab' : 'board';
     // v2.2.4 targetFallback + WARN (silent-disable 정합) — board inbound 측
     if (msg && msg.targetAgentId == null && msg.value && msg.value.targetAgentId) {
