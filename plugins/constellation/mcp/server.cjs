@@ -96,6 +96,8 @@ function nativeAdapter(sock, endpoint) {
     on(ev, fn) {
       if (ev === 'message') sock.addEventListener('message', (e) => fn(typeof e.data === 'string' ? e.data : Buffer.from(e.data)));
       else if (ev === 'error') sock.addEventListener('error', (e) => fn(transportError(e, endpoint)));
+      // close 는 `ws` 패키지처럼 (code, reason) 을 넘겨요 — 프레임 없는 4003/4403 도 서버 판정 거절이라 코드가 필요해요.
+      else if (ev === 'close') sock.addEventListener('close', (e) => fn(e && e.code, e && e.reason));
       else sock.addEventListener(ev, () => fn());
       return this;
     },
@@ -153,8 +155,12 @@ function getAuth() {
   return { kind: 'local', key: null };
 }
 
+// 무작위 기본값은 프로세스당 한 번만 정해요 — 종전엔 호출마다 새로 뽑아서 HELLO 의 agentId 와 a2a_emit 봉투의
+//   agentId 가 서로 달랐어요(한 세션 = 한 정체라는 위 계약과 어긋나요).
+let _agentId = null;
 function getAgentIdentity() {
-  return process.env.CONSTELLATION_AGENT_ID || 'mcp-session-' + crypto.randomBytes(4).toString('hex');
+  if (!_agentId) _agentId = process.env.CONSTELLATION_AGENT_ID || 'mcp-session-' + crypto.randomBytes(4).toString('hex');
+  return _agentId;
 }
 
 function getStatePath() {
@@ -209,9 +215,26 @@ const MEANINGFUL = new Set([
 ]);
 
 // ----- WS proxy state -----
+// ── §13.25.13 열림 ≠ 수락 (레퍼런스 local-bridge.cjs 와 같은 규약) ─────────────────────────────
+// 서버는 SERVER_HELLO 를 HELLO 관문(TOFU·requireKey·allowlist 등) **전에** 보내요. 종전엔 SERVER_HELLO 에서
+//   ready 를 켜서, 거절될 연결로 AgentHello 와 a2a_emit 봉투가 나갔고 a2a_emit 은 서버가 버린 프레임에
+//   {msgId, sentAt} 성공을 돌려줬어요(무음 유실). 상태는 셋으로 갈라요:
+//     accepted — 거절도 SERVER_HELLO 도 아닌 첫 서버 프레임을 받았다(수락 증거).
+//     ready    — 발신해도 된다(= 판정). source 'server' 인 ConnectionInfo(서버가 HELLO 관문을 전부 통과시킨 **뒤에만**
+//                보내요)를 받았거나, 그걸 안 보내는 서버 계열이면 수락이 ADMIT_HOLD_MS 동안 뒤집히지 않았다.
+//                수락 증거만으로 열면 판정 전에 목록을 방송하는 서버 계열에서 거절 직전 창에 발신이 새요.
+//     refusal  — 서버가 낸 ConnectionRejected(source 'server' 만 — 서버는 에이전트가 보낸 같은 이름의 프레임도
+//                중계해서, 이름만 보면 아무 피어나 연결을 멈춰요). 사유를 들고 있다가 발신 도구가 isError 로 돌려줘요.
+//   재시도는 REJECT_RETRY_MS(기본 5분) 뒤에만 — 거절 사유(열쇠 만료·정체 불일치)는 빨리 두드려서 풀리지 않아요.
+const ADMIT_HOLD_MS = +(process.env.CONSTELLATION_ADMIT_HOLD_MS || 3000);
+const REJECT_RETRY_MS = +(process.env.CONSTELLATION_REJECT_RETRY_MS || 5 * 60 * 1000);
+const HANDSHAKE_TIMEOUT_MS = Math.max(10000, ADMIT_HOLD_MS + 5000);
+
 const wsState = {
   socket: null,
   ready: false,
+  connecting: null,           // 진행 중인 연결 Promise — 판정 대기 중에 온 도구 호출이 소켓을 또 열지 않게 공유해요
+  refusal: null,              // { code, label, reason, hint, source, at, retryAt } — 마지막 서버 판정 거절
   history: [],                // local cache of inbound messages (board_history_tail)
   agentList: [],              // latest AgentList snapshot
   pendingAcks: new Map(),     // msgId → { tier, resolve, reject, timer }
@@ -244,8 +267,38 @@ function makeMsgId() {
   return 'mcp-' + Date.now().toString(36) + '-' + crypto.randomBytes(3).toString('hex');
 }
 
+const fmtMs = (ms) => ms >= 60000 ? Math.round(ms / 60000) + '분' : Math.round(ms / 1000) + '초';
+
+// 거절을 기록해요. retryAt 전엔 connectWS 가 소켓을 열지 않고 이 사유를 그대로 돌려줘요.
+function noteRefusal(v, source) {
+  const at = Date.now();
+  const r = {
+    code: (v && v.code) || '?', label: v && v.label, reason: v && v.reason, hint: v && v.hint, source,
+    at: new Date(at).toISOString(), retryAt: new Date(at + REJECT_RETRY_MS).toISOString(),
+  };
+  wsState.refusal = r;
+  process.stderr.write('[constellation-mcp] 서버가 합류를 거절했어요 (' + r.code + (r.label ? ' · ' + r.label : '') + ') — ' + fmtMs(REJECT_RETRY_MS) + ' 뒤에야 다시 붙어요. 빨리 두드려서 풀리는 종류가 아니에요.\n');
+  return r;
+}
+function refusalError(r) {
+  const e = new Error('connection refused by the board server (' + r.code + (r.label ? ' · ' + r.label : '') + ')' + (r.reason ? ': ' + r.reason : '') + ' — next attempt after ' + r.retryAt);
+  e.refusal = r;
+  return e;
+}
+
+// 연결은 하나만 열어요. 판정 대기 중(최대 ADMIT_HOLD_MS)에 온 도구 호출은 같은 판정을 기다려요 — 종전엔 ready 가
+//   아닌 동안 호출마다 소켓을 새로 열 수 있었어요.
 async function connectWS() {
-  if (wsState.ready) return wsState.socket;
+  if (wsState.ready && wsState.socket) return wsState.socket;
+  const r = wsState.refusal;
+  if (r && Date.parse(r.retryAt) > Date.now()) throw refusalError(r);
+  if (!wsState.connecting) {
+    wsState.connecting = openAndAwaitVerdict().finally(() => { wsState.connecting = null; });
+  }
+  return wsState.connecting;
+}
+
+async function openAndAwaitVerdict() {
   if (!transportKind()) {
     throw new Error(
       'No WebSocket transport available. This runtime has no built-in global WebSocket (Node >= 22 ' +
@@ -266,107 +319,163 @@ async function connectWS() {
   return new Promise((resolve, reject) => {
     const ws = openSocket(url);
     wsState.socket = ws;
-    let serverHelloReceived = false;
+    wsState.ready = false;
+    const mine = () => wsState.socket === ws;   // 늦게 도착한 옛 소켓의 이벤트가 새 연결 상태를 지우지 않게
+    const hello = { type: 'HELLO', agentId, agentName: 'MCP Session ' + agentId, role: auth.kind === 'collab' ? 'collab' : (auth.kind === 'upstream' ? 'upstream' : (auth.kind === 'peer' ? 'peer' : 'local')), capabilities: ['a2a', 'mcp-proxy', 'ack-layer'] };
+    let helloSent = false, accepted = false, refused = false, settled = false;
+    const early = [];   // 판정 전에 받은 프레임 — 수락되면 그때 처리하고, 거절되면 버려요(인가되지 않은 연결의 전송분은 무효예요)
+    const settle = (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (err) reject(err); else resolve(ws);
+    };
     const timeout = setTimeout(() => {
-      if (!wsState.ready) { ws.close(); reject(new Error('WS handshake timeout (10s)')); }
-    }, 10000);
+      if (settled) return;
+      if (mine()) { wsState.socket = null; wsState.ready = false; }
+      ws.close();
+      settle(new Error('WS handshake timeout (' + HANDSHAKE_TIMEOUT_MS + 'ms) — no server verdict' + (helloSent ? ' after HELLO' : ' (no SERVER_HELLO)')));
+    }, HANDSHAKE_TIMEOUT_MS);
+
+    // 발신 허가. 자기 공지(AgentHello)도 여기서만 나가요 — 판정 전에 보내면 거절될 연결로 나가 사라져요.
+    const admit = (why) => {
+      if (settled || refused || !accepted || !mine()) return;
+      wsState.ready = true;
+      wsState.refusal = null;
+      const agentHello = { type: 'CUSTOM', name: 'AgentHello', agentId, value: { agentId, agentName: hello.agentName, role: hello.role, env: 'mcp-server', capabilities: hello.capabilities, idle: true } };
+      try { ws.send(JSON.stringify(agentHello)); } catch (_) { /* 곧 close 가 상태를 정리해요 */ }
+      process.stderr.write('[constellation-mcp] 수락 확인 (' + why + ') — 발신을 열어요\n');
+      settle(null);
+      for (const m of early.splice(0)) handleInbound(ws, agentId, m);
+    };
 
     ws.on('open', () => { /* await SERVER_HELLO per Constellation v0.3 handshake */ });
 
     ws.on('message', (raw) => {
+      if (!mine()) return;
       let msg;
       try { msg = JSON.parse(raw.toString()); } catch (_) { return; }
 
-      // Handshake: server-first
+      // 거절은 언제 오든 거절이에요(SERVER_HELLO 는 판정 전에 와요). 서버가 낸 것만 — 피어가 보낸 같은 이름은 중계된 말일 뿐이에요.
+      if (msg && msg.name === 'ConnectionRejected' && msg.source === 'server') {
+        refused = true;
+        const r = noteRefusal(msg.value || {}, 'server');
+        wsState.ready = false;
+        wsState.socket = null;
+        early.length = 0;
+        try { ws.close(); } catch (_) { /* 이미 닫히는 중 */ }   // 서버가 닫기 전에 우리가 먼저 닫아요 — 거절된 소켓에 남을 이유가 없어요
+        const err = refusalError(r);
+        for (const [id, p] of wsState.pendingAcks) { clearTimeout(p.timer); wsState.pendingAcks.delete(id); p.reject(err); }
+        settle(err);
+        return;
+      }
+      if (refused) return;
+
+      // Handshake: server-first. HELLO 만 보내고 판정을 기다려요.
       if (msg.type === 'SERVER_HELLO') {
-        serverHelloReceived = true;
-        // Send HELLO + AgentHello (peer-coordination mode per §13.9)
-        const hello = { type: 'HELLO', agentId, agentName: 'MCP Session ' + agentId, role: auth.kind === 'collab' ? 'collab' : (auth.kind === 'upstream' ? 'upstream' : (auth.kind === 'peer' ? 'peer' : 'local')), capabilities: ['a2a', 'mcp-proxy', 'ack-layer'] };
-        ws.send(JSON.stringify(hello));
-        const agentHello = { type: 'CUSTOM', name: 'AgentHello', agentId, value: { agentId, agentName: hello.agentName, role: hello.role, env: 'mcp-server', capabilities: hello.capabilities, idle: true } };
-        ws.send(JSON.stringify(agentHello));
-        wsState.ready = true;
-        clearTimeout(timeout);
-        resolve(ws);
+        if (!helloSent) { helloSent = true; ws.send(JSON.stringify(hello)); }
         return;
       }
-
-      // Cache history
-      wsState.history.push({ at: Date.now(), msg });
-      if (wsState.history.length > 4096) wsState.history.shift();
-
-      // AgentList update (§13.9 handshake group)
-      if (msg.name === 'AgentList' && msg.value?.agents) {
-        wsState.agentList = msg.value.agents;
-        return;
+      // 거절이 아닌 첫 서버 프레임 = 수락 증거. 아직 판정은 아니에요 — ConnectionInfo 를 안 보내는 서버 계열 대비로 유지 시간을 재요.
+      if (!accepted) {
+        accepted = true;
+        setTimeout(() => admit('수락 ' + fmtMs(ADMIT_HOLD_MS) + ' 유지'), ADMIT_HOLD_MS);
       }
-
-      // §13.13.2 dedup
-      const msgId = msg.msgId || msg.id;
-      if (msgId && dedupCheck(msgId)) {
-        // Duplicate — emit AckProcessed { dedupHit: true } then discard
-        if (msg.targetAgentId === agentId) {
-          const ack = { type: 'CUSTOM', name: 'AckProcessed', agentId, value: { ackFor: msgId, dedupHit: true } };
-          ws.send(JSON.stringify(ack));
-        }
-        return;
-      }
-
-      // Pending-ack resolver (full 3-tier)
-      if (msg.name === 'Ack' && msg.value?.ackFor) {
-        const p = wsState.pendingAcks.get(msg.value.ackFor);
-        if (p && p.tier === 'delivered') {
-          clearTimeout(p.timer);
-          p.resolve({ tier: 'delivered', ackedAt: Date.now(), from: msg.value.from });
-          wsState.pendingAcks.delete(msg.value.ackFor);
-        }
-      } else if (msg.name === 'AckProcessed' && msg.value?.ackFor) {
-        const p = wsState.pendingAcks.get(msg.value.ackFor);
-        if (p && (p.tier === 'commitment' || p.tier === 'delivered')) {
-          clearTimeout(p.timer);
-          p.resolve({ tier: 'commitment', ackedAt: Date.now(), dedupHit: !!msg.value.dedupHit });
-          wsState.pendingAcks.delete(msg.value.ackFor);
-        }
-      } else if (msg.name === 'Report' || msg.name === 'DONE' || msg.name === 'BLOCKED' || msg.name === 'NEEDS_HUMAN'
-                 || msg.name === 'DECISION_RESPONSE' || msg.name === 'DECISION_DEFER' || msg.name === 'DECISION_REJECT_FRAMING') {
-        // Application-tier — match by re_msgId or value.for
-        // tier='decided' is the Hyperbrief-specific application-tier per Constellation §13.16.9 + Hyperbrief.md §8.2
-        const ackFor = msg.value?.re_msgId || msg.value?.for;
-        if (ackFor) {
-          const p = wsState.pendingAcks.get(ackFor);
-          const isDecisionOutcome = msg.name === 'DECISION_RESPONSE' || msg.name === 'DECISION_DEFER' || msg.name === 'DECISION_REJECT_FRAMING';
-          // 'decided' waiters resolve on DECISION_* outcomes; 'application' waiters resolve on either generic outcomes or DECISION_* outcomes
-          if (p && (p.tier === 'application' || (p.tier === 'decided' && isDecisionOutcome))) {
-            clearTimeout(p.timer);
-            p.resolve({ tier: p.tier, ackedAt: Date.now(), outcome: msg.name, body: msg.value });
-            wsState.pendingAcks.delete(ackFor);
-          }
-        }
-      }
-
-      // Chunked transfer reassembly
-      if (msg.name === 'ArtifactManifest') {
-        const key = msg.value?.handoff || msg.value?.artifact || ('manifest-' + Date.now());
-        wsState.chunks.set(key, { manifest: msg.value, chunks: new Map(), expected: 0 });
-      } else if (msg.name === 'ArtifactChunk') {
-        const key = msg.value?.artifact;
-        const slot = wsState.chunks.get(key);
-        if (slot) slot.chunks.set(msg.value.chunk_index, msg.value.data);
-      } else if (msg.name === 'ArtifactComplete') {
-        const key = msg.value?.artifact;
-        const slot = wsState.chunks.get(key);
-        if (slot) {
-          // Reassemble; verify sha256 if present in manifest
-          const ordered = Array.from(slot.chunks.entries()).sort((a, b) => a[0] - b[0]).map(([_, d]) => d);
-          slot.assembled = Buffer.concat(ordered.map(d => Buffer.from(d, 'base64')));
-          slot.complete = true;
-        }
-      }
+      if (msg.type === 'CUSTOM' && msg.name === 'ConnectionInfo' && msg.source === 'server') admit('ConnectionInfo');
+      if (!wsState.ready) { early.push(msg); return; }
+      handleInbound(ws, agentId, msg);
     });
 
-    ws.on('error', (e) => { if (!wsState.ready) { clearTimeout(timeout); reject(e); } });
-    ws.on('close', () => { wsState.ready = false; wsState.socket = null; });
+    ws.on('error', (e) => {
+      if (!mine() || settled) return;
+      wsState.socket = null; wsState.ready = false;
+      try { ws.close(); } catch (_) { /* CONNECTING */ }
+      settle(e);
+    });
+    ws.on('close', (code) => {
+      if (!mine()) return;
+      wsState.ready = false; wsState.socket = null;
+      if (settled) return;
+      // 거절 프레임 없이 4003/4403 으로 닫혀도 서버 판정 거절이에요(프레임을 싣지 않던 옛 서버 · 프레임 유실).
+      if (code === 4003 || code === 4403) { settle(refusalError(noteRefusal({ code: 'close-' + code }, 'client'))); return; }
+      settle(new Error('WS closed before the server verdict' + (code ? ' (code ' + code + ')' : '')));
+    });
   });
+}
+
+// 수락된 연결의 수신 처리 — 이력 캐시 · AgentList · dedup · ack 해소 · 청크 재조립.
+function handleInbound(ws, agentId, msg) {
+  // Cache history
+  wsState.history.push({ at: Date.now(), msg });
+  if (wsState.history.length > 4096) wsState.history.shift();
+
+  // AgentList update (§13.9 handshake group)
+  if (msg.name === 'AgentList' && msg.value?.agents) {
+    wsState.agentList = msg.value.agents;
+    return;
+  }
+
+  // §13.13.2 dedup
+  const msgId = msg.msgId || msg.id;
+  if (msgId && dedupCheck(msgId)) {
+    // Duplicate — emit AckProcessed { dedupHit: true } then discard
+    if (msg.targetAgentId === agentId) {
+      const ack = { type: 'CUSTOM', name: 'AckProcessed', agentId, value: { ackFor: msgId, dedupHit: true } };
+      ws.send(JSON.stringify(ack));
+    }
+    return;
+  }
+
+  // Pending-ack resolver (full 3-tier)
+  if (msg.name === 'Ack' && msg.value?.ackFor) {
+    const p = wsState.pendingAcks.get(msg.value.ackFor);
+    if (p && p.tier === 'delivered') {
+      clearTimeout(p.timer);
+      p.resolve({ tier: 'delivered', ackedAt: Date.now(), from: msg.value.from });
+      wsState.pendingAcks.delete(msg.value.ackFor);
+    }
+  } else if (msg.name === 'AckProcessed' && msg.value?.ackFor) {
+    const p = wsState.pendingAcks.get(msg.value.ackFor);
+    if (p && (p.tier === 'commitment' || p.tier === 'delivered')) {
+      clearTimeout(p.timer);
+      p.resolve({ tier: 'commitment', ackedAt: Date.now(), dedupHit: !!msg.value.dedupHit });
+      wsState.pendingAcks.delete(msg.value.ackFor);
+    }
+  } else if (msg.name === 'Report' || msg.name === 'DONE' || msg.name === 'BLOCKED' || msg.name === 'NEEDS_HUMAN'
+             || msg.name === 'DECISION_RESPONSE' || msg.name === 'DECISION_DEFER' || msg.name === 'DECISION_REJECT_FRAMING') {
+    // Application-tier — match by re_msgId or value.for
+    // tier='decided' is the Hyperbrief-specific application-tier per Constellation §13.16.9 + Hyperbrief.md §8.2
+    const ackFor = msg.value?.re_msgId || msg.value?.for;
+    if (ackFor) {
+      const p = wsState.pendingAcks.get(ackFor);
+      const isDecisionOutcome = msg.name === 'DECISION_RESPONSE' || msg.name === 'DECISION_DEFER' || msg.name === 'DECISION_REJECT_FRAMING';
+      // 'decided' waiters resolve on DECISION_* outcomes; 'application' waiters resolve on either generic outcomes or DECISION_* outcomes
+      if (p && (p.tier === 'application' || (p.tier === 'decided' && isDecisionOutcome))) {
+        clearTimeout(p.timer);
+        p.resolve({ tier: p.tier, ackedAt: Date.now(), outcome: msg.name, body: msg.value });
+        wsState.pendingAcks.delete(ackFor);
+      }
+    }
+  }
+
+  // Chunked transfer reassembly
+  if (msg.name === 'ArtifactManifest') {
+    const key = msg.value?.handoff || msg.value?.artifact || ('manifest-' + Date.now());
+    wsState.chunks.set(key, { manifest: msg.value, chunks: new Map(), expected: 0 });
+  } else if (msg.name === 'ArtifactChunk') {
+    const key = msg.value?.artifact;
+    const slot = wsState.chunks.get(key);
+    if (slot) slot.chunks.set(msg.value.chunk_index, msg.value.data);
+  } else if (msg.name === 'ArtifactComplete') {
+    const key = msg.value?.artifact;
+    const slot = wsState.chunks.get(key);
+    if (slot) {
+      // Reassemble; verify sha256 if present in manifest
+      const ordered = Array.from(slot.chunks.entries()).sort((a, b) => a[0] - b[0]).map(([_, d]) => d);
+      slot.assembled = Buffer.concat(ordered.map(d => Buffer.from(d, 'base64')));
+      slot.complete = true;
+    }
+  }
 }
 
 // ----- Tools -----
@@ -375,12 +484,31 @@ const TOOLS = [
   { name: 'board_state_get', description: 'Constellation board state (modes, projects, current/done/planned tracks, decisions). Read-only. Resolves in order: CONSTELLATION_STATE_PATH if set and present → HTTP GET /api/state on the origin derived from CONSTELLATION_WS_URL (works for remote boards, e.g. a peer-main attachment) → isError. A failed read is returned as isError, never as prose in a success body.', inputSchema: { type: 'object', properties: {}, required: [] } },
   { name: 'board_history_tail', description: 'Per-channel A2A history from cursor forward. Read-only.', inputSchema: { type: 'object', properties: { channelId: { type: 'string' }, sinceCursor: { type: 'integer' }, meaningfulOnly: { type: 'boolean', default: true } }, required: ['channelId', 'sinceCursor'] } },
   { name: 'agent_list_get', description: 'Current AgentList (§13.9 handshake group). Read-only.', inputSchema: { type: 'object', properties: {}, required: [] } },
-  { name: 'a2a_emit', description: 'Emit targeted CUSTOM/{name} envelope to targetAgentId. §13.11 rule 5 attachment-aware. Returns server-stamped msgId.', inputSchema: { type: 'object', properties: { targetAgentId: { type: 'string' }, name: { type: 'string' }, value: { type: 'object' }, attachments: { type: 'array', items: { type: 'object' } } }, required: ['targetAgentId', 'name', 'value'] } },
+  { name: 'a2a_emit', description: 'Emit targeted CUSTOM/{name} envelope to targetAgentId. §13.11 rule 5 attachment-aware. Returns server-stamped msgId. Sends only after the board server has admitted this connection (§13.25.13: ConnectionInfo, or acceptance held for the hold window); a refused or unadmitted connection returns isError with the refusal code and sent:false, never a msgId.', inputSchema: { type: 'object', properties: { targetAgentId: { type: 'string' }, name: { type: 'string' }, value: { type: 'object' }, attachments: { type: 'array', items: { type: 'object' } } }, required: ['targetAgentId', 'name', 'value'] } },
   { name: 'a2a_wait_ack', description: 'Block until ack tier arrives or timeout. Full §13.13 3-tier + Hyperbrief tier=decided application-tier extension (resolves on DECISION_RESPONSE / DECISION_DEFER / DECISION_REJECT_FRAMING).', inputSchema: { type: 'object', properties: { msgId: { type: 'string' }, tier: { type: 'string', enum: ['delivered', 'commitment', 'application', 'decided'] }, timeoutMs: { type: 'integer', default: 30000 } }, required: ['msgId', 'tier'] } },
 ];
 
 async function ensureConnected() {
   if (!wsState.ready) await connectWS();
+}
+
+// 연결을 못 얻으면(판정 거절 · 판정 없음 · 전송 실패) 도구 결과를 isError 로 돌려줘요 — 성공 봉투에 담지 않아요.
+//   거절이면 서버가 준 사유(code · label · reason · hint)와 다음 시도 시각을 그대로 실어요. 호출자가 할 일은
+//   «다시 보내기» 가 아니라 그 사유를 푸는 것(열쇠 연장·정체 정정)이라서요.
+function connectFailure(e, sendTool) {
+  const r = e && e.refusal;
+  const body = r
+    ? { error: 'connection-refused', code: r.code, label: r.label, reason: r.reason, hint: r.hint, verdictSource: r.source, refusedAt: r.at, retryAt: r.retryAt }
+    : { error: 'not-connected', message: (e && e.message) || String(e) };
+  if (sendTool) body.sent = false;
+  body.note = r
+    ? 'The board server refused this connection at its HELLO verdict (Constellation §13.25.13); nothing was sent. Resending will not help until the cause is fixed; this server will not reconnect before retryAt.'
+    : 'No admitted connection to the board (Constellation §13.25.13: open is not admission)' + (sendTool ? '; nothing was sent.' : '.');
+  return { content: [{ type: 'text', text: JSON.stringify(body) }], isError: true };
+}
+async function withConnection(sendTool, fn) {
+  try { await ensureConnected(); } catch (e) { return connectFailure(e, sendTool); }
+  return fn();
 }
 
 async function handleBoardStateGet() {
@@ -405,30 +533,32 @@ async function handleBoardStateGet() {
 }
 
 async function handleBoardHistoryTail({ channelId, sinceCursor, meaningfulOnly = true }) {
-  await ensureConnected();
+  return withConnection(false, () => {
   let history = wsState.history.slice(sinceCursor);
   if (meaningfulOnly) history = history.filter(h => h.msg.name && MEANINGFUL.has(h.msg.name));
   history = history.filter(h => !channelId || h.msg.channelId === channelId || h.msg.targetAgentId === channelId || h.msg.agentId === channelId);
   return { content: [{ type: 'text', text: JSON.stringify(history.map(h => h.msg), null, 2) }] };
+  });
 }
 
 async function handleAgentListGet() {
-  await ensureConnected();
-  return { content: [{ type: 'text', text: JSON.stringify(wsState.agentList, null, 2) }] };
+  return withConnection(false, () => ({ content: [{ type: 'text', text: JSON.stringify(wsState.agentList, null, 2) }] }));
 }
 
 async function handleA2aEmit({ targetAgentId, name, value, attachments }) {
-  await ensureConnected();
-  const msgId = makeMsgId();
-  const envelope = { type: 'CUSTOM', name, msgId, agentId: getAgentIdentity(), targetAgentId, timestamp: Date.now(), value };
-  if (attachments && attachments.length) envelope.value = { ...envelope.value, attachments };
-  wsState.socket.send(JSON.stringify(envelope));
-  return { content: [{ type: 'text', text: JSON.stringify({ msgId, sentAt: Date.now() }) }] };
+  return withConnection(true, () => {
+    // 판정과 발신 사이에 거절·끊김이 끼어들 수 있어요 — 발신 직전에 한 번 더 봐요(성공으로 돌려줄 근거가 없으면 isError).
+    if (!wsState.ready || !wsState.socket) return connectFailure(wsState.refusal ? refusalError(wsState.refusal) : new Error('connection lost before send'), true);
+    const msgId = makeMsgId();
+    const envelope = { type: 'CUSTOM', name, msgId, agentId: getAgentIdentity(), targetAgentId, timestamp: Date.now(), value };
+    if (attachments && attachments.length) envelope.value = { ...envelope.value, attachments };
+    try { wsState.socket.send(JSON.stringify(envelope)); } catch (e) { return connectFailure(e, true); }
+    return { content: [{ type: 'text', text: JSON.stringify({ msgId, sentAt: Date.now() }) }] };
+  });
 }
 
 async function handleA2aWaitAck({ msgId, tier, timeoutMs = 30000 }) {
-  await ensureConnected();
-  return new Promise((resolve) => {
+  return withConnection(false, () => new Promise((resolve) => {
     const timer = setTimeout(() => {
       wsState.pendingAcks.delete(msgId);
       resolve({ content: [{ type: 'text', text: JSON.stringify({ msgId, tier, timeout: true }) }] });
@@ -436,9 +566,10 @@ async function handleA2aWaitAck({ msgId, tier, timeoutMs = 30000 }) {
     wsState.pendingAcks.set(msgId, {
       tier, timer,
       resolve: (ackResult) => resolve({ content: [{ type: 'text', text: JSON.stringify({ msgId, ...ackResult }) }] }),
-      reject: (e) => resolve({ content: [{ type: 'text', text: 'wait_ack error: ' + e.message }], isError: true }),
+      // 거절로 끝난 대기는 거절 봉투로 돌려줘요 — 사유 code 가 기계로 읽혀야 호출자가 재시도와 사유 해소를 가를 수 있어요.
+      reject: (e) => resolve(e && e.refusal ? connectFailure(e, false) : { content: [{ type: 'text', text: 'wait_ack error: ' + e.message }], isError: true }),
     });
-  });
+  }));
 }
 
 // ----- MCP stdio protocol -----

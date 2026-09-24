@@ -101,15 +101,43 @@ echo "[ws-wait] armed: inbox=$INBOX cursor=$ic agent=$WID feedback=$FB feedback_
 #   name blocklist 만으로 self-emission echo + transport noise 양쪽을 모두 커버한다.
 #   v2.4.17: NOISE 와 MEANINGFUL 모두 §13.16.9 SSoT 와 정합. 알려지지 않은 name 은
 #   fail-safe default = 깨움 (silent-drop-of-A2A 이 더 큰 cost).
+# v2.4.166: ConnectionInfo 는 handshake 그룹(서버가 HELLO 관문 통과 뒤 보내는 권한 안내) — 종전엔 목록에 없어서
+#   재접속마다 세션을 깨웠어요(턴 종료 probe 는 이미 noise 로 봐요 — 두 소비자가 갈라져 있었어요).
+# 거절 묶음(§13.16.9 admission refusal): ConnectionRejected 는 운영자가 한 번 알아야 하는 상태라 깨우지만,
+#   **같은 사유가 이어지는 동안은 한 번만**. 고치기 전 다리·다른 계열 다리는 재접속마다 거절 줄을 적어서 워처가 그
+#   속도로 세션을 깨웠어요(채택자 실측 23분 2,609회). 묶음 상태는 커서 옆 파일에 두고, 수락 표지(ConnectionInfo)나
+#   WS_REFUSAL_REALERT_S(기본 3600초)가 지나면 끝나요 — 영영 침묵하지 않게 한 시간마다는 다시 알려요.
+#   묶음을 연 그 줄은 다시 읽혀도 깨워요(커서를 안 넘긴 채 재무장하면 같은 줄로 다시 깨는 게 다른 줄과 같은 규칙이에요).
+RSTATE="${ICUR}.refusal"
+REALERT=${WS_REFUSAL_REALERT_S:-3600}
 meaningful() {
   node -e '
-    const fs = require("fs"), f = process.argv[1], from = +process.argv[2];
-    const NOISE = ["ServerNotice", "AgentList", "Status", "ConnectionRestored", "Heartbeat", "Typing", "UserPromptAccepted", "PersistentAdapterSmoke", "OnboardAck", "AgentHello", "WorkerInboxReceived", "EditMessage", "MainChanged", "History", "Ack", "AckProcessed", "AckCumulative", "AckPolicyUpdate"];
+    const fs = require("fs"), f = process.argv[1], from = +process.argv[2], sf = process.argv[3], realert = (+process.argv[4] || 3600) * 1000;
+    const NOISE = ["ServerNotice", "AgentList", "Status", "ConnectionRestored", "Heartbeat", "Typing", "UserPromptAccepted", "PersistentAdapterSmoke", "OnboardAck", "AgentHello", "WorkerInboxReceived", "EditMessage", "MainChanged", "History", "Ack", "AckProcessed", "AckCumulative", "AckPolicyUpdate", "ConnectionInfo"];
     let ls = []; try { ls = fs.readFileSync(f, "utf8").trim().split("\n").filter(Boolean); } catch {}
-    const ok = ls.slice(from).some(s => { try { const o = JSON.parse(s);
-      return !NOISE.includes(o.name || o.type || ""); } catch { return false; } });
+    let st = null; try { st = JSON.parse(fs.readFileSync(sf, "utf8")); } catch {}
+    const now = Date.now(); let dirty = false, ok = false;
+    // 거절·수락 표지는 서버나 다리가 적은 줄만 믿어요 — 피어가 같은 이름으로 보낸 프레임(source agent)은 평범한 수신이라,
+    //   그걸로 묶음을 열면 뒤따르는 진짜 거절이 묻혀요. 창의 줄은 **끝까지** 훑어요(깨울 줄을 찾은 뒤에도 표지는 반영).
+    const trusted = (o) => o.source === "server" || o.source === "bridge";
+    for (const s of ls.slice(from)) {
+      let o; try { o = JSON.parse(s); } catch { continue; }
+      const n = o.name || o.type || "";
+      if (n === "ConnectionInfo" && trusted(o)) { if (st) { st = null; dirty = true; } continue; }
+      if (n === "ConnectionRejected" && trusted(o)) {
+        // 스스로 묶는 다리(bridge.streakSince)의 줄은 이미 묶음당 한 줄(+재알림)이라 그대로 깨워요. 합치기는 줄마다 적는 다리 몫이에요.
+        if (o.bridge && o.bridge.streakSince) { ok = true; continue; }
+        const rc = String((o.value && o.value.code) || "?"), key = o.at || o.t || null;
+        const same = st && st.code === rc && now - st.since < realert;
+        if (same && (key === null || key !== st.key)) continue;
+        if (!same) { st = { code: rc, since: now, key: key }; dirty = true; }
+        ok = true; continue;
+      }
+      if (!NOISE.includes(n)) ok = true;
+    }
+    if (dirty) { try { if (st) fs.writeFileSync(sf, JSON.stringify(st)); else fs.unlinkSync(sf); } catch {} }
     process.stdout.write(ok ? "1" : "0");
-  ' "$INBOX" "$1" 2>/dev/null || echo 0
+  ' "$INBOX" "$1" "$RSTATE" "$REALERT" 2>/dev/null || echo 0
 }
 
 n=0

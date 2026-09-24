@@ -62,7 +62,20 @@ let ws = null, connected = false, seq = 0, backoff = 500;
 // 않아요 — 재시도의 유일한 목적은 «갱신되면 알아차리는 것» 이라 5분이면 충분해요.
 // 수락 증거(거절이 아닌 서버 첫 프레임) 없이는 backoff 를 되돌리지 않아요.
 const REJECT_RETRY_MS = +(process.env.JOIN_REJECT_RETRY_MS || 5 * 60 * 1000);
+// ── §13.25.13 발신은 **서버 판정** 뒤에만 (v2.4.166 — local-bridge.cjs 와 같은 규약) ─────────────
+// 수락 증거(거절이 아닌 첫 서버 프레임)만으로 발신을 열면, 판정 전에 명단을 방송하는 서버 계열에서 그 방송이 곧
+//   «증거» 가 돼요. 그러면 거절 직전 창에 AgentHello·EchoModeState·보류 줄·자동 ack 가 **거절될 연결로** 나가고,
+//   보류 줄은 커서만 전진한 채 사라져요(대본 서버로 재현). 그래서 상태를 둘로 갈라요:
+//     accepted — 거절도 SERVER_HELLO 도 아닌 첫 서버 프레임을 받았다. backoff 리셋은 여기서만.
+//     admitted — 발신해도 된다. ConnectionInfo(서버가 HELLO 관문을 전부 통과시킨 **뒤에만** 보내요)를 받았거나,
+//                그걸 안 보내는 서버 계열이면 수락이 ADMIT_HOLD_MS 동안 뒤집히지 않았다.
+//   판정 전에 받은 프레임은 기록도 ack 도 하지 않고 쥐고 있다가, 판정이 나면 처리하고 거절이면 버려요(버린 수는 남겨요).
+const ADMIT_HOLD_MS = +(process.env.JOIN_ADMIT_HOLD_MS || 3000);
+const REFUSED_CLOSE_MS = 1000;   // 거절 뒤 서버가 안 닫으면 이만큼 기다렸다가 스스로 닫아요 — 거절된 소켓에 머무르면 재시도가 영영 안 와요
+const HELD_MAX = 500;            // 판정 전 보류 상한 — 넘치면 가장 오래된 것부터 버려요(판정은 몇 초 안에 나요)
 let accepted = false;          // 이번 연결이 «수락» 증거를 받았나 (open 은 증거가 아니에요)
+let admitted = false;          // 이번 연결이 «발신 허가» 판정을 받았나 (위 설명)
+let held = [];                 // 판정 전에 받은 프레임 (admit 때 순서대로 처리 · 거절이면 버림)
 let refusedThisConn = false;   // 이 연결은 서버가 거절했다 — 닫힐 때까지 거절이에요(뒤이은 방송이 수락으로 뒤집지 못하게)
 let rejectedUntilRetry = 0;    // >now = 직전 연결이 서버 판정으로 거절됨 — 다음 재시도는 이 시각
 function log(obj) { try { fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(), ...obj }) + '\n'); } catch {} }
@@ -80,7 +93,7 @@ let outCursor = loadOutCursor();
 // 워커 세션(IDE/CLI 에이전트)이 OUTBOX 에 append 한 줄을 connected 이후 drain 송신.
 // 줄 형식: 완성된 envelope (type/name/targetAgentId/value …) — agentId/seq/timestamp 는 send() 가 보강.
 function drainOutbox() {
-  if (!connected || !accepted) return;   // 수락 전엔 비우지 않아요 — 거절될 연결로 보내면 커서만 전진하고 줄은 사라져요
+  if (!connected || !accepted || !admitted) return;   // 판정 전엔 비우지 않아요 — 거절될 연결로 보내면 커서만 전진하고 줄은 사라져요(수락 증거만으론 부족해요)
   let data = ''; try { data = fs.readFileSync(OUTBOX, 'utf8'); } catch { return; }
   const lines = data.split('\n').filter(Boolean);
   for (let i = outCursor; i < lines.length; i++) {
@@ -90,19 +103,83 @@ function drainOutbox() {
   if (outCursor !== lines.length) { outCursor = lines.length; saveOutCursor(); }
 }
 
+// 자기 공지 2종 — **발신 허가 뒤에만**. 종전엔 수락 증거에서 100/300ms 타이머로 나가서, 판정 전 방송 서버에선
+//   거절될 연결로도 나갔어요(agenthello-sent 165,424회 실측은 그보다 앞선 open 직후 판이었어요).
+function announce() {
+  send('CUSTOM', { name: 'AgentHello', targetAgentId: MAIN, value: { agentId: AGENT_ID, env: 'local worker @ ' + DIR, role: 'local', idle: true, note: 'Local worker 합류 — Delegate 대기 standby.' } });
+  log({ ev: 'agenthello-sent', to: MAIN });
+  // v2.4.58 — §13.26.4 EchoModeState 공지: (재)접속마다 멱등 재공지 (무타깃 브로드캐스트 —
+  // commitment-ack 비대상). 대시보드가 에코 배지 + 채널 대화 승격에 사용.
+  const e2 = echoEntry();
+  send('CUSTOM', { name: 'EchoModeState', value: { agentId: AGENT_ID, level: e2.level, provenance: e2.provenance || 'agent-spawned' } });
+  log({ ev: 'echomodestate-sent', level: e2.level });
+}
+function dropHeld(why) {
+  if (!held.length) return;
+  log({ ev: 'held-dropped', n: held.length, why });   // 판정 없이 끝난 연결의 수신분 — 기록도 ack 도 하지 않고 버려요
+  held = [];
+}
+// 발신 허가. 판정 전에 쥐고 있던 프레임을 순서대로 처리하고, 인사한 다음, 보류 줄을 비워요.
+function admit(sock, why) {
+  if (admitted || ws !== sock || refusedThisConn || !accepted) return;
+  admitted = true;
+  log({ ev: 'admitted', why, held: held.length });
+  const q = held; held = [];
+  for (const m of q) handleInbound(m);
+  announce();
+  drainOutbox();
+}
+
+// 판정이 난 연결의 수신 처리 — 기록 + commitment ack.
+function handleInbound(m) {
+  // v2.4.132 — §13.13.2 멱등 수신: 같은 msgId 재전달은 본문을 다시 적지 않아요(마커만). 단 ack 는
+  //   중복에도 다시 보내요 — 재전달이 왔다는 건 서버가 내 ack 를 못 받았다는 뜻이라, 여기서 접으면
+  //   재전달 루프를 스스로 연장해요.
+  let isDup = false;
+  if (m && m.msgId) {
+    if (seenMsgIds.has(m.msgId)) isDup = true;
+    else {
+      seenMsgIds.add(m.msgId);
+      if (seenMsgIds.size > 400) { const it = seenMsgIds.values(); for (let i = 0; i < 100; i++) seenMsgIds.delete(it.next().value); }
+    }
+  }
+
+  if (isDup) log({ ev: 'inbound-dedup', msgId: m.msgId, name: m.name });
+  else if (m.type === 'History' || m.type === 'AgentList' || m.type === 'SERVER_HELLO') log({ ev: 'inbound-meta', type: m.type });
+  else log({ ev: 'inbound', msg: m });
+  // v2.4.50 — §13.13.2 commitment-tier ack. 서버의 at-least-once pending 은 수신자의
+  // AckProcessed{ackFor} 로만 clear 됨. 미회신 시 매 targeted CUSTOM 이 바운드 재전달(동일
+  // msgId 3×) 후 발신자에게 RelayUnreachable{commitment-ack-absent} 로 종결되는 소음이
+  // 매 위임마다 발생 (2026-07-04~11 실측). ack/ping 류는 서버 pending 비추적이라 제외(스톰 방지).
+  // v2.4.132 — 발신 에이전트가 없어도 ack (서버/보드 유래 릴레이 프레임엔 agentId 가 없어요 —
+  //   «수신처 있어야 ack» 술어가 그 부류를 조용히 면제해 3× 재전달로 실측). 무대상이면 칸을 아예
+  //   싣지 않고 서버가 clear 후 소비해요.
+  if (m && m.type === 'CUSTOM' && m.msgId && m.targetAgentId === AGENT_ID
+      && m.source !== 'server' && !ACK_KINDS.has(m.name)) {
+    const ack = { name: 'AckProcessed', value: { ackFor: m.msgId } };
+    if (m.agentId) ack.targetAgentId = m.agentId;
+    send('CUSTOM', ack);
+    log({ ev: 'ackprocessed-sent', ackFor: m.msgId, to: m.agentId || '(server-consumed)' });
+  }
+}
+
 function connect() {
   console.log(`[join-local] connecting ${redactUrl(WS_URL)} (agentId=${AGENT_ID})`);
-  ws = new WebSocket(WS_URL);
-  ws.onopen = () => {
+  // 핸들러는 **자기 소켓**에만 반응해요 — 판정 유예·거절 뒤 닫기 타이머가 새 연결의 상태를 건드리지 않게.
+  const sock = new WebSocket(WS_URL);
+  ws = sock;
+  sock.onopen = () => {
+    if (ws !== sock) return;
     // backoff 를 여기서 되돌리지 않아요 — open 은 «TCP 가 붙었다» 지 «서버가 받아줬다» 가 아니에요.
     // 거절은 open **뒤에** 프레임으로 오니까, 여기서 리셋하면 지수 백오프가 매 사이클 무효화돼요
     // (그게 2Hz × 19만 회의 기제였어요). 리셋은 수락 증거를 받은 onmessage 쪽에서 해요.
-    connected = true; accepted = false; refusedThisConn = false;
+    connected = true; accepted = false; admitted = false; refusedThisConn = false; held = [];
     send('HELLO', { clientId: AGENT_ID + '-1', agentName: AGENT_NAME, role: 'local', protocolVersion: '0.3', runId: null, capabilities: { inbound: ['UserPrompt', 'Command', 'Cancel', 'Delegate', 'OnboardAck', 'WorkerAck'], outbound: ['CUSTOM'] } });
-    console.log(`[join-local] connected; HELLO sent (role=local). 메인(${MAIN}) Delegate 대기.`);
+    console.log(`[join-local] connected; HELLO sent (role=local). 서버 판정 대기 → 메인(${MAIN}) Delegate 대기.`);
     log({ ev: 'connected' });
   };
-  ws.onmessage = (e) => {   // v2.4.7: CUSTOM/A2A 는 full msg 로깅 (워커가 Delegate value 등 본문 read 가능), History/AgentList 노이즈는 요약
+  sock.onmessage = (e) => {   // v2.4.7: CUSTOM/A2A 는 full msg 로깅 (워커가 Delegate value 등 본문 read 가능), History/AgentList 노이즈는 요약
+    if (ws !== sock) return;
     let m; try { m = JSON.parse(e.data); } catch { return; }
     // ── 수락/거절 판정 — 인사보다 먼저예요 ──────────────────────────────────────
     // 거절 프레임은 일반 inbound 로 적지 않아요: 종전엔 ev:'inbound' 로 쌓여서 워커가 매 30건을
@@ -117,10 +194,13 @@ function connect() {
     // 서버가 낸 것만 거절이에요 — 서버는 에이전트가 보낸 같은 이름의 프레임도 중계해요(source 'agent').
     if (m && m.name === 'ConnectionRejected' && m.source === 'server') {
       refusedThisConn = true;
-      accepted = false;                                   // 수락으로 세었던 걸 되돌려요 (증거가 뒤집혔어요)
+      accepted = false; admitted = false;                 // 수락으로 세었던 걸 되돌려요 (증거가 뒤집혔어요)
       rejectedUntilRetry = Date.now() + REJECT_RETRY_MS;
       log({ ev: 'rejected', code: m.value && m.value.code, label: m.value && m.value.label, retryInMs: REJECT_RETRY_MS });
+      dropHeld('rejected');
       console.error(`[join-local] 서버가 합류를 거절했어요 (${(m.value && m.value.code) || '?'}) — ${Math.round(REJECT_RETRY_MS / 60000)}분 뒤 재시도. 빨리 두드려서 풀리는 종류가 아니에요.`);
+      // 거절 뒤 서버가 안 닫으면 스스로 닫아요 — 닫혀야 재시도가 예약돼요(대기 간격은 위 rejectedUntilRetry 가 정해요).
+      setTimeout(() => { if (ws === sock && sock.readyState === 1) { log({ ev: 'refused-local-close' }); try { sock.close(1000, 'refused'); } catch {} } }, REFUSED_CLOSE_MS);
       return;
     }
     // SERVER_HELLO 는 «붙었다» 지 «받아줬다» 가 아니에요 — 서버가 인가 전에 보내니 수락 증거에서 빼요.
@@ -129,55 +209,52 @@ function connect() {
     // 거절된 연결로 온 나머지는 쓰지 않아요 — 여기서 인사하거나 ack 하면 거절된 소켓으로 발신이 나가요.
     if (refusedThisConn) return;
     if (!accepted && m && m.type !== 'SERVER_HELLO') {
-      // 거절이 아닌 첫 서버 프레임 = 수락 증거. 여기서만 backoff 를 되돌리고, 인사도 여기서 해요 —
-      // 종전엔 인사 2종이 open 직후 타이머로 나가서, 거절당하는 연결에서도 매 사이클 발사됐어요
-      // (agenthello-sent 165,424회 실측).
+      // 거절이 아닌 첫 서버 프레임 = 수락 증거. 여기서만 backoff 를 되돌려요. 인사는 여기서 **하지 않아요** —
+      //   판정 전에 명단을 방송하는 서버 계열에선 이 증거가 거절보다 먼저 와요. ConnectionInfo 를 안 보내는
+      //   서버 계열 대비로, 수락이 ADMIT_HOLD_MS 동안 뒤집히지 않으면 그걸 판정으로 봐요.
       accepted = true; rejectedUntilRetry = 0; backoff = 500;
-      setTimeout(() => { send('CUSTOM', { name: 'AgentHello', targetAgentId: MAIN, value: { agentId: AGENT_ID, env: 'local worker @ ' + DIR, role: 'local', idle: true, note: 'Local worker 합류 — Delegate 대기 standby.' } }); log({ ev: 'agenthello-sent', to: MAIN }); }, 100);
-      // v2.4.58 — §13.26.4 EchoModeState 공지: (재)접속마다 멱등 재공지 (무타깃 브로드캐스트 —
-      // commitment-ack 비대상). 대시보드가 에코 배지 + 채널 대화 승격에 사용.
-      setTimeout(() => { const e2 = echoEntry(); send('CUSTOM', { name: 'EchoModeState', value: { agentId: AGENT_ID, level: e2.level, provenance: e2.provenance || 'agent-spawned' } }); log({ ev: 'echomodestate-sent', level: e2.level }); }, 300);
+      setTimeout(() => admit(sock, 'accepted-held-' + ADMIT_HOLD_MS + 'ms'), ADMIT_HOLD_MS);
     }
-    // v2.4.132 — §13.13.2 멱등 수신: 같은 msgId 재전달은 본문을 다시 적지 않아요(마커만). 단 ack 는
-    //   중복에도 다시 보내요 — 재전달이 왔다는 건 서버가 내 ack 를 못 받았다는 뜻이라, 여기서 접으면
-    //   재전달 루프를 스스로 연장해요.
-    let isDup = false;
-    if (m && m.msgId) {
-      if (seenMsgIds.has(m.msgId)) isDup = true;
-      else {
-        seenMsgIds.add(m.msgId);
-        if (seenMsgIds.size > 400) { const it = seenMsgIds.values(); for (let i = 0; i < 100; i++) seenMsgIds.delete(it.next().value); }
-      }
+    // SERVER_HELLO 는 서버 자신의 인사라(피어 내용도 ack 대상도 아니에요) 보류하지 않고 메타 한 줄로 바로 남겨요 —
+    //   «판정 전에 서버와 말이 오갔다» 는 진단 흔적이라, 거절된 연결에서도 남아야 해요.
+    if (m && m.type === 'SERVER_HELLO') { handleInbound(m); return; }
+    if (!admitted) {
+      // 판정 전 — 기록도 ack 도 미뤄요. 거절이면 통째로 버려요.
+      held.push(m);
+      if (held.length > HELD_MAX) { held.shift(); log({ ev: 'held-overflow', max: HELD_MAX }); }
+      if (m && m.type === 'CUSTOM' && m.name === 'ConnectionInfo' && m.source === 'server') admit(sock, 'ConnectionInfo');
+      return;
     }
+    handleInbound(m);
+  };
+  // 재연결은 error·close **양쪽에서** 예약해요 — 일부 런타임(Node 22 / undici 6.27)은 error 뒤 close 를 안 내요
+  //   (join-collab.cjs · local-bridge.cjs 와 같은 규약). 중복은 소켓 세대 확인이 흡수해요.
+  sock.onerror = (err) => {
+    if (ws !== sock) return;
+    log({ ev: 'ws-error', e: String((err && err.message) || err) });
+    try { if (sock.readyState === 1) sock.close(); } catch {}
+    scheduleReconnect(sock, 'error', undefined);
+  };
+  sock.onclose = (ev) => { scheduleReconnect(sock, 'close', ev && ev.code); };
+}
 
-    if (isDup) log({ ev: 'inbound-dedup', msgId: m.msgId, name: m.name });
-    else if (m.type === 'History' || m.type === 'AgentList' || m.type === 'SERVER_HELLO') log({ ev: 'inbound-meta', type: m.type });
-    else log({ ev: 'inbound', msg: m });
-    // v2.4.50 — §13.13.2 commitment-tier ack. 서버의 at-least-once pending 은 수신자의
-    // AckProcessed{ackFor} 로만 clear 됨. 미회신 시 매 targeted CUSTOM 이 바운드 재전달(동일
-    // msgId 3×) 후 발신자에게 RelayUnreachable{commitment-ack-absent} 로 종결되는 소음이
-    // 매 위임마다 발생 (2026-07-04~11 실측). ack/ping 류는 서버 pending 비추적이라 제외(스톰 방지).
-    // v2.4.132 — 발신 에이전트가 없어도 ack (서버/보드 유래 릴레이 프레임엔 agentId 가 없어요 —
-    //   «수신처 있어야 ack» 술어가 그 부류를 조용히 면제해 3× 재전달로 실측). 무대상이면 칸을 아예
-    //   싣지 않고 서버가 clear 후 소비해요.
-    if (m && m.type === 'CUSTOM' && m.msgId && m.targetAgentId === AGENT_ID
-        && m.source !== 'server' && !ACK_KINDS.has(m.name)) {
-      const ack = { name: 'AckProcessed', value: { ackFor: m.msgId } };
-      if (m.agentId) ack.targetAgentId = m.agentId;
-      send('CUSTOM', ack);
-      log({ ev: 'ackprocessed-sent', ackFor: m.msgId, to: m.agentId || '(server-consumed)' });
-    }
-  };
-  ws.onerror = (err) => { log({ ev: 'ws-error', e: String((err && err.message) || err) }); };
-  ws.onclose = (ev) => {
-    connected = false; ws = null;
-    // 거절당한 연결의 재시도는 지수 사다리가 아니라 REJECT_RETRY_MS 예요 — 사다리의 상한(8초)이
-    // 거절 대기(5분)를 도로 깎아내리면 안 되니까, 두 경우를 섞지 않고 갈라요.
-    const wait = rejectedUntilRetry > Date.now() ? Math.max(rejectedUntilRetry - Date.now(), 1000) : backoff;
-    log({ ev: 'closed', code: ev && ev.code, retryInMs: wait });
-    setTimeout(connect, wait);
-    backoff = Math.min(backoff * 2, 8000);
-  };
+function scheduleReconnect(sock, why, code) {
+  if (ws !== sock) return;   // 이 소켓의 끝은 한 번만 처리해요
+  const wasAdmitted = admitted;
+  connected = false; accepted = false; admitted = false; ws = null;
+  dropHeld('closed-before-verdict');
+  // 거절 프레임 없이 4003/4403 으로 닫혀도 서버 판정 거절이에요(프레임을 싣지 않던 옛 서버 · 프레임 유실).
+  //   발신 허가 뒤의 4003(열쇠 폐기로 끊김)은 여기 안 걸려요 — 다음 접속이 거절 프레임으로 다시 말해 줘요.
+  if (!wasAdmitted && (code === 4003 || code === 4403) && !(rejectedUntilRetry > Date.now())) {
+    rejectedUntilRetry = Date.now() + REJECT_RETRY_MS;
+    log({ ev: 'rejected', code: 'close-' + code, retryInMs: REJECT_RETRY_MS });
+  }
+  // 거절당한 연결의 재시도는 지수 사다리가 아니라 REJECT_RETRY_MS 예요 — 사다리의 상한(8초)이
+  // 거절 대기(5분)를 도로 깎아내리면 안 되니까, 두 경우를 섞지 않고 갈라요.
+  const wait = rejectedUntilRetry > Date.now() ? Math.max(rejectedUntilRetry - Date.now(), 1000) : backoff;
+  log({ ev: 'closed', code, why, retryInMs: wait });
+  setTimeout(connect, wait);
+  backoff = Math.min(backoff * 2, 8000);
 }
 
 connect();

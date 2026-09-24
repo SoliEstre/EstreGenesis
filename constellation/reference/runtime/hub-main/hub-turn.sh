@@ -41,17 +41,30 @@ cur=$(cat "$CURSOR" 2>/dev/null || echo 0)
 new=$(sed -n "$((cur+1)),${total}p" "$INBOX")
 
 # 3) 의미필터 + tier 판정 — node 1패스. 리스트는 §13.16.9 의 4-group + tier 컬럼(SSoT) 미러.
+#   v2.4.166: ConnectionInfo = handshake(권한 안내, 재접속마다 옴 — 종전엔 미분류라 ESC 턴을 띄웠어요) ·
+#   ConnectionRejected 는 같은 사유 묶음당 한 번만(self-wake-watcher.sh 와 같은 규칙 — 거절 줄마다 opus 턴이 뜨던 자리).
+#   묶음 상태는 커서 옆 파일. 턴이 실패해 커서가 머물면 묶음을 연 그 줄은 다시 올라와요(키로 구분).
 route=$(printf '%s\n' "$new" | node -e '
   // NOISE === §13.16.9 non-A2A-intent 그룹(transport∪liveness∪handshake∪notice∪board-directed) — v2.4.47 watcher 와 정합.
-  const NOISE=["ServerNotice","AgentList","Status","ConnectionRestored","Heartbeat","Typing","UserPromptAccepted","PersistentAdapterSmoke","OnboardAck","AgentHello","WorkerInboxReceived","EditMessage","MainChanged","History","Ack","AckProcessed","AckCumulative","AckPolicyUpdate","Ping","Pong"];
+  const NOISE=["ServerNotice","AgentList","Status","ConnectionRestored","Heartbeat","Typing","UserPromptAccepted","PersistentAdapterSmoke","OnboardAck","AgentHello","WorkerInboxReceived","EditMessage","MainChanged","History","Ack","AckProcessed","AckCumulative","AckPolicyUpdate","Ping","Pong","ConnectionInfo"];
   // ROUTINE / ESC === §13.16.9 tier 컬럼. 미분류 non-noise 는 fail-safe escalation (스펙 정합).
   const ROUTINE=["Report","WorkerReport","WorkerAck","Command","Cancel","UserPrompt","PRRequest","PRDraftReady","PRReviewAck","PRMergeAck","PRStatusUpdate","ReviewSLAAck"];
-  let names=[];
-  require("fs").readFileSync(0,"utf8").trim().split("\n").filter(Boolean).forEach(function(s){try{var o=JSON.parse(s);var n=o.name||o.type||"";if(!NOISE.includes(n))names.push(n);}catch(e){}});
+  const fs=require("fs"), sf=process.argv[1], realert=(+process.argv[2]||3600)*1000, now=Date.now();
+  let st=null; try{st=JSON.parse(fs.readFileSync(sf,"utf8"));}catch(e){}
+  let dirty=false, names=[];
+  // 표지는 서버·다리가 적은 줄만(source server|bridge) — 피어 위조 줄은 평범한 수신. 스스로 묶는 다리(bridge.streakSince)의 줄은 그대로 올려요.
+  var trusted=function(o){return o.source==="server"||o.source==="bridge";};
+  fs.readFileSync(0,"utf8").trim().split("\n").filter(Boolean).forEach(function(s){try{var o=JSON.parse(s);var n=o.name||o.type||"";
+    if(n==="ConnectionInfo"&&trusted(o)){if(st){st=null;dirty=true;}return;}
+    if(n==="ConnectionRejected"&&trusted(o)&&!(o.bridge&&o.bridge.streakSince)){var rc=String((o.value&&o.value.code)||"?"),key=o.at||o.t||null,same=st&&st.code===rc&&now-st.since<realert;
+      if(same&&(key===null||key!==st.key))return;
+      if(!same){st={code:rc,since:now,key:key};dirty=true;}}
+    if(!NOISE.includes(n))names.push(n);}catch(e){}});
+  if(dirty){try{if(st)fs.writeFileSync(sf,JSON.stringify(st));else fs.unlinkSync(sf);}catch(e){}}
   if(!names.length){process.stdout.write("NONE");}
   else if(names.every(function(n){return ROUTINE.includes(n);})){process.stdout.write("ROUTINE "+names.join(","));}
   else{process.stdout.write("ESC "+names.join(","));}
-' 2>/dev/null)
+' "$CURSOR.refusal" "${WS_REFUSAL_REALERT_S:-3600}" 2>/dev/null)
 
 class=${route%% *}
 names=${route#* }
