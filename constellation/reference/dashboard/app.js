@@ -3714,11 +3714,15 @@ function onWsEvent(m) {
     return;
   }
   if (t === 'CUSTOM' && m.name === 'KeyListResult') {   // v2.4.0 KeyList 응답 → 모달 목록 갱신
-    if (wsKeyMgmt) wsKeyMgmt.setList((m.value || {}).keys || []);
+    if (wsKeyMgmt) wsKeyMgmt.setList(m.value || {});   // §13.25.19 목록 수준 필드(서버 능력·정책)까지 넘겨요
     return;
   }
   if (t === 'CUSTOM' && (m.name === 'KeyRevoked' || m.name === 'KeyLabeled' || m.name === 'KeyRevokePending' || m.name === 'KeyRenewed')) {   // v2.4.0 키 상태 변경 → 모달 목록 새로고침 (v2.4.103 KeyRenewed 포함)
     if (wsKeyMgmt) wsKeyMgmt.onMutated();
+    return;
+  }
+  if (t === 'CUSTOM' && m.name === 'KeyPurged') {   // §13.25.19 KeyPurge 응답 → 결과(또는 error) 표시 + 목록 새로고침
+    if (wsKeyMgmt && wsKeyMgmt.onPurged) wsKeyMgmt.onPurged(m.value || {});
     return;
   }
   if (t === 'CUSTOM' && m.name === 'KeyError') {   // v2.4.0 KEY-MGMT 에러 → 패널 표시
@@ -4374,8 +4378,144 @@ let wsKeyMgmt = null;   // v2.4.0 — 업스트림 키 발급(UI4) + 키 관리 
 
 // ---- v2.4.0 #406 UI4/UI5 업스트림 키 관리 (WS-PROTOCOL-KEY-MGMT.md v0.2) ----
 // UI4: 🔑 발행 버튼 (협업 🔗 왼쪽) → KeyIssue → KeyIssued{key, joinUrl} 패널 (협업과 동일 패턴)
-// UI5: 키 관리 모달 — KeyList 테이블 (라벨 · 연결 상태 · 마지막 에이전트), 삭제 (즉시 / 세션 유지), 라벨 수정 (KeyLabel)
+// UI5: 키 관리 모달 — KeyList 테이블 (라벨 · 연결 상태 · 마지막 에이전트), 폐기 (즉시 / 세션 유지), 라벨 수정 (KeyLabel), 연장+기간 (KeyRenew ttlDays), 폐기 키 정리 (KeyPurge)
 // 호환: 발급 패널은 transitional alias RegisterUpstreamKey/UpstreamKeyIssued 와 canonical KeyIssue/KeyIssued 둘 다 setIssued() 수용
+
+// ---- §13.25.19 키 수명 단계 — 탭 필터·배지·기간 표시의 순수 함수 (DOM 없음) ----
+// 아래 표지 사이는 DOM·전역 상태를 건드리지 않아요 — 검사(pw-key-renew.cjs --unit)가 이 구간만 잘라 node 에서 돌려요.
+// 단계(phase)는 서버가 KeyList 행에 실어 주는 값이 권위예요. 옛 서버(phase 없음)와 붙어도 깨지지 않게 여기서
+// 같은 규칙(계약 §1)으로 추정해요 — 만료는 폐기가 아니고, 폐기는 revokedAt 이 있을 때만이에요.
+// @keylife-pure:begin
+const WS_KEY_DAY_MS = 86400000;
+const WS_KEY_TTL_CHOICES = [15, 30, 90];
+const WS_KEY_TTL_DEFAULT = { local: 90, peer: 30, collab: 30, upstream: 30 };
+const WS_KEY_GRACE_MS = 3 * WS_KEY_DAY_MS;   // 서버 KEY_GRACE_MS 기본값 — 옛 서버 추정에만 써요(새 서버는 graceUntil 을 실어요)
+// 서버 능력 — KeyListResult 의 **목록 수준** 필드(ttlChoices·ttlDefaults·graceRenew·ttlAny)가 있으면 수명 개편을 아는 서버예요.
+//   없으면(옛 서버) 대기 자동 연장·기간 선택·정리(KeyPurge)가 없고, 만료 키에 폐기·라벨을 보내면 거부돼요. 그래서 그 버튼과
+//   문구를 안 그려요 — 모르는 동사를 옛 서버에 보내면 거부가 아니라 main 에이전트에게 중계돼요(보드→에이전트 라우팅).
+//   목록을 아직 못 받았으면(known=false) 옛 서버와 똑같이 다뤄요: 확인 전에는 새 동작을 약속하지 않아요.
+function wsKeyServerCaps(v) {
+  const o = (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
+  const has = (f) => !!o && Object.prototype.hasOwnProperty.call(o, f) && o[f] != null;
+  const v2 = has('ttlChoices') || has('ttlDefaults') || has('graceRenew') || has('ttlAny');
+  const choices = (o && Array.isArray(o.ttlChoices) && o.ttlChoices.length && o.ttlChoices.every((d) => Number.isFinite(d) && d > 0)) ? o.ttlChoices.slice() : WS_KEY_TTL_CHOICES.slice();
+  const defaults = Object.assign({}, WS_KEY_TTL_DEFAULT);
+  if (o && o.ttlDefaults && typeof o.ttlDefaults === 'object') for (const kd of Object.keys(o.ttlDefaults)) { const d = Number(o.ttlDefaults[kd]); if (choices.indexOf(d) >= 0) defaults[kd] = d; }
+  return {
+    known: !!o, v2,
+    graceRenew: v2 ? (o.graceRenew === true) : false,   // 새 서버가 안 실었으면 «켜짐» 으로 짐작하지 않아요(대기 배지는 약속이라서)
+    graceRenewKnown: v2 && typeof o.graceRenew === 'boolean',
+    ttlAny: v2 && o.ttlAny === true,
+    ttlChoices: choices, ttlDefaults: defaults,
+    graceMs: (o && Number(o.graceMs) > 0) ? Number(o.graceMs) : WS_KEY_GRACE_MS,
+  };
+}
+const WS_KEY_CAPS_UNKNOWN = wsKeyServerCaps(null);
+function wsKeyCaps(c) { return c || WS_KEY_CAPS_UNKNOWN; }
+function wsKeyTtlChoices(k, caps) { if (caps && caps.v2) return caps.ttlChoices.slice(); return (k && Array.isArray(k.ttlChoices) && k.ttlChoices.length) ? k.ttlChoices.slice() : WS_KEY_TTL_CHOICES.slice(); }
+// 발급 기본값 — 서버 ttlDefaults 가 권위, 하드코딩은 폴백.
+function wsKeyDefaultDays(kind, caps) { const t = (caps && caps.ttlDefaults) || WS_KEY_TTL_DEFAULT; return t[kind] || t.upstream || WS_KEY_TTL_DEFAULT.upstream; }
+function wsKeyPhase(k, now, caps) {
+  if (!k) return 'deleted';
+  if (k.phase) return k.phase;
+  if (k.state === 'DELETED' || k.deletedAt) return 'deleted';
+  if (k.state === 'REVOKED_PENDING') return 'revoking';
+  if (k.revokedAt) return 'revoked';
+  const t = now == null ? Date.now() : now;
+  const lapsed = !!k.lapsed || (k.expiresAt > 0 && k.expiresAt <= t);
+  // 옛 서버에는 «대기» 가 없어요(보유자 재접속으로 저절로 연장되지 않아요) — 만료는 곧 운영자 연장이 필요한 상태예요.
+  if (lapsed && caps && caps.known && !caps.v2) return 'dormant';
+  // 옛 서버는 만료를 REVOKED 로 적었어요(revokedAt 없이) — 그건 폐기가 아니라 만료예요.
+  if (lapsed) return t < wsKeyGraceUntil(k) ? 'standby' : 'dormant';
+  // 그 흔적이 연장 뒤에도 남은 행(REVOKED · revokedAt 없음 · 기간 남음)은 옛 서버가 접속을 거절해요 — 사람 손이
+  //   필요한 쪽(휴면)으로 보여요. 새 서버는 적재 때 이 흔적을 되돌려서 이 갈래에 오지 않아요(계약 §2).
+  if (k.state === 'REVOKED') return 'dormant';
+  return 'active';
+}
+function wsKeyGraceUntil(k) {
+  if (!k) return 0;
+  if (k.graceUntil) return k.graceUntil;
+  if (!(k.expiresAt > 0)) return 0;
+  return Math.max(k.expiresAt, k.lastSeenAt || 0) + WS_KEY_GRACE_MS;
+}
+// 탭: 종류 탭과 «전체» 는 폐기 제외(active·standby·dormant·revoking) · sleep = 대기+휴면 · revoked = 폐기. deleted(정리된 묘비)는 어디에도 안 보여요.
+const WS_KEY_LIVE_PHASES = ['active', 'standby', 'dormant', 'revoking'];
+function wsKeyTabMatch(tab, k, now, caps) {
+  const ph = wsKeyPhase(k, now, caps);
+  if (tab === 'revoked') return ph === 'revoked';
+  if (tab === 'sleep') return ph === 'standby' || ph === 'dormant';
+  if (WS_KEY_LIVE_PHASES.indexOf(ph) < 0) return false;
+  if (tab === 'all') return true;
+  return (k.kind || 'upstream') === tab;
+}
+function wsKeyPhaseBadge(k, now, caps) {
+  const ph = wsKeyPhase(k, now, caps);
+  if (ph === 'active') return { cls: 'active', text: '활성', title: k && k.state === 'ISSUED' ? '발급됨 · 아직 접속 전' : '접속할 수 있어요' };
+  if (ph === 'standby') {
+    const g = wsKeyGraceUntil(k);
+    const until = g ? (' (~' + new Date(g).toLocaleString() + ')') : '';
+    // 대기 자동 연장은 서버 정책(graceRenew)이 켜져 있을 때만의 약속이에요 — 꺼져 있으면 운영자가 연장해야 해요.
+    if (!(caps && caps.v2 && caps.graceRenew)) return { cls: 'standby', text: '대기 · 운영자 연장 필요', title: '기간이 지났어요 — 대기 자동 연장 정책이 꺼져 있어서 «연장» 을 눌러야 다시 붙어요' + until, graceUntil: g };
+    return { cls: 'standby', text: '대기 · 자동 연장 가능', title: '기간이 지났지만 보유자가 다시 붙으면 서버가 저절로 연장해요' + until, graceUntil: g };
+  }
+  if (ph === 'dormant') {
+    if (caps && caps.known && !caps.v2) return { cls: 'dormant', text: '만료 · 운영자 연장', title: '기간이 지났어요 — 이 서버는 «연장» 을 눌러야 다시 붙어요' };
+    return { cls: 'dormant', text: '휴면 · 연장 필요', title: '대기 기간도 지났어요 — «연장» 을 누르면 같은 키로 다시 붙어요' };
+  }
+  if (ph === 'revoking') return { cls: 'revoking', text: '폐기 예정(세션 종료 시)', title: '지금 세션이 끝나면 폐기돼요' };
+  if (ph === 'revoked') return { cls: 'revoked', text: '폐기됨', title: '명시적으로 폐기된 키 — 되살릴 수 없어요' };
+  return { cls: 'deleted', text: '정리됨', title: '' };
+}
+// 기간 표시: 허용 집합이면 «30일», 아니면 «14일(이전 기준)», ttl 0 = 무기한. 서버 ttlDays 가 권위(허용 집합일 때만 실려요).
+function wsKeyTtlView(k, caps) {
+  if (!k) return { days: null, text: '', legacy: false };
+  const choices = wsKeyTtlChoices(k, caps);
+  if (k.ttlDays != null && choices.indexOf(k.ttlDays) >= 0) return { days: k.ttlDays, text: k.ttlDays + '일', legacy: false };
+  if (!(k.ttl > 0)) return { days: null, text: '무기한', legacy: false };
+  const d = Math.round(k.ttl / WS_KEY_DAY_MS * 10) / 10;
+  if (choices.indexOf(d) >= 0) return { days: d, text: d + '일', legacy: false };
+  return { days: null, text: (d < 0.1 ? '1일 미만' : d + '일') + '(이전 기준)', legacy: true };
+}
+// 연장 창의 기본 선택: 키의 기간이 허용 집합이면 그 값, 아니면 종류 기본값.
+function wsKeyRenewDefaultDays(k, caps) { const v = wsKeyTtlView(k, caps); return v.days != null ? v.days : wsKeyDefaultDays(k && k.kind, caps); }
+// 행 동작 — 서버가 실제로 받는 동작과 정확히 같아야 해요(거부될 버튼은 안 그려요).
+//   새 서버: 연장(+기간) = 기간 있는 active·standby·dormant · 폐기 = 그 셋 + 폐기 예정(재기동으로 고아가 된 행을 끝낼 수 있게,
+//     서버는 revoking 행의 즉시 폐기를 받아요) · 세션 유지 폐기 = 그 셋 중 연결된 것 · 라벨 = 그 셋 + 폐기 예정.
+//   옛 서버: 만료 키는 REVOKED 로 읽혀서 폐기(ALREADY_REVOKED)·라벨(key terminal)이 거부돼요 — 연장만 남기고(기간 선택 없이,
+//     옛 서버는 ttlDays 를 모르고 키의 지금 기간으로 연장해요), 폐기·라벨은 활성·폐기 예정 행에만 둬요.
+function wsKeyRowActions(k, now, caps) {
+  const ph = wsKeyPhase(k, now, caps);
+  const v2 = !!(caps && caps.v2);
+  const hasTtl = !!k && k.expiresAt > 0;
+  if (!v2) {
+    const expiredTrace = !!k && k.state === 'REVOKED' && !k.revokedAt;   // 옛 서버가 REVOKED 로 읽는 행 — 거기선 연장만 받아요
+    const usable = ph === 'active' && !expiredTrace;
+    return { renew: (ph === 'active' || ph === 'dormant' || ph === 'standby') && hasTtl, ttlSelect: false,
+      revoke: usable || ph === 'revoking', revokeAtSessionEnd: usable && k.connectionStatus === 'connected', relabel: usable || ph === 'revoking' };
+  }
+  const live = ph === 'active' || ph === 'standby' || ph === 'dormant';
+  return { renew: live && hasTtl, ttlSelect: live && hasTtl, revoke: live || ph === 'revoking', revokeAtSessionEnd: live && k.connectionStatus === 'connected', relabel: live || ph === 'revoking' };
+}
+// 정리(KeyPurge) 계획 — 새 서버일 때만, 그리고 **언제나 보이는 행의 keyRefs 배열로만** 보내요(«전부» 를 암묵적으로 보내지 않아요 —
+//   목록을 받은 뒤 새로 폐기된 키까지 쓸려 나가면 안 돼요). keyRef 가 없는 옛 행은 지목할 수 없으니 대상에서 빼고 개수를 알려요.
+function wsKeyPurgePlan(rows, caps) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!(caps && caps.v2)) return { send: false, reason: 'unsupported', keyRefs: [], skipped: 0 };
+  const keyRefs = [], seen = {};
+  let skipped = 0;
+  for (const k of list) { const r = k && typeof k.keyRef === 'string' && k.keyRef ? k.keyRef : null; if (r) { if (!seen[r]) { seen[r] = 1; keyRefs.push(r); } } else skipped++; }
+  return { send: keyRefs.length > 0, reason: keyRefs.length ? null : 'no-refs', keyRefs, skipped, value: keyRefs.length ? { keyRefs } : null };
+}
+// 대기 자동 연장 정책 스위치의 저장 본문 — /api/access POST 는 expose·ui·agent·mcp 를 **본문 값으로 덮어써요**(keys 만 보존).
+//   그래서 keys 만 담아 보내면 노출·허용목록·키 요구가 기본값으로 되돌아가요. 지금 값(GET)을 그대로 싣고 keys.graceRenew 만 바꿔요.
+function wsKeyAccessPayload(access, graceRenew) {
+  const a = (access && typeof access === 'object') ? access : null;
+  if (!a) return null;   // 지금 값을 모르면 저장하지 않아요(모르는 채 덮어쓰면 다른 설정을 지워요)
+  const cp = (x) => (x && typeof x === 'object') ? JSON.parse(JSON.stringify(x)) : x;
+  return { expose: !!a.expose, ui: cp(a.ui) || { allowlist: null }, agent: cp(a.agent) || { allowlist: null, requireKey: false }, mcp: cp(a.mcp) || { allowlist: null }, keys: Object.assign({}, cp(a.keys) || {}, { graceRenew: !!graceRenew }) };
+}
+// @keylife-pure:end
+
 function setupWsKeyMgmt() {
   const head = $('#ws-pop-head'); if (!head || $('#ws-key-wrap')) return;
   const wrap = document.createElement('span'); wrap.id = 'ws-key-wrap'; wrap.className = 'ws-collab-wrap';
@@ -4388,6 +4528,9 @@ function setupWsKeyMgmt() {
 
   let status = 'idle', key = '', joinUrl = '', label = '', kind = 'local', roleDescription = '', joinHint = '', joinFile = '';   // v2.4.2: 기본값 local
   let joinUrls = [], exposed = false, bindAddr = '';   // v2.4.85 §13.25.8 — 주소별 접속 URL 전수 + bind 실측(도달 가능성 표시용)
+  let caps = WS_KEY_CAPS_UNKNOWN;   // §13.25.19 서버 능력 — KeyListResult 목록 수준 필드로 정해요(받기 전엔 옛 서버와 같이 다뤄요)
+  let ttlDays = wsKeyDefaultDays(kind, caps);   // §13.25.19 유효기간 15/30/90 — 종류를 바꾸면 그 종류의 기본값으로 옮겨요(서버 ttlDefaults 우선)
+  let ttlPicked = false;   // 사람이 기간을 직접 골랐는가 — 안 골랐으면 서버 기본값이 도착할 때 그 값으로 옮겨요
   function render() {
     panel.textContent = '';
     const h = document.createElement('div'); h.className = 'ws-invite-h'; h.textContent = '🔑 키 발행 (UI4)'; panel.appendChild(h);
@@ -4403,11 +4546,27 @@ function setupWsKeyMgmt() {
       KIND_DEFS.forEach((kd) => {
         const lab = document.createElement('label'); lab.className = 'ws-invite-kindopt' + (kind === kd.v ? ' active' : '');
         const rd = document.createElement('input'); rd.type = 'radio'; rd.name = 'ws-key-kind'; rd.value = kd.v; rd.checked = kind === kd.v;
-        rd.onchange = () => { kind = kd.v; render(); setTimeout(() => { const li = panel.querySelector('.ws-invite-label'); if (li) li.focus(); }, 0); };
+        rd.onchange = () => { kind = kd.v; ttlPicked = false; ttlDays = wsKeyDefaultDays(kind, caps); render(); setTimeout(() => { const li = panel.querySelector('.ws-invite-label'); if (li) li.focus(); }, 0); };
         const txt = document.createElement('span'); txt.className = 'ws-invite-kindopt-txt'; txt.textContent = kd.icon + ' ' + kd.label;
         lab.append(rd, txt); kindRow.append(lab);
       });
       panel.appendChild(kindRow);
+      // §13.25.19 유효기간 선택 — 기간이 지나도 곧바로 폐기되지 않아요(대기 3일 → 휴면). 그래서 길게 잡아도 위험이 작아요.
+      //   서버가 수명 개편을 안다고 확인됐을 때만 그려요 — 옛 서버는 ttlDays 를 무시하고 자기 기본값으로 발급해서, 고른 기간이 조용히 버려져요.
+      if (caps.ttlAny) panel.appendChild(ttlAnyBand());
+      if (caps.v2) {
+      const ttlRow = document.createElement('div'); ttlRow.className = 'ws-invite-kindrow ws-invite-ttlrow';
+      const ttlLab = document.createElement('span'); ttlLab.className = 'ws-invite-ttllab'; ttlLab.textContent = '유효기간'; ttlRow.append(ttlLab);
+      if (caps.ttlChoices.indexOf(ttlDays) < 0) ttlDays = wsKeyDefaultDays(kind, caps);
+      caps.ttlChoices.forEach((d) => {
+        const lab = document.createElement('label'); lab.className = 'ws-invite-kindopt ws-invite-ttlopt' + (ttlDays === d ? ' active' : '');
+        const rd = document.createElement('input'); rd.type = 'radio'; rd.name = 'ws-key-ttl'; rd.value = String(d); rd.checked = ttlDays === d;
+        rd.onchange = () => { ttlDays = d; ttlPicked = true; panel.querySelectorAll('.ws-invite-ttlopt').forEach((x) => x.classList.toggle('active', x.querySelector('input').value === String(d))); };
+        const txt = document.createElement('span'); txt.className = 'ws-invite-kindopt-txt'; txt.textContent = d + '일' + (d === wsKeyDefaultDays(kind, caps) ? ' (기본)' : '');
+        lab.append(rd, txt); ttlRow.append(lab);
+      });
+      panel.appendChild(ttlRow);
+      }
       const inp = document.createElement('input'); inp.className = 'ws-invite-label';
       inp.placeholder = kind === 'local' ? '워커 라벨 (alphanumeric, 예: worker-1)' : '키 라벨 (예: phone-claude)';
       inp.value = label;
@@ -4470,7 +4629,8 @@ function setupWsKeyMgmt() {
     }
   }
   function issue() {   // v2.4.0 canonical KeyIssue + v2.4.1 kind + roleDescription
-    const value = { label: label || undefined, kind, roleDescription: roleDescription || undefined };
+    // §13.25.19 ttlDays 는 새 서버로 확인됐을 때만 실어요(옛 서버는 무시하고 자기 기본값으로 발급해요 — 그래서 선택 자체를 안 그려요).
+    const value = { label: label || undefined, kind, roleDescription: roleDescription || undefined, ttlDays: caps.v2 ? ttlDays : undefined };
     if (wsSendOrch({ type: 'CUSTOM', name: 'KeyIssue', value })) { status = 'issuing'; render(); }
     else { status = 'error'; key = 'WS 연결 안 됨 — 잠시 후 다시'; render(); }
   }
@@ -4479,12 +4639,27 @@ function setupWsKeyMgmt() {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => { b.textContent = '복사 실패'; });
     else b.textContent = '복사 실패';
   }
-  btn.onclick = (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) render(); };
+  // 발급 패널을 열 때 서버 능력을 아직 모르면 목록을 한 번 물어요 — 응답(setList)이 오면 패널을 다시 그려요.
+  btn.onclick = (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; if (!panel.hidden) { render(); if (!caps.known) requestList(); } };
   panel.addEventListener('click', (e) => e.stopPropagation());   // 패널 내부 클릭은 아래 «바깥 클릭 닫기» 로 버블 안 시켜요 — render() 가 클릭한 버튼(예: 「새 키」)을 제거하면 e.target 이 detached 돼 closest() 가 null → «바깥» 으로 오판해 패널이 닫히던 버그(경계에서 한 번 막아 내부 위젯 추가에도 견고).
   document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('#ws-key-wrap')) panel.hidden = true; });
 
   // ---- UI5 키 관리 모달 ----
   let modal = null, modalKeys = [], activeTab = 'all';   // v2.4.2 탭 필터
+  let purgeTimer = null;
+  const TAB_DEFS = [
+    { v: 'all',      label: '전체' },
+    { v: 'upstream', label: '⬆ 업스트림' },
+    { v: 'local',    label: '🏠 로컬워커' },
+    { v: 'peer',     label: '🤝 피어메인' },
+    { v: 'collab',   label: '🔗 외부협업' },
+    { v: 'sleep',    label: '💤 대기/휴면' },
+    { v: 'revoked',  label: '🗑 폐기' },
+  ];
+  function showNote(text, isErr) {   // 모달 안 한 줄 알림 — 정리 결과·오류(발급 패널과 따로 보여요)
+    const n = $('#ws-key-note'); if (!n) return;
+    n.hidden = !text; n.textContent = text || ''; n.classList.toggle('err', !!isErr);
+  }
   function buildModal() {
     if (modal) return modal;
     modal = document.createElement('div'); modal.id = 'ws-key-modal'; modal.className = 'ws-key-modal'; modal.hidden = true;
@@ -4494,34 +4669,34 @@ function setupWsKeyMgmt() {
     const refresh = document.createElement('button'); refresh.className = 'ws-key-refresh'; refresh.type = 'button'; refresh.textContent = '↻'; refresh.title = '새로고침'; refresh.onclick = () => requestList();
     const x = document.createElement('button'); x.className = 'ws-key-mx'; x.type = 'button'; x.textContent = '✕'; x.onclick = () => closeManager();
     head2.append(title, refresh, x);
-    // v2.4.2 탭 (전체 / 업스트림 / 로컬워커 / 외부협업)
+    // v2.4.2 종류 탭 + §13.25.19 상태 탭 — 종류 탭·«전체» 는 폐기 제외, 💤 = 대기+휴면, 🗑 = 폐기. 좁은 화면에선 줄바꿈(style.css).
     const tabs = document.createElement('div'); tabs.id = 'ws-key-tabs'; tabs.className = 'ws-key-tabs';
-    const TAB_DEFS = [
-      { v: 'all',      label: '전체' },
-      { v: 'upstream', label: '⬆ 업스트림' },
-      { v: 'local',    label: '🏠 로컬워커' },
-      { v: 'peer',     label: '🤝 피어메인' },
-      { v: 'collab',   label: '🔗 외부협업' },
-    ];
     TAB_DEFS.forEach((td) => {
-      const tb = document.createElement('button'); tb.className = 'ws-key-tab' + (activeTab === td.v ? ' active' : ''); tb.type = 'button'; tb.dataset.tab = td.v; tb.textContent = td.label;
+      const tb = document.createElement('button'); tb.className = 'ws-key-tab' + (activeTab === td.v ? ' active' : ''); tb.type = 'button'; tb.dataset.tab = td.v;
+      const tl = document.createElement('span'); tl.className = 'ws-key-tablab'; tl.textContent = td.label;
+      const tc = document.createElement('span'); tc.className = 'ws-key-tabcnt';
+      tb.append(tl, tc);
       tb.onclick = () => { activeTab = td.v; modal.querySelectorAll('.ws-key-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === activeTab)); renderTable(); };
       tabs.appendChild(tb);
     });
+    const note = document.createElement('div'); note.id = 'ws-key-note'; note.className = 'ws-key-note'; note.hidden = true;
+    // §13.25.19 정책 줄 — 시험용 기간 우회 경고 띠 + «대기 자동 연장» 현재 값·스위치. 새 서버로 확인됐을 때만 채워요.
+    const pol = document.createElement('div'); pol.id = 'ws-key-policy'; pol.className = 'ws-key-policy'; pol.hidden = true;
     const tbl = document.createElement('div'); tbl.id = 'ws-key-tbl'; tbl.className = 'ws-key-tbl';
-    box.append(head2, tabs, tbl); modal.append(box);
+    box.append(head2, pol, tabs, note, tbl); modal.append(box);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeManager(); });
     document.body.appendChild(modal);
     return modal;
   }
   const CONN_DOT = { connected: ['on', '연결됨'], disconnected: ['off', '끊김'], never: ['never', '미사용'] };
-  const STATE_LABEL = { ISSUED: '발급됨', ACTIVE: '활성', REVOKED_PENDING: '폐기 대기', REVOKED: '폐기됨', DELETED: '삭제됨' };
   // v2.4.103 §13.25.12 — 남은 기간 배지. 서버가 실어주는 expiresAt 을 **그대로** 써요. `issuedAt + ttl` 로 다시
   //   계산하면 연장된 키에서 틀린 값이 나와요(갱신은 issuedAt 을 건드리지 않고 renewedAt 을 씁니다) — 파생
   //   계산이 원본과 조용히 갈라지는 부류라, 권위값을 실어 보내고 여기선 읽기만 해요.
+  // §13.25.19 — 폐기·폐기 예정·정리된 키는 기간이 무의미해서 배지를 안 그려요(만료된 대기·휴면 키는 그려요).
   function expiryBadge(k) {
     if (!k.expiresAt) return null;                             // ttl=0 = 만료 없음
-    if (k.revokedAt || k.state === 'DELETED') return null;      // 명시 폐기·삭제된 키는 기간이 무의미
+    const ph = wsKeyPhase(k, undefined, caps);
+    if (ph !== 'active' && ph !== 'standby' && ph !== 'dormant') return null;
     const rem = k.expiresAt - Date.now();
     const days = Math.round(Math.abs(rem) / 86400000 * 10) / 10;
     const el = document.createElement('span');
@@ -4530,55 +4705,159 @@ function setupWsKeyMgmt() {
     el.title = '만료 ' + new Date(k.expiresAt).toLocaleString() + (k.renewCount ? (' · 연장 ' + k.renewCount + '회') : '');
     return el;
   }
+  function renderTabCounts() {
+    if (!modal) return;
+    modal.querySelectorAll('.ws-key-tab').forEach((b) => {
+      const n = modalKeys.filter((k) => wsKeyTabMatch(b.dataset.tab, k, undefined, caps)).length;
+      const c = b.querySelector('.ws-key-tabcnt'); if (c) c.textContent = n ? String(n) : '';
+    });
+  }
+  // 시험용 기간 우회(WS_KEY_TTL_ANY)가 켜진 서버 — 운영 보드에서 켜져 있으면 무기한·임의 기간 발급이 열려 있어요.
+  function ttlAnyBand() {
+    const b = document.createElement('div'); b.className = 'ws-key-warnband';
+    b.textContent = '⚠ 시험용 기간 우회가 켜져 있어요(WS_KEY_TTL_ANY) — 허용 기간 밖의 발급이 열려 있어요. 운영 보드라면 빼고 재기동하세요.';
+    return b;
+  }
+  let policyBusy = false, policyMsg = '', policyErr = false;
+  function renderPolicy() {
+    const pol = $('#ws-key-policy'); if (!pol) return;
+    pol.textContent = '';
+    if (!caps.v2) { pol.hidden = true; return; }   // 옛 서버: 이 정책이 없어요
+    pol.hidden = false;
+    if (caps.ttlAny) pol.append(ttlAnyBand());
+    const row = document.createElement('div'); row.className = 'ws-key-polrow';
+    const lab = document.createElement('span'); lab.className = 'ws-key-pollab';
+    const on = caps.graceRenew;
+    lab.textContent = '대기 자동 연장: ' + (caps.graceRenewKnown ? (on ? '켜짐' : '꺼짐') : '알 수 없음');
+    lab.title = '켜져 있으면 기간이 지난 뒤 대기(3일) 안에 보유자가 갱신 요청 표지와 함께 다시 붙을 때 서버가 저절로 연장해요. 꺼져 있으면 운영자가 «연장» 을 눌러야 해요.';
+    const sw = document.createElement('button'); sw.type = 'button'; sw.className = 'ws-key-act ws-key-polsw' + (on ? ' on' : '');
+    sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    sw.textContent = policyBusy ? '저장 중…' : (on ? '끄기' : '켜기'); sw.disabled = policyBusy || !caps.graceRenewKnown;
+    sw.onclick = () => setGraceRenew(!on);
+    row.append(lab, sw);
+    if (policyMsg) { const m = document.createElement('span'); m.className = 'ws-key-polmsg' + (policyErr ? ' err' : ''); m.textContent = policyMsg; row.append(m); }
+    pol.append(row);
+  }
+  // /api/access 의 기존 저장 경로를 써요(adminGate: 로컬 + 운영자 세션 · 같은 출처). 그 POST 는 expose·ui·agent·mcp 를 본문 값으로
+  //   덮어써서, 지금 값을 먼저 읽고(GET) keys.graceRenew 만 바꿔 되돌려 보내요 — keys 만 보내면 노출·허용목록이 기본값으로 돌아가요.
+  async function setGraceRenew(next) {
+    if (policyBusy) return;
+    if (next && !(await wsConfirm('대기 자동 연장을 켤까요? 기간이 지난 키도 대기(3일) 안에 보유자가 다시 붙으면 운영자 확인 없이 연장돼요.', { title: '대기 자동 연장', okLabel: '켜기' }))) return;
+    policyBusy = true; policyMsg = ''; policyErr = false; renderPolicy();
+    let msg = '', err = false;
+    try {
+      const g = await fetch('/api/access', { cache: 'no-store' });
+      const gd = await g.json().catch(() => null);
+      const body = wsKeyAccessPayload(gd && gd.ok ? gd.access : null, next);
+      if (!body) { msg = '✗ 지금 설정을 읽지 못해 저장하지 않았어요'; err = true; }
+      else {
+        const r = await fetch('/api/access', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await r.json().catch(() => ({}));
+        if (r.status === 200 && d && d.ok) msg = '✓ 저장됐어요';
+        else { err = true; msg = r.status === 403 ? '✗ 이 컴퓨터(로컬)에서만 바꿀 수 있어요' : r.status === 401 ? '✗ 운영자 로그인이 필요해요' : ('✗ 저장 실패: ' + ((d && d.error) || r.status)); }
+      }
+    } catch { msg = '✗ 저장 실패 (네트워크)'; err = true; }
+    policyBusy = false; policyMsg = msg; policyErr = err; renderPolicy();
+    if (!err) requestList();   // 서버가 실어 주는 값으로 다시 그려요(화면이 먼저 바꾸지 않아요)
+  }
   function renderTable() {
     const tbl = $('#ws-key-tbl'); if (!tbl) return;
     tbl.innerHTML = '';
-    // v2.4.2 활성 탭 필터링
-    const filtered = activeTab === 'all' ? modalKeys : modalKeys.filter((k) => (k.kind || 'upstream') === activeTab);
-    if (!filtered.length) { tbl.innerHTML = '<div class="ws-key-empty">' + (activeTab === 'all' ? '발행된 키가 없어요. 🔑 발행 버튼으로 키를 만들어 보세요.' : '이 탭에 해당하는 키가 없어요.') + '</div>'; return; }
+    renderPolicy();
+    renderTabCounts();
+    const filtered = modalKeys.filter((k) => wsKeyTabMatch(activeTab, k, undefined, caps));
+    // 🗑 폐기 탭 — 정리(KeyPurge) 버튼. 정리된 행은 서버에 묘비로 남고(키 문자열 제거) 목록에서 빠져요.
+    //   새 서버로 확인됐고 지목할 keyRef 가 하나라도 있을 때만 그려요. keyRef 없는 옛 행은 대상에서 빠지고 한 줄로 알려요.
+    const plan = activeTab === 'revoked' ? wsKeyPurgePlan(filtered, caps) : null;
+    if (plan && plan.send) {
+      const bar = document.createElement('div'); bar.className = 'ws-key-toolbar';
+      const pb = document.createElement('button'); pb.className = 'ws-key-act danger ws-key-purge'; pb.type = 'button'; pb.textContent = '🧹 폐기 키 정리하기';
+      pb.title = '폐기된 키 ' + plan.keyRefs.length + '개를 목록에서 치워요 — 키 문자열은 지워지고 기록만 남아요';
+      pb.onclick = () => purge(filtered);
+      bar.append(pb); tbl.append(bar);
+    }
+    if (plan && plan.skipped && caps.v2) {
+      const sk = document.createElement('div'); sk.className = 'ws-key-skipnote';
+      sk.textContent = 'ℹ 지목 번호(keyRef)가 없는 옛 행 ' + plan.skipped + '개는 정리 대상에서 빠져요 — 서버가 다음에 키 저장소를 쓸 때 번호가 붙어요.';
+      tbl.append(sk);
+    }
+    if (!filtered.length) {
+      const msg = activeTab === 'all' ? (modalKeys.length ? '쓰고 있는 키가 없어요 — 폐기된 키는 🗑 폐기 탭에 있어요.' : '발행된 키가 없어요. 🔑 발행 버튼으로 키를 만들어 보세요.')
+        : activeTab === 'sleep' ? '대기·휴면 중인 키가 없어요.'
+        : activeTab === 'revoked' ? '폐기된 키가 없어요.'
+        : '이 탭에 해당하는 키가 없어요.';
+      const e = document.createElement('div'); e.className = 'ws-key-empty'; e.textContent = msg; tbl.append(e); return;
+    }
+    const now = Date.now();
     for (const k of filtered) {
-      const rowEl = document.createElement('div'); rowEl.className = 'ws-key-row state-' + (k.state || '').toLowerCase();
+      const ph = wsKeyPhase(k, now, caps);
+      const rowEl = document.createElement('div'); rowEl.className = 'ws-key-row state-' + (k.state || '').toLowerCase() + ' phase-' + ph; rowEl.dataset.phase = ph;
       const top = document.createElement('div'); top.className = 'ws-key-rtop';
       const [dotCls, connTxt] = CONN_DOT[k.connectionStatus] || CONN_DOT.never;
       const dot = document.createElement('span'); dot.className = 'ws-key-dot ' + dotCls; dot.title = connTxt;
       // v2.4.2 이모지 통일 — 발행 창 선택 항목과 동일 (⬆ 업스트림 / 🏠 로컬워커 / 🤝 피어메인 / 🔗 외부협업)
       const kindIcon = document.createElement('span'); kindIcon.className = 'ws-key-kind'; kindIcon.textContent = k.kind === 'collab' ? '🔗' : k.kind === 'local' ? '🏠' : k.kind === 'peer' ? '🤝' : '⬆'; kindIcon.title = k.kind === 'collab' ? '외부협업 키' : k.kind === 'local' ? '로컬워커 키 (파일 경로 등록)' : k.kind === 'peer' ? '피어메인 키 (§13.9.3 peer-main)' : '업스트림 키';
       const lab = document.createElement('span'); lab.className = 'ws-key-label'; lab.textContent = k.label || '(무라벨)';
-      const st = document.createElement('span'); st.className = 'ws-key-state ' + (k.state || '').toLowerCase(); st.textContent = STATE_LABEL[k.state] || k.state;
+      const bd = wsKeyPhaseBadge(k, now, caps);
+      const st = document.createElement('span'); st.className = 'ws-key-state ' + bd.cls; st.textContent = bd.text; st.title = bd.title;
+      if (ph === 'standby' && bd.graceUntil) st.textContent = bd.text + ' · ~' + new Date(bd.graceUntil).toLocaleDateString();
       top.append(dot, kindIcon, lab, st);
+      if (ph !== 'revoked' && ph !== 'deleted') {
+        const tv = wsKeyTtlView(k, caps);
+        if (tv.text) { const te = document.createElement('span'); te.className = 'ws-key-ttl' + (tv.legacy ? ' legacy' : ''); te.textContent = '📅 ' + tv.text; te.title = tv.legacy ? '허용 기간(15/30/90일) 밖의 이전 기준이에요 — 다음 연장 때 고른 기간으로 바뀌어요' : '유효기간'; top.append(te); }
+      }
       const expEl = expiryBadge(k); if (expEl) top.append(expEl);
       const sub = document.createElement('div'); sub.className = 'ws-key-sub';
       const ag = k.lastAgent ? ('에이전트: ' + k.lastAgent) : '미접속';
       const seen = k.lastSeenAt ? (' · ' + new Date(k.lastSeenAt).toLocaleString()) : '';
-      const keyDisp = k.key ? (k.key.slice(0, 14) + '…') : (k.kind === 'local' ? 'local-keys/' + k.label + '.key (파일)' : '(no key)');
+      // 폐기된 키의 문자열은 보여 주지 않아요 — 쓸모는 없고 새어 나갈 표면만 남아요.
+      const keyDisp = (ph === 'revoked' || ph === 'deleted') ? '(폐기된 키 — 문자열 숨김)'
+        : k.key ? (k.key.slice(0, 14) + '…') : (k.kind === 'local' ? 'local-keys/' + k.label + '.key (파일)' : '(no key)');
       sub.textContent = keyDisp + ' · ' + connTxt + ' · ' + ag + seen;
       if (k.roleDescription) { const rd = document.createElement('div'); rd.className = 'ws-key-roledesc'; rd.textContent = '🎭 ' + k.roleDescription; rowEl.append(top, sub, rd); }
       else { rowEl.append(top, sub); }
       const acts = document.createElement('div'); acts.className = 'ws-key-acts';
-      // v2.4.103 §13.25.12 — «기간이 지나서» 폐기로 읽히는 키와 «운용자가 폐기한» 키를 갈라요. 앞쪽은 연장으로
-      //   되살릴 수 있고(서버가 revokedAt == null 로 판정), 뒤쪽은 종단이에요. 버튼 구성은 서버가 실제로 허용하는
-      //   동작과 정확히 같아야 해요 — 눌렀는데 거부되는 버튼은 없는 버튼보다 나빠요.
-      const renewable = k.expiresAt > 0 && !k.revokedAt && k.state !== 'DELETED';
-      const terminal = k.state === 'REVOKED' || k.state === 'DELETED';
-      if (renewable) { const rw = document.createElement('button'); rw.className = 'ws-key-act'; rw.type = 'button'; rw.textContent = '🔄 연장'; rw.title = '유효기간을 지금부터 다시 시작해요 (열쇠 문자열은 그대로 — 상대에게 다시 전달할 필요 없어요)'; rw.onclick = () => renew(k); acts.append(rw); }
-      if (!terminal) {
-        const ren = document.createElement('button'); ren.className = 'ws-key-act'; ren.type = 'button'; ren.textContent = '✏️ 라벨'; ren.onclick = () => relabel(k); acts.append(ren);
-        const rvImm = document.createElement('button'); rvImm.className = 'ws-key-act danger'; rvImm.type = 'button'; rvImm.textContent = '🗑 즉시 삭제'; rvImm.title = '연결된 에이전트 즉시 차단'; rvImm.onclick = () => revoke(k, 'immediate'); acts.append(rvImm);
-        if (k.connectionStatus === 'connected') { const rvEnd = document.createElement('button'); rvEnd.className = 'ws-key-act'; rvEnd.type = 'button'; rvEnd.textContent = '⏳ 세션 유지 삭제'; rvEnd.title = '현재 세션은 유지, 신규 접속 차단'; rvEnd.onclick = () => revoke(k, 'sessionEnd'); acts.append(rvEnd); }
-      } else if (!renewable) { const note = document.createElement('span'); note.className = 'ws-key-term'; note.textContent = STATE_LABEL[k.state] || k.state; acts.append(note); }
+      // 버튼 구성은 서버가 실제로 받는 동작과 정확히 같아야 해요 — 눌렀는데 거부되는 버튼은 없는 버튼보다 나빠요.
+      //   규칙은 wsKeyRowActions 한 곳(서버 능력별) — 새 서버: 연장(+기간)·폐기·라벨 = active·standby·dormant, 폐기·라벨은 폐기 예정에도.
+      const A = wsKeyRowActions(k, now, caps);
+      if (A.renew) {
+        const grp = document.createElement('span'); grp.className = 'ws-key-renewgrp';
+        let sel = null;
+        if (A.ttlSelect) {   // 옛 서버는 ttlDays 를 몰라서 기간 선택을 안 그려요(키의 지금 기간으로 연장돼요)
+          sel = document.createElement('select'); sel.className = 'ws-key-ttlsel'; sel.title = '연장할 기간 — 지금부터 새로 시작해요';
+          const def = wsKeyRenewDefaultDays(k, caps);
+          wsKeyTtlChoices(k, caps).forEach((d) => { const o = document.createElement('option'); o.value = String(d); o.textContent = d + '일'; if (d === def) o.selected = true; sel.append(o); });
+          grp.append(sel);
+        }
+        const rw = document.createElement('button'); rw.className = 'ws-key-act' + (ph === 'dormant' ? ' primary' : ''); rw.type = 'button'; rw.textContent = '🔄 연장'; rw.title = sel ? '유효기간을 지금부터 고른 기간으로 다시 시작해요 (열쇠 문자열은 그대로 — 상대에게 다시 전달할 필요 없어요)' : '유효기간을 지금부터 같은 기간으로 다시 시작해요 (열쇠 문자열은 그대로)'; rw.onclick = () => renew(k, sel ? Number(sel.value) : null);
+        grp.append(rw); acts.append(grp);
+      }
+      if (A.relabel) { const ren = document.createElement('button'); ren.className = 'ws-key-act'; ren.type = 'button'; ren.textContent = '✏️ 라벨'; ren.onclick = () => relabel(k); acts.append(ren); }
+      if (A.revoke) { const rvImm = document.createElement('button'); rvImm.className = 'ws-key-act danger'; rvImm.type = 'button'; rvImm.textContent = '🗑 즉시 폐기'; rvImm.title = '폐기하면 되살릴 수 없어요 — 연결된 에이전트도 바로 끊겨요'; rvImm.onclick = () => revoke(k, 'immediate'); acts.append(rvImm); }
+      if (A.revokeAtSessionEnd) { const rvEnd = document.createElement('button'); rvEnd.className = 'ws-key-act'; rvEnd.type = 'button'; rvEnd.textContent = '⏳ 세션 유지 폐기'; rvEnd.title = '현재 세션은 유지, 세션이 끝나면 폐기'; rvEnd.onclick = () => revoke(k, 'sessionEnd'); acts.append(rvEnd); }
+      if (!acts.childNodes.length) { const t = document.createElement('span'); t.className = 'ws-key-term'; t.textContent = bd.text; acts.append(t); }
       rowEl.append(acts); tbl.append(rowEl);
     }
   }
+  function keyName(k) { return k.label || (k.key ? k.key.slice(0, 12) : (k.keyRef || '무라벨')); }
   // v2.4.103 §13.25.12 — 연장. keyRef 로 지목해요: local 종 키는 목록 응답에 열쇠 문자열이 안 실려서(§3.6)
   //   key 로는 애초에 가리킬 수 없었어요 — 그게 유효기간이 35일 지난 워커 키에 손이 닿지 않던 이유예요.
-  async function renew(k) {
-    const lapsed = k.expiresAt > 0 && k.expiresAt < Date.now();
-    const days = Math.round(Math.abs(k.expiresAt - Date.now()) / 86400000 * 10) / 10;
-    const msg = lapsed
-      ? ("'" + (k.label || '무라벨') + "' 열쇠는 유효기간이 " + days + "일 지났어요. 지금부터 다시 " + Math.round((k.ttl || 0) / 86400000) + "일 유효하게 연장할까요? 열쇠 문자열은 그대로라 상대에게 다시 전달하지 않아도 돼요.")
-      : ("'" + (k.label || '무라벨') + "' 열쇠의 유효기간을 지금부터 다시 " + Math.round((k.ttl || 0) / 86400000) + "일로 연장할까요?");
+  // §13.25.19 — 기간을 골라 연장해요(«기간 변경» 도 같은 동작). 와이어는 ttlDays.
+  async function renew(k, days) {
+    const ph = wsKeyPhase(k, undefined, caps);
+    const ago = Math.round(Math.abs(k.expiresAt - Date.now()) / 86400000 * 10) / 10;
+    const legacy = !caps.v2;
+    // 대기 문구(«저절로 연장») 는 새 서버 + 정책 켜짐일 때만 — 그 밖에는 사실이 아니에요.
+    const head = (ph === 'dormant' && legacy) ? ("'" + keyName(k) + "' 열쇠는 기간이 " + ago + "일 지났어요. ")
+      : ph === 'dormant' ? ("'" + keyName(k) + "' 열쇠는 휴면 중이에요(기간이 " + ago + "일 지났어요). ")
+      : (ph === 'standby' && caps.v2 && caps.graceRenew) ? ("'" + keyName(k) + "' 열쇠는 대기 중이에요 — 보유자가 다시 붙으면 저절로 연장되지만 지금 연장해도 돼요. ")
+      : ph === 'standby' ? ("'" + keyName(k) + "' 열쇠는 기간이 지났어요(대기 자동 연장은 꺼져 있어요). ")
+      : ("'" + keyName(k) + "' 열쇠의 ");
+    const msg = head + (days ? ('유효기간을 지금부터 ' + days + '일로 연장할까요?') : '유효기간을 지금부터 같은 기간으로 연장할까요?') + ' 열쇠 문자열은 그대로라 상대에게 다시 전달하지 않아도 돼요.';
     if (!(await wsConfirm(msg, { title: '유효기간 연장', okLabel: '연장' }))) return;
-    wsSendOrch({ type: 'CUSTOM', name: 'KeyRenew', value: { keyRef: k.keyRef, key: k.key } });
+    const value = { keyRef: k.keyRef, key: k.key };
+    if (days && caps.v2) value.ttlDays = days;
+    wsSendOrch({ type: 'CUSTOM', name: 'KeyRenew', value });
   }
   async function relabel(k) {
     const nv = await wsPrompt('새 라벨 (1~64자):', k.label || '', { title: '키 라벨 변경' }); if (nv == null) return;
@@ -4586,21 +4865,51 @@ function setupWsKeyMgmt() {
     wsSendOrch({ type: 'CUSTOM', name: 'KeyLabel', value: { keyRef: k.keyRef, key: k.key, newLabel: v } });
   }
   async function revoke(k, mode) {
-    const msg = mode === 'immediate' ? `'${k.label || k.key.slice(0, 12)}' 키를 즉시 삭제할까요? 연결된 에이전트가 바로 차단돼요.` : `'${k.label || k.key.slice(0, 12)}' 키를 세션 유지 삭제할까요? 현재 세션은 끝까지 유지되고 신규 접속만 막아요.`;
-    if (!(await wsConfirm(msg, { title: '키 삭제 확인', danger: true, okLabel: '삭제' }))) return;
+    const msg = mode === 'immediate' ? `'${keyName(k)}' 키를 지금 폐기할까요? 연결된 에이전트가 바로 끊기고, 폐기한 키는 되살릴 수 없어요.` : `'${keyName(k)}' 키를 세션 유지 폐기할까요? 현재 세션은 끝까지 유지되고, 세션이 끝나면 폐기돼요. 폐기한 키는 되살릴 수 없어요.`;
+    if (!(await wsConfirm(msg, { title: '키 폐기 확인', danger: true, okLabel: '폐기' }))) return;
     wsSendOrch({ type: 'CUSTOM', name: 'KeyRevoke', value: { keyRef: k.keyRef, key: k.key, mode } });
   }
+  // §13.25.19 KeyPurge — 폐기 탭에 보이는 키만, **언제나 keyRefs 배열로** 지목해요(보이는 것 = 정리되는 것). «전부» 는 보내지 않아요.
+  //   서버 능력(새 서버)이 확인되지 않았으면 보내지 않아요 — 옛 서버는 이 동사를 몰라서 main 에이전트에게 중계해요.
+  async function purge(rows) {
+    const plan = wsKeyPurgePlan(rows, caps);
+    if (!plan.send) { showNote(plan.reason === 'unsupported' ? '⚠ 이 서버는 폐기 키 정리를 지원하지 않아요' : '⚠ 정리할 수 있는(지목 번호가 있는) 키가 없어요', true); return; }
+    const msg = '폐기된 키 ' + plan.keyRefs.length + '개를 정리할까요? 목록에서 사라지고 키 문자열이 지워져요(기록만 남아요). 되돌릴 수 없어요.' + (plan.skipped ? (' (지목 번호가 없는 옛 행 ' + plan.skipped + '개는 빠져요)') : '');
+    if (!(await wsConfirm(msg, { title: '폐기 키 정리', danger: true, okLabel: '정리' }))) return;
+    if (!(caps && caps.v2)) { showNote('⚠ 이 서버는 폐기 키 정리를 지원하지 않아요', true); return; }   // 확인 창 사이에 서버가 바뀌었을 수 있어요
+    if (!wsSendOrch({ type: 'CUSTOM', name: 'KeyPurge', value: plan.value })) { showNote('⚠ WS 연결 안 됨 — 잠시 후 다시', true); return; }
+    showNote('🧹 정리 요청을 보냈어요…', false);
+    clearTimeout(purgeTimer);
+    purgeTimer = setTimeout(() => showNote('⚠ 정리 응답이 없어요 — 이 서버가 KeyPurge 를 모르는 이전 판일 수 있어요', true), 6000);
+  }
   function requestList() { wsSendOrch({ type: 'CUSTOM', name: 'KeyList', value: { includeRevoked: true } }); }
-  function openManager() { buildModal(); modal.hidden = false; renderTable(); requestList(); }   // v2.4.2 즉시 placeholder 렌더 (응답 대기 동안 빈 화면 방지)
+  function openManager() { buildModal(); modal.hidden = false; showNote(''); renderTable(); requestList(); }   // v2.4.2 즉시 placeholder 렌더 (응답 대기 동안 빈 화면 방지)
   function closeManager() { if (modal) modal.hidden = true; }
 
   wsKeyMgmt = {
     openManager,
-    openIssuePanel() { panel.hidden = false; render(); },   // 키 발행 패널 직접 열기 (우클릭 컨텍스트 메뉴용)
+    openIssuePanel() { panel.hidden = false; render(); if (!caps.known) requestList(); },   // 키 발행 패널 직접 열기 (우클릭 컨텍스트 메뉴용)
     setIssued(p) { p = p || {}; key = p.key || ''; joinUrl = p.joinUrl || ''; joinUrls = Array.isArray(p.joinUrls) ? p.joinUrls : []; exposed = !!p.exposed; bindAddr = p.bind ? String(p.bind) : ''; joinHint = p.joinHint || ''; joinFile = p.joinFile || ''; if (p.label != null) label = p.label; if (p.kind != null) kind = p.kind; if (p.roleDescription != null) roleDescription = p.roleDescription; status = 'issued'; panel.hidden = false; render(); },
-    setError(p) { status = 'error'; key = (p && (p.message || p.code)) || '발급 실패'; render(); },
-    setList(keys) { modalKeys = Array.isArray(keys) ? keys : []; if (modal && !modal.hidden) renderTable(); },
+    setError(p) {
+      const txt = (p && (p.message || p.code)) || '발급 실패';
+      if (modal && !modal.hidden) { showNote('⚠ ' + txt, true); return; }   // 관리 창에서 낸 요청(연장·폐기·정리)의 오류는 그 창에 보여요
+      status = 'error'; key = txt; render();
+    },
+    // KeyListResult 의 value 전체를 받아요(목록 수준 필드 = 서버 능력·정책). 배열만 오면 목록만 바꾸고 능력은 그대로 둬요.
+    setList(v) {
+      if (Array.isArray(v)) modalKeys = v;
+      else { modalKeys = (v && Array.isArray(v.keys)) ? v.keys : []; caps = wsKeyServerCaps(v || {}); if (!ttlPicked) ttlDays = wsKeyDefaultDays(kind, caps); }
+      if (modal && !modal.hidden) renderTable();
+      if (!panel.hidden && (status === 'idle' || status === 'error')) render();   // 발급 패널의 기간 선택·경고 띠도 능력에 따라 다시 그려요
+    },
+    caps() { return caps; },
     onMutated() { if (modal && !modal.hidden) requestList(); },
+    onPurged(v) {   // KeyPurged{count, keyRefs, error?}
+      clearTimeout(purgeTimer); v = v || {};
+      if (v.error) showNote('⚠ 정리 실패: ' + (typeof v.error === 'string' ? v.error : (v.error.message || v.error.code || JSON.stringify(v.error))), true);
+      else showNote('🧹 폐기 키 ' + (v.count || 0) + '개를 정리했어요', false);
+      if (modal && !modal.hidden) requestList();
+    },
   };
   render();
 }

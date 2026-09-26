@@ -853,10 +853,42 @@ main.split .pin-handle:hover, .pin-handle.dragging { opacity: 1; border-color: v
 .ws-invite-kindopt:hover { border-color: var(--accent); color: var(--ink); }
 
 /* v2.4.2 키 관리 모달 탭 (전체 / 업스트림 / 로컬워커 / 외부협업) */
-.ws-key-tabs { display: flex; gap: 2px; padding: 6px 8px 0 8px; border-bottom: 1px solid var(--line); }
+.ws-key-tabs { display: flex; flex-wrap: wrap; gap: 2px; row-gap: 3px; padding: 6px 8px 0 8px; border-bottom: 1px solid var(--line); }   /* §13.25.19 탭 7개 — 좁은 화면에선 줄바꿈 */
 .ws-key-tab { flex: 0 1 auto; padding: 5px 12px; border: 1px solid var(--line); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--panel); color: var(--muted); cursor: pointer; font: inherit; font-size: .76rem; margin-bottom: -1px; white-space: nowrap; }
 .ws-key-tab:hover { color: var(--ink); border-color: var(--accent); }
 .ws-key-tab.active { background: var(--panel2, var(--panel)); color: var(--ink); border-color: var(--accent); border-bottom: 1px solid var(--panel2, var(--panel)); font-weight: 600; }
+/* §13.25.19 키 수명 단계 — 탭 건수 · 단계 배지 · 기간 표시 · 연장 기간 선택 · 정리 버튼 · 모달 알림 */
+.ws-key-tabcnt { margin-left: 4px; font-size: .64rem; color: var(--muted); }
+.ws-key-tabcnt:empty { display: none; }
+.ws-key-state.standby { color: var(--active, #d49a3a); border-color: var(--active, #d49a3a); }
+.ws-key-state.dormant { color: var(--ws-danger, #e0455e); border-color: var(--ws-danger, #e0455e); border-style: dashed; }
+.ws-key-state.revoking { color: var(--active, #d49a3a); border-color: var(--active, #d49a3a); border-style: dashed; }
+.ws-key-row.phase-revoked { opacity: .55; }
+.ws-key-ttl { flex: 0 0 auto; font-size: .62rem; padding: 1px 6px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); }
+.ws-key-ttl.legacy { border-style: dashed; }
+.ws-key-renewgrp { display: inline-flex; gap: 3px; align-items: center; }
+.ws-key-ttlsel { background: var(--panel); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; font: inherit; font-size: .7rem; padding: 2px 4px; }
+.ws-key-act.primary { border-color: var(--accent); color: var(--accent); }
+.ws-key-toolbar { display: flex; justify-content: flex-end; }
+.ws-key-note { font-size: .74rem; color: var(--ink); padding: 6px 12px; border-bottom: 1px solid var(--line); }
+.ws-key-note.err { color: var(--ws-danger, #e0455e); }
+.ws-key-note[hidden] { display: none; }
+/* §13.25.19 정책 줄 — 시험용 기간 우회 경고 띠 · 대기 자동 연장 스위치 · keyRef 없는 옛 행 안내 */
+.ws-key-policy { padding: 6px 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.ws-key-policy[hidden] { display: none; }
+.ws-key-polrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .74rem; color: var(--ink); }
+.ws-key-pollab { flex: 1 1 auto; min-width: 0; }
+.ws-key-polsw.on { border-color: var(--accent); color: var(--accent); }
+.ws-key-polmsg { flex: 1 1 100%; font-size: .7rem; color: var(--muted); }
+.ws-key-polmsg.err { color: var(--ws-danger, #e0455e); }
+.ws-key-warnband { font-size: .72rem; line-height: 1.4; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ws-danger, #e0455e); color: var(--ws-danger, #e0455e); background: color-mix(in srgb, var(--ws-danger, #e0455e) 10%, transparent); overflow-wrap: anywhere; }
+.ws-key-skipnote { font-size: .7rem; color: var(--muted); padding: 4px 2px; }
+.ws-invite-ttlrow { align-items: center; }
+.ws-invite-ttllab { flex: 0 0 auto; font-size: .7rem; color: var(--muted); padding-right: 2px; }
+@media (max-width: 560px) {
+  .ws-key-tab { padding: 4px 8px; font-size: .72rem; }
+  .ws-key-rtop { flex-wrap: wrap; }
+}
 .ws-invite-roledesc { width: 100%; box-sizing: border-box; resize: vertical; min-height: 38px; max-height: 120px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); font: inherit; font-size: .76rem; margin-bottom: 6px; }
 .ws-invite-roledesc:focus { outline: none; border-color: var(--accent); }
 .ws-invite-roledesc-show { font-size: .72rem; color: var(--ink); background: var(--panel2, var(--panel)); border-left: 2px solid var(--accent); padding: 4px 8px; margin: 4px 0; white-space: pre-wrap; word-break: break-word; }

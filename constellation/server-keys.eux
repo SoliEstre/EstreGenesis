@@ -1,98 +1,114 @@
 @component server-keys
-@intent (verified already-absorbed vs reference @ v2.5.87, 2026-06-12 — v2.4.11 credential-store facts present; hex-length corrected to 24) KEY-MGMT server-side sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04). Owns the upstream-key (`uk-*`) and external-collab-key (`ck-*`) registry + issuance/revoke/label lifecycle + role classification authority. Receives KEY-MGMT commands via `-relay` orchestration dispatch (`wsHandleOrch` RegisterUpstreamKey / RegisterCollabKey / RevokeUpstreamKey / RevokeCollabKey / KeyLabel paths). Persisted store at `ws-keys.json` (gitignored — credential file). The `wsKeyRole(key)` lookup is the authority for `-core` WS upgrade meta classification (collab vs upstream meta) AND `-core` `/join/collab?key=` gating. **Carries C7 `@hazards` per phase_2 — credential surfaces with redaction discipline + filesystem integrity invariants.** Authority enforcement (which roles may issue/revoke/label) is server-side; client gateway exposes commands via `gateway-client-key-mgmt.eux` but server has final say.
+@intent (re-distilled for Constellation v2.4.167 — key lifetime phases, §13.25.19; prior distillation verified vs reference @ v2.5.87, 2026-06-12) KEY-MGMT server-side sub-module of the Constellation live-board `server` family (v1.1 split per phase_2 2026-06-04). Owns the key registry for all four kinds (`upstream` uk-* · `collab` ck-* · `local` lk-* · `peer` pk-*) + issuance / list / revoke / label / renew / purge lifecycle + role classification authority + the shared admission predicate that decides an expired key's phase at both admission sites. Two stores: the legacy `ws-keys.json` registry (wire validity + role) and `key.json` keyStore (state, lifetime, provenance). **Expiry is not revocation**: expiry is a derived `phase` (active / standby / dormant), never a stored `REVOKED`; `revokedAt` is written only by an explicit revocation. **Carries C7 `@hazards` per phase_2 — credential surfaces with redaction discipline + filesystem integrity invariants.** Every management verb is an operator verb (§13.25.9); client gateway exposes commands via `gateway-client-key-mgmt.eux` but server has final say.
 @expansion temperature=0.2 model=agent/claude template=estreux/v0.1
 @targets vanilla
 @profile backend-service
-@source constellation/reference/runtime/server.cjs(L188-360 KEY-MGMT block — KEY_JSON / keyStore / key* helpers + wsKeyIssue / wsKeyList / wsKeyRevoke / wsKeyLabel) · WS-PROTOCOL §13.16.11 KEY-MGMT semantics + §13.14 redaction discipline
+@source constellation/reference/runtime/server.cjs(KEY-MGMT block — keyStore / key* helpers + wsKeyIssue / wsKeyList / wsKeyRevoke / wsKeyLabel / wsKeyRenew / wsKeyPurge + keyExpiredRefusal admission predicate + keyExpirySweep) · Constellation.md §13.25.9–§13.25.19 · constellation/reference/WS-PROTOCOL-KEY-MGMT.md v0.5
 @state
-  KEY_JSON   : string = 'key.json'                  # v2.4.0 keyStore (5-state) persistence. 별도 legacy WS_KEYS='ws-keys.json' (role lookup) + local 키 파일 'local-keys/<label>.key'. 셋 다 gitignored MUST — credential files (v2.4.11 .gitignore 블록 key.json/ws-keys.json/local-keys/*.key 커버)
-  wsKeys     : {key, label, role, createdAt, lastSeen?, revokedAt?}[]   # persisted registry
+  KEY_JSON   : string = 'key.json'                  # keyStore persistence (5 stored states). 별도 legacy WS_KEYS='ws-keys.json' (role lookup) + local 키 파일 'local-keys/<label>.key'. 셋 다 gitignored MUST — credential files (v2.4.11 .gitignore 블록 key.json/ws-keys.json/local-keys/*.key 커버)
+  keyStore   : {key, ref, label, kind, state, issuedAt, ttl, renewedAt?, renewCount, renewedBy?, lastAgent?, lastSeenAt?, revokedAt?, deletedAt?, expiredAt?, lastExpiryNoticePhase?, boundAgent?, roleDescription?, adoptedFromLegacy?}[]
+  wsKeys     : {key, label, role, createdAt}[]      # legacy registry — an explicit revocation removes the entry; expiry does not
+  KEY_TTL_CHOICES_DAYS : [15, 30, 90]               # closed set; ttl 0 only on legacy-adopted keys
+  KEY_TTL_DEFAULT_DAYS : {local: 90, peer: 30, collab: 30, upstream: 30}
+  KEY_GRACE_MS         : 3 days (env WS_KEY_GRACE_MS)   # standby window after max(expiresAt, lastSeenAt)
+  access.keys.graceRenew : boolean = true           # operator policy — standby renewal on request
 @deps
-  fs       : ws-keys.json read/write (load on boot, sync write on issue/revoke/label)
-  crypto   : crypto.randomBytes → key issue (uk-<24hex (randomBytes(12))> / ck-<24hex (randomBytes(12))>)
-  -relay   : orchestration dispatch entry point (wsHandleOrch); also broadcasts AgentNameChanged after KeyLabel
-  -core    : wsKeyRole(key) consumer (WS upgrade meta + /join/collab? gate)
+  fs       : key.json atomic write (tmp → fsync → rename, 0600) · ws-keys.json · local-keys/*.key
+  crypto   : crypto.randomBytes → key issue (<prefix>-<24hex (randomBytes(12))>) · keyRef kr-<hex>
+  -relay   : orchestration dispatch entry point (KEY_VERBS operator gate); AgentNameChanged after KeyLabel · ServerNotice key-expiry / key-renewed
+  -core    : wsKeyRole(key) consumer (WS upgrade meta + /join/* gate) · shared admission predicate at upgrade (URL key) and HELLO (body key)
 @ports
-  cmd  wsKeyIssue(role, label?, expires_at?)         : crypto.randomBytes → 'uk-'+hex | 'ck-'+hex; persist + broadcast KeyIssued
-  cmd  wsKeyList(filter?)                             : return wsKeys filtered (active|revoked|all); audience-aware (operator vs board view)
-  cmd  wsKeyRevoke(key, mode, reason?)                : mark revokedAt; if mode=immediate AND key has active conn → force-close that conn; persist + broadcast KeyRevoked
-  cmd  wsKeyLabel(key, newLabel)                      : update label; if key has active conn → -relay AgentNameChanged broadcast; persist + KeyLabelUpdated
-  cmd  wsKeyRole(key)                                 : lookup → 'upstream' (uk-) | 'collab' (ck-) | null (invalid/revoked)
-  out  KeyIssued(key, label, expires_at)
-  out  KeyListReply(keys[])
-  out  KeyRevoked(key, mode_applied, revoked_at)
-  out  KeyLabelUpdated(key, newLabel)
+  cmd  wsKeyIssue(label, kind?, ttlDays? | ttl?, roleDescription?, boundAgent?) : ttl from the closed set (absent → kind default; outside / 0 → INVALID_TTL; unknown kind → UNKNOWN_KIND); persist → KeyIssued
+  cmd  wsKeyList(includeRevoked?, includeDeleted?)    : rows with derived phase / graceUntil / ttlDays / ttlChoices; default omits revoked + deleted (standby / dormant are listed)
+  cmd  wsKeyRevoke(keyRef | key, mode)                : explicit revocation — accepted in active / standby / dormant; ALREADY_REVOKED only in revoked / deleted; stamps revokedAt, removes the legacy entry
+  cmd  wsKeyLabel(keyRef | key, newLabel)             : non-terminal states (expired keys included); AgentNameChanged to live holders
+  cmd  wsKeyRenew(keyRef | key, ttlDays? | ttl?)      : new window from now, key string unchanged; clears expiredAt; repairs state REVOKED without revokedAt → ACTIVE / ISSUED; NOT_RENEWABLE on revoked / revoking / deleted; NO_EXPIRY on ttl 0
+  cmd  wsKeyPurge(keyRefs?)                           : revoked (not REVOKED_PENDING) rows → tombstone (key null, deletedAt, state DELETED); row kept
+  cmd  admissionPredicate(key, renewMarker)           : standby + marker + graceRenew → renew (renewedBy grace-request) + admit; otherwise ConnectionRejected{code key-expired, phase, renewable, graceUntil?, label, expiresAt, hint}
+  cmd  wsKeyRole(key)                                 : lookup → 'upstream' | 'collab' | 'local' | 'peer' | null (unknown / explicitly revoked)
+  out  KeyIssued(key | null for local, keyRef, label, kind, ttl, issuedAt, expiresAt, …)
+  out  KeyListResult(keys[])
+  out  KeyRevoked(key, mode, agentsDisconnected, agentsNotified)
+  out  KeyLabeled(key, oldLabel, newLabel)
+  out  KeyRenewed(keyRef, label, kind, ttl, issuedAt, renewedAt, expiresAt, wasLapsed, renewCount)
+  out  KeyPurged(count, keyRefs, error?)
+  out  ServerNotice{kind: key-expiry | key-renewed}    # notice group — wakes no agent
+  out  ConnectionRejected{code: key-expired, phase, renewable}
   out  AgentNameChangedRequest                          # routed via -relay broadcast
 @hazards
   # C7 — credential + filesystem integrity surfaces per eux-format v1.1 §2.5 @redaction (credential 한정) + §13.14 redaction discipline
   credential_surfaces:
-    - wsKeys[*].key                                     # full uk-/ck- strings — MUST NOT log/expose unredacted to public traces, board fan-out, or committed transcripts
-    - issuance_response_bodies                          # KeyIssued payload carries full key (one-time delivery)
+    - keyStore[*].key / wsKeys[*].key                   # full key strings — MUST NOT log/expose unredacted to public traces, board fan-out, or committed transcripts
+    - issuance_response_bodies                          # KeyIssued payload carries full key for non-local kinds
+    - key_list_response_bodies                          # KeyListResult carries key strings for non-local kinds — operator-only verb; local rows carry null
+    - revoked_rows_at_rest                              # revoked rows kept their key strings indefinitely until KeyPurge tombstones them (key → null)
     - filesystem_path: key.json + ws-keys.json + local-keys/*.key   # credential files — 전부 gitignored MUST, never commit
   redaction_discipline:
-    log_surface: show only first 8 chars of key + last 4 (e.g. "uk-1234abcd…wxyz"); full key value NEVER logged
-    relay_surface: KeyListReply to non-operator audience returns label + role + connectionStatus only (key fragments stripped or masked)
-    operator_only_full_key: only the issuing operator's KeyIssued response carries the full key (one-time); subsequent KeyList queries return masked
+    log_surface: show only a fingerprint / prefix of a key; full key value NEVER logged
+    human_surface: key-management replies are excluded from the meaningful-inbound set and masked on printing paths (§13.25.11 v2.4.159)
+    operator_only: every key verb, KeyList included, is operator-gated (§13.25.9); no agent role other than main may enumerate
   integrity_invariants:
-    ws_keys_json_atomic_write: use temp file + rename pattern (avoid torn write on crash; partial JSON breaks boot reload)
-    ws_keys_json_load_validation: on boot, parse + schema-validate (key prefix matches role: uk-/upstream, ck-/collab); reject malformed entries with explicit BlockerManifest emission
+    key_json_atomic_write: temp file + fsync + rename (avoid torn write on crash; partial JSON breaks boot reload)
+    key_json_load: parse failure → rename to key.json.corrupt-<ts>, start fresh (forensic evidence kept); rows with state REVOKED and no revokedAt normalized to ACTIVE / ISSUED with one log line (count)
     revoke_persistence_first: persist revokedAt to disk BEFORE force-closing connection (avoid revoke loss on crash mid-revoke)
+    purge_save_visible: a failed save during KeyPurge is reported in the reply, never swallowed
   threat_model:
     public_log_leak: credential in stdout / committed transcript / public commit (mitigated by redaction_discipline)
-    ws_keys_json_commit: credential file accidentally committed (mitigated by .gitignore + pre-commit hook recommended)
+    credential_file_commit: credential file accidentally committed (mitigated by .gitignore + pre-commit hook recommended)
     revoke_race: connection survives revoke if force-close persisted before revokedAt write (mitigated by revoke_persistence_first)
-    boot_silent_corruption: ws-keys.json partial JSON silently truncates wsKeys → all uk-/ck- effectively revoked (mitigated by ws_keys_json_load_validation + BlockerManifest surfacing)
+    expiry_as_revocation: expiry recorded as REVOKED makes a renewed key terminal on every management verb (mitigated by phase derivation — expiry never writes state or revokedAt)
+    self_extension: a holder extending its own access (mitigated — only standby, only under the operator's graceRenew policy, only via the admission predicate; no agent-callable lifetime verb)
 @routing
   authority_per_command:
-    wsKeyIssue / wsKeyRevoke / wsKeyLabel: operator-tier — typically role=main or board; -relay enforces (rejects with PermissionDenied if originator lacks authority)
-    wsKeyList: any connected agent MAY query (returns filtered view per audience)
+    wsKeyIssue / wsKeyList / wsKeyRevoke / wsKeyLabel / wsKeyRenew / wsKeyPurge: operator verbs (KEY_VERBS) — main agent (host-local) or an authorized board connection; others get PERMISSION_DENIED
+    admissionPredicate: server-internal at both admission sites; the renewal marker (URL renew=1 · HELLO renewRequest:true) is a request, the operator's graceRenew policy is the authority
     AgentNameChanged broadcast: server-initiated post-KeyLabel, no client authority required to receive
-  trigger_message_names: [RegisterUpstreamKey, RegisterCollabKey, RevokeUpstreamKey, RevokeCollabKey, KeyLabel, KeyList]    # -relay orchestration dispatch consumed
+  trigger_message_names: [KeyIssue, KeyList, KeyRevoke, KeyLabel, KeyRenew, KeyPurge, RegisterUpstreamKey, RegisterCollabKey, RevokeUpstreamKey, RevokeCollabKey]    # -relay orchestration dispatch consumed
 @redaction
   hook: pre-send + pre-log
-  targets: [wsKeys[*].key (full string), KeyIssued.key (in subsequent retrievals), revoke reason fragments containing credential context]
+  targets: [key strings (full), KeyIssued.key, KeyListResult rows' key, revoke reason fragments containing credential context]
   rationale: KEY-MGMT carries credential material that MUST NOT leak per §13.14 redaction discipline — public-repo redaction rules apply
 @invariants
   # P3 AST 계약스키마 — phase_3 2nd cut per eux-format v1.2 §2.6 (EstreUX edd2fb7 — 4 sub-section state/temporal/transaction/causality + 17 vocabulary keyword).
   state:
-    - wsKeys 는 prefix-role 일관성 — uk-/upstream · ck-/collab member-of role enum (load_validation gate)
-    - wsKeys 의 revokedAt 은 monotonic — once set, never null again (revoke state preservation)
-    - ws-keys.json content 는 valid_json_pre OR valid_json_post 둘 중 하나 bounded (atomic write — torn-write 금지)
-    - KeyListReply audience-aware view: 비-operator 에 대해 key fragment 제거 (bounded view by role membership)
-    - wsKeys entries 는 createdAt ASC ordered (issuance order preservation)
+    - kind 는 closed enum {upstream, collab, local, peer} member-of — unknown kind 는 UNKNOWN_KIND (absent → default upstream)
+    - revokedAt 은 monotonic — once set, never null again; 명시 폐기(KeyRevoke / Revoke* alias) 만 set
+    - expiry 는 state 에 쓰지 않음 — phase 는 read-time derived (active | standby | dormant | revoking | revoked | deleted)
+    - ttl ∈ KEY_TTL_CHOICES_DAYS (ms) OR ttl == 0 (legacy-adopted only) OR a pre-v2.4.167 length awaiting its next renewal
+    - key.json content 는 valid_json_pre OR valid_json_post 둘 중 하나 bounded (atomic write — torn-write 금지)
+    - DELETED row 는 key == null (tombstone) — row 자체는 삭제하지 않음
   temporal:
-    - KeyIssue → KeyIssued response 의 full key 는 at-most-once delivery (operator only; subsequent KeyList queries return masked, expires-after immediate)
+    - phase standby holds while now < max(expiresAt, lastSeenAt) + KEY_GRACE_MS; dormant after
+    - expiry sweep: before expiry at most once per key per day; after expiry once per phase change (lastExpiryNoticePhase), then silent
+    - expiry sweep refreshes lastSeenAt of keys with an open connection (graceUntil follows use)
     - 동일 key 는 KeyRevoke after 동일 key string 재발급 없음 (no re-issue after revocation)
-    - wsKeyRole(key) lookup 결과 within process lifetime stable (wsKeys 변경 없으면 idempotent)
-    - boot ws-keys.json load: 단일 호출 within startup (boot idempotent, re-run 동일 endstate)
+    - KeyRenew / standby renewal keep the key string unchanged
   transaction:
-    - wsKeyRevoke: persist(revokedAt) precedes force-close(conn) — revoke_persistence_first (persist-before; crash mid-revoke 시 revoke 손실 방지)
-    - wsKeyIssue: crypto.randomBytes → persist (ws-keys.json + in-memory wsKeys dual-write) → broadcast KeyIssued atomic (이전 단계 완료 후 다음)
-    - ws-keys.json atomic write: temp file + rename pattern (atomic, rollback-safe — partial write 시 prior valid state 유지)
+    - wsKeyRevoke: persist(revokedAt) precedes force-close(conn) — revoke_persistence_first
+    - wsKeyIssue: validate kind + ttl → crypto.randomBytes → persist (key.json + ws-keys.json) → KeyIssued
+    - standby renewal: renew + persist inside the admission predicate, before any board state is sent (refusal-before-payload ordering unchanged)
+    - wsKeyPurge: tombstone eligible rows → save → KeyPurged{count, keyRefs} (save error surfaced in reply)
     - wsKeyLabel: update label persist-before AgentNameChangedRequest broadcast (commit-then broadcast)
-    - boot reload: load → validate (prefix-role consistency) → reject malformed atomic (rollback-safe; corruption 시 BlockerManifest)
   causality:
-    - wsKeyRole(key): result == 'upstream' iff key.startsWith('uk-') ∧ ¬revoked (active uk- key)
-    - wsKeyRole(key): result == 'collab' iff key.startsWith('ck-') ∧ ¬revoked (active ck- key)
+    - wsKeyRole(key) == null iff key unknown ∨ explicitly revoked (legacy entry removed); an expired key keeps its role and is decided by the admission predicate
+    - ConnectionRejected{key-expired}.renewable == 'request' iff phase == standby (marker absent); == 'operator' iff phase == dormant
     - KeyRevoke immediate mode implies force-close (active conn 의 강제 종료)
-    - boot ws-keys.json corruption implies BlockerManifest surface (silent truncation 금지)
-    - wsKeyIssue authority 결재 precedes wsKeyIssued broadcast (operator-tier authority check 먼저)
+    - operator authority check precedes every key verb's effect
 @metamorphic
   # P4 property/metamorphic 후보 — phase_3 2nd cut per eux-format v1.2 §2.7 (EstreUX edd2fb7).
   round_trip:
-    - wsKeyIssue(role, label) → wsKeyRevoke(key): wsKeys 에 entry 보존 (revokedAt set) + wsKeyRole(key) == null (revoke 후 lookup null + trace 보존)
-    - wsKeyLabel(key, A) → wsKeyLabel(key, B) → wsKeyLabel(key, A): wsKeys[key].label == A endstate (label round-trip)
-    - boot → ws-keys.json read → wsKeys load: 동일 wsKeys snapshot (boot recovery)
+    - wsKeyIssue → expire → wsKeyRenew: same key string admitted; state not REVOKED; phase active
+    - wsKeyIssue → wsKeyRevoke → wsKeyPurge: row kept (deletedAt set, key null), wsKeyRole(key) == null
+    - wsKeyLabel(key, A) → wsKeyLabel(key, B) → wsKeyLabel(key, A): label == A endstate (label round-trip)
   idempotency:
-    - wsKeyRevoke(already-revoked-key, mode): no-op (revokedAt 보존, force-close 영향 없음 — revoke idempotent)
-    - wsKeyList(filter) 호출 결과 같은 시점 동일 (wsKeys 변경 없으면 idempotent)
-    - wsKeyLabel(key, sameLabel) 재호출: no-op (label 동일 시 idempotent)
+    - wsKeyPurge(already purged): count 0 (no further change)
+    - wsKeyList 호출 결과 같은 시점 동일 (store 변경 없으면 idempotent)
+    - renewal marker on an active key: no effect (never extends early)
   determinism:
-    - 동일 wsKeys snapshot + 동일 filter 의 wsKeyList 결과 deterministic
+    - phase(key, now) deterministic from stored fields + now
     - wsKeyRole 의 prefix-based 분류 deterministic (input key → output role 1:1)
-    - ws-keys.json 의 byte representation 은 동일 wsKeys 의 serialize 결과 deterministic
 @operation_discipline
   derive:
-    credential_authority_split: server owns issuance + revoke; client gateway-client-key-mgmt exposes commands but server enforces
-    one_time_delivery: KeyIssued payload is the only surface with full key; subsequent KeyList queries return masked
+    credential_authority_split: server owns issuance + revoke + renew + purge; client gateway exposes commands but server enforces
+    expiry_is_not_revocation: only an explicit revocation is terminal; standby renews on request under operator policy, dormant needs the operator's renew
     revoke_atomicity: persist-then-close ordering avoids revoke loss on mid-operation crash

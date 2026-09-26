@@ -30,7 +30,9 @@ try { key = fs.readFileSync(resolvedKeyFile, 'utf8').trim(); }
 catch (e) { console.error('[join-local] key file read fail:', resolvedKeyFile, String(e.message || e)); process.exit(1); }
 if (!/^lk-[a-f0-9]+$/.test(key)) { console.error('[join-local] key file does not contain valid local key (lk- prefix)'); process.exit(1); }
 
-const WS_URL = `ws://${HOST}/ws?key=${encodeURIComponent(key)}`;
+// §13.25.19 (v2.4.167) — 갱신 요청 표지 renew=1 을 **항상** 실어요. «대기(standby)면 연장해 주세요» 는 늘 참인 요청이라,
+//   graceRenew 를 켜 둔 보드에선 만료 뒤 대기 구간의 재접속이 운영자·에이전트 개입 없이 풀려요.
+const WS_URL = `ws://${HOST}/ws?key=${encodeURIComponent(key)}&renew=1`;
 const LOG = path.join(DIR, 'local-' + AGENT_ID + '.log');
 const OUTBOX = process.env.LOCAL_OUTBOX || path.join(DIR, 'local-' + AGENT_ID + '-outbox.jsonl');   // v2.4.7: 워커 세션이 append → drain 송신 (gateway-client 패턴). 워커 emit 경로.
 const OUT_CURSOR = path.join(DIR, '.local-' + AGENT_ID + '-outbox-cursor');
@@ -78,6 +80,40 @@ let admitted = false;          // 이번 연결이 «발신 허가» 판정을 �
 let held = [];                 // 판정 전에 받은 프레임 (admit 때 순서대로 처리 · 거절이면 버림)
 let refusedThisConn = false;   // 이 연결은 서버가 거절했다 — 닫힐 때까지 거절이에요(뒤이은 방송이 수락으로 뒤집지 못하게)
 let rejectedUntilRetry = 0;    // >now = 직전 연결이 서버 판정으로 거절됨 — 다음 재시도는 이 시각
+// ── §13.25.19 열쇠 수명 단계를 실은 거절 (v2.4.167 — local-bridge.cjs 와 같은 규약) ───────────────────────
+//   quiet    — 대기(standby) + renewable:'request'. 다음 재접속에 실리는 갱신 요청 표지로 풀려요 → 로그(워커 수신 기록)에 안 적어요.
+//   operator — 휴면(dormant), 또는 표지를 실었는데도 요청으로는 못 푸는 대기 거절(보드의 graceRenew 가 꺼짐) →
+//              묶음당 ev:'rejected' 한 줄 + 하루마다 재알림, 운영자 연장 안내를 실어요.
+//   legacy   — phase 없는 거절(옛 서버 · 다른 사유) → 종전대로 매번 ev:'rejected'.
+const DORMANT_REALERT_MS = +(process.env.JOIN_DORMANT_REALERT_MS || 24 * 60 * 60 * 1000);
+const OPERATOR_RENEW_ACTION = '보드 운영자가 🔑 창에서 연장하면 같은 키로 다시 붙어요 — 새 키는 필요 없어요';
+let refusalStreak = null;      // { key, since, count, lastWritten } — 같은 처방의 거절 묶음 (quiet·operator 만)
+function refusalClass(v) {
+  if (!v || v.code !== 'key-expired' || !v.phase) return 'legacy';
+  if (v.phase === 'standby' && v.renewable === 'request') return 'quiet';
+  return 'operator';
+}
+// 거절 한 건을 기록해요. 반환값은 사람이 읽을 한 줄(콘솔용)이에요.
+function noteRejected(v) {
+  const cls = refusalClass(v);
+  if (cls === 'legacy') {
+    refusalStreak = null;
+    log({ ev: 'rejected', code: v.code, label: v.label, retryInMs: REJECT_RETRY_MS });
+    return `서버가 합류를 거절했어요 (${v.code || '?'}) — ${Math.round(REJECT_RETRY_MS / 60000)}분 뒤 재시도. 빨리 두드려서 풀리는 종류가 아니에요.`;
+  }
+  const key = v.code + ':' + cls;
+  const fresh = !refusalStreak || refusalStreak.key !== key;
+  if (fresh) refusalStreak = { key, since: new Date().toISOString(), count: 0, lastWritten: 0 };
+  refusalStreak.count++;
+  if (cls === 'quiet') return `열쇠가 대기(standby) 단계라 거절됐어요 — 다음 재접속에 실리는 갱신 요청으로 풀려요 (기록엔 안 적어요 · 묶음 ${refusalStreak.count}번째)`;
+  if (fresh || Date.now() - refusalStreak.lastWritten >= DORMANT_REALERT_MS) {
+    refusalStreak.lastWritten = Date.now();
+    log({ ev: 'rejected', code: v.code, phase: v.phase, renewable: v.renewable, label: v.label, expiresAt: v.expiresAt, retryInMs: REJECT_RETRY_MS,
+      streakSince: refusalStreak.since, attempts: refusalStreak.count, action: OPERATOR_RENEW_ACTION,
+      note: '같은 사유가 이어지는 동안은 ' + Math.round(DORMANT_REALERT_MS / 3600000) + '시간마다 한 번만 적어요' });
+  }
+  return `서버가 합류를 거절했어요 (${v.code} · ${v.phase}) — ${OPERATOR_RENEW_ACTION}. ${Math.round(REJECT_RETRY_MS / 60000)}분마다 다시 붙어 봐요 (묶음 ${refusalStreak.count}번째).`;
+}
 function log(obj) { try { fs.appendFileSync(LOG, JSON.stringify({ t: Date.now(), ...obj }) + '\n'); } catch {} }
 function send(type, extra) {
   if (!ws || ws.readyState !== 1) return false;
@@ -123,6 +159,7 @@ function dropHeld(why) {
 function admit(sock, why) {
   if (admitted || ws !== sock || refusedThisConn || !accepted) return;
   admitted = true;
+  refusalStreak = null;   // 판정을 통과했으니 거절 묶음은 끝났어요 — 다음 거절은 새 묶음으로 다시 알려요
   log({ ev: 'admitted', why, held: held.length });
   const q = held; held = [];
   for (const m of q) handleInbound(m);
@@ -174,7 +211,7 @@ function connect() {
     // 거절은 open **뒤에** 프레임으로 오니까, 여기서 리셋하면 지수 백오프가 매 사이클 무효화돼요
     // (그게 2Hz × 19만 회의 기제였어요). 리셋은 수락 증거를 받은 onmessage 쪽에서 해요.
     connected = true; accepted = false; admitted = false; refusedThisConn = false; held = [];
-    send('HELLO', { clientId: AGENT_ID + '-1', agentName: AGENT_NAME, role: 'local', protocolVersion: '0.3', runId: null, capabilities: { inbound: ['UserPrompt', 'Command', 'Cancel', 'Delegate', 'OnboardAck', 'WorkerAck'], outbound: ['CUSTOM'] } });
+    send('HELLO', { clientId: AGENT_ID + '-1', agentName: AGENT_NAME, role: 'local', protocolVersion: '0.3', runId: null, renewRequest: true, capabilities: { inbound: ['UserPrompt', 'Command', 'Cancel', 'Delegate', 'OnboardAck', 'WorkerAck'], outbound: ['CUSTOM'] } });   // renewRequest — §13.25.19, HELLO 관문도 같은 표지를 봐요
     console.log(`[join-local] connected; HELLO sent (role=local). 서버 판정 대기 → 메인(${MAIN}) Delegate 대기.`);
     log({ ev: 'connected' });
   };
@@ -196,9 +233,10 @@ function connect() {
       refusedThisConn = true;
       accepted = false; admitted = false;                 // 수락으로 세었던 걸 되돌려요 (증거가 뒤집혔어요)
       rejectedUntilRetry = Date.now() + REJECT_RETRY_MS;
-      log({ ev: 'rejected', code: m.value && m.value.code, label: m.value && m.value.label, retryInMs: REJECT_RETRY_MS });
+      const line = noteRejected(m.value || {});
       dropHeld('rejected');
-      console.error(`[join-local] 서버가 합류를 거절했어요 (${(m.value && m.value.code) || '?'}) — ${Math.round(REJECT_RETRY_MS / 60000)}분 뒤 재시도. 빨리 두드려서 풀리는 종류가 아니에요.`);
+      if (refusalClass(m.value) === 'quiet') console.log('[join-local] ' + line);
+      else console.error('[join-local] ' + line);
       // 거절 뒤 서버가 안 닫으면 스스로 닫아요 — 닫혀야 재시도가 예약돼요(대기 간격은 위 rejectedUntilRetry 가 정해요).
       setTimeout(() => { if (ws === sock && sock.readyState === 1) { log({ ev: 'refused-local-close' }); try { sock.close(1000, 'refused'); } catch {} } }, REFUSED_CLOSE_MS);
       return;

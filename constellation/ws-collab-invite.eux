@@ -1,27 +1,30 @@
 @component ws-collab-invite
-@provenance 2026-06-12 — re-distilled from reference dashboard @ v2.5.88, rough tier (setupWsKeyMgmt; legacy setupWsCollab removed @ v2.4.22 (was dead code since the v2.4.2 unification))
-@intent Unified key issuance + management surface (UI4 issue panel + UI5 manager modal). One 🔑 head button (setupWsKeyMgmt) covers all four key kinds — upstream ⬆ / local 🏠 / peer 🤝 / collab 🔗 (peer = peer-main, v2.4.52) — via radio row, default kind=local. Issue sends canonical KeyIssue{label?, kind, roleDescription?} over orch transport (issue → wsSendOrch); host replies KeyIssued / transitional aliases UpstreamKeyIssued + CollabKeyIssued (kind=collab fallback) → setIssued. Issued view branches: local kind shows join-command hint + key-file note (wire-private — key saved to joinFile, never sent over wire); other kinds show joinUrl with "URL 복사" + "키만 복사". Manager modal lists keys with 5 tabs, per-row kind emoji, relabel + two-mode revoke. Styling rides shared accent token (--accent), panel anchored under head button with click-outside close.
+@provenance 2026-06-12 — re-distilled from reference dashboard @ v2.5.88, rough tier; vocabulary aligned to Constellation v2.4.167 key lifetime phases (§13.25.19) (setupWsKeyMgmt; legacy setupWsCollab removed @ v2.4.22 (was dead code since the v2.4.2 unification))
+@intent Unified key issuance + management surface (UI4 issue panel + UI5 manager modal). One 🔑 head button (setupWsKeyMgmt) covers all four key kinds — upstream ⬆ / local 🏠 / peer 🤝 / collab 🔗 (peer = peer-main, v2.4.52) — via radio row, default kind=local. Issue sends canonical KeyIssue{label?, kind, ttlDays, roleDescription?} over orch transport (lifetime 15/30/90 days beside the kind radio; changing the kind moves the lifetime to that kind's default — local 90, others 30) (issue → wsSendOrch); host replies KeyIssued / transitional aliases UpstreamKeyIssued + CollabKeyIssued (kind=collab fallback) → setIssued. Issued view branches: local kind shows join-command hint + key-file note (wire-private — key saved to joinFile, never sent over wire); other kinds show joinUrl with "URL 복사" + "키만 복사". Manager modal lists keys with kind tabs + two state tabs, per-row kind emoji and phase badge, renew (with lifetime choice) + relabel + two-mode revoke, and a purge action on the revoked tab. Styling rides shared accent token (--accent), panel anchored under head button with click-outside close.
 @expansion temperature=0.3 model=agent/rough template=estreux/v0.0.5
 @targets vanilla
 @profile ui-component
 @state
 status          : string = "idle"   # idle | issuing | issued | error  (setupWsKeyMgmt locals)
 kind            : string = "local"  # upstream | local | peer | collab — radio row KIND_DEFS, default local (peer v2.4.52)
+ttlDays         : number = 90       # 15 | 30 | 90 — follows the kind default (local 90 · peer / collab / upstream 30) until the operator picks one
 label           : string = ""       # key label; placeholder varies by kind (render)
 roleDescription : string = ""       # optional textarea, relayed to joining agent; echoed 🎭 in issued view + manager rows
 key, joinUrl    : string = ""       # issued credential / join URL (non-local kinds)
 joinHint, joinFile : string = ""    # local kind: join command hint + key-file path (setIssued payload)
 modalKeys       : array = []        # UI5 manager list (setList)
-activeTab       : string = "all"    # all | upstream | local | peer | collab (TAB_DEFS filter, peer v2.4.52)
+activeTab       : string = "all"    # all | upstream | local | peer | collab (kind axis — every phase except revoked) | lapsed (standby + dormant) | revoked (TAB_DEFS filter; state axis v2.4.167)
 @ports
-out KeyIssue{label?, kind, roleDescription?}    : issue() — "키 발급" click or Enter on label input (Shift+Enter exempt)
+out KeyIssue{label?, kind, ttlDays, roleDescription?} : issue() — "키 발급" click or Enter on label input (Shift+Enter exempt)
 out KeyList{includeRevoked:true}                : requestList() — modal open + ↻ refresh
-out KeyRevoke{key, mode}                        : revoke() — mode "immediate" (always offered) | "sessionEnd" (only when connectionStatus=connected); wsConfirm-gated
+out KeyRevoke{keyRef, mode}                     : revoke() — «폐기» (explicit revocation): mode "immediate" (always offered) | "sessionEnd" (only when connectionStatus=connected); offered in phases active / standby / dormant; wsConfirm-gated
+out KeyRenew{keyRef, ttlDays}                   : renew() — «연장» with a lifetime choice (default: the key's own lifetime when in the set, else the kind default); offered in phases active / standby / dormant
+out KeyPurge{}                                  : purge() — «🧹 폐기 키 정리하기» on the revoked tab; danger wsConfirm-gated; rows become tombstones (key string removed)
 out KeyLabel{key, newLabel}                     : relabel() — wsPrompt for 1~64-char label
 cmd setIssued(p)  : KeyIssued / UpstreamKeyIssued / CollabKeyIssued(kind←collab fallback) → status=issued, absorbs {key, joinUrl, joinHint, joinFile, label, kind, roleDescription}
 cmd setError(p)   : KeyError → status=error, message inline in idle form (p.message || p.code)
 cmd setList(keys) : KeyListResult → modalKeys; re-render if modal open
-cmd onMutated()   : KeyRevoked / KeyLabeled / KeyRevokePending → re-requestList if modal open
+cmd onMutated()   : KeyRevoked / KeyLabeled / KeyRevokePending / KeyRenewed / KeyPurged → re-requestList if modal open
 cmd openIssuePanel() / openManager() : external entry (head 🔑 button toggle + context-menu items)
 deps clipboard : navigator.clipboard.writeText — copy(btn, text), "복사됨 ✓" 1.5s revert, "복사 실패" fallback
 deps transport : wsSendOrch — routing-independent orch CUSTOM; send failure → status=error "WS 연결 안 됨"
@@ -29,5 +32,5 @@ deps transport : wsSendOrch — routing-independent orch CUSTOM; send failure �
 states: idle(initial) · issuing · issued · error
 dispatch: issue→issuing · setIssued→issued · setError→error · "새 키"→idle(reset fields) · error shows idle form + message
 @behavior gist
-idle/error = kind radio row (selecting a kind re-renders + refocuses label input — rd.onchange) + label input + roleDescription textarea + 발급 button + 🔐 키 관리 shortcut. issuing = disabled "발급 중…". issued = kind-emoji meta (key truncated ~14 chars, omitted for local) + 🎭 roleDescription echo; local → joinHint command (fallback "LOCAL_KEY_FILE=<joinFile> WS_AGENT_ID=<label> node scripts/join-local.cjs") + "키는 <joinFile> 파일에 저장됨 (외부 wire 미전달)" note + 명령 복사; non-local → joinUrl(||key) + URL 복사 + 키만 복사; both add 새 키 + 🔐 관리.
-manager modal (buildModal/renderTable) = tabs 전체/⬆업스트림/🏠로컬워커/🔗외부협업 (filter on k.kind, default upstream); rows: conn dot (CONN_DOT connected/disconnected/never) + kind emoji + label + state chip (STATE_LABEL: ISSUED/ACTIVE/REVOKED_PENDING/REVOKED/DELETED) + sub line (key prefix or local-keys/<label>.key, conn text, lastAgent, lastSeenAt) + 🎭 roleDescription; non-terminal rows get ✏️ 라벨 + 🗑 즉시 삭제 (+⏳ 세션 유지 삭제 when connected); terminal rows show state note only. openManager renders placeholder table immediately, then refreshes (no blank wait). empty states per-tab. modal backdrop click closes.
+idle/error = kind radio row (selecting a kind re-renders + refocuses label input — rd.onchange, and moves the lifetime choice to the kind default) + lifetime choice 15/30/90 + label input + roleDescription textarea + 발급 button + 🔐 키 관리 shortcut. issuing = disabled "발급 중…". issued = kind-emoji meta (key truncated ~14 chars, omitted for local) + 🎭 roleDescription echo; local → joinHint command (fallback "LOCAL_KEY_FILE=<joinFile> WS_AGENT_ID=<label> node scripts/join-local.cjs") + "키는 <joinFile> 파일에 저장됨 (외부 wire 미전달)" note + 명령 복사; non-local → joinUrl(||key) + URL 복사 + 키만 복사; both add 새 키 + 🔐 관리.
+manager modal (buildModal/renderTable) = tabs (wrap allowed — mobile) 전체 · ⬆업스트림 · 🏠로컬워커 · 🤝피어메인 · 🔗외부협업 (kind axis, every phase except revoked: active · standby · dormant · revoking) · 💤 대기/휴면 (standby + dormant) · 🗑 폐기 (revoked); rows: conn dot (CONN_DOT connected/disconnected/never) + kind emoji + label + phase badge (활성 · 대기 — auto-renews on reconnect, until graceUntil · 휴면 — needs renew · 폐기 예정 — at session end · 폐기됨) + lifetime (15/30/90일; outside the set «14일(이전 기준)») + sub line (key prefix or local-keys/<label>.key, conn text, lastAgent, lastSeenAt) + 🎭 roleDescription; active / standby / dormant rows get 연장 (+ lifetime) + ✏️ 라벨 + 폐기 (즉시 · ⏳ 세션 유지 when connected); revoked rows show state note only and never the key string; the revoked tab carries 🧹 폐기 키 정리하기 (KeyPurge). Vocabulary: «폐기» = explicit revocation; «삭제» is not used for revocation (DELETED is the purge tombstone). openManager renders placeholder table immediately, then refreshes (no blank wait). empty states per-tab. modal backdrop click closes.

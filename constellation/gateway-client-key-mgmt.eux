@@ -5,28 +5,45 @@
 @profile protocol-adapter
 @source Constellation.md(v2.3.21+ §13.16.11 KEY-MGMT client-side discipline) · constellation/reference/runtime/server.cjs(L188-360 KEY-MGMT block) · WS-PROTOCOL §13.16.11 KEY-MGMT semantics
 @wire
+  # field names aligned to the reference server + WS-PROTOCOL-KEY-MGMT.md v0.5 (Constellation v2.4.167). Selector: keyRef (non-secret) preferred, key accepted for compatibility; keyRef is the only selector for kind local.
   key_mgmt_messages:
     KeyIssue:
       type: CUSTOM
-      value_fields: [keyType (uk|ck), label?, expires_at?]
-      response: server emits KeyIssued{key, label, expires_at, issued_at}
+      value_fields: [label, kind? (upstream|collab|local|peer — closed, unknown → UNKNOWN_KIND), ttlDays? (15|30|90; absent → kind default), ttl? (ms, compatibility — same set), roleDescription?, boundAgent?]
+      response: server emits KeyIssued{key (null for local), keyRef, label, kind, ttl, issuedAt, expiresAt, joinUrl?, joinUrls?, joinHint? (local)} · errors INVALID_TTL (outside the set, incl. 0) / UNKNOWN_KIND / INVALID_LABEL / LIMIT_EXCEEDED
     KeyList:
       type: CUSTOM
-      value_fields: [filter? (active|revoked|all)]
-      response: server emits KeyListReply{keys[]: {key, label, connectionStatus, lastSeen, agentNameIfConnected}}
+      value_fields: [includeRevoked?, includeDeleted?]
+      response: server emits KeyListResult{keys[]: {key (null for local), keyRef, label, kind, state, phase (active|standby|dormant|revoking|revoked|deleted), ttl, ttlDays?, ttlChoices, issuedAt, renewedAt, renewCount, expiresAt, graceUntil?, revokedAt, lapsed, lastAgent, lastSeenAt, connectionStatus, roleDescription, adoptedFromLegacy}}
     KeyRevoke:
       type: CUSTOM
-      value_fields: [key, mode (immediate|sessionEnd), reason?]
-      response: server emits KeyRevoked{key, mode_applied, revoked_at}; if mode=immediate + key has active connection, server force-closes
+      value_fields: [keyRef | key, mode (immediate|sessionEnd)]
+      response: server emits KeyRevoked{key, mode, agentsDisconnected, agentsNotified}; accepted in phases active / standby / dormant; ALREADY_REVOKED only for revoked / deleted
     KeyLabel:
       type: CUSTOM
-      value_fields: [key, newLabel]
-      response: server emits KeyLabelUpdated{key, newLabel}; broadcasts AgentNameChanged if key has active connection
+      value_fields: [keyRef | key, newLabel]
+      response: server emits KeyLabeled{key, oldLabel, newLabel}; unicasts AgentNameChanged to live holders of the key
+    KeyRenew:
+      type: CUSTOM
+      value_fields: [keyRef | key, ttlDays? (15|30|90) | ttl?]
+      response: server emits KeyRenewed{key (null for local), keyRef, label, kind, ttl, issuedAt, renewedAt, expiresAt, wasLapsed, renewCount}; key string unchanged · NOT_RENEWABLE (revoked/revoking/deleted) · NO_EXPIRY (ttl 0)
+    KeyPurge:
+      type: CUSTOM
+      value_fields: [keyRefs? (absent → every revoked row not in REVOKED_PENDING)]
+      response: server emits KeyPurged{count, keyRefs, error?}; rows become tombstones (key null, state DELETED)
     AgentNameChanged:
       type: CUSTOM
-      direction: broadcast (server → all boards)
-      value_fields: [agentId, newAgentName, source (label_edit|self_emit)]
-      effect: receivers update display state for that agentId in AgentList rendering
+      direction: server → live holders of the relabelled key (unicast, one frame per connection)
+      value_fields: [key, oldLabel, newLabel]
+      effect: the holder MAY update its own agentName and re-announce
+    ConnectionRejected (key-expired):
+      type: CUSTOM
+      direction: server → the connecting client (source server)
+      value_fields: [code key-expired, phase (standby|dormant), renewable (request|operator), graceUntil? (standby), label, expiresAt, hint]
+      effect: standby + renewable request → reconnecting with the renewal marker renews the key; dormant → only the board operator can renew (report once, do not retry faster than the refusal backoff)
+  renewal_marker:                                          # v2.4.167 §13.25.19 — send on every connection attempt; no effect outside standby
+    url_key: query parameter renew=1
+    hello_body_key: HELLO field renewRequest true
   legacy_v0_2_alias_deprecation:                          # per v2.5.13 KEY-MGMT §3.1
     state: supersede + transitional alias + deprecated v0.2 + no-fixed-version retire
     retire_gate: zero-traffic on legacy alias for ≥1 minor version cycle
@@ -34,20 +51,25 @@
   group: A2A-intent (KEY-MGMT family wakes agent layer when client emits or receives reply)
   authority:
     KeyIssue_KeyRevoke_KeyLabel: typically operator-tier (role: main or board) — server may reject if originator lacks permission
-    KeyList: any connected agent MAY query (returns server-filtered view)
+    KeyList_KeyRenew_KeyPurge: operator-tier as well (§13.25.9) — KeyList is not an agent query; non-main agents get PERMISSION_DENIED
     AgentNameChanged: broadcast, no client authority required to receive
 @deps
   ws_send: raw WS send via parent -a2a routing
-  storage: optional client-side cache of last-known KeyList (UI rendering cache; invalidated on AgentNameChanged or KeyListReply)
+  storage: optional client-side cache of last-known KeyList (UI rendering cache; invalidated on AgentNameChanged or KeyListResult)
 @ports
-  cmd  issue_key(keyType, label?, expires_at?)        : emit KeyIssue, await KeyIssued response
-  cmd  list_keys(filter?)                              : emit KeyList, await KeyListReply
-  cmd  revoke_key(key, mode, reason?)                  : emit KeyRevoke, await KeyRevoked
-  cmd  label_key(key, newLabel)                        : emit KeyLabel, await KeyLabelUpdated + AgentNameChanged
-  out  keyIssued(key, label, expires_at)
+  cmd  issue_key(label, kind?, ttlDays?)               : emit KeyIssue, await KeyIssued response
+  cmd  list_keys(includeRevoked?, includeDeleted?)     : emit KeyList, await KeyListResult
+  cmd  revoke_key(keyRef, mode)                        : emit KeyRevoke, await KeyRevoked
+  cmd  renew_key(keyRef, ttlDays?)                     : emit KeyRenew, await KeyRenewed
+  cmd  purge_revoked(keyRefs?)                         : emit KeyPurge, await KeyPurged
+  cmd  label_key(keyRef, newLabel)                     : emit KeyLabel, await KeyLabeled
+  out  keyIssued(key, keyRef, label, kind, expiresAt)
   out  keyListUpdated(keys[])
-  out  keyRevoked(key, mode_applied)
-  out  agentNameChanged(agentId, newAgentName, source)
+  out  keyRevoked(key, mode)
+  out  keyRenewed(keyRef, expiresAt, wasLapsed)
+  out  keyPurged(count, keyRefs)
+  out  keyExpiredRefusal(phase, renewable, label, expiresAt, graceUntil?)
+  out  agentNameChanged(key, oldLabel, newLabel)
 @redaction
   hook: pre-send + pre-log
   targets: [issued key values (uk-* / ck-* full strings — surface only first 8 chars in logs), revoke reasons containing credential fragments]
@@ -56,5 +78,6 @@
   principle: KEY-MGMT is operator-tier; client gateway exposes commands but authority enforcement is server-side
   anti_patterns:
     - log full key values to non-redacted stream → credential leak
-    - retain KeyListReply beyond UI render scope without revoke-aware invalidation → stale display + stale UX
+    - report a standby key (or a standby refusal received without having sent the renewal marker) to a human → it resolves on reconnect; report dormant once, revoked once (new key needed)
+    - retain KeyListResult beyond UI render scope without revoke-aware invalidation → stale display + stale UX
     - emit KeyRevoke {mode: immediate} without surfacing "active session will be killed" warning to operator → unexpected disconnection

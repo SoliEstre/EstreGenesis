@@ -44,7 +44,12 @@ const DIR = __dirname;
 // 기본은 메인 큐(__dirname). 워커는 WS_INBOX/WS_OUTBOX 로 별도 큐를 지정해 합류(메인과 파일 충돌 회피, §1.8 갭 보완).
 const INBOX = process.env.WS_INBOX ? path.resolve(process.env.WS_INBOX) : path.join(DIR, 'inbox.jsonl');
 const OUTBOX = process.env.WS_OUTBOX ? path.resolve(process.env.WS_OUTBOX) : path.join(DIR, 'outbox.jsonl');
-const url = TOKEN ? `${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : WS_URL;
+const url0 = TOKEN ? `${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : WS_URL;
+// §13.25.19 대기 중 갱신 요청 표지 (v2.4.167) — 주소에 열쇠가 실려 있으면 **항상** renew=1 을 함께 실어요.
+//   «대기(standby)면 연장해 주세요» 는 늘 참인 요청이라, 켜 둔 보드(graceRenew)에선 만료 뒤 3일 안의 재접속이
+//   운영자·에이전트 개입 없이 풀려요. 열쇠 없는 주소(자기 보드의 main)엔 연장할 게 없어서 안 실어요.
+const URL_HAS_KEY = /[?&](?:key|peerKey|upstreamKey|collabKey)=/.test(url0);
+const url = URL_HAS_KEY && !/[?&]renew=/.test(url0) ? url0 + '&renew=1' : url0;
 const redactUrl = (u) => String(u).replace(/([?&](?:key|peerKey|upstreamKey|collabKey|token)=)[^&#\s]*/gi, '$1<redacted>');   // v2.4.165 — 로그에 찍는 주소는 자격증명 파라미터를 **모든 출현**에서 가려요(첫 출현만 가리던 .replace(key) · 접두 자르기 대신)
 
 // --- single-instance guard (WS_AGENT_ID 당 브릿지 1개 — 중복 인스턴스 → flap 방지) ---
@@ -88,6 +93,19 @@ const REJECT_RETRY_MS = +(process.env.BRIDGE_REJECT_RETRY_MS || process.env.JOIN
 const ADMIT_HOLD_MS = +(process.env.BRIDGE_ADMIT_HOLD_MS || 3000);
 const STREAK_HOLD_MS = +(process.env.BRIDGE_STREAK_HOLD_MS || 10000);
 const REALERT_MS = +(process.env.BRIDGE_REFUSAL_REALERT_MS || 60 * 60 * 1000);   // 거절이 이어지면 이 간격으로 인박스에 다시 한 줄 — 한 번 알리고 영영 침묵하지 않게
+// 휴면(dormant) 열쇠 거절의 재알림은 하루 — 푸는 사람이 보드 운영자라 한 시간마다 다시 알려도 풀리는 속도는 같고 소음만 늘어요.
+const DORMANT_REALERT_MS = +(process.env.BRIDGE_DORMANT_REALERT_MS || 24 * 60 * 60 * 1000);
+const OPERATOR_RENEW_ACTION = '보드 운영자가 🔑 창에서 연장하면 같은 키로 다시 붙어요 — 새 키는 필요 없어요';
+// 열쇠 수명 단계(phase)를 실은 거절을 셋으로 갈라요 (§13.25.19):
+//   quiet    — 대기(standby) + renewable:'request'. 다시 붙으면 저절로 풀려요(이 다리는 늘 갱신 요청 표지를 실어요) → 인박스에 안 적어요.
+//   operator — 휴면(dormant), 또는 표지를 실었는데도 대기 거절인데 요청으로는 못 푼다는 경우(보드의 graceRenew 가 꺼짐) →
+//              묶음당 한 줄 + 하루마다 재알림, 문구에 운영자 연장 안내.
+//   legacy   — phase 없는 거절(옛 서버 · 다른 사유) → 종전대로.
+function refusalClass(v) {
+  if (!v || v.code !== 'key-expired' || !v.phase) return 'legacy';
+  if (v.phase === 'standby' && v.renewable === 'request') return 'quiet';
+  return 'operator';
+}
 const REFUSED_CLOSE_MS = 1500;   // 서버가 거절만 보내고 안 닫으면 이만큼 뒤 우리가 닫아요 — 거절된 소켓에 매달린 채 먹통이 되지 않게
 let accepted = false, admitted = false;
 let refusedThisConn = false;   // 이 연결은 서버가 거절했다 — 닫힐 때까지 거절이에요(뒤에 오는 방송이 수락으로 뒤집지 못하게)
@@ -111,18 +129,32 @@ function saveRefusal() { try { if (streak || rejectedUntilRetry > Date.now()) fs
 function noteRefusal(v, source) {
   rejectedUntilRetry = Date.now() + REJECT_RETRY_MS;
   const code = (v && v.code) || '?';
-  const fresh = !streak || streak.code !== code;   // 사유가 바뀌면 처방도 바뀌어서 새 묶음이에요
-  if (fresh) streak = { code, since: new Date().toISOString(), count: 0, lastWritten: 0 };
+  const cls = refusalClass(v);
+  // 묶음 열쇠 = 사유 + 처방. 대기(quiet)에서 휴면(operator)으로 넘어가면 처방이 바뀌어서 새 묶음이에요 — 그때 처음으로 한 줄 적혀요.
+  const skey = cls === 'legacy' ? code : code + ':' + cls;
+  const fresh = !streak || (streak.key || streak.code) !== skey;   // 사유가 바뀌면 처방도 바뀌어서 새 묶음이에요
+  if (fresh) streak = { code, key: skey, since: new Date().toISOString(), count: 0, lastWritten: 0 };
   streak.count++;
-  console.error('[bridge] 서버가 합류를 거절했어요 (' + code + (v && v.label ? ' · ' + v.label : '') + ') — ' + fmtMs(REJECT_RETRY_MS) + ' 뒤 재시도 · 이 묶음 ' + streak.count + '번째. 빨리 두드려서 풀리는 종류가 아니에요 — 열쇠 연장은 그 보드 운영자의 일이에요.');
-  // 에이전트에게 닿는 통로가 인박스뿐이라 **묶음당 한 번**은 적고, 거절이 이어지면 REALERT_MS 마다 한 번 더 적어요
+  if (cls === 'quiet') {
+    // 대기 — 다시 붙을 때 실린 갱신 요청 표지로 서버가 연장해요. 에이전트·사람에게 알릴 일이 아니라 다리 로그에만 남겨요.
+    console.log('[bridge] 열쇠가 대기(standby) 단계라 거절됐어요' + (v.label ? ' (' + v.label + ')' : '') + ' — ' + fmtMs(REJECT_RETRY_MS) + ' 뒤 갱신 요청을 싣고 다시 붙어요 · 인박스엔 안 적어요 · 이 묶음 ' + streak.count + '번째');
+    saveRefusal();
+    return;
+  }
+  const realert = cls === 'operator' ? DORMANT_REALERT_MS : REALERT_MS;
+  console.error('[bridge] 서버가 합류를 거절했어요 (' + code + (v && v.phase ? ' · ' + v.phase : '') + (v && v.label ? ' · ' + v.label : '') + ') — ' + fmtMs(REJECT_RETRY_MS) + ' 뒤 재시도 · 이 묶음 ' + streak.count + '번째. 빨리 두드려서 풀리는 종류가 아니에요 — '
+    + (cls === 'operator' ? OPERATOR_RENEW_ACTION + '.' : '열쇠 연장은 그 보드 운영자의 일이에요.'));
+  // 에이전트에게 닿는 통로가 인박스뿐이라 **묶음당 한 번**은 적고, 거절이 이어지면 재알림 간격마다 한 번 더 적어요
   //   (같은 streakSince 라 깨우는 쪽은 같은 묶음으로 알아봐요). 아예 안 적으면 에이전트는 다리가 막힌 줄 몰라요.
-  if (fresh || Date.now() - (streak.lastWritten || 0) >= REALERT_MS) {
+  //   휴면 열쇠는 하루, 그 밖은 REALERT_MS 예요.
+  if (fresh || Date.now() - (streak.lastWritten || 0) >= realert) {
     streak.lastWritten = Date.now();
     // targetAgentId = 자기 자신 — 이 줄은 다리가 **자기 에이전트에게** 쓰는 알림이에요. 턴 종료 probe 는 이름 목록에 없는 줄도
     //   «나에게 지목됨» 이면 올리는데(§13.16.9 합집합), 서버 거절 프레임엔 지목이 없어서 이 한 줄이 probe 에 안 보였어요.
     //   이름 목록에 넣지 않은 건, 줄마다 적는 옛 다리의 거절 폭주까지 probe 가 전부 올리게 되기 때문이에요.
-    const rec = { at: new Date().toISOString(), name: 'ConnectionRejected', targetAgentId: AGENT_ID, value: v, source, bridge: { retryInMs: REJECT_RETRY_MS, streakSince: streak.since, attempts: streak.count, note: '같은 사유의 거절이 이어지는 동안은 ' + fmtMs(REALERT_MS) + '마다 한 번만 적어요 — 회차는 다리 로그에 남아요' } };
+    const bridge = { retryInMs: REJECT_RETRY_MS, streakSince: streak.since, attempts: streak.count, note: '같은 사유의 거절이 이어지는 동안은 ' + fmtMs(realert) + '마다 한 번만 적어요 — 회차는 다리 로그에 남아요' };
+    if (cls === 'operator') bridge.action = OPERATOR_RENEW_ACTION;
+    const rec = { at: new Date().toISOString(), name: 'ConnectionRejected', targetAgentId: AGENT_ID, value: v, source, bridge };
     try { fs.appendFileSync(INBOX, JSON.stringify(rec) + '\n'); } catch (e) { console.log('[bridge] inbox write fail', String(e)); }
   }
   saveRefusal();
@@ -356,10 +388,10 @@ function connect() {
     if (ws !== sock) return;
     // backoff 는 여기서 되돌리지 않고 online 도 여기서 공지하지 않아요 — open 은 «TCP 가 붙었다» 지 «서버가 받아줬다» 가 아니에요.
     connected = true; accepted = false; admitted = false; refusedThisConn = false; preVerdict = [];
-    send('HELLO', {
+    send('HELLO', Object.assign({
       clientId: AGENT_ID + '-bridge', agentName: AGENT_NAME, protocolVersion: '0.1', runId: null, pid: process.pid,
       capabilities: { inbound: ['UserPrompt', 'Command', 'Cancel', 'Priority'], outbound: ['RUN_STARTED', 'RUN_FINISHED', 'STEP_STARTED', 'STEP_FINISHED', 'TEXT_MESSAGE_START', 'TEXT_MESSAGE_CONTENT', 'TEXT_MESSAGE_END', 'TOOL_CALL_START', 'CUSTOM'] },
-    });
+    }, URL_HAS_KEY ? { renewRequest: true } : {}));   // §13.25.19 — HELLO 관문도 주소 열쇠를 다시 판정하니 본문에도 같은 표지를 실어요
     console.log('[bridge] connected — HELLO as', AGENT_ID, '(' + AGENT_NAME + ') · 서버 판정 대기');
     // [DISABLED 2026-06-01] Status auto-send removed — non-A2A intent (board 대화창 알림)이 server target-unspecified CUSTOM relay policy로 wsPrimaryAgent A2A inbox에도 들어가는 채널-혼선 발생. 재연결 broadcast 는 ServerNotice(online) 가 맡아요 — 수락 뒤 admit() 에서.
   };
