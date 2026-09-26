@@ -4,6 +4,8 @@
 const fs = require('fs'); const path = require('path'); const os = require('os');
 const { spawn } = require('child_process');
 const SRC = 'c:/Dev/EstreGenesis/EstreGenesis/constellation/reference';
+// 대상 교체 손잡이 — SMOKE_REF 로 다른 런타임 트리(예: 고치기 전 사본)를 시험해요(부정 시험). 대시보드는 SRC 그대로.
+const RT = process.env.SMOKE_REF ? path.resolve(process.env.SMOKE_REF) : path.join(SRC, 'runtime');
 const MCP_SRC = 'c:/Dev/EstreGenesis/EstreGenesis/plugins/constellation/mcp';
 const T = path.join(os.tmpdir(), 'eg-c9-' + process.pid);
 const PORT = 27995;
@@ -40,7 +42,7 @@ function mcpClient(serverPath, env) {
 }
 
 (async () => {
-  cpDir(path.join(SRC, 'runtime'), T); cpDir(path.join(SRC, 'dashboard'), path.join(T, 'public'));
+  cpDir(RT, T); cpDir(path.join(SRC, 'dashboard'), path.join(T, 'public'));
   fs.writeFileSync(path.join(T, 'ws-keys.json'), JSON.stringify([
     { key: LEGACY_ORPHAN, label: 'legacy-upstream', role: 'upstream', createdAt: '2026-06-06T02:14:20.415Z' },
     { key: LEGACY_COLLAB, label: 'legacy-collab', role: 'collab', createdAt: '2026-06-06T03:19:14.903Z' },
@@ -89,10 +91,11 @@ function mcpClient(serverPath, env) {
   const agent = await conn(`ws://localhost:${PORT}/ws?key=${encodeURIComponent(LEGACY_COLLAB)}`);
   agent.send(JSON.stringify({ type: 'HELLO', agentId: 'intruder', agentName: 'intruder', key: LEGACY_COLLAB }));
   await new Promise(r => setTimeout(r, 700));
-  for (const verb of ['RevokeUpstreamKey', 'RevokeCollabKey', 'RegisterUpstreamKey', 'RegisterCollabKey', 'KeyRevoke']) {
+  // v2.4.167 — KeyPurge(폐기 키 정리, 되돌릴 수 없음)도 같은 게이트 안이어야 해요. 게이트 배열에 빠지면 이 동사는 에이전트 표면에서 응답 없이 흘러가요.
+  for (const verb of ['RevokeUpstreamKey', 'RevokeCollabKey', 'RegisterUpstreamKey', 'RegisterCollabKey', 'KeyRevoke', 'KeyPurge']) {
     agent.send(JSON.stringify({ source: 'agent', agentId: 'intruder', type: 'CUSTOM', name: verb, value: { key: aliasIssued.key, label: 'x', mode: 'immediate' } }));
     let got = null;
-    try { got = await waitFor(agent, ['KeyError', 'KeyRevoked', 'UpstreamKeyIssued', 'CollabKeyIssued'], 4000); } catch (_) {}
+    try { got = await waitFor(agent, ['KeyError', 'KeyRevoked', 'UpstreamKeyIssued', 'CollabKeyIssued', 'KeyPurged'], 4000); } catch (_) {}
     if (!got) bad(verb + ': no reply at all (expected PERMISSION_DENIED)');
     else if (got.name === 'KeyError' && got.value && got.value.code === 'PERMISSION_DENIED') ok(verb + ' from non-main → PERMISSION_DENIED');
     else bad(verb + ' from non-main was ALLOWED → ' + got.name);
@@ -123,7 +126,7 @@ function mcpClient(serverPath, env) {
     const lanIp = Object.values(os.networkInterfaces()).flat().filter((a) => a && !a.internal && String(a.family).match(/^(IPv4|4)$/)).map((a) => a.address)[0];
     if (!lanIp) console.log('  note: 비-loopback IPv4 없음 — board-표면 deny 경로 미검증');
     else {
-      const T2 = T + '-exposed'; cpDir(path.join(SRC, 'runtime'), T2); cpDir(path.join(SRC, 'dashboard'), path.join(T2, 'public'));
+      const T2 = T + '-exposed'; cpDir(RT, T2); cpDir(path.join(SRC, 'dashboard'), path.join(T2, 'public'));
       fs.writeFileSync(path.join(T2, 'access.json'), JSON.stringify({ expose: true, ui: { allowlist: ['203.0.113.9'] }, agent: { allowlist: null, requireKey: false }, mcp: { allowlist: null } }));
       const P2 = PORT + 1;
       const srv2 = spawn(process.execPath, [path.join(T2, 'server.cjs')], { env: { ...process.env, PORT: String(P2), WS_PRIMARY_AGENT: 'test-main' }, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -182,7 +185,7 @@ function mcpClient(serverPath, env) {
     // 거부 경로: requireKey=true + 원격 주소 + 무키 → ConnectionRejected 이벤트 + close code 4403
     if (!lanIp) console.log('  note: 비-loopback IPv4 없음 — 거부 통지 경로 미검증');
     else {
-      const T3 = T + '-reqkey'; cpDir(path.join(SRC, 'runtime'), T3); cpDir(path.join(SRC, 'dashboard'), path.join(T3, 'public'));
+      const T3 = T + '-reqkey'; cpDir(RT, T3); cpDir(path.join(SRC, 'dashboard'), path.join(T3, 'public'));
       fs.writeFileSync(path.join(T3, 'access.json'), JSON.stringify({ expose: true, ui: { allowlist: null }, agent: { allowlist: null, requireKey: true }, mcp: { allowlist: null } }));
       const P3 = PORT + 2;
       const srv3 = spawn(process.execPath, [path.join(T3, 'server.cjs')], { env: { ...process.env, PORT: String(P3), WS_PRIMARY_AGENT: 'test-main' }, stdio: ['ignore', 'pipe', 'pipe'] });

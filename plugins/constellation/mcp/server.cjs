@@ -276,8 +276,21 @@ function noteRefusal(v, source) {
     code: (v && v.code) || '?', label: v && v.label, reason: v && v.reason, hint: v && v.hint, source,
     at: new Date(at).toISOString(), retryAt: new Date(at + REJECT_RETRY_MS).toISOString(),
   };
+  // §13.25.19 (v2.4.167) — 열쇠 수명 단계. 호출자(에이전트)가 «사람에게 말할지» 를 이걸로 갈라요:
+  //   standby + renewable 'request' 는 다음 접속의 갱신 요청 표지로 저절로 풀려요(보고 안 함) ·
+  //   dormant(또는 요청으로 못 푸는 standby)는 보드 운영자가 🔑 창에서 연장해야 해요(한 번 알림).
+  if (v && v.phase) {
+    r.phase = v.phase;
+    if (v.renewable != null) r.renewable = v.renewable;
+    if (v.graceUntil != null) r.graceUntil = v.graceUntil;
+    if (v.expiresAt != null) r.expiresAt = v.expiresAt;
+  }
   wsState.refusal = r;
-  process.stderr.write('[constellation-mcp] 서버가 합류를 거절했어요 (' + r.code + (r.label ? ' · ' + r.label : '') + ') — ' + fmtMs(REJECT_RETRY_MS) + ' 뒤에야 다시 붙어요. 빨리 두드려서 풀리는 종류가 아니에요.\n');
+  const quiet = r.code === 'key-expired' && r.phase === 'standby' && r.renewable === 'request';
+  process.stderr.write('[constellation-mcp] ' + (quiet
+    ? '열쇠가 대기(standby) 단계라 거절됐어요' + (r.label ? ' (' + r.label + ')' : '') + ' — ' + fmtMs(REJECT_RETRY_MS) + ' 뒤 갱신 요청을 싣고 다시 붙어요.'
+    : '서버가 합류를 거절했어요 (' + r.code + (r.phase ? ' · ' + r.phase : '') + (r.label ? ' · ' + r.label : '') + ') — ' + fmtMs(REJECT_RETRY_MS) + ' 뒤에야 다시 붙어요. 빨리 두드려서 풀리는 종류가 아니에요.'
+      + (r.code === 'key-expired' && r.phase ? ' 보드 운영자가 🔑 창에서 연장하면 같은 키로 다시 붙어요.' : '')) + '\n');
   return r;
 }
 function refusalError(r) {
@@ -315,6 +328,10 @@ async function openAndAwaitVerdict() {
   else if (auth.kind === 'upstream') url += (url.includes('?') ? '&' : '?') + 'upstreamKey=' + encodeURIComponent(auth.key);
   else if (auth.kind === 'collab') url += (url.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(auth.key);
   else if (auth.kind === 'token') url += (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(auth.key);
+  // §13.25.19 (v2.4.167) — 열쇠를 실은 연결은 갱신 요청 표지를 **항상** 함께 실어요(주소엔 renew=1 · HELLO 엔 renewRequest).
+  //   «대기(standby)면 연장해 주세요» 는 늘 참인 요청이라, graceRenew 를 켜 둔 보드에선 만료 뒤 대기 구간의 재접속이 저절로 풀려요.
+  const keyed = auth.kind === 'peer' || auth.kind === 'upstream' || auth.kind === 'collab' || /[?&](?:key|peerKey|upstreamKey|collabKey)=/.test(baseUrl);
+  if (keyed && !/[?&]renew=/.test(url)) url += (url.includes('?') ? '&' : '?') + 'renew=1';
 
   return new Promise((resolve, reject) => {
     const ws = openSocket(url);
@@ -322,6 +339,7 @@ async function openAndAwaitVerdict() {
     wsState.ready = false;
     const mine = () => wsState.socket === ws;   // 늦게 도착한 옛 소켓의 이벤트가 새 연결 상태를 지우지 않게
     const hello = { type: 'HELLO', agentId, agentName: 'MCP Session ' + agentId, role: auth.kind === 'collab' ? 'collab' : (auth.kind === 'upstream' ? 'upstream' : (auth.kind === 'peer' ? 'peer' : 'local')), capabilities: ['a2a', 'mcp-proxy', 'ack-layer'] };
+    if (keyed) hello.renewRequest = true;
     let helloSent = false, accepted = false, refused = false, settled = false;
     const early = [];   // 판정 전에 받은 프레임 — 수락되면 그때 처리하고, 거절되면 버려요(인가되지 않은 연결의 전송분은 무효예요)
     const settle = (err) => {
@@ -500,10 +518,22 @@ function connectFailure(e, sendTool) {
   const body = r
     ? { error: 'connection-refused', code: r.code, label: r.label, reason: r.reason, hint: r.hint, verdictSource: r.source, refusedAt: r.at, retryAt: r.retryAt }
     : { error: 'not-connected', message: (e && e.message) || String(e) };
+  // §13.25.19 — 열쇠 수명 단계를 그대로 실어요(phase · renewable · graceUntil · expiresAt). 없으면(옛 서버 · 다른 사유) 칸을 싣지 않아요.
+  if (r && r.phase) {
+    body.phase = r.phase;
+    if (r.renewable != null) body.renewable = r.renewable;
+    if (r.graceUntil != null) body.graceUntil = r.graceUntil;
+    if (r.expiresAt != null) body.expiresAt = r.expiresAt;
+  }
   if (sendTool) body.sent = false;
-  body.note = r
-    ? 'The board server refused this connection at its HELLO verdict (Constellation §13.25.13); nothing was sent. Resending will not help until the cause is fixed; this server will not reconnect before retryAt.'
-    : 'No admitted connection to the board (Constellation §13.25.13: open is not admission)' + (sendTool ? '; nothing was sent.' : '.');
+  const standbyQuiet = !!r && r.code === 'key-expired' && r.phase === 'standby' && r.renewable === 'request';
+  body.note = !r
+    ? 'No admitted connection to the board (Constellation §13.25.13: open is not admission)' + (sendTool ? '; nothing was sent.' : '.')
+    : standbyQuiet
+      ? 'The key is in its standby window (expired, within grace). This server always sends the renewal-request marker, so the next connection after retryAt renews the key if the board allows grace renewal (Constellation §13.25.19). Nothing was sent. Do not report this to a human; it resolves on its own.'
+      : (r.code === 'key-expired' && r.phase)
+        ? 'The key is ' + r.phase + ': the board operator must press renew in the key (🔑) window, after which the same key reconnects — no new key is needed (Constellation §13.25.19). Nothing was sent. Tell a human once; this server will not reconnect before retryAt.'
+        : 'The board server refused this connection at its HELLO verdict (Constellation §13.25.13); nothing was sent. Resending will not help until the cause is fixed; this server will not reconnect before retryAt.';
   return { content: [{ type: 'text', text: JSON.stringify(body) }], isError: true };
 }
 async function withConnection(sendTool, fn) {

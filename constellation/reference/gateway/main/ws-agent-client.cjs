@@ -57,6 +57,10 @@ const TELEMETRY_THREAD_IDS = new Set((process.env.WS_TELEMETRY_THREADS || '').sp
 if (!TOKEN && !UPSTREAM_KEY) console.warn('[ws] LIVE_BOARD_WS_TOKEN / WS_UPSTREAM_KEY 미설정 — 무인증 접속 (dev 기본). 의도면 무시, 아니면 환경변수 설정.');
 let url = TOKEN ? `${WS_URL}${WS_URL.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : WS_URL;
 if (UPSTREAM_KEY) url += `${url.includes('?') ? '&' : '?'}upstreamKey=${encodeURIComponent(UPSTREAM_KEY)}`;
+// §13.25.19 (v2.4.167) — 열쇠를 실은 연결은 갱신 요청 표지를 **항상** 함께 실어요(주소 renew=1 · HELLO renewRequest).
+//   graceRenew 를 켜 둔 보드에선 만료 뒤 대기(standby) 구간의 재접속이 저절로 연장돼요. 거절 처리 자체는 이 예제의 범위 밖이에요.
+const KEYED = !!UPSTREAM_KEY || /[?&](?:key|peerKey|upstreamKey|collabKey)=/.test(WS_URL);
+if (KEYED && !/[?&]renew=/.test(url)) url += `${url.includes('?') ? '&' : '?'}renew=1`;
 const redactUrl = (u) => String(u).replace(/([?&](?:key|peerKey|upstreamKey|collabKey|token)=)[^&#\s]*/gi, '$1<redacted>');   // v2.4.165 — 로그에 찍는 주소는 자격증명 파라미터를 **모든 출현**에서 가려요(첫 출현만 가리던 .replace(key) · 접두 자르기 대신)
 
 const THREAD_ID = 'ref-thread';
@@ -182,6 +186,7 @@ function connect() {
     connected = true; backoff = 500;
     send('HELLO', {
       clientId: AGENT_ID + '-1', agentName: 'Reference (' + AGENT_ID + ')', role: UPSTREAM_KEY ? 'upstream' : ROLE, protocolVersion: '0.3', runId: null,
+      ...(KEYED ? { renewRequest: true } : {}),
       capabilities: {
         inbound: ['UserPrompt', 'Command', 'Cancel', 'Priority'],
         outbound: ['RUN_STARTED', 'RUN_FINISHED', 'RUN_ERROR', 'STEP_STARTED', 'STEP_FINISHED', 'TEXT_MESSAGE_START', 'TEXT_MESSAGE_CONTENT', 'TEXT_MESSAGE_END', 'TOOL_CALL_START', 'TOOL_CALL_RESULT', 'CUSTOM'],
