@@ -1,8 +1,8 @@
 {
   "$schema": "https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md#51-tiered-model-composition",
   "$comment": "Volatile model facts for the /subscaler tier-composition toggle. The DURABLE contract is the tier vocabulary + the routing rubric in Superscalar.md §5.1; this file carries only the perishable part (which concrete models occupy which tier today, and what each vendor actually accepts as an effort value). Replace the data, keep the vocabulary. Every row is expected to carry a confirmedBy URL — an unverifiable claim belongs in caveats[], not in models[].",
-  "asOf": "2026-09-23",
-  "method": "Six-axis live-source sweep (Anthropic / OpenAI / Google+xAI / open-weight / benchmarks / harness binding), each axis independently fact-checked by an adversarial pass instructed to refute; only vendor-page-confirmed ids and values were promoted here. Corrections applied included one fabricated model id, one shut-down model presented as current, and several mis-attributed benchmark sources. 2026-08-01 structural adjustment (not a data re-sweep): the T1.5 · Frontier Execution band was split out of T1 — the 2026-07-25 sweep recorded the 2x intra-T1 price spread ($10/$50 vs $5/$25) but the tier boundary absorbed it, and a temperament axis (think-to-action latency) surfaced in dogfood that the price rows do not carry. claude-opus-5 moved T1 → T1.5, and a per-account entitlement-check rule was added for invitation-gated models (claude-mythos-5). 2026-09-02 refresh — ANTHROPIC AXIS ONLY, triggered by the 2026-09-01 Fable 5.1 / Mythos 5.1 launch (revisit rule (c): new flagship). Re-derived from the vendor models-overview, per-model overview, what's-new, migration-guide, pricing, model-deprecations and Claude Code model-config pages fetched the same day; two dated watchlist items were re-baselined (Sonnet 5 introductory pricing made permanent; Opus 4.1 retired 2026-08-05 with zero pins found in this estate). OpenAI, Google, xAI and open-weight rows were NOT re-swept in this pass and carry their 2026-07-25 / 2026-08-16 values; their watchlist items stand unverified. 2026-09-05 refresh, four axes, each run as two independent collectors plus one adversarial verifier that re-opened every cited URL and marked each field confirmed / unconfirmed / contradicted: Google Flash line (gemini-3.8-flash added, 3.7 Flash demoted to previous-generation), OpenAI (gpt-6-astra added; the entire gpt-5.6 family was found repriced on 2026-07-30 and is corrected here — neither collector looked at the sibling rows while standing on the pricing page), Anthropic Fable 5.1 delta (the Claude Code changelog for 2.1.257–2.1.261 was transcribed verbatim after both collectors mis-versioned three Fable-specific fixes when they summarized it), and harness binding (the Claude Code subagent model resolution order was found REVERSED since v2.1.251 — this registry carried the pre-reversal order through three refreshes because a version-range delta cannot see drift that entered before the range; Codex CLI 0.153.4 moved the bundled default to Astra). One standing claim was contradicted by the vendor page and re-baselined: the Google 2.5-family shutdown 2026-10-16 appears on no row of the deprecations page as of 2026-09-05. xAI and open-weight rows were NOT re-swept and remain on their 2026-07-25 / 2026-08-16 values. 2026-09-23 TARGETED refresh (not a full re-survey): four new rows (claude-opus-5-5, gpt-6-sol, gpt-6-luna, grok-4.7) from vendor model/pricing/changelog pages read verbatim by one web-fetch lane per vendor (Anthropic, Claude Code, OpenAI+Codex, xAI), cross-checked against installed-harness primary sources (Claude Code 2.1.280 --help, codex-cli 0.156.0 client model catalog, grok CLI 1.0.40 model list); sibling rows annotated where the new models changed their standing. Google, DeepSeek, Zhipu, Moonshot and harnessProfile were NOT re-researched in this pass.",
+  "asOf": "2026-09-29",
+  "method": "Six-axis live-source sweep (Anthropic / OpenAI / Google+xAI / open-weight / benchmarks / harness binding), each axis independently fact-checked by an adversarial pass instructed to refute; only vendor-page-confirmed ids and values were promoted here. Corrections applied included one fabricated model id, one shut-down model presented as current, and several mis-attributed benchmark sources. 2026-08-01 structural adjustment (not a data re-sweep): the T1.5 · Frontier Execution band was split out of T1 — the 2026-07-25 sweep recorded the 2x intra-T1 price spread ($10/$50 vs $5/$25) but the tier boundary absorbed it, and a temperament axis (think-to-action latency) surfaced in dogfood that the price rows do not carry. claude-opus-5 moved T1 → T1.5, and a per-account entitlement-check rule was added for invitation-gated models (claude-mythos-5). 2026-09-02 refresh — ANTHROPIC AXIS ONLY, triggered by the 2026-09-01 Fable 5.1 / Mythos 5.1 launch (revisit rule (c): new flagship). Re-derived from the vendor models-overview, per-model overview, what's-new, migration-guide, pricing, model-deprecations and Claude Code model-config pages fetched the same day; two dated watchlist items were re-baselined (Sonnet 5 introductory pricing made permanent; Opus 4.1 retired 2026-08-05 with zero pins found in this estate). OpenAI, Google, xAI and open-weight rows were NOT re-swept in this pass and carry their 2026-07-25 / 2026-08-16 values; their watchlist items stand unverified. 2026-09-05 refresh, four axes, each run as two independent collectors plus one adversarial verifier that re-opened every cited URL and marked each field confirmed / unconfirmed / contradicted: Google Flash line (gemini-3.8-flash added, 3.7 Flash demoted to previous-generation), OpenAI (gpt-6-astra added; the entire gpt-5.6 family was found repriced on 2026-07-30 and is corrected here — neither collector looked at the sibling rows while standing on the pricing page), Anthropic Fable 5.1 delta (the Claude Code changelog for 2.1.257–2.1.261 was transcribed verbatim after both collectors mis-versioned three Fable-specific fixes when they summarized it), and harness binding (the Claude Code subagent model resolution order was found REVERSED since v2.1.251 — this registry carried the pre-reversal order through three refreshes because a version-range delta cannot see drift that entered before the range; Codex CLI 0.153.4 moved the bundled default to Astra). One standing claim was contradicted by the vendor page and re-baselined: the Google 2.5-family shutdown 2026-10-16 appears on no row of the deprecations page as of 2026-09-05. xAI and open-weight rows were NOT re-swept and remain on their 2026-07-25 / 2026-08-16 values. 2026-09-23 TARGETED refresh (not a full re-survey): four new rows (claude-opus-5-5, gpt-6-sol, gpt-6-luna, grok-4.7) from vendor model/pricing/changelog pages read verbatim by one web-fetch lane per vendor (Anthropic, Claude Code, OpenAI+Codex, xAI), cross-checked against installed-harness primary sources (Claude Code 2.1.280 --help, codex-cli 0.156.0 client model catalog, grok CLI 1.0.40 model list); sibling rows annotated where the new models changed their standing. Google, DeepSeek, Zhipu, Moonshot and harnessProfile were NOT re-researched in this pass. 2026-09-29 TARGETED refresh: claude-sonnet-5-5 added from vendor pages read verbatim (per-model overview, what's new, models overview, pricing, effort, prompting guide, deprecations, launch page raw HTML, Claude Code model-config and changelog raw) by one lane plus an independent changelog/live-probe lane, then reconciled field by field (37 claims); Claude Code 2.1.284 accepted all five effort values live. planGating defaults that had drifted since v2.1.280 (Opus 5.5 became the default model) were corrected in the same pass. A separate communityRank block (see its own $comment) was added from an X sentiment sweep — it is a signal layer, not a sweep of models[] values.",
   "revisit": {
     "date": "2026-10-08",
     "trigger": "2026-10-08 is ~5 weeks after the 2026-09-02 Anthropic-axis refresh (inside the ~5.5-week one-flagship-generation staleness bound the 2026-07-25 sweep set) and lands BEFORE the October shutdown cluster so pins can be moved while they still resolve: claude-haiku-4-5-20251001 retirement floor 2026-10-15, the Google 2.5-family shutdown that the 2026-07-25 sweep dated 2026-10-16 — RE-BASELINED 2026-09-05: that date is on no row of the deprecations page and gemini-2.5-pro / -flash / -flash-lite all read «No shutdown date announced», so the Gemini CLI's 2.5 defaults are stale but not on a known clock, OpenAI o-series/o4-mini shutdown 2026-10-23. A second, post-cluster re-baseline right after 2026-10-23 is the follow-on. FORCE AN EARLIER REVISIT on: (a) any Fable 5 deprecation notice (retirement floor 2027-06-09, none announced as of 2026-09-02) — the Claude Code `fable` alias already resolves to 5.1 so a pinned `claude-fable-5` is the only surface that would break; (b) a new flagship from any of the five vendors — the OpenAI and Google Flash rows were refreshed 2026-09-05; the Google Pro/Lite, xAI and open-weight rows are two passes stale; (c) — RE-SCOPED 2026-09-05: the vendor states Claude Code, claude.ai, Claude Managed Agents and the Agent SDK keep the thinking prefix intact, so this can only fire from code here that assembles a `messages` array itself (MCP servers, the board-observer turn spawner, scripted lanes) — the first observed `The block is bound to a different conversation` 400 or a non-empty input_transformations in any harness here — that is the preserved-thinking check reaching an account older than 2026-08-31, which the vendor says future models will enforce for everyone; (d) any Claude Code release note touching model aliases (`fable`/`best`), since v2.1.255 silently rewrote pinned `claude-fable-5` settings to the alias; (e) the first observed silent effort clamp or model substitution in a scripted run. (f) 2026-09-23 addendum: the gpt-5.5 Codex retirement on 2026-10-14 and the claude-haiku-4-5-20251001 retirement floor on 2026-10-15 both fall one week after this date — the revisit stays on 2026-10-08 so pins can move before either lands.",
@@ -18,7 +18,7 @@
       "gemini-3.1-pro-preview leaving preview, or a Pro-class successor. The 2026-07-21 launch shipped three Flash-class models and no 3.5/3.6 Pro, leaving 3.1 Pro the only Pro-class Gemini 3 and still preview-labelled five months in. Timing unannounced. Source: https://techcrunch.com/2026/07/21/google-releases-three-new-gemini-models-but-no-3-5-pro/",
       "Gemini 4 — Google stated on 2026-07-21 that it has \"already started our most ambitious pre-training run yet, for Gemini 4\". Confirmed as said; zero timing signal. Source: https://9to5google.com/2026/07/21/gemini-3-6-flash-launch/",
       "Kimi K3 open weights — Moonshot reportedly committed to releasing full weights by 2026-07-27 under a Modified MIT licence. Two days out from this sweep and directly checkable: either the files exist or they don't. Source: https://platform.kimi.ai/docs/pricing/kimi-k3",
-      "A Haiku-class refresh from Anthropic. Still no Haiku 5 as of 2026-09-02: claude-haiku-4-5-20251001 (Oct 2025, Feb 2025 knowledge cutoff) is the oldest active model, the only one with no effort parameter, and its retirement floor 2026-10-15 is the nearest Anthropic lifecycle date — the vendor's 60-day-notice rule means a deprecation notice could land any day. Inferred from absence of evidence, NOT a vendor statement. Source: https://platform.claude.com/docs/en/models/overview",
+      "A Haiku-class refresh from Anthropic — NOW VENDOR-STATED: «Claude Haiku 5.5 … will join the Claude 5.5 family in the coming weeks» (Sonnet 5.5 launch page, 2026-09-28). claude-haiku-4-5-20251001 is still the oldest active model and the only one with no effort parameter; its floor 2026-10-15 is the nearest Anthropic lifecycle date, but as of 2026-09-29 the status table shows it Active with no deprecation notice, and the 60-day-notice rule means it cannot retire on 2026-10-15. Source: https://www.anthropic.com/claude-sonnet-5-5",
       "Grok 5 — confirmed in training on Colossus 2 in xAI's 2026-01-28 Series E announcement; the Q1 and Q2 2026 windows both passed with no release. Low confidence on timing. Source (secondary, x.ai returns 403): https://www.nxcode.io/resources/news/grok-5-release-date-latest-news-2026",
       "DeepSeek legacy id removal — deepseek-chat and deepseek-reasoner were stated to deprecate 2026/07/24 15:59 UTC, i.e. already past at time of writing. Verify whether the ids still resolve or now error. Source: https://api-docs.deexseek.com/quick_start/pricing (canonical: https://api-docs.deepseek.com/quick_start/pricing)",
       "UPDATED 2026-09-23: Anthropic moved the band to claude-opus-5-5; OpenAI answered the question with a price split instead of a mode split — GPT-6 Sol ($2/$10) sits in T2, so the band still has no OpenAI member. T1.5 band membership beyond Anthropic — the band currently holds one model (claude-opus-5). At revisit, check whether gpt-5.6-sol's standard-vs-pro mode split maps onto T1.5-vs-T1 (the vendor prices Sol at the Opus-5 level, $5/$30, with reasoning.mode pro as the deliberation rung), and whether any vendor has since shipped a separate start-here flagship id that belongs in the band. 2026-09-05, THIRD RE-ASK with new data pulling both ways: gpt-6-astra does NOT belong in T1.5 (it is the expensive end of its vendor's split and the Codex docs keep Terra as the start-here), while gpt-5.6-sol at $4/$20 promo is now 40% of Astra — the T1.5 price shape — but just LOST the start-here designation the band definition requires. Either measure it at this revisit or record that the band is Anthropic-only by construction; a fourth deferral is drift. Source: https://developers.openai.com/api/docs/models · https://developers.openai.com/api/docs/pricing",
@@ -44,7 +44,9 @@
       "OpenAI gpt-5.5 retirement 2026-10-14 is recorded in the Codex client catalog; confirm on the API deprecations page and check whether the gpt-5.6 family (now more expensive than GPT-6 at every tier) receives a deprecation notice.",
       "Codex `ultra` effort — client-side «automatic task delegation» on Astra/6-Sol/5.6-Sol/5.6-Terra; not in the API enumerations. Track whether it becomes an API value and whether its spawned work is billed/limited per lane.",
       "Grok CLI default drift — docs say grok-4.7 is «the default model of the coding agent»; grok CLI 1.0.40 reports grok-4.6 (2026-09-23). Also the grok-4.5 model page lists xhigh as supported while the reasoning guide says 4.5 treats xhigh as high — two vendor pages disagree; do not rely on xhigh for 4.5.",
-      "Microsoft Foundry alias lag — `opus` resolves to Opus 4.6 and `sonnet` to Sonnet 4.5 there (Claude Code model-config, 2026-09-23); a Foundry-hosted lane bound by alias runs two generations behind."
+      "Third-party alias lag — widened 2026-09-29: `sonnet` lags on every non-Anthropic-API provider (Claude Platform on AWS → Sonnet 4.6; Amazon Bedrock / Google Cloud / Microsoft Foundry → Sonnet 4.5), and on Foundry `opus` still resolves to Opus 4.6 (Claude Code model-config). A lane bound by alias off the Anthropic API runs one to two generations behind.",
+      "Sonnet 5.5 safeguard fallback — cyber declines re-run on Sonnet 5 (visible), biology declines refuse; the API server-side fallback is beta. Watch for the Cyber Verification Program opening for Sonnet 5.5 («Soon, cyberdefenders will be able to apply») and for the first observed Sonnet 5.5 → Sonnet 5 substitution in a scripted lane. Pairs with the Opus 5.5 fallback item.",
+      "Models the 2026-09-29 community-rank sweep saw in heavy practitioner use but that have NO registry row: GLM-5.3 / 5.3 Flash, DeepSeek V4.1 Flash, Qwen3.8 (27B / Flash / Max), MiniMax M3, MiMo V2.6. Their existence is community-reported only — confirm each on its vendor page at the next open-weight sweep before adding rows."
     ]
   },
   "tiers": [
@@ -60,7 +62,7 @@
     },
     {
       "tier": "T2 · Agentic Execution",
-      "definition": "The workhorse: near-frontier coding capability at roughly a third to a half of T1 per-token cost, tuned for tool loops and multi-file edits, with a full effort ladder and a large (≥400K, usually ~1M) context window. Today: claude-sonnet-5 / claude-opus-4-8, gpt-5.6-terra, gemini-3.6-flash / gemini-3.5-flash, grok-4.3, glm-5.2, deepseek-v4-pro.",
+      "definition": "The workhorse: near-frontier coding capability at roughly a third to a half of T1 per-token cost, tuned for tool loops and multi-file edits, with a full effort ladder and a large (≥400K, usually ~1M) context window. Today: claude-sonnet-5-5 (since 2026-09-28; claude-sonnet-5 stays as the superseded legacy member) / claude-opus-4-8, gpt-5.6-terra, gemini-3.6-flash / gemini-3.5-flash, grok-4.3, glm-5.2, deepseek-v4-pro.",
       "selectionIntent": "The default tier for the main coding loop once the decision is already made and the spec is written. Select whenever the work is 'do the thing correctly' rather than 'decide what the thing is'. This is where a maintainer should spend most tokens; escalation to T1 should be the exception you can name a reason for."
     },
     {
@@ -129,13 +131,27 @@
     },
     {
       "provider": "Anthropic",
+      "displayName": "Claude Sonnet 5.5",
+      "apiModelId": "claude-sonnet-5-5",
+      "tier": "T2 · Agentic Execution",
+      "aliases": [
+        "`claude-sonnet-5-5` is a fixed id with no date suffix («Dateless IDs are their own pinned snapshot; the alias row repeats them»). Same id on Google Cloud, Microsoft Foundry and Claude Platform on AWS; Bedrock id `anthropic.claude-sonnet-5-5`. Claude Code `sonnet` alias → Sonnet 5.5 from v2.1.284 ON THE ANTHROPIC API ONLY — on Claude Platform on AWS `sonnet` still → Sonnet 4.6, on Amazon Bedrock / Google Cloud's Agent Platform / Microsoft Foundry → Sonnet 4.5. A lane bound to `sonnet` on the Anthropic API changed model on upgrade; pin `claude-sonnet-5` if a lane must stay."
+      ],
+      "contextWindow": "1M input / 128K max output (300K on the Message Batches API with the output-300k-2026-03-24 beta header). No long-context surcharge. Same tokenizer as Sonnet 5 («the same text produces the same token counts»). Minimum cacheable prompt 512 tokens (Sonnet 5: 1,024). In Claude Code on the Anthropic API it always runs the 1M window, «no usage credits required on any plan»; behind an LLM gateway it is budgeted at 200K unless `sonnet[1m]` is selected.",
+      "pricingPerMTok": "$2 input / $10 output — identical to Sonnet 5 («the same prices as Claude Sonnet 5, including prompt caching and batch processing rates»); no introductory period. Cache write 5m $2.50 / 1h $4; cache read $0.20 (standard 0.1x — NOT Opus 5.5's 0.05x, so on a cache-hot loop Sonnet 5.5 and Opus 5.5 pay the same $0.20 per cached MTok and the saving is only on fresh input/output). Batch $1 / $5. inference_geo \"us\" 1.1x. No fast mode (Opus-only). Vendor cost claim is per task, not per token: «costs up to 30% less per task than its predecessor» via fewer tokens.",
+      "effort": "output_config.effort = low | medium | high (DEFAULT on the Claude API) | xhigh | max — but Claude Code and the Claude apps default to MEDIUM («In Claude Code and our apps, the default effort is set to Medium, while the Claude Platform defaults to High»), so an unset-effort lane means different things in the two harnesses. LEVELS ARE RECALIBRATED: «a level doesn't produce the same amount of thinking as the same level on Claude Sonnet 5. Run a fresh effort sweep» — there is no rung-equivalence line like Sonnet 5's «medium comparable to Sonnet 4.6 at high». Vendor start points: «start with `medium` for well-specified tasks and move to `high` for harder or longer ones» (agentic coding); `medium`/`low` for chat; «Use `xhigh` or `max` only where your evals show a quality gain»; for agentic coding «set `max_tokens` to 128,000 … and stream». Thinking is adaptive and on by default but NOT always-on: the floor is thinking:{type:\"between_tools\"} (no up-front thinking; accepted at low/medium/high only, 400 at xhigh/max, and with it per-message effort changes 400). thinking:{type:\"disabled\"} and budget_tokens → 400. Per-message effort (beta mid-conversation-output-config-2026-07-01) supported with adaptive thinking. In Claude Code thinking cannot be turned off (MAX_THINKING_TOKENS=0 has no effect). Live (Claude Code 2.1.284, --model claude-sonnet-5-5): all five values accepted; unknown value warns «Valid values: low, medium, high, xhigh, max».",
+      "notes": "Released 2026-09-28 («Latest.»), retirement not sooner than 2027-09-28; second model of the Claude 5.5 family. Vendor: «The best combination of speed and intelligence», latency «Fast» — that description moved from Sonnet 5, which now sits under «Legacy models (still available)» (still Active, floor 2027-06-30, price unchanged). Positioning: «a faster, lower-cost complement to Claude Opus 5.5 … strongest at well-scoped everyday tasks, fixing bugs, and creating polished documents, slides, and spreadsheets»; «For the hardest long-horizon work, an Opus model is the better choice». Vendor-stated: «runs 30%+ faster, and costs up to 30% less for most work»; «On several benchmarks, Sonnet 5.5 at Low or Medium effort beats Sonnet 5's best score for about a tenth of the cost per task». Vendor-stated benchmarks (launch table, Sonnet 5.5 / Sonnet 5 / Opus 5.5): Terminal-Bench 4.0 70.6% / 10.3% / 66.4% (Opus at Xhigh); FrontierCode 1.1 Main 52.1% at Xhigh, 46.2% at Max / 42.4% / 54.4% (vendor: «scores lower at Max effort than at Xhigh» — Max ran Claude Code's review skill with many subagents and went out of scope); CursorBench 4.0 55.5 / 34.1 / 57.8; GDPval-AA v2.1 1844 / 1449 / 1846. FIRST Sonnet with Opus-class cyber safeguards, fallback and reasoning-extraction classifiers: refusals arrive as HTTP 200 stop_reason \"refusal\" with stop_details cyber|bio|frontier_llm|reasoning_extraction|general_harms; API server-side fallback (beta) retries only cyber and frontier_llm, on Sonnet 5; in Claude Code cyber-flagged requests re-run on Sonnet 5 (visibly) and biology-flagged ones END IN A REFUSAL (no bio fallback). Prompts that ask the model to put its reasoning in the reply invite reasoning_extraction declines. BREAKING vs Sonnet 5 (five): `disabled` → `between_tools`; forced tool use (`tool_choice` any/tool) → 400, also on token counting; thinking blocks bound to model+conversation (reads Sonnet 5/Opus 4.8/Haiku 4.5 blocks, not Opus 5/5.5/Fable/Mythos; a changed prefix before a replayed block is a 400 by default for accounts created on or after 2026-08-31) and to the producing account; `computer_20251124` rejected on the Claude API and Google Cloud (fine on Bedrock); the advisor tool rejects Opus 4.8/4.7/Sonnet 5 advisors. Non-failing but loud: text between tool calls arrives as progress-update thinking blocks that are EMPTY at the default display — set display:\"updates\" (thinking-display-updates-2026-08-18) or use between_tools. Gains over Sonnet 5: mid-conversation system messages and tool changes, per-message effort. Behaviour at low/medium on long agentic tasks: «more likely to stop and check in with the user before it finishes», and at low it «can skip verifying a change» — an unattended lane at the Claude Code default (medium) needs an explicit keep-going/verify instruction. Knowledge cutoff (reliable and training) Jun 2026. Requires Claude Code ≥ v2.1.284. Haiku 5.5 announced «in the coming weeks», not released.",
+      "confirmedBy": "https://platform.claude.com/docs/en/models/sonnet-5-5/overview"
+    },
+    {
+      "provider": "Anthropic",
       "displayName": "Claude Sonnet 5",
       "apiModelId": "claude-sonnet-5",
       "tier": "T2 · Agentic Execution",
       "contextWindow": "1M input / 128k max output",
       "pricingPerMTok": "$2 input / $10 output — PERMANENT since 2026-09-01. The launch note called this introductory pricing through 2026-08-31 with a reversion to $3/$15; the vendor pricing page now states «is now the standard price. The previously scheduled increase … will not occur». Cache write $2.50 / $4, cache read $0.20, batch $1 / $5.",
       "effort": "output_config.effort = low | medium | high (default) | xhigh | max. Adaptive thinking on by default; manual budget_tokens removed; non-default temperature/top_p/top_k return 400.",
-      "notes": "Vendor: \"The best combination of speed and intelligence\"; latency \"Fast\". Retirement not sooner than 2027-06-30. Native 1M window on the Claude API with no 200K variant. Vendor effort ladder for this model: medium is \"Comparable to Claude Sonnet 4.6 at high effort\" — i.e. the cheap step-down is a generation-over-generation wash, which is the single most useful cost lever in this tier. xhigh reserved for \"the hardest coding and agentic tasks\". Note: mid-conversation system messages are NOT supported on Sonnet 5 (they are on Opus 5 / Opus 4.8 / Fable 5).",
+      "notes": "SUPERSEDED 2026-09-28 by claude-sonnet-5-5 — same $2/$10 and cache rates, same tokenizer. The models overview now lists Sonnet 5 under «Legacy models (still available)» (lifecycle still Active, floor 2027-06-30 unchanged), and the description line «The best combination of speed and intelligence» moved to Sonnet 5.5. Claude Code ≥ v2.1.284 resolves `sonnet` to Sonnet 5.5 on the Anthropic API only — pin `claude-sonnet-5` if a lane must stay. Sonnet 5 is now the cyber-fallback target for Sonnet 5.5 (API server-side fallback and Claude Code), so keep it resolvable wherever 5.5 runs. Kept here and dropped in 5.5: thinking:{type:\"disabled\"}, forced tool_choice any/tool, computer_20251124 on the Claude API / Google Cloud, Opus 4.8/4.7/Sonnet 5 as advisors. Claude Code default effort for Sonnet 5 is high («Claude Sonnet 5 defaults to `high` effort on the Claude API and Claude Code»). Previous notes: Vendor: \"The best combination of speed and intelligence\"; latency \"Fast\". Retirement not sooner than 2027-06-30. Native 1M window on the Claude API with no 200K variant. Vendor effort ladder for this model: medium is \"Comparable to Claude Sonnet 4.6 at high effort\" — i.e. the cheap step-down is a generation-over-generation wash, which is the single most useful cost lever in this tier. xhigh reserved for \"the hardest coding and agentic tasks\". Note: mid-conversation system messages are NOT supported on Sonnet 5 (they are on Opus 5 / Opus 4.8 / Fable 5).",
       "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview"
     },
     {
@@ -526,7 +542,7 @@
     {
       "taskShape": "Spec-complete implementation",
       "tier": "T2 · Agentic Execution",
-      "effort": "high default; drop to medium once evals hold — on Sonnet 5 medium is \"Comparable to Claude Sonnet 4.6 at high effort\"",
+      "effort": "medium first on Sonnet 5.5, high for harder/longer work — the vendor start point for agentic coding is «start with `medium` for well-specified tasks and move to `high` for harder or longer ones». Levels are recalibrated vs Sonnet 5 («Run a fresh effort sweep … rather than carrying over the setting you used on Claude Sonnet 5»), so there is no rung-equivalence line for 5.5. Harness caveat: Claude Code and the Claude apps default Sonnet 5.5 to medium while the Claude API defaults to high. (On the superseded Sonnet 5: medium is «Comparable to Claude Sonnet 4.6 at high effort».)",
       "why": "Vendor guidance is to \"Pick a smaller model when the work is routine. For example, edits you can describe precisely\" — once the decision is made the remaining risk is execution fidelity, which T2 buys at a third to a half the per-token cost."
     },
     {
@@ -577,7 +593,7 @@
     "NON-MONOTONICITY IS VENDOR-DOCUMENTED, not folklore. Claude Code's effort table says of max: \"Can improve performance on demanding tasks but may show diminishing returns and is prone to overthinking. Test before adopting broadly.\" The API docs are blunter for the Opus 4.7/4.8 line: \"On most workloads max adds significant cost for relatively small quality gains, and on some structured-output or less intelligence-sensitive tasks it can lead to overthinking.\" A blanket always-max policy is therefore a documented anti-pattern, not merely expensive.",
     "Effort level names are NOT comparable across models: \"The effort scale is calibrated per model, so the same level name does not represent the same underlying value across models.\" Any harness that stores one global effort setting and applies it to whatever model is active is storing a meaningless number — bind effort per model, as Claude Code does with per-subagent and per-skill `effort` frontmatter.",
     "Carried-over settings are actively harmful after a model change. Anthropic on Opus 5: \"If you carried effort settings over from an earlier model, run a fresh effort sweep on your evals rather than reusing them.\" This bites hardest in Claude Code, where Fable 5 / Opus 4.8 / Opus 4.7 HOLD their default effort until you make an explicit choice, but Opus 5 has no such hold — a level you set for another model silently carries over.",
-    "Step DOWN the ladder before stepping across tiers. Vendor guidance for Fable 5: \"Lower effort settings on Claude Fable 5 still perform well and often exceed xhigh performance on prior models.\" And for Sonnet 5, medium is \"Comparable to Claude Sonnet 4.6 at high effort.\" A generation bump usually means the cheap rung of the new model beats the expensive rung of the old one — check that before downgrading tier.",
+    "Step DOWN the ladder before stepping across tiers. Vendor guidance for Fable 5: \"Lower effort settings on Claude Fable 5 still perform well and often exceed xhigh performance on prior models.\" And for Sonnet 5, medium is \"Comparable to Claude Sonnet 4.6 at high effort.\" A generation bump usually means the cheap rung of the new model beats the expensive rung of the old one — check that before downgrading tier. 2026-09-28, Sonnet 5.5: «On several benchmarks, Sonnet 5.5 at Low or Medium effort beats Sonnet 5's best score for about a tenth of the cost per task» (vendor-stated) — the same generation-bump pattern, now inside T2. But its levels are recalibrated («a level doesn't produce the same amount of thinking as the same level on Claude Sonnet 5»), so step-down decisions need a fresh sweep, not a carried-over number; and one model now has two defaults (Claude API high, Claude Code/apps medium).",
     "Low effort is the intended subagent setting, and it changes tool behavior, not just prose. The effort docs list low's typical use as \"Simpler tasks that need the best speed and lowest costs, such as subagents\", and state that lower effort makes the model \"Combine multiple operations into fewer tool calls\" and \"Make fewer tool calls\". In a search or exploration lane, tool-call count is the dominant cost term, so low effort saves more than the token delta suggests.",
     "Effort is a behavioral signal, not a token budget: \"At lower effort levels, Claude will still think on sufficiently difficult problems, but it will think less than it would at higher effort levels for the same problem.\" You cannot use effort as a hard cost cap — pair it with max_tokens, and conversely at xhigh/max the docs tell you to set a LARGE max_tokens (\"Starting at 64k tokens\") or the model runs out of room mid-thought.",
     "Effort is a caching decision as much as a quality decision: \"Changing the effort value between requests invalidates prompt caching, so vary effort across workloads rather than within a conversation that relies on cache hits.\" For a long resident session, pick one level at session start and hold it; dynamic per-turn effort tuning can cost more than it saves.",
@@ -590,12 +606,12 @@
     "A T1 main inherits into every fan-out lane by default, and on Fable 5.1 that default is the expensive failure mode. Claude Code (v2.1.251+) resolves a subagent's model as per-invocation `model` → frontmatter `model` → CLAUDE_CODE_SUBAGENT_MODEL (a default, not a pin) → the main conversation's model, and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` (v2.1.257+) overrides all of them — including bindings a guard just approved, which is why the reference guard reads that variable, and a Workflow lane that omits opts.model does the same — so with Fable 5.1 as main, an unbound research fan-out runs at $10/$50 with $0.25 cache reads it mostly cannot use (each lane starts cache-cold). The vendor's own guidance points the other way twice: Opus 5 is «the model the docs tell you to start with», and on Fable 5.1 «At low … often competitive with Claude Opus and Claude Sonnet models on cost per task while scoring higher» — i.e. when Fable IS the right lane, its cheap rung is the first thing to try, and `ultracode` (which sends xhigh) is a session setting that a lane inherits unless bound. Registry-level rule (2026-09-02): bind model AND effort on every lane; T1 only for lanes whose failure cost justifies it (architecture, ambiguous requirements, final adversarial review); never let a T1 × xhigh|max lane exist by inheritance. Reference mechanism: a PreToolUse guard that reads the session model and denies unbound Agent/Workflow lanes (plugins/superscalar/reference/lane-model-guard.cjs). Sources: https://code.claude.com/docs/en/model-config · https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1"
   ],
   "planGating": [
-    "Claude Code — Pro: `default` resolves to Sonnet 5. Opus 5 IS selectable (Anthropic calls it \"the strongest model on Claude Pro\"), but Opus with the 1M window \"Requires usage credits\" on Pro — it is included with subscription only on Max/Team/Enterprise. Sonnet 4.6 at 1M needs credits on every plan including Max.",
-    "Claude Code — Max (5x/20x) and Team Premium seats: `default` resolves to Opus 5 (\"Max, Team Premium, Enterprise pay-as-you-go, and Anthropic API: defaults to Opus 5\"). Opus is auto-upgraded to 1M context with no configuration. Fable (5.1 since 2026-09-01 — `fable` resolves to the latest Fable, `best` to the latest Fable where available else `opus`) is never the default on any account type or provider: reach it via /model fable; it needs Claude Code ≥ v2.1.255, may bill usage credits depending on plan and seat tier (the picker shows «Requires usage credits» and interactive sessions ask consent first; Enterprise members on org billing are not prompted), and it is hidden entirely under zero data retention. Settings still pinned to the literal `claude-fable-5` are auto-rewritten to the `fable` alias on the first run of v2.1.255+.",
-    "Claude Code — Team Standard and Enterprise subscription seats: `default` resolves to Sonnet 5, not Opus 5 (\"Pro, Team Standard, and Enterprise subscription seats: defaults to Sonnet 5\"). Enterprise pay-as-you-go orgs get Opus 5. Seat billing tier, not company size, decides the tier an agent starts on.",
+    "Claude Code — Pro: `default` resolves to Opus 5.5 since v2.1.280 («Pro, Max, Team, Enterprise, and Anthropic API: defaults to Opus 5.5»; «Before v2.1.280, `default` resolved to Sonnet 5 on Pro and Team Standard»). Opus with the 1M window \"Requires usage credits\" on Pro — it is included with subscription only on Max/Team/Enterprise. Sonnet 5.5 runs the 1M window in Claude Code on the Anthropic API with «no usage credits required on any plan». Sonnet 4.6 at 1M needs credits on every plan including Max.",
+    "Claude Code — Max (5x/20x) and Team Premium seats: `default` resolves to Opus 5.5 since v2.1.280 (previously Opus 5). Opus is auto-upgraded to 1M context with no configuration. Fable (5.1 since 2026-09-01 — `fable` resolves to the latest Fable, `best` to the latest Fable where available else `opus`) is never the default on any account type or provider: reach it via /model fable; it needs Claude Code ≥ v2.1.255, may bill usage credits depending on plan and seat tier (the picker shows «Requires usage credits» and interactive sessions ask consent first; Enterprise members on org billing are not prompted), and it is hidden entirely under zero data retention. Settings still pinned to the literal `claude-fable-5` are auto-rewritten to the `fable` alias on the first run of v2.1.255+.",
+    "Claude Code — Team Standard and Enterprise subscription seats: `default` resolves to Opus 5.5 since v2.1.280 — before that it resolved to Sonnet 5 on Team Standard (the seat-tier split this row used to record is gone for the default model). Seat billing tier still decides credit gating for 1M Opus and for Fable.",
     "Claude Code — Enterprise governance: admins can disable individual models org-wide or per custom role (Haiku can never be disabled, so every member always retains one usable model), set an organization default model that replaces the account-type default, and — Enterprise only — set a MAXIMUM EFFORT LEVEL PER MODEL PER ROLE. Levels above the cap vanish from the /effort picker and --effort requests run at the cap; the clamp warns in interactive and plain --print runs but \"with json or stream-json output or in background agents, the clamp applies silently.\" A scripted agent can therefore run below its requested effort with no signal.",
-    "Claude Code — Anthropic API key: `default` resolves to Opus 5, full lineup available, `opus`→Opus 5 / `sonnet`→Sonnet 5 / `best`→Fable 5.1 where entitled. No subscription cap; org TPM/RPM limits apply, and Opus 5 draws on a separate rate-limit bucket from the combined Opus 4.x pool.",
-    "Claude Code — third-party providers are a generation behind on aliases: on Microsoft Foundry `default` resolves to Sonnet 4.5, and the `opus` alias still resolves to Opus 4.6 there. Amazon Bedrock and Google Cloud's Agent Platform resolved `default` to Sonnet 4.5 before v2.1.207. Organization effort limits are NOT delivered on Bedrock/Google Cloud/Foundry/Claude Platform on AWS — use availableModels in managed settings instead.",
+    "Claude Code — Anthropic API key: `default` resolves to Opus 5.5 (v2.1.280+), full lineup available, `opus`→Opus 5.5 / `sonnet`→Sonnet 5.5 (v2.1.284+) / `best`→Fable 5.1 where entitled. No subscription cap; org TPM/RPM limits apply, and Opus 5 draws on a separate rate-limit bucket from the combined Opus 4.x pool.",
+    "Claude Code — third-party providers are a generation behind on aliases: on Microsoft Foundry `default` resolves to Sonnet 4.5, and the `opus` alias still resolves to Opus 4.6 there. Amazon Bedrock and Google Cloud's Agent Platform resolved `default` to Sonnet 4.5 before v2.1.207. Organization effort limits are NOT delivered on Bedrock/Google Cloud/Foundry/Claude Platform on AWS — use availableModels in managed settings instead. 2026-09-29 (Claude Code model-config): the `sonnet` alias splits by provider — Anthropic API → Sonnet 5.5; Claude Platform on AWS → Sonnet 4.6; Amazon Bedrock / Google Cloud's Agent Platform / Microsoft Foundry → Sonnet 4.5. Sonnet 5.5 itself is offered on all of those platforms by id — only the alias lags.",
     "Claude Code — subagent model resolution order (this is where a tiered-composition policy actually lands): CLAUDE_CODE_SUBAGENT_MODEL → per-invocation `model` parameter → subagent frontmatter `model` → main conversation's model. Frontmatter accepts sonnet/opus/haiku/fable, a full id, or `inherit` (the default), and a separate `effort` frontmatter field overrides the session level while that subagent runs. Note the built-in Explore agent no longer forces Haiku: as of v2.1.198 it inherits the main model, capped at Opus on the Claude API — define a project subagent named Explore with `model: haiku` to put exploration back on a cheap lane. Concurrency default is 20 subagents per session (CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS), and ultracode sessions are exempt from that limit.",
     "Claude Code — fast mode: Opus 5 and Opus 4.8 only, at $10/$50 per MTok for up to ~2.5x output tokens/sec. Heavily gated: an API research preview needing the fast-mode-2026-02-01 beta header plus account-manager/waitlist access; in Claude Code it requires usage credits turned on, draws from credits from the first token even when plan usage remains, needs Owner enablement on Team/Enterprise, is CLI-only (not the VS Code extension), and is unavailable on Bedrock/Google Cloud/Foundry/Claude Platform on AWS. Enable at session start — the first enable re-bills the whole context at fast-mode uncached input price. Opus 4.7 fast mode was REMOVED 2026-07-24 while Claude Code still treats 4.7 as fast-mode-capable, so /fast on 4.7 produces API rejections.",
     "Codex — Plus ($20/mo): gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.4, gpt-5.4-mini. Roughly 15-90 Sol messages per 5-hour window scaling to ~60-350 on Luna. This is the tier where Sol-on-every-lane is not viable — a wide fan-out must run Terra or Luna.",
@@ -627,7 +643,8 @@
         "ultracode is a SESSION setting, not a lane setting: the Agent tool has no per-invocation effort, so a Fable lane under an ultracode session inherits xhigh unless its definition sets `effort`; Workflow `agent()` opts.effort is the per-lane knob. Verify with `/tasks` (v2.1.242+), which names each running subagent's model and its effort when the definition or skill set one — assert observed behavior, not requested settings.",
         "2026-09-23 (v2.1.280): `opus` → claude-opus-5-5 on the Anthropic API, Claude Platform on AWS, Amazon Bedrock and Google Cloud («Opus 5.5 requires Claude Code v2.1.280 or later»); on Microsoft Foundry `opus` still → Opus 4.6. The same release changed the default model on Pro and Team Standard plans from Sonnet to Opus, so an UNBOUND lane on those plans moved up a tier on upgrade.",
         "2026-09-23: a family alias in the per-invocation `model` or frontmatter resolves to the main conversation's EXACT model when the main belongs to that family («including any [1m] suffix») — with an Opus 5.5 main, `model: opus` is the main model, not a separate choice. Explore stays capped at Opus on the Claude API, which now means Opus 5.5.",
-        "2026-09-23 (v2.1.280): «an effort level saved before /effort became per-model [no longer applies] to newly released models such as Opus 5.5; they start at their default until you pick a level». The API default for Opus 5.5 is medium (one rung below Opus 5); the Claude Code default was not confirmed from verbatim text — check /effort before assuming a lane runs at high."
+        "2026-09-23 (v2.1.280): «an effort level saved before /effort became per-model [no longer applies] to newly released models such as Opus 5.5; they start at their default until you pick a level». The API default for Opus 5.5 is medium (one rung below Opus 5); the Claude Code default was not confirmed from verbatim text — check /effort before assuming a lane runs at high.",
+        "2026-09-28 (v2.1.284): `sonnet` → claude-sonnet-5-5 on the Anthropic API only («Sonnet 5.5 requires Claude Code v2.1.284 or later»); other providers keep older Sonnets under the alias. New-model effort default is medium (Opus 5.5 and Sonnet 5.5 default to `medium`), and a top-level `effortLevel` saved before per-model effort does not apply to models released after Opus 5.5 — a Sonnet lane that relied on inherited high effort now runs at medium unless its frontmatter / `effort` sets it. Content fallback: Sonnet 5.5 cyber flags re-run on Sonnet 5 (off the Anthropic API this needs ANTHROPIC_DEFAULT_SONNET_MODEL or a Sonnet 5 entry, plus an Opus pin / Opus 4.8 entry, or fallback stays off); biology flags end in refusal."
       ]
     },
     {
@@ -691,7 +708,7 @@
     "OPENAI'S EFFORT VOCABULARY IS INTERNALLY INCONSISTENT ACROSS FOUR VENDOR PAGES and this was not resolved: config-reference gives model_reasoning_effort = minimal|low|medium|high|xhigh; the subagents page gives ultra|max|xhigh|high|medium|low; the Codex models page shows UI rungs Light/Low, Medium, High, Extra High, Max, Ultra; the API reasoning guide gives none|minimal|low|medium|high|xhigh|max. Whether `ultra` and `max` are valid config.toml or per-agent strings, or only UI labels, is unknown — as is whether they propagate to spawned subagents. Test before relying on the top two rungs.",
     "EXACT SUBSCRIPTION USAGE LIMITS ARE UNPUBLISHED BY ANTHROPIC. No token count, prompt count or weekly-limit number exists in official docs or the help centre for Pro / Max 5x / Max 20x / Team / Enterprise — only relative statements. Every specific figure in circulation (e.g. \"~44,000 tokens per 5-hour window for Pro\") is third-party and unusable for capacity planning. Use /usage. Likewise, whether Max has a Sonnet-specific weekly limit could not be confirmed; the error reference documents only session, weekly, and a model-specific Opus limit.",
     "THE CODEX PER-PLAN MESSAGE BANDS IN planGating ARE VENDOR-PUBLISHED RANGES, NOT GUARANTEES, and the claim that GPT-5.5 remains selectable on every paid plan is inference — the Codex models doc lists it as recommended but makes no plan-gating statement. Whether Free/Go can select any GPT-5.6 model at all is unstated (\"limited model access\"). Whether Terra and Luna are selectable in standard ChatGPT conversations versus only Codex/Work is third-party only.",
-    "RELEASE DATES FOR SEVERAL ANTHROPIC IDS DO NOT EXIST IN VENDOR DOCS. Confirmed this turn: Opus 5 = 2026-07-24, Fable 5 and Mythos 5 = 2026-06-09, Sonnet 5 = 2026-06-30. NOT confirmed: Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6 — the finder inferred these by subtracting a year from the retirement floors (2027-05-28, 2027-04-16, 2027-02-05, 2027-02-17). That inference is undocumented and demonstrably fails elsewhere: claude-haiku-4-5-20251001 has a 2026-10-15 floor, a 12.5-month gap. Treat those four release dates as unknown. 2026-09-02 addition: Fable 5.1 and Mythos 5.1 = 2026-09-01 (stated on the per-model overview page).",
+    "RELEASE DATES FOR SEVERAL ANTHROPIC IDS DO NOT EXIST IN VENDOR DOCS. Confirmed this turn: Opus 5 = 2026-07-24, Fable 5 and Mythos 5 = 2026-06-09, Sonnet 5 = 2026-06-30. NOT confirmed: Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6 — the finder inferred these by subtracting a year from the retirement floors (2027-05-28, 2027-04-16, 2027-02-05, 2027-02-17). That inference is undocumented and demonstrably fails elsewhere: claude-haiku-4-5-20251001 has a 2026-10-15 floor, a 12.5-month gap. Treat those four release dates as unknown. 2026-09-02 addition: Fable 5.1 and Mythos 5.1 = 2026-09-01 (stated on the per-model overview page). 2026-09-29 addition: Sonnet 5.5 = 2026-09-28 (per-model overview; deprecations floor 2027-09-28).",
     "\"LEGACY\" IS NOT A LIFECYCLE STATUS FOR THE OPUS/SONNET 4.x LINE. Anthropic's Model status table lists claude-opus-4-8, 4-7, 4-6, claude-opus-4-5-20251101, claude-sonnet-4-6, claude-sonnet-4-5-20250929 and claude-haiku-4-5-20251001 all as ACTIVE; only claude-opus-4-1-20250805 is Deprecated. \"Legacy models\" is merely the collapsed-accordion heading on the overview page. Do not tell a maintainer these models are on a deprecation path — they are not, and Opus 4.8 in particular is the designated automatic fallback target.",
     "ONE DIRECT CONTRADICTION I COULD NOT SETTLE: the verifier reported gemini-3-flash-preview listed on the Gemini API pricing page at $0.50 in / $3.00 out with a free tier — which would make it the cheapest thinking-capable Gemini 3 with a full minimal-to-high ladder, a genuine T4 contender. My own fetch of the same page today returned a table that does NOT include it. Because it is contested, I excluded it from the registry. A maintainer evaluating cheap Gemini lanes should re-read that pricing table by hand. Note separately that gemini-3-pro-preview IS retired (shut down 2026-03-09) despite still appearing in Gemini CLI's hardcoded picker.",
     "MOST xAI FACTS REST ON PAGES THAT ARE 404 OR 403. Confirmed from docs.x.ai this turn: grok-4.5's id, aliases, 500k window and tiered pricing; grok-4.3's and grok-build-0.1's pricing. NOT confirmed: any release date for any current Grok model (docs.x.ai/developers/release-notes served content ending July 2025 on fetch), the entire Grok Build CLI flag/config surface (docs.x.ai/build/reference/cli and /build/models both 404), all plan gating (x.ai/news and x.ai/build/changelog return 403), and whether grok-4.3 or grok-4.20-0309-reasoning accept reasoning_effort at all. Grok Build's per-subagent config keys in particular are entirely secondary-sourced.",
@@ -717,7 +734,8 @@
     "GEMINI 3.8 FLASH — UNCONFIRMED AND ABSENT FROM ITS ROW: the Vertex AI endpoint string, launch stage and region list (cloud.google.com 301s to docs.cloud.google.com, which served navigation only); rate limits; every head-to-head benchmark delta against 3.7 Flash (the launch post names six benchmarks but only three absolute figures were readable verbatim); and Gemini 3.8 Flash Cyber's API id (none published). The row's GA claim rests on ai.google.dev alone. Cost parity with 3.7 Flash is a RATE-CARD claim, not a bill claim — the model card warns it «might use more tokens to maximize performance, especially at higher effort levels».",
     "THE GOOGLE 2.5-FAMILY SHUTDOWN DATE IN THIS REGISTRY WAS CONTRADICTED BY THE VENDOR PAGE. The 2026-07-25 sweep recorded 2026-10-16 for gemini-2.5-pro / -flash / -flash-lite and the 2026-09-02 revisit trigger repeated it; on 2026-09-05 the deprecations page carries no such date on any of its 43 dated rows and lists all three as «No shutdown date announced». One of the two collectors reported having re-checked the page and confirmed the date — a re-check that could not have produced that answer. The claim is re-baselined in the watchlist and revisit trigger; the cause (rescinded notice vs. mis-attribution) is undetermined.",
     "2026-09-23 refresh gaps: (1) Claude Code changelog 2.1.262–2.1.274 was NOT transcribed (the fetch tool returns verbatim text only for the first ~40K characters; 2.1.275–2.1.280 were transcribed) — procedure step ⑦ is incomplete for that span. (2) openai.com «Introducing GPT-6 Sol and Luna» returned 403 and was not read; the AutomationBench comparison seen only in a search snippet is NOT recorded. (3) Codex CLI 0.155.x details came only from an untrusted page summary. (4) x.ai/news index returned 403; the Grok 4.7 post was read directly.",
-    "2026-09-23: GPT-6 Sol = T2 and GPT-6 Luna = T3 are this registry's calls from vendor price and positioning («balance intelligence and cost» / «cost-sensitive, high-volume»), not vendor-stated tiers. Sol moving DOWN a band relative to gpt-5.6-sol (T1) is the point: same word, different generation, different tier."
+    "2026-09-23: GPT-6 Sol = T2 and GPT-6 Luna = T3 are this registry's calls from vendor price and positioning («balance intelligence and cost» / «cost-sensitive, high-volume»), not vendor-stated tiers. Sol moving DOWN a band relative to gpt-5.6-sol (T1) is the point: same word, different generation, different tier.",
+    "SONNET 5.5 PLAN AVAILABILITY IS NOT STATED PER PLAN. The only vendor line is «Anyone can chat with Claude using Sonnet 5.5 on Claude.ai»; no page read on 2026-09-29 names Free / Pro / Max / Team / Enterprise individually, and a third-party claim that Free stays on Sonnet 5 is unverified. Its T2 placement is a registry judgement from positioning («a faster, lower-cost complement to Claude Opus 5.5») and price, not a vendor-stated tier; the vendor also says «Sonnet 5.5 at Max effort even performs comparably to Opus 5.5» on several evaluations while «Opus 5.5 remains clearly stronger at complex, open-ended work requiring sustained judgment». Launch benchmarks are vendor-stated; the Sonnet 5 Terminal-Bench 4.0 figure (10.3%) looks anomalous but is verbatim vendor text."
   ],
   "harnessProfile": {
     "$comment": [
@@ -1228,5 +1246,369 @@
     ],
     "lastResearched": "2026-08-02",
     "researchLog": "1차 조사(2026-08-02): 공급사 1차 문서 5종 정독. 확증 3 · **반증 2** · 미확정 2. 반증이 나온 게 이 계약의 값이에요 — 지웠으면 다음 조사가 같은 자리를 처음부터 다시 발견했을 거예요. 커뮤니티·SNS 합산은 아직 안 돌렸어요(공급사 문서만으로 A급이 나와서 2차로 미룸). 2차 합산(2026-08-02): 남은 미확정 1건(Fable 예시 뭉치)에 개수를 직접 다루는 공통 문서(A) + 별도 도메인 관측(D)을 얹어 confirmed — 뜻은 «예시 0» 이 아니라 «뭉치를 3~5 로». Opus 재주입 refuted 는 계약대로 유지. 이로써 1차가 남긴 미확정 대기열은 비었어요."
+  },
+  "communityRank": {
+    "$comment": [
+      "What practitioners say, aggregated — NOT what a model can do. Every rank here is an aggregate of evidence class E in harnessProfile.evidenceContract («community/SNS single report — a signal, not evidence»); summing many E reports makes a stronger signal, never a capability claim.",
+      "Use: (1) tie-break between models that the measured data (models[] facts, a trust-cost measurement where one exists) leaves equal; (2) choose which models are worth measuring; (3) flag divergence — a model the community ranks high but that measures poorly, or the reverse, is the most informative place to look (harness differences, task-mix differences, or hype). Never route on rank alone; the neverAct rule of the evidence contract applies.",
+      "Ranks are RELATIVE to the field present at asOf, for agentic / development work. They go stale faster than models[] facts because sentiment moves with releases, quota policy and harness changes — the block carries its own revisit date.",
+      "Subjects are named as practitioners name them. apiModelIds lists the registry rows a subject maps to; an empty list means the subject has no row (a harness, a bundle, or a model not yet confirmed on a vendor page — see revisit.watchlist)."
+    ],
+    "asOf": "2026-09-29",
+    "revisit": {
+      "date": "2026-10-13",
+      "why": "Two weeks after the sweep: the newest subject (Sonnet 5.5) had about one day of posts, and sentiment for a new release settles over the first weeks."
+    },
+    "scale": {
+      "S": "Clear consensus best-in-class right now for serious agentic / development work.",
+      "A": "Strong — preferred by many practitioners, with named reservations.",
+      "B": "Solid, with a recognised niche or clear trade-offs.",
+      "C": "Useful mainly as a cheaper or faster worker under a stronger planner.",
+      "D": "Mixed-to-negative for agentic work; kept for specific narrow uses.",
+      "E": "Superseded, regressed, or widely avoided for agentic work.",
+      "F": "Consensus poor (empty at this sweep — every consensus-negative subject was better described as E or G).",
+      "G": "Below F — a flagship widely described as lagging the current frontier for agentic work. Evidence-gated: a model enters G only when the posts say it has fallen behind, never because of who made it. The letter is mnemonic — at introduction the only G-tier model came from Google, whose other models were placed on the evidence at C, D or unranked.",
+      "unranked": "Too little first-hand evidence, or the subject is a harness / bundle rather than a model."
+    },
+    "method": "X (Twitter) posts collected through the grok CLI's own X search tools (x_keyword_search, x_semantic_search, x_thread_fetch) in four vendor segments, window mainly 2026-08-01 to 2026-09-29, 2-3 collection runs per segment; posts tallied per subject by a separate model (not the collector), deduplicated by URL; vendor, staff, evaluator, news and promotional accounts excluded from the positive/negative tallies; weighting: head-to-head comparison on the same task > practitioner report with numbers > sentiment counts > engagement. Quota and harness complaints were separated from quality complaints where the post allowed it. A sample of posts was re-fetched in a fresh collector session to check existence, date and stance. Measured pitfall recorded for re-runs: restricting the grok CLI with `--tools <x_* names>` REMOVES the X tools from the session (the collector then silently falls back to web search) — run without --tools and deny only write-type tools.",
+    "verification": {
+      "sampled": 18,
+      "confirmed": 16,
+      "mismatched": 1,
+      "notFound": 1,
+      "confirmRate": 0.889,
+      "threshold": 0.8
+    },
+    "biasChecks": "The collector is xAI's own model: evidence for Grok models was checked for inflation and none was found (Grok 4.7: 53 posts, about two-thirds negative, including the most-engaged critical post). One benchmark vendor appears across three segments as the most-cited voice, so its posts are correlated evidence; templated / duplicate accounts were counted once.",
+    "ranks": [
+      {
+        "subject": "Claude Opus 5.5",
+        "apiModelIds": [
+          "claude-opus-5-5"
+        ],
+        "rank": "S",
+        "useFit": "Praised as the everyday agentic-coding/orchestration daily driver with good quota efficiency and long unattended runs; avoided for trivial questions (quota) and by some for prose.",
+        "evidencePosts": 69,
+        "confidence": "high"
+      },
+      {
+        "subject": "Claude Fable 5.1",
+        "apiModelIds": [
+          "claude-fable-5-1"
+        ],
+        "rank": "A",
+        "useFit": "Deep reasoning, hard planning, review and long-horizon advice; avoided as the executor because of 5-hour/weekly limits and $10/$50 cost.",
+        "evidencePosts": 52,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Claude Sonnet 5.5",
+        "apiModelIds": [
+          "claude-sonnet-5-5"
+        ],
+        "rank": "A",
+        "useFit": "Cheap/fast routine and scoped coding at low-medium effort, visual one-shots, worker under an Opus planner; avoid max effort (token blow-up) and hard long tasks where Opus 5.5 is still preferred.",
+        "evidencePosts": 66,
+        "confidence": "low",
+        "provisional": "about one day of posts at sweep time (released 2026-09-28), mostly re-shares of the vendor chart — re-rank at revisit"
+      },
+      {
+        "subject": "GPT-6 Astra",
+        "apiModelIds": [
+          "gpt-6-astra"
+        ],
+        "rank": "B",
+        "useFit": "Hard reasoning, computer use, vision, math/ML and orchestrating cheap Luna subagents; avoided as an unattended primary coder because of quota burn, cost and loops.",
+        "evidencePosts": 47,
+        "confidence": "medium"
+      },
+      {
+        "subject": "GPT-5.6 Sol",
+        "apiModelIds": [
+          "gpt-5.6-sol"
+        ],
+        "rank": "B",
+        "useFit": "Backend coding, orchestration and computer use; avoided on long open-ended runs where it over-engineers, and on Codex Ultra quota.",
+        "evidencePosts": 48,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Claude Fable 5",
+        "apiModelIds": [
+          "claude-fable-5"
+        ],
+        "rank": "B",
+        "useFit": "Frontend, one-shot builds and large-codebase analysis; avoided now for cost, safeguard aborts and being superseded by 5.1.",
+        "evidencePosts": 21,
+        "confidence": "low"
+      },
+      {
+        "subject": "GPT-6 Luna",
+        "apiModelIds": [
+          "gpt-6-luna"
+        ],
+        "rank": "C",
+        "useFit": "Cheap executor/subagent and bulk extraction under an Astra/Sol/Opus planner; not a primary coding agent.",
+        "evidencePosts": 30,
+        "confidence": "medium"
+      },
+      {
+        "subject": "DeepSeek V4 Flash / V4.1 Flash",
+        "apiModelIds": [
+          "deepseek-v4-flash"
+        ],
+        "rank": "C",
+        "useFit": "Cheap agent loops, best-of-N, self-hosted private agents and routine coding; avoided for hard correctness-critical tasks where it confidently fabricates.",
+        "evidencePosts": 60,
+        "confidence": "medium"
+      },
+      {
+        "subject": "GLM-5.3 / GLM-5.3 Flash",
+        "apiModelIds": [],
+        "rank": "C",
+        "useFit": "Primary cheap coding worker and offsec work off proprietary subs; avoided for polished visual/front-end output.",
+        "evidencePosts": 22,
+        "confidence": "low"
+      },
+      {
+        "subject": "Gemini 3.7 Flash",
+        "apiModelIds": [
+          "gemini-3.7-flash"
+        ],
+        "rank": "C",
+        "useFit": "Fast cheap refactors, scaffolding, tests and optimization loops over code written by stronger models; avoided for long multi-step engineering and design.",
+        "evidencePosts": 35,
+        "confidence": "low"
+      },
+      {
+        "subject": "Grok 4.6",
+        "apiModelIds": [
+          "grok-4.6"
+        ],
+        "rank": "C",
+        "useFit": "Fast coding and bug-finding in Cursor/Grok Build; avoided for non-coding tool use and security-sensitive edits.",
+        "evidencePosts": 14,
+        "confidence": "low"
+      },
+      {
+        "subject": "Grok 4.5",
+        "apiModelIds": [
+          "grok-4.5"
+        ],
+        "rank": "C",
+        "useFit": "Cheap fast default for ~90% of routine coding; avoided for hard bugs.",
+        "evidencePosts": 18,
+        "confidence": "low"
+      },
+      {
+        "subject": "Gemini 3.8 Flash",
+        "apiModelIds": [
+          "gemini-3.8-flash"
+        ],
+        "rank": "D",
+        "useFit": "Speed and cheap small well-defined tasks, long-context email/Workspace; avoided as an unattended agent (loops, quota burn, ignores AGENTS.md).",
+        "evidencePosts": 77,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Claude Sonnet 5",
+        "apiModelIds": [
+          "claude-sonnet-5"
+        ],
+        "rank": "D",
+        "useFit": "Worker/subagent under Opus; avoided where cheaper open models match it at a fraction of the cost.",
+        "evidencePosts": 27,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Qwen3.8 (27B / Flash / Flash-Next / Max)",
+        "apiModelIds": [],
+        "rank": "D",
+        "useFit": "Local/on-device coding and short parallel jobs; avoided for long agent runs and tool-heavy workflows.",
+        "evidencePosts": 59,
+        "confidence": "low"
+      },
+      {
+        "subject": "Kimi K3",
+        "apiModelIds": [
+          "kimi-k3"
+        ],
+        "rank": "D",
+        "useFit": "Frontend/visual/3D output at lower cost; avoided where latency matters (heavy reasoning makes it slow).",
+        "evidencePosts": 51,
+        "confidence": "low"
+      },
+      {
+        "subject": "DeepSeek V4 Pro",
+        "apiModelIds": [
+          "deepseek-v4-pro"
+        ],
+        "rank": "D",
+        "useFit": "Persistent agentic tasks and cheap sampling, writing near Opus at ~$0.02/story; avoided for daily coding where V4.1 Flash is faster and as good.",
+        "evidencePosts": 35,
+        "confidence": "low"
+      },
+      {
+        "subject": "GLM-5.2",
+        "apiModelIds": [
+          "glm-5.2"
+        ],
+        "rank": "D",
+        "useFit": "Obedient cheap fallback coder; avoided for hard long-horizon tasks now that 5.3 exists.",
+        "evidencePosts": 44,
+        "confidence": "low"
+      },
+      {
+        "subject": "GPT-5.6 Terra",
+        "apiModelIds": [
+          "gpt-5.6-terra"
+        ],
+        "rank": "D",
+        "useFit": "Bounded routine implementation in a Luna/Terra/Sol routing split; avoided for hard debugging.",
+        "evidencePosts": 21,
+        "confidence": "low"
+      },
+      {
+        "subject": "GPT-5.6 Luna",
+        "apiModelIds": [
+          "gpt-5.6-luna"
+        ],
+        "rank": "D",
+        "useFit": "Cheapest short scoped tasks and production pipes; avoided for long or ambiguous coding.",
+        "evidencePosts": 29,
+        "confidence": "low"
+      },
+      {
+        "subject": "GPT-6 Sol",
+        "apiModelIds": [
+          "gpt-6-sol"
+        ],
+        "rank": "E",
+        "useFit": "Cheap mid-tier implementer under an Opus planner; avoided as a primary agent (ignores instructions, stops early, needs babysitting).",
+        "evidencePosts": 43,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Grok 4.7",
+        "apiModelIds": [
+          "grok-4.7"
+        ],
+        "rank": "E",
+        "useFit": "Long unattended runs with 500k context when quota is abundant; avoided for cost-per-task, frontend/UX and tight loops.",
+        "evidencePosts": 53,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Claude Opus 5",
+        "apiModelIds": [
+          "claude-opus-5"
+        ],
+        "rank": "E",
+        "useFit": "Long iterative optimization and UI within subscription quota; avoided for precise scoped fixes and backend.",
+        "evidencePosts": 52,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Claude Haiku 4.5",
+        "apiModelIds": [
+          "claude-haiku-4-5-20251001"
+        ],
+        "rank": "E",
+        "useFit": "Cheap fast triage, classification and subagents without thinking; avoided for anything needing reasoning.",
+        "evidencePosts": 17,
+        "confidence": "low"
+      },
+      {
+        "subject": "Gemini 3.1 Pro (preview)",
+        "apiModelIds": [
+          "gemini-3.1-pro-preview"
+        ],
+        "rank": "G",
+        "useFit": "Everyday chat/research and occasional hard fixes for a few users; avoided for agentic coding and tool use.",
+        "evidencePosts": 34,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Claude Mythos 5 / 5.1 (restricted)",
+        "apiModelIds": [
+          "claude-mythos-5",
+          "claude-mythos-5-1"
+        ],
+        "rank": "unranked",
+        "useFit": "No community use signal; discussed only as a safety/news topic.",
+        "evidencePosts": 22,
+        "confidence": "low"
+      },
+      {
+        "subject": "GPT-5.5 Pro",
+        "apiModelIds": [
+          "gpt-5.5-pro"
+        ],
+        "rank": "unranked",
+        "useFit": "Math, proofs and long concept explanations; not used for agentic coding.",
+        "evidencePosts": 18,
+        "confidence": "low"
+      },
+      {
+        "subject": "Codex-branded variants (GPT-6 in Codex CLI, GPT-5.5 in Codex, GPT-5.3-Codex/Spark)",
+        "apiModelIds": [],
+        "rank": "unranked",
+        "useFit": "Codex harness praised for computer use and self-verification; criticized for quota burn.",
+        "evidencePosts": 65,
+        "confidence": "low"
+      },
+      {
+        "subject": "Grok Build (harness)",
+        "apiModelIds": [],
+        "rank": "unranked",
+        "useFit": "Fast loop with Grok 4.5/4.6 for small apps; avoided for shared tight quota and reliability.",
+        "evidencePosts": 18,
+        "confidence": "low"
+      },
+      {
+        "subject": "Gemini 3.5 Flash",
+        "apiModelIds": [
+          "gemini-3.5-flash"
+        ],
+        "rank": "unranked",
+        "useFit": "Light planning/SEO and a classifier win; re-reads files, literal writing.",
+        "evidencePosts": 7,
+        "confidence": "low"
+      },
+      {
+        "subject": "Gemini 3.5 Flash-Lite",
+        "apiModelIds": [
+          "gemini-3.5-flash-lite"
+        ],
+        "rank": "unranked",
+        "useFit": "Lowest-latency classification/tagging/summaries (0.96s vs Haiku 4.5 1.88s in one test); not an agent model.",
+        "evidencePosts": 11,
+        "confidence": "low"
+      },
+      {
+        "subject": "Gemini 4 Pro / 3.9 / 3.5 Pro (unreleased)",
+        "apiModelIds": [],
+        "rank": "unranked",
+        "useFit": "Arena visual one-shots only; said to be still behind Fable 5.1 and Astra.",
+        "evidencePosts": 6,
+        "confidence": "low"
+      },
+      {
+        "subject": "MiniMax (M3 / M3.1-Flash-Preview)",
+        "apiModelIds": [],
+        "rank": "unranked",
+        "useFit": "Quick Three.js/SVG demos and video; coding quality unsettled.",
+        "evidencePosts": 15,
+        "confidence": "low"
+      },
+      {
+        "subject": "MiMo V2.6 (Pro / Flash)",
+        "apiModelIds": [],
+        "rank": "unranked",
+        "useFit": "Cheap security/CyberGym tasks and daily Hermes/OpenClaw agents; not a frontier coder.",
+        "evidencePosts": 12,
+        "confidence": "low"
+      }
+    ]
   }
 }

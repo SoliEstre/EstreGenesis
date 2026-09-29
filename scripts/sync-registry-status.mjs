@@ -52,17 +52,43 @@ function render(reg) {
   L.push('      </ul>');
   L.push('      <div style="overflow-x:auto">');
   L.push('      <table class="data">');
-  L.push('        <thead><tr><th data-en="Tier" data-ko="티어">Tier</th><th data-en="Provider" data-ko="제공사">Provider</th><th data-en="Model" data-ko="모델">Model</th><th data-en="API id" data-ko="API id">API id</th><th data-en="Released" data-ko="출시">Released</th><th data-en="Source" data-ko="출처">Source</th></tr></thead>');
+  // 커뮤니티 랭크(여론 신호)는 모델 행과 따로 살아요 — 행이 없는 주체(하네스·미등록 모델)도 있어서 열 하나로는 다 못 담아요.
+  const cr = reg.communityRank;
+  const rankOf = new Map();
+  if (cr) for (const r of cr.ranks) for (const id of r.apiModelIds || []) rankOf.set(id, r);
+  const rankCell = (id) => { const r = rankOf.get(id); return r ? `<span class="badge">${esc(r.rank)}</span>${r.provisional ? '*' : ''}` : '—'; };
+  L.push(`        <thead><tr><th data-en="Tier" data-ko="티어">Tier</th><th data-en="Provider" data-ko="제공사">Provider</th><th data-en="Model" data-ko="모델">Model</th><th data-en="API id" data-ko="API id">API id</th><th data-en="Released" data-ko="출시">Released</th>${cr ? '<th data-en="Community" data-ko="커뮤니티">Community</th>' : ''}<th data-en="Source" data-ko="출처">Source</th></tr></thead>`);
   L.push('        <tbody>');
   for (const { m, rel } of rows) {
     const flag = isNew(rel) ? ' <span class="badge" data-en="new" data-ko="신규">new</span>' : '';
     let host = '';
     try { host = new URL(m.confirmedBy).host; } catch { host = 'source'; }
-    L.push(`          <tr><td>${esc(m.tier)}</td><td>${esc(m.provider)}</td><td>${esc(m.displayName)}${flag}</td><td><code>${esc(m.apiModelId)}</code></td><td>${esc(rel || '—')}</td><td><a href="${esc(m.confirmedBy)}" target="_blank" rel="noopener">${esc(host)}</a></td></tr>`);
+    L.push(`          <tr><td>${esc(m.tier)}</td><td>${esc(m.provider)}</td><td>${esc(m.displayName)}${flag}</td><td><code>${esc(m.apiModelId)}</code></td><td>${esc(rel || '—')}</td>${cr ? `<td>${rankCell(m.apiModelId)}</td>` : ''}<td><a href="${esc(m.confirmedBy)}" target="_blank" rel="noopener">${esc(host)}</a></td></tr>`);
   }
   L.push('        </tbody>');
   L.push('      </table>');
   L.push('      </div>');
+  if (cr) {
+    const letters = ['S', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'unranked'];
+    const v = cr.verification;
+    L.push('      <h3 id="community-rank" data-en="Community rank — what practitioners say" data-ko="커뮤니티 랭크 — 실사용자가 말하는 순위">Community rank — what practitioners say</h3>');
+    L.push(`      <p data-en="A relative rank (S, A–F, G) for agentic / development work, aggregated from X posts. It is a sentiment signal, not a capability measurement: it breaks ties, picks what to measure next, and flags where reputation and measurement disagree — it never routes a lane on its own. G sits below F for a flagship widely described as lagging the frontier; membership is evidence-gated, not by vendor." data-ko="에이전트·개발 작업에 대한 상대 순위(S, A–F, G)로, X 게시물을 모아 매겼어요. 능력 측정이 아니라 여론 신호예요 — 동률을 깨고, 다음에 잴 대상을 고르고, 평판과 실측이 어긋나는 자리를 표시해요. 이것만으로 레인을 배정하지는 않아요. G 는 F 아래 칸으로, 최전선에서 뒤처졌다고 널리 말해지는 플래그십 자리예요 — 제조사가 아니라 근거로 들어가요.">A relative rank (S, A–F, G) for agentic / development work, aggregated from X posts. It is a sentiment signal, not a capability measurement.</p>`);
+    L.push(`      <ul><li data-en="Swept ${esc(cr.asOf)} · next re-rank ${esc(cr.revisit.date)} · ${cr.ranks.length} subjects · sample re-check ${v.confirmed}/${v.sampled} confirmed" data-ko="조사 ${esc(cr.asOf)} · 다음 재랭크 ${esc(cr.revisit.date)} · 대상 ${cr.ranks.length}개 · 표본 재확인 ${v.sampled}건 중 ${v.confirmed}건 일치">Swept ${esc(cr.asOf)} · next re-rank ${esc(cr.revisit.date)} · ${cr.ranks.length} subjects · sample re-check ${v.confirmed}/${v.sampled} confirmed</li></ul>`);
+    L.push('      <div style="overflow-x:auto">');
+    L.push('      <table class="data">');
+    L.push('        <thead><tr><th data-en="Rank" data-ko="랭크">Rank</th><th data-en="Subjects" data-ko="대상">Subjects</th></tr></thead>');
+    L.push('        <tbody>');
+    for (const l of letters) {
+      const subs = cr.ranks.filter((r) => r.rank === l);
+      if (!subs.length && l !== 'F') continue;
+      const cell = subs.length ? subs.map((r) => `${esc(r.subject)}${r.provisional ? '*' : ''}${r.apiModelIds && r.apiModelIds.length ? '' : ' <small>(no registry row)</small>'}`).join(' · ') : '<small>—</small>';
+      L.push(`          <tr><td><span class="badge">${esc(l)}</span></td><td>${cell}</td></tr>`);
+    }
+    L.push('        </tbody>');
+    L.push('      </table>');
+    L.push('      </div>');
+    if (cr.ranks.some((r) => r.provisional)) L.push('      <p data-en="* provisional — too few days of posts at sweep time; re-ranked at the next sweep." data-ko="* 잠정 — 조사 시점에 게시물이 며칠치뿐이라 다음 조사 때 다시 매겨요."><small>* provisional — too few days of posts at sweep time; re-ranked at the next sweep.</small></p>');
+  }
   L.push(`      <p data-en="Full rows (context window, pricing, effort values, per-harness binding keys, watchlist and caveats) live in the registry file itself: model-registry.json." data-ko="전체 행(컨텍스트 창 · 가격 · effort 값 · 하네스별 바인딩 키 · 감시 목록 · 주의사항)은 레지스트리 파일에 있어요: model-registry.json."><a href="${REPO}" target="_blank" rel="noopener">model-registry.json</a></p>`);
   L.push('    </section>');
   L.push(END);

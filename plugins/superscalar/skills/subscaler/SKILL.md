@@ -53,6 +53,8 @@ Never bind a model id from memory. Model ladders move monthly; the registry carr
 
 Every delegated lane carries **explicit acceptance criteria + a test gate** written by the orchestrator before dispatch. The §2 cost-benefit gate runs FIRST (spawn at all?); this skill only picks the tier of lanes that pass it. The §3.1 Hyperbrief interlock for write/deploy/send lanes is unchanged.
 
+**Choosing inside a tier** (Superscalar §5.1.5), in this order: the model's measured **ceiling** covers the lane's aim → its harness still has **allowance** left → lowest **trust cost** (expected cost per verified result, where a measurement exists) → the registry's `communityRank` as the **tie-break only**. The rank is aggregated community sentiment — never the reason a lane lands on a model by itself; if it disagrees sharply with measured data, say so in the turn (that divergence is a finding). A `communityRank.revisit.date` in the past means the rank is stale: drop it from the tie-break rather than guess.
+
 ## Step 3 — check availability before you bind
 
 Tier ≠ entitlement. The registry's `planGating` records what each subscription actually exposes, and the gaps bite exactly where fan-out does:
