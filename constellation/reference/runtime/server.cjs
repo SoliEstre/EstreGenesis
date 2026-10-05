@@ -2621,6 +2621,10 @@ server.on('upgrade', (req, socket) => {
       // 전용 발신, Answer = 사람(board) 전용 → agent 발신은 전부 위조로 drop. Cancel 은 인증된
       // 발신자 자신의 pending 프롬프트에 한해 허용 (남의 선택지 철회/응답 위조 차단).
       if (msg && msg.type === 'CUSTOM' && ['SelectionExpired', 'SelectionResolved', 'SelectionAnswer'].includes(msg.name)) { console.warn('[ws sel] reserved-name %s from agent %s — drop', msg.name, conn.meta.agentId); return; }
+      // v2.4.170 §13.25.17 — OperatorFeedback 은 «운영자의 말» 이에요. 서버만 만들어요(wsRelayOperatorFeedback, source:'board').
+      //   에이전트 연결이 같은 이름을 보내면 source 는 위에서 'agent' 로 고쳐지지만, 소비자는 이름으로 분류해서
+      //   워커·피어가 운영자를 사칭할 수 있었어요(격리 보드 실측: main 에 1건 도달). Selection 예약 이름과 같은 처방이에요.
+      if (msg && msg.type === 'CUSTOM' && msg.name === 'OperatorFeedback') { console.warn('[ws] reserved-name OperatorFeedback from agent %s — drop (운영자의 말은 보드만)', conn.meta.agentId); return; }
       if (msg && msg.type === 'CUSTOM' && msg.name === 'SelectionCancel') {
         const _pid = msg.value && String(msg.value.promptId || '');
         const _iss = _pid && ((wsSelPend.get(_pid) || {}).agentId || wsSelDone.get(_pid));
