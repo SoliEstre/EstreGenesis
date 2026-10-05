@@ -387,6 +387,9 @@ const server = http.createServer((req, res) => {
     }
   }
   if (url === '/api/feedback' && req.method === 'POST') {
+    // 피드백은 main 에게 «운영자의 말» 로 전달돼요(wsRelayOperatorFeedback) — 계정이 있으면 로그인한 운영자만.
+    //   종전엔 출처 검사뿐이라, 출처 헤더를 안 붙이는 비-브라우저 클라이언트는 허용목록 안에서 운영자를 사칭할 수 있었어요.
+    if (operatorAuth.enabled() && !operatorAuth.operatorOfReq(req)) return sendJson(res, 401, { ok: false, error: 'login-required', hint: '피드백 전송은 운영자 로그인이 필요해요.' });
     if (!sameOriginPost(req)) { console.warn('[server] §13.25.11 /api/feedback POST cross-origin 거부 origin=%s host=%s', req.headers.origin || '-', req.headers.host || '-'); return sendJson(res, 403, CSRF_403); }
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
@@ -406,14 +409,19 @@ const server = http.createServer((req, res) => {
 
   // ── #3b Web Push (tier-2) — VAPID tickle 구독/발송 엔드포인트 (deps-0, push.cjs). UI 표면이라 #5a ui allowlist 게이트 적용. ──
   if (url === '/api/push/vapid-public-key') { return sendJson(res, 200, { key: push.publicKey() }); }
-  if (url === '/api/push/latest') { return sendJson(res, 200, push.latest()); }
+  // 공개 키 말고는 운영자 표면이에요 — latest 는 최근 알림(결정 제목)을 담고, subscribe 는 서버가 나중에 요청을 보낼 주소를 등록해요.
+  if (url === '/api/push/latest') { if (!readGate(req, res, '최근 알림')) return; return sendJson(res, 200, push.latest()); }
   if (url === '/api/push/subscribe' && req.method === 'POST') {
+    if (!readGate(req, res, '푸시 구독')) return;
+    if (!sameOriginPost(req)) return sendJson(res, 403, CSRF_403);
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
     req.on('end', () => { let sub; try { sub = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); } sendJson(res, 200, push.subscribe(sub)); });
     return;
   }
   if (url === '/api/push/unsubscribe' && req.method === 'POST') {
+    if (!readGate(req, res, '푸시 구독 해지')) return;
+    if (!sameOriginPost(req)) return sendJson(res, 403, CSRF_403);
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > MAX_BODY) req.destroy(); });
     req.on('end', () => { let b; try { b = JSON.parse(body); } catch { return sendJson(res, 400, { ok: false, error: 'bad json' }); } sendJson(res, 200, push.unsubscribe(b && b.endpoint)); });

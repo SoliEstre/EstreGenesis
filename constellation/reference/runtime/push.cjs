@@ -85,8 +85,17 @@ function publicKey() { return _appKey; }
 function latest() { return _latest; }
 function count() { return _subs.size; }
 
+// 구독 주소는 서버가 나중에 직접 요청을 보내는 곳이에요 — 아무 URL 이나 받으면 보드가 내부망(loopback·사설 대역·
+//   메타데이터 주소)으로 요청을 보내는 중계기가 돼요(SSRF). 그래서 https 이고 알려진 웹푸시 서비스 호스트일 때만 받아요.
+//   목록은 브라우저 벤더의 푸시 서비스예요 — 새 브라우저가 다른 호스트를 쓰면 여기 한 줄을 더해요.
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^android\.googleapis\.com$/, /(^|\.)push\.services\.mozilla\.com$/, /(^|\.)notify\.windows\.com$/, /(^|\.)push\.apple\.com$/];
+function isPushEndpoint(endpoint) {
+  let u; try { u = new URL(String(endpoint)); } catch { return false; }
+  return u.protocol === 'https:' && !u.port && PUSH_HOSTS.some((re) => re.test(u.hostname));
+}
 function subscribe(sub) {
   if (!sub || !sub.endpoint) return { ok: false, error: 'no endpoint' };
+  if (!isPushEndpoint(sub.endpoint)) return { ok: false, error: 'endpoint-not-allowed', hint: 'https 웹푸시 서비스 주소만 받아요' };
   _subs.set(sub.endpoint, sub);
   _saveSubs();
   return { ok: true, count: _subs.size, vapidPublicKey: _appKey };
@@ -129,6 +138,8 @@ async function pushAll(p) {
   const dead = [];
   let sent = 0;
   for (const sub of [..._subs.values()]) {
+    // 파일에서 읽은 옛 구독도 같은 기준 — 검사 전에 저장된 임의 주소로는 보내지 않고 정리해요.
+    if (!isPushEndpoint(sub.endpoint)) { dead.push(sub.endpoint); continue; }
     let u; try { u = new URL(sub.endpoint); } catch { dead.push(sub.endpoint); continue; }
     const origin = `${u.protocol}//${u.host}`;
     let jwt = jwtByOrigin.get(origin);
@@ -202,4 +213,4 @@ function maybePush(msg) {
   pushAll({ title, body, name: who }).catch(() => {});
 }
 
-module.exports = { init, publicKey, latest, count, subscribe, unsubscribe, pushAll, maybePush, pushSuppressedCount, pushRateAllow, pushRateReset };
+module.exports = { isPushEndpoint, init, publicKey, latest, count, subscribe, unsubscribe, pushAll, maybePush, pushSuppressedCount, pushRateAllow, pushRateReset };
