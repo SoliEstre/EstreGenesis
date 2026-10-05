@@ -1,11 +1,12 @@
 'use strict';
 // index.cjs — 업링크 조립: 설정 읽기 → 투영기 · 상태/키/스풀 · 전송층을 엮고 서버가 부를 «세 개의 손잡이» 를 돌려줘요.
 //
-//   start({dir, getState, getAgents, log}) → {onBoardBroadcast(msg), onStateChange(text), stop()} | null
+//   start({dir, getState, getAgents, inject, selectionState, selectionIssuer, log}) → {onBoardBroadcast(msg), onStateChange(text), stop()} | null
 //
 // **서버와의 계약 (가산 · 읽기 전용).** 서버는 «uplink.json 이 있을 때만» 이 파일을 require 해요(지연 require — 없으면 이 코드는 로드조차 안 돼요: 타이머 0 · 네트워크 0 · 파일 0).
 //   이 모듈이 서버에서 읽는 건 셋뿐이에요 — ① 보드로 가는 프레임(onBoardBroadcast) ② state.json 의 새 텍스트(onStateChange) ③ 접속 현황 getter(getAgents).
-//   서버 쪽에 주입하는 hook(명령 실행)은 없어요 — 받은 명령은 전송층이 «거절 + 감사» 로만 처리해요.
+//   명령 실행은 서버가 «verb 마다 하나씩» 넘기는 고정 실행기(inject — 열쇠 집합이 정확히 exec.cjs 의 INJECTORS)로만 일어나요. 범용 «프레임을 통째로 받는» hook 은 없어요.
+//   inject 가 없거나 규격이 아니면 받은 명령은 전부 거절돼요(exec-unavailable). selectionState 는 서버가 «이 선택지는 이미 닫혔다» 를 아는 만큼만, selectionIssuer 는 서버가 «이 선택지의 답을 보낼 발급자» 로 아는 에이전트를 알려 주는 읽기 전용 조회예요(둘 다 읽기만 — 서버 상태를 바꾸지 않아요).
 //
 // **start 는 던지지 않아요.** 설정이 틀렸거나 토큰·잠금이 안 되면 «이 업링크는 안 켠다» 를 한 줄로 말하고 null 을 돌려줘요 — 서버는 업링크 없이 그대로 돌아요.
 //   (한 줄만: 같은 사유를 반복해서 말하지 않아요.)
@@ -18,6 +19,7 @@ const { createProjector, ID_RE } = require('./project.cjs');
 const { UplinkStore } = require('./store.cjs');
 const { KeyReader, DecisionSync } = require('./items.cjs');
 const { Transport, UPLINK_VERSION } = require('./uplink.cjs');
+const { createExecutor, SelectionTracker } = require('./exec.cjs');
 
 const REACHABLE_MS = 7 * 24 * 3600 * 1000;      // §13.9.4 reachable = «최근 붙은 이력이 있는 임시 피어» — 최근의 기준은 7일(그보다 오래 안 보이면 offline)
 const EPHEMERAL_KINDS = new Set(['peer', 'upstream', 'collab']);
@@ -135,8 +137,15 @@ function start(opts) {
       if (r.keysChanged || r.changes.length) transport.notifyChange();
     }
 
+    // 명령 실행 레인 — 서버가 «고정 실행기» 를 안 줬거나 상태를 못 열면 `createExecutor` 가 «전부 거절» 실행기를 돌려줘요(던지지 않아요).
+    const selections = new SelectionTracker({ secret: store.secret, serverState: opts.selectionState, serverIssuer: opts.selectionIssuer });
+    const executor = createExecutor({
+      cfg, dir: opts.dir, keys, store, getState: () => (opts.getState ? opts.getState() : lastStateText), selections,
+      inject: opts.inject, now: () => clock.now(), audit: (row) => store.audit(row), log,
+    });
+
     const transport = new Transport({
-      cfg, store, log, clock, readToken,
+      cfg, store, log, clock, readToken, executor: (c) => executor.handle(c),
       timers: opts.timers, rand: opts.rand, spoolMaxBytes: opts.spoolMaxBytes,
       flushMs: opts.flushMs, heartbeatMs: opts.heartbeatMs, pollWaitS: opts.pollWaitS, requestTimeoutMs: opts.requestTimeoutMs,
       buildHeartbeat,
@@ -153,6 +162,7 @@ function start(opts) {
 
     return {
       onBoardBroadcast(msg) {
+        selections.note(msg);
         const env = projector.project(msg);
         const nm = msg && msg.type === 'CUSTOM' && typeof msg.name === 'string' ? msg.name : null;
         if (nm && PRESENCE_NAMES.has(nm)) transport.notifyChange();
@@ -169,6 +179,7 @@ function start(opts) {
       },
       stop() {
         try { transport.stop(); } catch (_) { /* noop */ }
+        try { executor.close(); } catch (_) { /* noop */ }
         if (store) { store.close(); store = null; }
       },
       _transport: transport,

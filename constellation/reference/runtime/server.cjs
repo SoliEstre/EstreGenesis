@@ -2880,12 +2880,104 @@ server.listen(PORT, WS_BIND, () => {
     console.warn(`[server] ⚠ WS_PRIMARY_AGENT 미설정 — WS_PRIMARY_ID 가 generic default 'main-agent' 입니다. 메인 세션의 agentId 와 다르면 그 세션이 local 로 분류돼요. 기동/재기동 시 WS_PRIMARY_AGENT=<main agentId> 주입 권장 (SetMain 핸드오프로도 전환 가능).`);
   }
 });
+// [uplink-inject-begin] 명령 실행기 — verb 마다 하나씩 «고정» 이에요. uplink.json 이 없으면 이 함수들은 «불리지 않아요»(정의만 있고 로드 시 아무 일도 안 해요: 타이머 · 네트워크 · 파일 · 로그 없음).
+//   **범용 hook 은 없어요.** 프레임이든 요청 객체든 «통째로 받아서 내보내는» 함수는 하나도 없고, 각 함수는 검증을 통과한 칸(uplink/exec.cjs 가 칸별로 지어 넘겨요)만 읽어서 프레임을 «칸별로» 지어요.
+//   모든 프레임에 같은 도장({via:'uplink', cmdHash, proof, operator})이 «서버 쪽에서» 찍혀요. 에이전트는 이 도장을 만들 수 없어요: OperatorFeedback·Selection* 이름은 에이전트 연결에서 막혀 있고(v2.4.170),
+//   DECISION_* 는 «source 가 board 일 때만» 사람의 결정으로 읽히는데 에이전트 연결은 source 를 board 로 못 박을 수 없어요(§13.25.17).
+const _UP_STR = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+function _uplinkStamp(prov) {
+  return { via: 'uplink', cmdHash: _UP_STR(prov && prov.cmdHash, 64), proof: _UP_STR(prov && prov.proof, 16), operator: _UP_STR(prov && prov.operator, 140) };
+}
+// 서버가 만든 프레임을 한 에이전트에게 — wsRelayOperatorFeedback 과 같은 꼬리(회수 열쇠 · 부재 시 재전달 · board 미러 · 이력). source 는 board 로 못 박아요.
+function _uplinkEmit(name, value, target, keyPrefix) {
+  const ev = wscore.event('CUSTOM', { name, value });
+  ev.source = 'board';
+  ev.targetAgentId = target;
+  _wsStampRelayKey(ev, keyPrefix);
+  wsNormTs(ev);
+  const d = wsAgents.get(target);
+  if (d && d.alive) d.send(ev);
+  _relayPendingAdd(target, ev);
+  wsToBoards(ev);
+  wsRecord(ev);
+}
+// POST /api/feedback 이 하는 일과 «같아요»: 파일에 한 줄 + wsRelayOperatorFeedback. 모양도 대시보드의 결정 답({kind:'decision', id, question, choice, text, accept?, atts, at}) 그대로이고 도장만 더해져요.
+function _uplinkOperatorDecision(a, prov) {
+  const s = _uplinkStamp(prov);
+  const entry = { kind: 'decision', id: _UP_STR(a.id, 200), question: _UP_STR(a.question, 16000), choice: typeof a.choice === 'string' ? a.choice : null, text: _UP_STR(a.text, 8000), atts: [], at: _UP_STR(a.at, 40) };
+  if (a.accept === 'recommended') entry.accept = 'recommended';
+  entry.via = s.via; entry.cmdHash = s.cmdHash; entry.proof = s.proof; entry.operator = s.operator;
+  entry.receivedAt = new Date().toISOString();
+  fs.appendFileSync(FEEDBACK, JSON.stringify(entry) + '\n');
+  wsRelayOperatorFeedback(entry);
+}
+// 보류 — 결정 패널의 항목(state.json decisions[])은 대시보드 답과 같은 «OperatorFeedback» 줄기로 메인에게 가요(메인이 이미 읽는 길). DECISION_DEFER 는 Hyperbrief 결정 id 와 재검토 일자를 가진 다른 가족이라
+//   패널 항목의 보류를 거기에 실으면 메인이 «모르는 id 의 Hyperbrief 보류» 로 읽어요. defer:true 는 새 칸이고 choice 는 null, text 는 비어 있어요(운영자 말을 지어내지 않아요).
+function _uplinkDecisionDefer(a, prov) {
+  const s = _uplinkStamp(prov);
+  const entry = { kind: 'decision', id: _UP_STR(a.id, 200), question: _UP_STR(a.question, 16000), choice: null, text: '', defer: true, atts: [], at: _UP_STR(a.at, 40) };
+  entry.via = s.via; entry.cmdHash = s.cmdHash; entry.proof = s.proof; entry.operator = s.operator;
+  entry.receivedAt = new Date().toISOString();
+  fs.appendFileSync(FEEDBACK, JSON.stringify(entry) + '\n');
+  wsRelayOperatorFeedback(entry);
+}
+// Hyperbrief 응답 — 가지(branch)마다 규격의 이름으로 메인에게(board → main, Hyperbrief.md §8.1). accept · request_investigation 은 DECISION_RESPONSE(선택한 meta-branch 가 value 에),
+//   defer 는 DECISION_DEFER, reject_framing 은 DECISION_REJECT_FRAMING(§13.16.9 허용 목록의 이름). 소비자는 source 가 'board' 일 때만 사람의 결정으로 읽어요.
+function _uplinkHyperbriefRespond(a, prov) {
+  const s = _uplinkStamp(prov);
+  const branch = _UP_STR(a.branch, 32);
+  const name = branch === 'defer' ? 'DECISION_DEFER' : branch === 'reject_framing' ? 'DECISION_REJECT_FRAMING' : (branch === 'accept' || branch === 'request_investigation') ? 'DECISION_RESPONSE' : null;
+  if (!name) throw new Error('unknown branch');
+  const note = _UP_STR(a.note, 4000);
+  const value = { decision_id: _UP_STR(a.decisionId, 200), meta_branch_chosen: branch, decided_at: _UP_STR(a.at, 40), decided_by: s.operator };
+  if (name === 'DECISION_RESPONSE') value.user_premortem = note; else value.reason = note;
+  value.via = s.via; value.cmdHash = s.cmdHash; value.proof = s.proof; value.operator = s.operator;
+  _uplinkEmit(name, value, WS_PRIMARY_ID, 'hbdec');
+}
+// 선택지 답 — 대시보드의 target-less SelectionAnswer 와 같은 길(§v2.4.77): 발급자는 서버가 아는 것(pending · tombstone)을 먼저, 서버가 모르는(타임아웃을 선언하지 않은) 프롬프트는 프레임을 본 쪽이 넘긴 발급자를 써요.
+//   발급자를 끝내 모르면 대시보드와 같이 메인에게 가고 msgId 없이 나가요.
+function _uplinkSelectionAnswer(a, prov) {
+  const s = _uplinkStamp(prov);
+  const pid = _UP_STR(a.promptId, 200);
+  const issuer = (wsSelPend.get(pid) || {}).agentId || wsSelDone.get(pid) || (typeof a.issuer === 'string' ? a.issuer : null);
+  const labels = Array.isArray(a.selectedLabels) ? a.selectedLabels.filter((x) => typeof x === 'string').slice(0, 64) : [];
+  const value = { promptId: pid, selectedLabels: labels, answeredAt: Date.now(), via: s.via, cmdHash: s.cmdHash, proof: s.proof, operator: s.operator };
+  const ev = wscore.event('CUSTOM', { name: 'SelectionAnswer', value });
+  ev.source = 'board';
+  if (issuer) { ev.targetAgentId = issuer; ev.msgId = 'sel-ans-' + pid + '-' + Date.now(); }
+  wsNormTs(ev);
+  const dst = issuer ? wsAgents.get(issuer) : wsPrimaryAgent();
+  if (dst && dst.alive) dst.send(ev);
+  if (ev.targetAgentId && ev.msgId) _relayPendingAdd(ev.targetAgentId, ev);
+  wsToBoards(ev);
+  wsRecord(ev);   // SelectionAnswer 는 여기서 pending 을 풀어요(wsSelPendClear)
+}
+// 발화 — 대시보드의 UserPrompt({promptId, text, atts})와 같은 모양, 대상은 지정한 에이전트 또는 메인. 회수 열쇠가 붙어서 대상이 잠깐 없어도 다시 가요.
+function _uplinkUserPrompt(a, prov) {
+  const s = _uplinkStamp(prov);
+  const target = typeof a.target === 'string' && a.target ? a.target.slice(0, 64) : WS_PRIMARY_ID;
+  const value = { promptId: 'p-up-' + Date.now().toString(36), text: _UP_STR(a.text, 8000), atts: [], via: s.via, cmdHash: s.cmdHash, proof: s.proof, operator: s.operator };
+  _uplinkEmit('UserPrompt', value, target, 'uprompt');
+}
+// 서버가 «이 선택지는 닫혔다» 를 아는 만큼만(읽기 전용) — 타임아웃을 선언한 프롬프트만 추적돼요.
+function _uplinkSelectionState(promptId) { const p = String(promptId); return wsSelPend.has(p) ? 'pending' : (wsSelDone.has(p) ? 'done' : null); }
+// 서버가 이 선택지의 답을 «보낼 곳» 으로 아는 발급자(_uplinkSelectionAnswer 가 쓰는 규칙과 같은 우선순위 — pending → tombstone). 업링크가 «검증한 보기의 주인» 과 대조해요(읽기 전용).
+function _uplinkSelectionIssuer(promptId) { const p = String(promptId); return (wsSelPend.get(p) || {}).agentId || wsSelDone.get(p) || null; }
+const _uplinkInject = Object.freeze({
+  decisionDefer: _uplinkDecisionDefer,
+  hyperbriefRespond: _uplinkHyperbriefRespond,
+  operatorDecision: _uplinkOperatorDecision,
+  selectionAnswer: _uplinkSelectionAnswer,
+  userPrompt: _uplinkUserPrompt,
+});
+// [uplink-inject-end]
 // [uplink-begin] 상향 전송 — `uplink.json` 이 있을 때만 켜요. 없으면 이 한 줄(존재 확인) 말고는 아무 일도 없어요: require 없음 · 타이머 없음 · 네트워크 없음 · 파일 생성 없음 · 로그 없음.
-//   업링크가 서버에서 읽는 건 보드로 가는 프레임(wsToBoards 탭) · state.json 새 텍스트(broadcastState 탭) · 접속 현황 getter 셋뿐이고, 서버에 주입하는 hook 은 없어요.
+//   업링크가 서버에서 읽는 건 보드로 가는 프레임(wsToBoards 탭) · state.json 새 텍스트(broadcastState 탭) · 접속 현황 getter 셋뿐이고, 서버가 업링크에 «주는» 건 위 고정 실행기 5개와 읽기 전용 조회 둘뿐이에요(범용 hook 없음).
 if (fs.existsSync(path.join(DIR, 'uplink.json'))) {
   try {
     _uplink = require('./uplink/index.cjs').start({
       dir: DIR,
+      inject: _uplinkInject, selectionState: _uplinkSelectionState, selectionIssuer: _uplinkSelectionIssuer,   // 고정 실행기(verb 마다 하나) · 읽기 전용 조회 둘 — 위 [uplink-inject] 구역
       log: (...a) => console.log(...a),
       getState: () => readState(),
       getAgents: () => ({
