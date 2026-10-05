@@ -63,3 +63,13 @@ constellation/package-lock.json
 # 컴파일된 파이썬 바이트코드 — 기계 특정(cpython-NNN)이고 아무도 읽지 않아요.
 __pycache__/
 *.pyc
+
+# 상향 전송(uplink) 로컬 설정·비밀·상태 — 설정(uplink.json)과 토큰·키 파일은 배포별이고 «절대» 커밋하지 않아요. 상태·스풀·감사·nonce 줄 파일은 위의 runtime/*.jsonl 이 이미 덮고,
+# 여기서 «빠진 것만» 더해요: 설정 · 토큰 · 키 · 가명 비밀 · 상태(JSON) · 잠금(.lock) · 임시/깨짐 사본.
+constellation/reference/runtime/uplink.json
+constellation/reference/runtime/uplink-token
+constellation/reference/runtime/uplink-keys.json
+constellation/reference/runtime/uplink-secret*
+constellation/reference/runtime/uplink-state.json*
+constellation/reference/runtime/uplink*.lock
+constellation/reference/runtime/uplink*.tmp
