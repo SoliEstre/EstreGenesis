@@ -669,6 +669,28 @@ class NonceLedger {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 단일 기록자 잠금의 «재사용 진입점» — 형제 모듈(totp.cjs 의 상태 파일)이 같은 잠금을 쓰게 해요.
+// 잠금 회수 경합 처리(위 acquireLock)는 복제하면 두 벌이 따로 낡아 가요 — 그래서 복사하지 않고 «얇게 내보내요».
+//   NonceLedger 는 이 둘을 거치지 않고 위의 내부 함수를 그대로 써요(검증된 경로를 건드리지 않으려고).
+//   실패는 OpcmdError('ledger-unavailable') 로 던져요 — 호출자가 자기 코드로 옮겨 담아요.
+// ─────────────────────────────────────────────────────────────────────────────
+function acquireFileLock(lockPath) {
+  if (typeof lockPath !== 'string' || !lockPath) throw new TypeError('acquireFileLock: lockPath');
+  const p = path.resolve(lockPath);
+  acquireLock(p);
+  heldLocks.add(p);
+  installExitHook();
+  return p;
+}
+
+function releaseFileLock(lockPath) {
+  const p = path.resolve(lockPath);
+  // 내 pid 가 적힌 잠금만 지워요 — 남의 잠금을 지우면 단일 기록자 계약이 깨져요.
+  if (readLockPid(p) === process.pid) { try { fs.unlinkSync(p); } catch (_) { /* noop */ } }
+  heldLocks.delete(p);
+}
+
 module.exports = {
   DOMAIN,
   MAX_BYTES,
@@ -686,5 +708,7 @@ module.exports = {
   consumeNonce,
   verifyEnvelope,
   NonceLedger,
+  acquireFileLock,
+  releaseFileLock,
   _parseTextUnbounded: parseText,   // 검사 전용 — 크기 한도 없이 파서의 깊이 한도만 시험하려는 진입점
 };
