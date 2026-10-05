@@ -62,7 +62,10 @@ const LOCK = path.join(DIR, '.' + String(AGENT_ID).replace(/[^\w.-]/g, '_') + '-
   try {
     if (fs.existsSync(LOCK)) {
       const prev = parseInt(String(fs.readFileSync(LOCK, 'utf8')).trim(), 10);
-      if (prev && prev !== process.pid) {
+      // 재부팅 전에 쓰인 락은 PID 가 살아 있어도 낡은 거예요 — 부팅 뒤 같은 번호를 무관한 프로세스가 받아요.
+      //   여기는 «생존 = 종료» 라서 낡은 락을 믿으면 남의 프로세스를 죽여요(2026-10-05 같은 부류 실측: 부팅 직후 시스템 서비스가 락의 PID 를 썼어요).
+      const preBoot = fs.statSync(LOCK).mtimeMs < Date.now() - require('os').uptime() * 1000 - 60000;
+      if (prev && prev !== process.pid && !preBoot) {
         let alive = false;
         try { process.kill(prev, 0); alive = true; } catch {}   // signal 0 = 존재 확인(미생존이면 throw)
         if (alive) {
