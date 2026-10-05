@@ -28,11 +28,19 @@ function pidAlive(pid) {
   catch (e) { return e && e.code === 'EPERM'; }
 }
 
+// A lock written before the current boot is stale even when its PID is alive: after a reboot the
+// operating system hands the same number to an unrelated process (measured 2026-10-05 — a bridge's
+// lock pointed at a PID that a system service held minutes after boot, and the guard refused to start).
+function writtenBeforeBoot(lockPath) {
+  try { return fs.statSync(lockPath).mtimeMs < Date.now() - require('os').uptime() * 1000 - 60000; }
+  catch { return false; }
+}
+
 function acquire(lockPath, label) {
   try {
     if (fs.existsSync(lockPath)) {
       const oldPid = parseInt(fs.readFileSync(lockPath, 'utf8').trim(), 10);
-      if (oldPid && pidAlive(oldPid)) {
+      if (oldPid && !writtenBeforeBoot(lockPath) && pidAlive(oldPid)) {
         console.error(`[${label}] ALREADY RUNNING pid=${oldPid} (lock=${lockPath}). Duplicate same-agentId connect causes server close(1005) + reconnect loop runaway. Kill existing first.`);
         process.exit(2);
       }
@@ -49,4 +57,4 @@ function acquire(lockPath, label) {
   }
 }
 
-module.exports = { acquire, pidAlive };
+module.exports = { acquire, pidAlive, writtenBeforeBoot };
