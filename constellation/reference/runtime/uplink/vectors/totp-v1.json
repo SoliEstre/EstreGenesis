@@ -1,0 +1,3767 @@
+{
+ "version": 1,
+ "params": {
+  "digits": 6,
+  "period": 30,
+  "algorithm": "sha1",
+  "windowSteps": 1,
+  "maxFailures": 5,
+  "lockSec": 900,
+  "maxLockSec": 86400,
+  "hardLockAfter": 10,
+  "nowMax": 1099511627776,
+  "retentionSec": 86400,
+  "minSecretBytes": 16,
+  "maxSecretBytes": 128,
+  "periodRange": [
+   15,
+   120
+  ]
+ },
+ "notes": {
+  "rfcRows": "rfc4226 은 6자리 · SHA-1, rfc6238 은 부록 B 의 8자리 값(전 알고리즘)이에요. 증명 경로는 6자리 고정이라 6자리 코드는 시나리오가 따로 다뤄요.",
+  "scenarios": "시나리오마다 새 상태에서 steps 를 순서대로 실행해요. step.code 는 6자리 코드(또는 일부러 틀린 문자열), config 는 그 호출만의 보드 로컬 설정 덮어쓰기, secretHex 가 있으면 그 호출만 그 비밀로, expect 는 {ok:true, step} 또는 {code[, lockedUntil]} 예요. 같은 now 는 같은 단계라서 시도 순서가 의미를 가져요.",
+  "ordering": "검사 순서(규범): 모양(bad-proof) → 보드 로컬 설정(bad-config) → 상태 설정 불일치(state-mismatch) → 상태가 창보다 앞섬(state-ahead) → 하드 비활성(totp-disabled) → 잠금(totp-locked) → 코드 대조(totp-replayed | totp-invalid | ok). 앞 단계에서 걸리면 뒤는 평가하지 않아요.",
+  "counting": "실패 횟수에 세는 건 «틀린 6자리»(totp-invalid) 뿐이에요. bad-proof · bad-config · state-mismatch · state-ahead · totp-replayed · totp-locked · totp-disabled 는 세지 않고 상태를 쓰지 않아요. 5번째 실패의 응답에는 lockedUntil(= now + 잠금 길이)이 실려요. 잠금은 now < lockedUntil 인 동안이에요. 잠금이 풀려도 카운터는 성공할 때까지 남아서 한 번 더 틀리면 즉시 다시 잠겨요.",
+  "lockEscalation": "잠금 길이는 걸릴 때마다 두 배예요: n번째 잠금 = min(900 × 2^(n-1), 86400)초. 성공 없이 10번 잠기면 하드 비활성(totp-disabled)이고 보드 로컬 reset() 으로만 풀려요(누적 오답 5 + 9 = 14회가 영구 상한). 성공하면 카운터와 잠금 횟수가 모두 0.",
+  "stateConfig": "상태 파일은 첫 사용(성공이든 오답이든)의 설정(주기 · 알고리즘 · 비밀의 HMAC 지문)을 적고, 다른 설정으로 부르면 state-mismatch 예요. state-ahead 는 lastAcceptedStep > cur + 1 일 때예요(cur = floor(now / period)).",
+  "monotonic": "받아들인 단계(lastAcceptedStep)보다 «엄격히 큰» 단계의 코드만 통과해요. 같은 단계는 같은 cmdHash 로 다시 내밀어도 totp-replayed 예요.",
+  "base32": "디코드는 대문자 · 패딩 없음 · 하위 비트 정준 철자만 받아요(그 밖은 bad-encoding). 길이는 8로 나눈 나머지가 0·2·4·5·7 이어야 해요.",
+  "otpauth": "URI 는 secret · issuer · algorithm=SHA1 · digits=6 · period=30 순서예요. issuer/account 는 UTF-8 바이트 단위 퍼센트 인코딩(RFC 3986 unreserved 만 그대로).",
+  "nonVectorCodes": "state-corrupt · state-unavailable 은 상태 파일의 상태(파일 내용·잠금·쓰기 실패)에서 나와서 벡터가 아니라 검사 스크립트의 이름 붙은 시험이 낸다."
+ },
+ "hotpRfc4226": {
+  "secretAscii": "12345678901234567890",
+  "digits": 6,
+  "rows": [
+   {
+    "counter": 0,
+    "expected": "755224"
+   },
+   {
+    "counter": 1,
+    "expected": "287082"
+   },
+   {
+    "counter": 2,
+    "expected": "359152"
+   },
+   {
+    "counter": 3,
+    "expected": "969429"
+   },
+   {
+    "counter": 4,
+    "expected": "338314"
+   },
+   {
+    "counter": 5,
+    "expected": "254676"
+   },
+   {
+    "counter": 6,
+    "expected": "287922"
+   },
+   {
+    "counter": 7,
+    "expected": "162583"
+   },
+   {
+    "counter": 8,
+    "expected": "399871"
+   },
+   {
+    "counter": 9,
+    "expected": "520489"
+   }
+  ],
+  "derivedDigits": {
+   "7": [
+    {
+     "counter": 0,
+     "expected": "4755224"
+    },
+    {
+     "counter": 1,
+     "expected": "4287082"
+    },
+    {
+     "counter": 2,
+     "expected": "7359152"
+    },
+    {
+     "counter": 3,
+     "expected": "6969429"
+    },
+    {
+     "counter": 4,
+     "expected": "0338314"
+    },
+    {
+     "counter": 5,
+     "expected": "8254676"
+    },
+    {
+     "counter": 6,
+     "expected": "8287922"
+    },
+    {
+     "counter": 7,
+     "expected": "2162583"
+    },
+    {
+     "counter": 8,
+     "expected": "3399871"
+    },
+    {
+     "counter": 9,
+     "expected": "5520489"
+    }
+   ],
+   "8": [
+    {
+     "counter": 0,
+     "expected": "84755224"
+    },
+    {
+     "counter": 1,
+     "expected": "94287082"
+    },
+    {
+     "counter": 2,
+     "expected": "37359152"
+    },
+    {
+     "counter": 3,
+     "expected": "26969429"
+    },
+    {
+     "counter": 4,
+     "expected": "40338314"
+    },
+    {
+     "counter": 5,
+     "expected": "68254676"
+    },
+    {
+     "counter": 6,
+     "expected": "18287922"
+    },
+    {
+     "counter": 7,
+     "expected": "82162583"
+    },
+    {
+     "counter": 8,
+     "expected": "73399871"
+    },
+    {
+     "counter": 9,
+     "expected": "45520489"
+    }
+   ]
+  }
+ },
+ "totpRfc6238": {
+  "secrets": {
+   "sha1": "12345678901234567890",
+   "sha256": "12345678901234567890123456789012",
+   "sha512": "1234567890123456789012345678901234567890123456789012345678901234"
+  },
+  "digits": 8,
+  "period": 30,
+  "rows": [
+   {
+    "name": "sha1@59",
+    "algorithm": "sha1",
+    "time": 59,
+    "expected": "94287082"
+   },
+   {
+    "name": "sha256@59",
+    "algorithm": "sha256",
+    "time": 59,
+    "expected": "46119246"
+   },
+   {
+    "name": "sha512@59",
+    "algorithm": "sha512",
+    "time": 59,
+    "expected": "90693936"
+   },
+   {
+    "name": "sha1@1111111109",
+    "algorithm": "sha1",
+    "time": 1111111109,
+    "expected": "07081804"
+   },
+   {
+    "name": "sha256@1111111109",
+    "algorithm": "sha256",
+    "time": 1111111109,
+    "expected": "68084774"
+   },
+   {
+    "name": "sha512@1111111109",
+    "algorithm": "sha512",
+    "time": 1111111109,
+    "expected": "25091201"
+   },
+   {
+    "name": "sha1@1111111111",
+    "algorithm": "sha1",
+    "time": 1111111111,
+    "expected": "14050471"
+   },
+   {
+    "name": "sha256@1111111111",
+    "algorithm": "sha256",
+    "time": 1111111111,
+    "expected": "67062674"
+   },
+   {
+    "name": "sha512@1111111111",
+    "algorithm": "sha512",
+    "time": 1111111111,
+    "expected": "99943326"
+   },
+   {
+    "name": "sha1@1234567890",
+    "algorithm": "sha1",
+    "time": 1234567890,
+    "expected": "89005924"
+   },
+   {
+    "name": "sha256@1234567890",
+    "algorithm": "sha256",
+    "time": 1234567890,
+    "expected": "91819424"
+   },
+   {
+    "name": "sha512@1234567890",
+    "algorithm": "sha512",
+    "time": 1234567890,
+    "expected": "93441116"
+   },
+   {
+    "name": "sha1@2000000000",
+    "algorithm": "sha1",
+    "time": 2000000000,
+    "expected": "69279037"
+   },
+   {
+    "name": "sha256@2000000000",
+    "algorithm": "sha256",
+    "time": 2000000000,
+    "expected": "90698825"
+   },
+   {
+    "name": "sha512@2000000000",
+    "algorithm": "sha512",
+    "time": 2000000000,
+    "expected": "38618901"
+   },
+   {
+    "name": "sha1@20000000000",
+    "algorithm": "sha1",
+    "time": 20000000000,
+    "expected": "65353130"
+   },
+   {
+    "name": "sha256@20000000000",
+    "algorithm": "sha256",
+    "time": 20000000000,
+    "expected": "77737706"
+   },
+   {
+    "name": "sha512@20000000000",
+    "algorithm": "sha512",
+    "time": 20000000000,
+    "expected": "47863826"
+   }
+  ]
+ },
+ "base32": {
+  "roundtrip": [
+   {
+    "name": "rfc4648-empty",
+    "hex": "",
+    "text": ""
+   },
+   {
+    "name": "rfc4648-f",
+    "hex": "66",
+    "text": "MY"
+   },
+   {
+    "name": "rfc4648-fo",
+    "hex": "666f",
+    "text": "MZXQ"
+   },
+   {
+    "name": "rfc4648-foo",
+    "hex": "666f6f",
+    "text": "MZXW6"
+   },
+   {
+    "name": "rfc4648-foob",
+    "hex": "666f6f62",
+    "text": "MZXW6YQ"
+   },
+   {
+    "name": "rfc4648-fooba",
+    "hex": "666f6f6261",
+    "text": "MZXW6YTB"
+   },
+   {
+    "name": "rfc4648-foobar",
+    "hex": "666f6f626172",
+    "text": "MZXW6YTBOI"
+   },
+   {
+    "name": "rfc4226-secret-20-bytes",
+    "hex": "3132333435363738393031323334353637383930",
+    "text": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+   },
+   {
+    "name": "zero-5-bytes",
+    "hex": "0000000000",
+    "text": "AAAAAAAA"
+   },
+   {
+    "name": "ff-5-bytes",
+    "hex": "ffffffffff",
+    "text": "77777777"
+   },
+   {
+    "name": "mixed-bytes-0-to-19",
+    "hex": "000d1a2734414e5b6875828f9ca9b6c3d0ddeaf7",
+    "text": "AAGRUJZUIFHFW2DVQKHZZKNWYPIN32XX"
+   }
+  ],
+  "invalid": [
+   {
+    "name": "lowercase",
+    "text": "mzxw6ytboi",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "mixed-case",
+    "text": "MZXW6ytBOI",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "padded",
+    "text": "MZXW6YQ=",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "padded-full",
+    "text": "MY======",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "whitespace-inside",
+    "text": "MZXW 6YTB",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "leading-space",
+    "text": " MZXW6YTB",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "trailing-newline",
+    "text": "MZXW6YTB\n",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "digit-1",
+    "text": "MZXW1YTB",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "digit-0",
+    "text": "MZXW0YTB",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "digit-8",
+    "text": "MZXW8YTB",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "digit-9",
+    "text": "MZXW9YTB",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "non-ascii",
+    "text": "MZXW6YTÐ",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "length-1",
+    "text": "M",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "length-3",
+    "text": "MZX",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "length-6",
+    "text": "MZXW6Y",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "length-9",
+    "text": "MZXW6YTBO",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "nonzero-trailing-bits-2char",
+    "text": "MZ",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "nonzero-trailing-bits-4char",
+    "text": "MZXR",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "nonzero-trailing-bits-7char",
+    "text": "MZXW6YR",
+    "code": "bad-encoding"
+   },
+   {
+    "name": "hyphenated",
+    "text": "MZXW-6YTB",
+    "code": "bad-encoding"
+   }
+  ]
+ },
+ "proofShape": [
+  {
+   "name": "ok-basic",
+   "proof": {
+    "kind": "totp",
+    "code": "123456"
+   },
+   "expect": {
+    "ok": true,
+    "code": "123456"
+   }
+  },
+  {
+   "name": "ok-leading-zeros",
+   "proof": {
+    "kind": "totp",
+    "code": "000000"
+   },
+   "expect": {
+    "ok": true,
+    "code": "000000"
+   }
+  },
+  {
+   "name": "ok-key-order-irrelevant",
+   "proof": {
+    "code": "654321",
+    "kind": "totp"
+   },
+   "expect": {
+    "ok": true,
+    "code": "654321"
+   }
+  },
+  {
+   "name": "code-5-digits",
+   "proof": {
+    "kind": "totp",
+    "code": "12345"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-7-digits",
+   "proof": {
+    "kind": "totp",
+    "code": "1234567"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-empty",
+   "proof": {
+    "kind": "totp",
+    "code": ""
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-number",
+   "proof": {
+    "kind": "totp",
+    "code": 123456
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-number-leading-zero-lost",
+   "proof": {
+    "kind": "totp",
+    "code": 12345
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-null",
+   "proof": {
+    "kind": "totp",
+    "code": null
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-array",
+   "proof": {
+    "kind": "totp",
+    "code": [
+     "123456"
+    ]
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-spaces",
+   "proof": {
+    "kind": "totp",
+    "code": "123 456"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-leading-space",
+   "proof": {
+    "kind": "totp",
+    "code": " 123456"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-trailing-newline",
+   "proof": {
+    "kind": "totp",
+    "code": "123456\n"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-letters",
+   "proof": {
+    "kind": "totp",
+    "code": "12345a"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-plus-sign",
+   "proof": {
+    "kind": "totp",
+    "code": "+12345"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-fullwidth-digits",
+   "proof": {
+    "kind": "totp",
+    "code": "１２３４５６"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "code-arabic-indic-digits",
+   "proof": {
+    "kind": "totp",
+    "code": "١٢٣٤٥٦"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "missing-code",
+   "proof": {
+    "kind": "totp"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "missing-kind",
+   "proof": {
+    "code": "123456"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "extra-key",
+   "proof": {
+    "kind": "totp",
+    "code": "123456",
+    "extra": 1
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "extra-key-null",
+   "proof": {
+    "kind": "totp",
+    "code": "123456",
+    "x": null
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "kind-other",
+   "proof": {
+    "kind": "passkey",
+    "code": "123456"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "kind-case",
+   "proof": {
+    "kind": "TOTP",
+    "code": "123456"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "kind-number",
+   "proof": {
+    "kind": 1,
+    "code": "123456"
+   },
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "proof-null",
+   "proof": null,
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "proof-array",
+   "proof": [
+    "totp",
+    "123456"
+   ],
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "proof-string",
+   "proof": "totp:123456",
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  },
+  {
+   "name": "proof-empty-object",
+   "proof": {},
+   "expect": {
+    "ok": false,
+    "code": "bad-proof"
+   }
+  }
+ ],
+ "otpauth": [
+  {
+   "name": "plain",
+   "issuer": "EstreGenesis",
+   "account": "board-01",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/EstreGenesis:board-01?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=EstreGenesis&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "space-and-at",
+   "issuer": "My Board",
+   "account": "op@example.com",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/My%20Board:op%40example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=My%20Board&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "unicode",
+   "issuer": "별자리",
+   "account": "계정 1",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/%EB%B3%84%EC%9E%90%EB%A6%AC:%EA%B3%84%EC%A0%95%201?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=%EB%B3%84%EC%9E%90%EB%A6%AC&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "reserved-chars",
+   "issuer": "A&B=C",
+   "account": "a:b/c?d&e=f'(g)*!#%",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/A%26B%3DC:a%3Ab%2Fc%3Fd%26e%3Df%27%28g%29%2A%21%23%25?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=A%26B%3DC&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "secret-32-bytes",
+   "issuer": "EstreGenesis",
+   "account": "board-01",
+   "secretHex": "3132333435363738393031323334353637383930313233343536373839303132",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/EstreGenesis:board-01?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA&issuer=EstreGenesis&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "tilde-and-dot-kept",
+   "issuer": "a~b.c-d_e",
+   "account": "x",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/a~b.c-d_e:x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=a~b.c-d_e&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "issuer-64-chars-at-limit",
+   "issuer": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "account": "acct",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:acct?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "account-128-chars-at-limit",
+   "issuer": "EG",
+   "account": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/EG:yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=EG&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "secret-16-bytes-at-limit",
+   "issuer": "EG",
+   "account": "acct",
+   "secretHex": "31323334353637383930313233343536",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/EG:acct?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY&issuer=EG&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "secret-128-bytes-at-limit",
+   "issuer": "EG",
+   "account": "acct",
+   "secretHex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+   "expect": {
+    "ok": true,
+    "uri": "otpauth://totp/EG:acct?secret=LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFUWS2LJNFU&issuer=EG&algorithm=SHA1&digits=6&period=30"
+   }
+  },
+  {
+   "name": "issuer-empty",
+   "issuer": "",
+   "account": "acct",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  },
+  {
+   "name": "account-empty",
+   "issuer": "EG",
+   "account": "",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  },
+  {
+   "name": "issuer-control-char",
+   "issuer": "E\u0001G",
+   "account": "acct",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  },
+  {
+   "name": "account-newline",
+   "issuer": "EG",
+   "account": "a\nb",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  },
+  {
+   "name": "issuer-lone-surrogate",
+   "issuer": "E\ud800G",
+   "account": "acct",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  },
+  {
+   "name": "issuer-65-chars",
+   "issuer": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "account": "acct",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  },
+  {
+   "name": "account-129-chars",
+   "issuer": "EG",
+   "account": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  },
+  {
+   "name": "secret-15-bytes",
+   "issuer": "EG",
+   "account": "acct",
+   "secretHex": "313233343536373839303132333435",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  },
+  {
+   "name": "secret-129-bytes",
+   "issuer": "EG",
+   "account": "acct",
+   "secretHex": "070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707",
+   "expect": {
+    "ok": false,
+    "code": "bad-config"
+   }
+  }
+ ],
+ "scenarios": [
+  {
+   "name": "accept-current-step",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    }
+   ]
+  },
+  {
+   "name": "accept-previous-step",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "414198",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666665
+     }
+    }
+   ]
+  },
+  {
+   "name": "accept-next-step",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    }
+   ]
+  },
+  {
+   "name": "reject-two-steps-back",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "008444",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    }
+   ]
+  },
+  {
+   "name": "reject-two-steps-forward",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "115379",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    }
+   ]
+  },
+  {
+   "name": "boundary-first-second-accepts-previous",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1759999980,
+     "code": "414198",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666665
+     }
+    }
+   ]
+  },
+  {
+   "name": "boundary-last-second-accepts-next",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000009,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    }
+   ]
+  },
+  {
+   "name": "boundary-last-second-rejects-two-back",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000009,
+     "code": "008444",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    }
+   ]
+  },
+  {
+   "name": "boundary-next-step-first-second-rejects-aged-out",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000010,
+     "code": "414198",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    }
+   ]
+  },
+  {
+   "name": "early-epoch-step-zero-accepts",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 10,
+     "code": "755224",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 0
+     }
+    }
+   ]
+  },
+  {
+   "name": "early-epoch-first-window-has-no-negative-step",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 10,
+     "code": "359152",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    }
+   ]
+  },
+  {
+   "name": "replay-same-step-same-command",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    }
+   ]
+  },
+  {
+   "name": "replay-same-step-other-command",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "466049",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    }
+   ]
+  },
+  {
+   "name": "replay-after-step-rolls-over",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000030,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    }
+   ]
+  },
+  {
+   "name": "older-after-newer-is-replay",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    },
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000000,
+     "code": "414198",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    }
+   ]
+  },
+  {
+   "name": "newer-after-older-is-fine",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "414198",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666665
+     }
+    },
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000000,
+     "code": "070128",
+     "cmdHashHex": "d09b43e92900a520e4082d07c3e8b3486c99c6cfef01283a258fe8c388154884",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    }
+   ]
+  },
+  {
+   "name": "replay-is-not-counted-as-failure",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000005,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000006,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000007,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000030,
+     "code": "070128",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    }
+   ]
+  },
+  {
+   "name": "wrong-code-is-invalid",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-proof-shapes-are-not-counted",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "abc",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "12345",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "1234567",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": " 12345",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000005,
+     "code": "12345a",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000006,
+     "code": "１２３４５６",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000007,
+     "code": "١٢٣٤٥٦",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000008,
+     "code": "123456 ",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000009,
+     "code": "1e5000",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000020,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000021,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000022,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000023,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000025,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    }
+   ]
+  },
+  {
+   "name": "lockout-after-five-failures",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000005,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000903,
+     "code": "298479",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000904,
+     "code": "298479",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666696
+     }
+    }
+   ]
+  },
+  {
+   "name": "locked-attempts-do-not-extend-or-count",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000100,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000500,
+     "code": "691519",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000900,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000904,
+     "code": "298479",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666696
+     }
+    }
+   ]
+  },
+  {
+   "name": "lock-boundary-first-second-after-unlock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000903,
+     "code": "298479",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000904,
+     "code": "298479",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666696
+     }
+    }
+   ]
+  },
+  {
+   "name": "wrong-code-right-after-unlock-relocks-immediately",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000904,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760002704
+     }
+    },
+    {
+     "now": 1760000905,
+     "code": "298479",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760002704
+     }
+    },
+    {
+     "now": 1760002703,
+     "code": "612317",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760002704
+     }
+    },
+    {
+     "now": 1760002704,
+     "code": "612317",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666756
+     }
+    }
+   ]
+  },
+  {
+   "name": "success-resets-failure-counter",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000005,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000006,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000007,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000008,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000040,
+     "code": "115379",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666668
+     }
+    }
+   ]
+  },
+  {
+   "name": "four-failures-then-success-then-four-failures-no-lock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000040,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000041,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000042,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000043,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000070,
+     "code": "517401",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666669
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-sha256",
+   "secretHex": "3132333435363738393031323334353637383930313233343536373839303132",
+   "config": {
+    "algorithm": "sha256"
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "942306",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-sha512",
+   "secretHex": "31323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334",
+   "config": {
+    "algorithm": "sha512"
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "428867",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-sha1-code-rejected-under-sha256",
+   "secretHex": "3132333435363738393031323334353637383930313233343536373839303132",
+   "config": {
+    "algorithm": "sha256"
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "303311",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-period-60",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "config": {
+    "period": 60
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "066577",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 29333333
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "066577",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "819755",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 29333334
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-period-60-window-is-in-60-second-steps",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "config": {
+    "period": 60
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "634689",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-period-15-lower-bound-accepted",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "config": {
+    "period": 15
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "225167",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 117333333
+     }
+    },
+    {
+     "now": 1760000015,
+     "code": "960080",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 117333334
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-period-120-upper-bound-accepted",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "config": {
+    "period": 120
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "007085",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 14666666
+     }
+    },
+    {
+     "now": 1760000120,
+     "code": "007085",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000120,
+     "code": "890082",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 14666667
+     }
+    }
+   ]
+  },
+  {
+   "name": "secret-16-bytes-lower-bound-accepted",
+   "secretHex": "31323334353637383930313233343536",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "145077",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    }
+   ]
+  },
+  {
+   "name": "secret-128-bytes-upper-bound-accepted",
+   "secretHex": "0909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "651590",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-explicit-defaults-same-as-implicit",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "config": {
+    "algorithm": "sha1",
+    "digits": 6,
+    "period": 30
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-md5",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-uppercase-algorithm",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "SHA1"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-digits-8-on-proof-path",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "digits": 8
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-digits-7",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "digits": 7
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-period-14",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "period": 14
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-period-121",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "period": 121
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-period-fraction",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "period": 30.5
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-period-string",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "period": "30"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-secret-15-bytes",
+   "secretHex": "313233343536373839303132333435",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-secret-129-bytes",
+   "secretHex": "090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909090909",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-is-not-counted-and-does-not-lock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000005,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000006,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000007,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000010,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-takes-precedence-over-lock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000010,
+     "code": "123456",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "algorithm": "md5"
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    },
+    {
+     "now": 1760000011,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-proof-takes-precedence-over-lock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000010,
+     "code": "abc",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    },
+    {
+     "now": 1760000011,
+     "code": "12345",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "bad-proof"
+     }
+    }
+   ]
+  },
+  {
+   "name": "lock-doubles-each-time-then-caps-then-hard-disables",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000903,
+     "code": "298479",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000904,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760002704
+     }
+    },
+    {
+     "now": 1760002703,
+     "code": "612317",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760002704
+     }
+    },
+    {
+     "now": 1760002704,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760006304
+     }
+    },
+    {
+     "now": 1760006303,
+     "code": "127935",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760006304
+     }
+    },
+    {
+     "now": 1760006304,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760013504
+     }
+    },
+    {
+     "now": 1760013503,
+     "code": "258176",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760013504
+     }
+    },
+    {
+     "now": 1760013504,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760027904
+     }
+    },
+    {
+     "now": 1760027903,
+     "code": "906618",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760027904
+     }
+    },
+    {
+     "now": 1760027904,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760056704
+     }
+    },
+    {
+     "now": 1760056703,
+     "code": "809500",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760056704
+     }
+    },
+    {
+     "now": 1760056704,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760114304
+     }
+    },
+    {
+     "now": 1760114303,
+     "code": "661271",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760114304
+     }
+    },
+    {
+     "now": 1760114304,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760200704
+     }
+    },
+    {
+     "now": 1760200703,
+     "code": "270603",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760200704
+     }
+    },
+    {
+     "now": 1760200704,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760287104
+     }
+    },
+    {
+     "now": 1760287103,
+     "code": "229547",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760287104
+     }
+    },
+    {
+     "now": 1760287104,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760373504
+     }
+    },
+    {
+     "now": 1760373504,
+     "code": "286435",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    },
+    {
+     "now": 1760373505,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    },
+    {
+     "now": 1791909504,
+     "code": "433596",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    }
+   ]
+  },
+  {
+   "name": "lock-duration-caps-at-24h-from-eighth-lock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000904,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760002704
+     }
+    },
+    {
+     "now": 1760002704,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760006304
+     }
+    },
+    {
+     "now": 1760006304,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760013504
+     }
+    },
+    {
+     "now": 1760013504,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760027904
+     }
+    },
+    {
+     "now": 1760027904,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760056704
+     }
+    },
+    {
+     "now": 1760056704,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760114304
+     }
+    },
+    {
+     "now": 1760114304,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760200704
+     }
+    },
+    {
+     "now": 1760200703,
+     "code": "270603",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760200704
+     }
+    },
+    {
+     "now": 1760200704,
+     "code": "270603",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58673356
+     }
+    }
+   ]
+  },
+  {
+   "name": "success-resets-lock-doubling",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000904,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760002704
+     }
+    },
+    {
+     "now": 1760002704,
+     "code": "612317",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666756
+     }
+    },
+    {
+     "now": 1760002710,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760002711,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760002712,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760002713,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760002714,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760003614
+     }
+    }
+   ]
+  },
+  {
+   "name": "disabled-does-not-write-and-does-not-evaluate",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000904,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760002704
+     }
+    },
+    {
+     "now": 1760002704,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760006304
+     }
+    },
+    {
+     "now": 1760006304,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760013504
+     }
+    },
+    {
+     "now": 1760013504,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760027904
+     }
+    },
+    {
+     "now": 1760027904,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760056704
+     }
+    },
+    {
+     "now": 1760056704,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760114304
+     }
+    },
+    {
+     "now": 1760114304,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760200704
+     }
+    },
+    {
+     "now": 1760200704,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760287104
+     }
+    },
+    {
+     "now": 1760287104,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760373504
+     }
+    },
+    {
+     "now": 1760373504,
+     "code": "286435",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    },
+    {
+     "now": 1760373505,
+     "code": "286435",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    },
+    {
+     "now": 1760373506,
+     "code": "286435",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    },
+    {
+     "now": 1760373507,
+     "code": "286435",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    },
+    {
+     "now": 1760373508,
+     "code": "286435",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    },
+    {
+     "now": 1760373509,
+     "code": "286435",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-disabled"
+     }
+    }
+   ]
+  },
+  {
+   "name": "period-changed-without-reset-is-state-mismatch",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000120,
+     "code": "589196",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000120,
+     "code": "254826",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000120,
+     "code": "821782",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666670
+     }
+    }
+   ]
+  },
+  {
+   "name": "algorithm-changed-without-reset-is-state-mismatch",
+   "secretHex": "3132333435363738393031323334353637383930313233343536373839303132",
+   "config": {
+    "algorithm": "sha256"
+   },
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "942306",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "797968",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "algorithm": "sha512"
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "107120",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "algorithm": "sha1"
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    }
+   ]
+  },
+  {
+   "name": "secret-changed-without-reset-is-state-mismatch",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "107120",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "secretHex": "3132333435363738393031323334353637383930313233343536373839303132",
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "115379",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666668
+     }
+    }
+   ]
+  },
+  {
+   "name": "config-is-adopted-at-first-use-even-by-a-failure",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "066577",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    }
+   ]
+  },
+  {
+   "name": "state-mismatch-is-not-counted-and-does-not-lock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000040,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000041,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000042,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000043,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000044,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000045,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000046,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000047,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "115379",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666668
+     }
+    }
+   ]
+  },
+  {
+   "name": "state-mismatch-takes-precedence-over-lock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000001,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000002,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000003,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid"
+     }
+    },
+    {
+     "now": 1760000004,
+     "code": "000001",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-invalid",
+      "lockedUntil": 1760000904
+     }
+    },
+    {
+     "now": 1760000010,
+     "code": "066577",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "config": {
+      "period": 60
+     },
+     "expect": {
+      "code": "state-mismatch"
+     }
+    },
+    {
+     "now": 1760000011,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "code": "totp-locked",
+      "lockedUntil": 1760000904
+     }
+    }
+   ]
+  },
+  {
+   "name": "bad-config-takes-precedence-over-state-mismatch",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666666
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "123456",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "config": {
+      "period": 14
+     },
+     "expect": {
+      "code": "bad-config"
+     }
+    }
+   ]
+  },
+  {
+   "name": "clock-rolled-back-after-future-step-is-state-ahead",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    },
+    {
+     "now": 1759999970,
+     "code": "414198",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999940,
+     "code": "414198",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "115379",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666668
+     }
+    }
+   ]
+  },
+  {
+   "name": "state-ahead-is-not-counted-and-does-not-lock",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    },
+    {
+     "now": 1759999940,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999941,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999942,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999943,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999944,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999945,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999946,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999947,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999948,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1759999949,
+     "code": "000001",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1760000060,
+     "code": "115379",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666668
+     }
+    }
+   ]
+  },
+  {
+   "name": "wrong-clock-success-then-real-time-is-diagnosable",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760003600,
+     "code": "170580",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666786
+     }
+    },
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "state-ahead"
+     }
+    },
+    {
+     "now": 1760003630,
+     "code": "219877",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "ok": true,
+      "step": 58666787
+     }
+    }
+   ]
+  },
+  {
+   "name": "state-ahead-edge-one-step-ahead-is-still-replay-not-ahead",
+   "secretHex": "3132333435363738393031323334353637383930",
+   "steps": [
+    {
+     "now": 1760000000,
+     "code": "070128",
+     "cmdHashHex": "e7f478b34cf9f5f8744cf0b4b7f2731dfe370e879b1a4623b0485f391dc97bb6",
+     "expect": {
+      "ok": true,
+      "step": 58666667
+     }
+    },
+    {
+     "now": 1760000000,
+     "code": "466049",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    },
+    {
+     "now": 1760000000,
+     "code": "070128",
+     "cmdHashHex": "2eaa34e58a239d0e7e87af82045650d345d30ef0a469b2ffe6ffb524f5400762",
+     "expect": {
+      "code": "totp-replayed"
+     }
+    }
+   ]
+  }
+ ]
+}
