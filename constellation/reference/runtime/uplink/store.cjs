@@ -30,6 +30,8 @@ class UplinkStore {
     this.dir = dir;
     this.log = log || (() => {});
     this.boardId = opts && typeof opts.boardId === 'string' ? opts.boardId : null;
+    this.auditMaxBytes = opts && Number.isSafeInteger(opts.auditMaxBytes) && opts.auditMaxBytes > 0 ? opts.auditMaxBytes : 8 * 1024 * 1024;
+    this._auditBytes = null;
     this.lockFile = path.join(dir, 'uplink.lock');
     this.stateFile = path.join(dir, 'uplink-state.json');
     this.auditFile = path.join(dir, 'uplink-audit.jsonl');
@@ -130,13 +132,23 @@ class UplinkStore {
   }
 
   // 감사 한 줄 — 추가 전용 + fsync. «받았다» 는 사실이 «처리했다» 보다 먼저 디스크에 있어야 해서 동기예요.
+  //   **상한이 있어요** — 중계가 명령을 쏟아내면 한 줄씩 무한히 쌓여요(건당 ~180B). 크기가 auditMaxBytes(기본 8MiB)를 넘으면 한 세대만 남기고(uplink-audit.jsonl.1 을 덮어씀) 새로 시작해요 —
+  //   옛 줄은 «한 세대» 만큼만 남고 그 이전은 사라져요(무한 증가 대신 고른 손실).
   audit(obj) {
     const line = JSON.stringify(obj) + '\n';
+    this._rotateAudit();
     const fd = fs.openSync(this.auditFile, 'a', 0o600);
     try {
       fs.writeSync(fd, line);
       fs.fsyncSync(fd);
     } finally { fs.closeSync(fd); }
+    this._auditBytes += Buffer.byteLength(line);
+  }
+
+  _rotateAudit() {
+    if (this._auditBytes === null) { try { this._auditBytes = fs.statSync(this.auditFile).size; } catch (_) { this._auditBytes = 0; } }
+    if (this._auditBytes <= this.auditMaxBytes) return;
+    try { fs.renameSync(this.auditFile, this.auditFile + '.1'); this._auditBytes = 0; } catch (_) { /* 못 돌리면 계속 이어 써요 — 다음 줄에 다시 시도 */ }
   }
 }
 

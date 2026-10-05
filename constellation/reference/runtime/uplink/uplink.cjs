@@ -5,7 +5,8 @@
 //   1) 번호(seq)는 보드가 매기고 «되감기지 않아요» — 스풀(대기 중) + 상태 파일(lastSeq, 확정된 최대)에서 이어붙여요. 중계는 seq 로 중복을 거르니 번호를 다시 쓰면 새 봉투가 «받은 것» 으로 버려져요.
 //   2) 디스크에 확정된 뒤에만 보내요 — 보내고 나서 죽어도 «스풀에 있는 것» 을 다시 보낼 수 있고(중계가 중복을 거름), 확정 전에 죽으면 «보낸 적 없는 것» 이라 구멍도 중복도 없어요.
 //   3) 못 보내는 동안 스풀이 넘치면 가장 오래된 것부터 버리되 «구멍» 으로 남겨서 그것도 보내요 — 조용한 손실이 없어요(spool.cjs).
-//   4) 이 층은 «받은 명령을 실행하지 않아요.» 오는 명령은 전부 감사 로그에 한 줄 남기고 {status:'rejected', reason:'not-implemented'} 로 회신해요(실행 레인은 이 위에 따로 얹혀요).
+//   4) 이 층은 «받은 명령을 직접 판정하지 않아요.» 오는 명령은 주입받은 실행기(exec.cjs — 검증 + 고정 실행기)에 «그대로» 넘기고, 돌려받은 {status, reason, receipt} 를 회신해요(감사 한 줄은 실행기가 남겨요).
+//      실행기가 없으면(전송층만 단독으로 쓰는 시험) 전부 {status:'rejected', reason:'not-implemented'} + 감사 한 줄 — 안전하게 틀려요.
 //   5) 로컬 설정이 정본이에요 — 중계의 응답은 ackSeq · commands 말고는 해석하지 않아요(설정을 바꾸는 응답 필드가 없어요).
 //   6) 토큰은 Authorization 헤더로만 가요 — URL·로그·감사에 안 들어가요(요청 경로엔 cursor/wait 숫자만).
 //
@@ -27,6 +28,9 @@ const SNAP_BUDGET = 180 * 1024;                 // 한 배치에서 스냅샷이
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_SANE_SEQ = 2 ** 40;                  // 중계가 이보다 큰 ack 를 말하면 «앞서 있다» 가 아니라 «고장» 으로 읽어요(번호 공간을 한 번에 소진시키는 응답을 믿지 않아요)
 const MAX_COMMANDS = 50;
+// 한 번의 명령 배치에서 «동기로 처리하는» 시간 예산(ms, 단조 시계) — 실행기는 동기라(상태 해석 · 서명 · fsync) 중계가 쏟아내는 명령이 서버 이벤트 루프(에이전트 WS · 대시보드)를 붙잡을 수 있어요.
+//   예산을 넘으면 «처리한 만큼만» 회신하고 커서를 거기까지만 올려서, 나머지는 다음 폴링(최소 간격 250ms)에 와요 — 한 폴링의 점유가 예산 이하로 묶여요. 최소 한 건은 항상 처리해요(굶지 않게).
+const CMD_BUDGET_MS = 25;
 const MAX_CMD_TEXT = 20000;
 const CMDID_RE = /^[A-Za-z0-9._:@=+/-]{1,128}$/;
 const MIN_BACKOFF_MS = 1000;
@@ -51,6 +55,8 @@ class Transport {
     this.readToken = o.readToken;
     this.buildHeartbeat = o.buildHeartbeat || (() => null);        // () => {item, sig} | null
     this.snapshotProvider = o.snapshotProvider || (() => null);    // () => entries[] (열린 항목 전부)
+    this.cmdBudgetMs = o.cmdBudgetMs !== undefined ? o.cmdBudgetMs : CMD_BUDGET_MS;
+    this.executor = typeof o.executor === 'function' ? o.executor : null;     // (c:{cmdId, cursor, cmd, proof}) => {status, reason, receipt|null} — 동기. 없으면 전부 not-implemented
     this.onTick = o.onTick || null;                                // 하트비트 주기마다 먼저 불려요 (키 파일 변경 감시 같은 «주기 점검» 자리)
     this.flushMs = o.flushMs !== undefined ? o.flushMs : 200;
     this.heartbeatMs = o.heartbeatMs !== undefined ? o.heartbeatMs : 30000;
@@ -362,21 +368,43 @@ class Transport {
     const results = [];
     let cursor = this.store.state.cursor;
     let sawCursor = false;
+    const tBudget = this.mono.now();
+    let handled = 0;
+    let minSkipped = Infinity;
     for (const c of j.commands) {
-      if (!isPlain(c) || typeof c.cmdId !== 'string' || !CMDID_RE.test(c.cmdId)) continue;       // 회신할 id 가 없으면 이 항목은 무시(감사도 못 남겨요 — 어떤 명령인지 말할 수 없어서)
-      if (!this._audited.has(c.cmdId)) {
-        let h = 'unparsed';
-        if (typeof c.cmd === 'string' && c.cmd.length <= MAX_CMD_TEXT) {
-          try { OP.parseCanonical(c.cmd); h = OP.cmdHash(c.cmd).toString('hex').slice(0, 8); } catch (_) { h = 'unparsed'; }
-        }
-        // «받았다» 는 사실이 디스크에 먼저 — 감사를 못 쓰면 회신도 안 해요(기록 없는 응답을 만들지 않아요).
-        this.store.audit({ at: new Date(this.clock.now()).toISOString(), cmdId: c.cmdId, cmdHash: h, status: 'rejected', reason: 'not-implemented' });
-        this._audited.add(c.cmdId);
-        if (this._audited.size > 2000) this._audited.delete(this._audited.values().next().value);
+      if (handled > 0 && this.mono.now() - tBudget > this.cmdBudgetMs) {       // 예산 소진 — 이 항목부터는 «처리하지 않고» 남겨요
+        if (isPlain(c) && Number.isSafeInteger(c.cursor) && c.cursor < minSkipped) minSkipped = c.cursor;
+        continue;
       }
-      results.push({ cmdId: c.cmdId, status: 'rejected', reason: 'not-implemented' });
+      if (!isPlain(c) || typeof c.cmdId !== 'string' || !CMDID_RE.test(c.cmdId)) continue;       // 회신할 id 가 없으면 이 항목은 무시(감사도 못 남겨요 — 어떤 명령인지 말할 수 없어서)
+      handled++;
+      if (this.executor) {
+        // 판정·실행·영수증·감사는 실행기가 해요(감사 한 줄 포함). 던지면 «내부 오류» 로 거절해서 같은 명령이 영원히 오지 않게 커서를 올려요.
+        let out;
+        try { out = this.executor({ cmdId: c.cmdId, cursor: c.cursor, cmd: c.cmd, proof: c.proof }); } catch (e) {
+          this._warnOnce('exec', '[uplink] 명령 실행기가 던졌어요: ' + String((e && e.message) || e).slice(0, 120));
+          out = { status: 'rejected', reason: 'internal-error', receipt: null };
+        }
+        const row = { cmdId: c.cmdId, status: out.status, reason: out.reason === undefined ? null : out.reason };
+        if (out.receipt) row.receipt = out.receipt;
+        results.push(row);
+      } else {
+        if (!this._audited.has(c.cmdId)) {
+          let h = 'unparsed';
+          if (typeof c.cmd === 'string' && c.cmd.length <= MAX_CMD_TEXT) {
+            try { OP.parseCanonical(c.cmd); h = OP.cmdHash(c.cmd).toString('hex').slice(0, 8); } catch (_) { h = 'unparsed'; }
+          }
+          // «받았다» 는 사실이 디스크에 먼저 — 감사를 못 쓰면 회신도 안 해요(기록 없는 응답을 만들지 않아요).
+          this.store.audit({ at: new Date(this.clock.now()).toISOString(), cmdId: c.cmdId, cmdHash: h, status: 'rejected', reason: 'not-implemented' });
+          this._audited.add(c.cmdId);
+          if (this._audited.size > 2000) this._audited.delete(this._audited.values().next().value);
+        }
+        results.push({ cmdId: c.cmdId, status: 'rejected', reason: 'not-implemented' });
+      }
       if (Number.isSafeInteger(c.cursor) && c.cursor >= 0) { sawCursor = true; if (c.cursor > cursor) cursor = c.cursor; }
     }
+    // 남긴 항목이 있으면 커서는 «남긴 것의 바로 앞» 을 못 넘어요 — 중계가 커서 순서대로 주지 않아도 남긴 명령이 건너뛰어지지 않게요.
+    if (minSkipped !== Infinity) cursor = Math.max(this.store.state.cursor, Math.min(cursor, minSkipped - 1));
     if (!sawCursor && results.length) throw new Error('명령에 커서가 없어요');       // 커서를 못 올리면 같은 명령이 영원히 와요 — 폭주 대신 백오프
     if (results.length) {
       const r = await this._req('POST', '/v1/uplink/results', JSON.stringify({ results }), this.requestTimeoutMs);

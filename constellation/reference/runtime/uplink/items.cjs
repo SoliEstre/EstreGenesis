@@ -29,6 +29,7 @@ const MAX_STR = 16000;
 const MAX_OPTIONS = 32;
 const MAX_OPTION_STR = 500;
 const MAX_DEVICES = 16;
+const MAX_CREDENTIALS = 64;
 const MAX_ITEMS = 2000;                 // 상태 파일 속 항목 기록 상한 — 넘으면 «끝난 것» 부터 지워요
 const ITEM_ID_RE = /^[^\x00-\x1f\x7f]{1,200}$/;    // 진짜 id 는 «봉인 평문» 으로만 가요 — 여기선 «내보낼 수 있는 모양인가» 정도만 봐요
 
@@ -41,7 +42,7 @@ class KeyReader {
 
   _once(key, msg) { if (this._warned.has(key)) return; this._warned.add(key); this.log(msg); }
 
-  // {ok:true, boardPriv, boardPub, boardFp, devices:[{deviceId, kid, pub, name}], version} | {ok:false, reason, version:'none'}
+  // {ok:true, boardPriv, boardPub, boardFp, devices:[{deviceId, kid, pub, name}], credentials:[{credentialId, alg, publicKey(SPKI DER), signCount, acct}], totp:{secretB32, acct}|null, version} | {ok:false, reason, version:'none'}
   read() {
     let st;
     try { st = fs.statSync(this.file); } catch (_) { this._sig = null; this._val = { ok: false, reason: 'no-file', version: 'none' }; this._once('nofile', '[uplink] 키 파일이 없어요 (uplinkKeys) — 맥락을 봉인할 수 없어서 sealed 칸 없이 나가요'); return this._val; }
@@ -83,9 +84,38 @@ class KeyReader {
       } catch (_) { this._once('dev:' + String(d && d.deviceId), '[uplink] 키 파일의 기기 항목 하나가 규격이 아니라 건너뛰었어요'); }
     }
     if (devices.length > MAX_DEVICES) devices.length = MAX_DEVICES;
+    // 명령 증명용 등록부 — 같은 파일의 «사람이 등록한» 칸이에요(보드는 읽기만 해요). 봉인 수신자 집합(devices)과 무관해서 아래 «version» 에 안 들어가요:
+    //   자격증명·TOTP 를 등록해도 항목이 다시 봉인되거나 전체 스냅샷이 가지 않아요.
+    const credentials = [];
+    const credSeen = new Set();
+    for (const c of (Array.isArray(j.credentials) ? j.credentials : []).slice(0, MAX_CREDENTIALS + 8)) {
+      try {
+        if (!isPlain(c) || typeof c.credentialId !== 'string' || !c.credentialId || c.credentialId.length > 1400) throw new Error('credentialId');
+        if (Buffer.from(c.credentialId, 'base64url').toString('base64url') !== c.credentialId) throw new Error('credentialId 표기');
+        if (credSeen.has(c.credentialId)) continue;
+        if (![-7, -8, -257].includes(c.alg)) throw new Error('alg');
+        if (typeof c.publicKeySpki !== 'string' || !c.publicKeySpki) throw new Error('publicKeySpki');
+        const spki = Buffer.from(c.publicKeySpki, 'base64url');
+        if (spki.toString('base64url') !== c.publicKeySpki || spki.length < 32 || spki.length > 1024) throw new Error('publicKeySpki 표기');
+        const signCount = c.signCount === undefined ? 0 : c.signCount;
+        if (!Number.isSafeInteger(signCount) || signCount < 0 || signCount > 0xffffffff) throw new Error('signCount');
+        const acct = c.acct === undefined ? null : c.acct;
+        if (acct !== null && (typeof acct !== 'string' || acct.length < 1 || acct.length > 128)) throw new Error('acct');
+        credSeen.add(c.credentialId);
+        credentials.push({ credentialId: c.credentialId, alg: c.alg, publicKey: new Uint8Array(spki), signCount, acct });
+      } catch (_) { this._once('cred:' + String(c && c.credentialId).slice(0, 20), '[uplink] 키 파일의 자격증명 항목 하나가 규격이 아니라 건너뛰었어요'); }
+    }
+    if (credentials.length > MAX_CREDENTIALS) credentials.length = MAX_CREDENTIALS;
+    let totp = null;
+    if (isPlain(j.totp)) {
+      const t = j.totp;
+      if (typeof t.secretB32 === 'string' && t.secretB32 && t.secretB32.length <= 1024 && (t.acct === undefined || (typeof t.acct === 'string' && t.acct.length >= 1 && t.acct.length <= 128))) {
+        totp = { secretB32: t.secretB32, acct: t.acct === undefined ? null : t.acct };
+      } else this._once('totp', '[uplink] 키 파일의 totp 항목이 규격이 아니라 건너뛰었어요');
+    }
     // 키 집합의 «버전» — 같은 기기들·같은 보드 키면 같은 값(순서 무관). 하트비트가 싣고, 바뀌면 전체 스냅샷을 다시 보내요.
     const version = sha256hex(boardFp + '\n' + devices.map((x) => x.kid).sort().join(',')).slice(0, 12);
-    return { ok: true, boardPriv, boardPub, boardFp, devices, version };
+    return { ok: true, boardPriv, boardPub, boardFp, devices, credentials, totp, version };
   }
 }
 

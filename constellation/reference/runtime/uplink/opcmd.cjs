@@ -710,6 +710,8 @@ function releaseFileLock(lockPath) {
 
 module.exports = {
   DOMAIN,
+  SKEW_SEC,
+  MAX_TTL_SEC,
   MAX_BYTES,
   MAX_DEPTH,
   REJECT_CODES,
