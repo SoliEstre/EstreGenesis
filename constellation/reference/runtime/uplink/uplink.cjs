@@ -1,0 +1,394 @@
+'use strict';
+// uplink.cjs — 보드 → 중계 서비스 «상향 전송» 층: 번호 붙은 봉투 큐 · 스풀 · 하트비트 · 항목 스냅샷 · 명령 롱폴(+결과 회신).
+//
+// **이 층이 지키는 약속 (순서대로 중요해요).**
+//   1) 번호(seq)는 보드가 매기고 «되감기지 않아요» — 스풀(대기 중) + 상태 파일(lastSeq, 확정된 최대)에서 이어붙여요. 중계는 seq 로 중복을 거르니 번호를 다시 쓰면 새 봉투가 «받은 것» 으로 버려져요.
+//   2) 디스크에 확정된 뒤에만 보내요 — 보내고 나서 죽어도 «스풀에 있는 것» 을 다시 보낼 수 있고(중계가 중복을 거름), 확정 전에 죽으면 «보낸 적 없는 것» 이라 구멍도 중복도 없어요.
+//   3) 못 보내는 동안 스풀이 넘치면 가장 오래된 것부터 버리되 «구멍» 으로 남겨서 그것도 보내요 — 조용한 손실이 없어요(spool.cjs).
+//   4) 이 층은 «받은 명령을 실행하지 않아요.» 오는 명령은 전부 감사 로그에 한 줄 남기고 {status:'rejected', reason:'not-implemented'} 로 회신해요(실행 레인은 이 위에 따로 얹혀요).
+//   5) 로컬 설정이 정본이에요 — 중계의 응답은 ackSeq · commands 말고는 해석하지 않아요(설정을 바꾸는 응답 필드가 없어요).
+//   6) 토큰은 Authorization 헤더로만 가요 — URL·로그·감사에 안 들어가요(요청 경로엔 cursor/wait 숫자만).
+//
+// **실패하는 방식.** 네트워크 오류 · 시간 초과 · 이해 못 할 응답 → 지수 백오프(1s~60s, 지터) 후 재시도, 성공하면 초기화. 401/403 은 «토큰이 폐기됐다» 로 읽고 **멈춰요**(한 번 말하고
+//   폭주하지 않아요 — 토큰 파일이 바뀌면 30초 안에 다시 시작해요). 모든 요청에 시간 제한이 있고, stop() 은 타이머와 진행 중 요청을 전부 끊어요(서버가 깨끗하게 끝나게).
+//   시계·타이머·난수는 주입받아요(시험이 시간을 건너뛰고 지터를 고정하게). **«벽시계» 와 «단조 시계» 는 갈라요** — 봉투 ts·감사 시각 같은 «사실의 기록» 은 벽시계(clock)지만, 백오프 일정·경과 시간 계산은
+//   단조 시계(mono)예요. 벽시계가 뒤로 점프하면(NTP 보정 · 수동 변경 · VM 복원) 「다음 시도 시각」 이 점프만큼 먼 미래가 돼서 전송이 그만큼 멈추고 스풀이 차오르거든요.
+
+const { performance } = require('perf_hooks');
+const http = require('http');
+const https = require('https');
+const OP = require('./opcmd.cjs');
+const { Spool } = require('./spool.cjs');
+
+const UPLINK_VERSION = '0.1.0';
+const MAX_BATCH_ITEMS = 200;
+const MAX_BATCH_BYTES = 256 * 1024;
+const SNAP_BUDGET = 180 * 1024;                 // 한 배치에서 스냅샷이 쓸 수 있는 바이트 — 나머지는 다음 배치로 이어요
+const MAX_RESPONSE_BYTES = 1024 * 1024;
+const MAX_SANE_SEQ = 2 ** 40;                  // 중계가 이보다 큰 ack 를 말하면 «앞서 있다» 가 아니라 «고장» 으로 읽어요(번호 공간을 한 번에 소진시키는 응답을 믿지 않아요)
+const MAX_COMMANDS = 50;
+const MAX_CMD_TEXT = 20000;
+const CMDID_RE = /^[A-Za-z0-9._:@=+/-]{1,128}$/;
+const MIN_BACKOFF_MS = 1000;
+const MAX_BACKOFF_MS = 60000;
+const TOKEN_WATCH_MS = 30000;
+
+const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const realTimers = {
+  setTimeout: (fn, ms) => { const t = setTimeout(fn, ms); if (t && t.unref) t.unref(); return t; },
+  clearTimeout: (t) => clearTimeout(t),
+};
+
+class Transport {
+  constructor(o) {
+    this.cfg = o.cfg;
+    this.store = o.store;
+    this.log = o.log || (() => {});
+    this.clock = o.clock || { now: () => Date.now() };              // 벽시계 — 기록용(ts · 감사)
+    this.mono = o.mono || { now: () => performance.now() };         // 단조 시계 — 일정·경과용(되감기지 않아요)
+    this.timers = o.timers || realTimers;
+    this.rand = o.rand || Math.random;
+    this.readToken = o.readToken;
+    this.buildHeartbeat = o.buildHeartbeat || (() => null);        // () => {item, sig} | null
+    this.snapshotProvider = o.snapshotProvider || (() => null);    // () => entries[] (열린 항목 전부)
+    this.onTick = o.onTick || null;                                // 하트비트 주기마다 먼저 불려요 (키 파일 변경 감시 같은 «주기 점검» 자리)
+    this.flushMs = o.flushMs !== undefined ? o.flushMs : 200;
+    this.heartbeatMs = o.heartbeatMs !== undefined ? o.heartbeatMs : 30000;
+    this.pollWaitS = o.pollWaitS !== undefined ? o.pollWaitS : 25;
+    this.requestTimeoutMs = o.requestTimeoutMs !== undefined ? o.requestTimeoutMs : 15000;
+
+    this.spool = new Spool({ file: this.store.spoolFile, maxBytes: o.spoolMaxBytes || 5 * 1024 * 1024, log: this.log });
+    this.spool.load();
+    // 번호 이어붙이기 — 확정된 최댓값(상태 파일)과 대기 중 최댓값(스풀) 중 큰 쪽 다음부터. 둘 다 잃으면 1 부터지만, 그건 «처음» 일 때뿐이에요.
+    //   세 보관소의 최댓값이에요: 상태 파일(lastSeq) · 스풀 머리의 바닥값(floor — 상태 파일을 잃어도 남아요) · 스풀의 대기 항목. 셋 다 잃은 경우는 아래 «앞서 있는 중계» 가 중계의 ack 에 맞춰요.
+    this.nextSeq = Math.max(this.store.state.lastSeq, this.spool.floor, this.spool.maxPos) + 1;
+    this._maxSentPos = this.spool.maxPos;   // 지금까지 «보냈을 수 있는» 가장 큰 위치 — 재시작 직후엔 스풀에 있는 건 전부 이전 프로세스가 보냈을 수 있어요
+
+    this._hb = null;
+    this._lastHbSig = null;
+    this._snapPending = new Map();
+    this._snapFull = false;
+    this._needFull = true;           // 시작·재접속 뒤 첫 성공 전송에는 «열린 항목 전체» 가 실려요
+    this._inflight = false;
+    this._nextAttemptAt = 0;          // 단조 시계 기준
+    this._fails = 0;
+    this._failLogged = false;
+    this._revoked = false;
+    this._revokedSig = null;
+    this._stopped = false;
+    this._started = false;
+    this._live = new Set();
+    this._t = {};
+    this._pollFails = 0;
+    this._audited = new Set();
+    this._overflowLoggedAt = 0;
+    this._stateWarn = false;
+  }
+
+  // ── 시간·타이머 ──
+  _arm(name, ms, fn) {
+    if (this._t[name]) this.timers.clearTimeout(this._t[name]);
+    this._t[name] = this.timers.setTimeout(() => { this._t[name] = null; try { fn(); } catch (e) { this._warnOnce('arm:' + name, '[uplink] 내부 오류 (' + name + '): ' + (e && e.message)); } }, ms);
+  }
+  _warnOnce(key, msg) { this._once = this._once || new Set(); if (this._once.has(key)) return; this._once.add(key); this.log(msg); }
+  _backoff(n) {
+    const base = Math.min(MAX_BACKOFF_MS, MIN_BACKOFF_MS * 2 ** Math.max(0, n - 1));
+    return Math.min(MAX_BACKOFF_MS, Math.floor(base * (1 + 0.25 * this.rand())));
+  }
+
+  // ── 시작/중지 ──
+  start() {
+    if (this._started) return;
+    this._started = true;
+    this._heartbeatTick();
+    this._pump();
+    this._pollSoon(0);
+  }
+
+  stop() {
+    this._stopped = true;
+    for (const k of Object.keys(this._t)) { if (this._t[k]) this.timers.clearTimeout(this._t[k]); this._t[k] = null; }
+    for (const r of [...this._live]) { try { r.destroy(new Error('stopped')); } catch (_) { /* noop */ } }
+    this._live.clear();
+    try { this.spool.flushDisk(); } catch (_) { /* 종료 중 최선 */ }
+  }
+
+  stats() { return { pending: this.spool.pending(), dropped: this.store.state.dropped }; }
+
+  // ── 큐 ──
+  enqueue(env) {
+    if (this._stopped) return 0;
+    const seq = this.nextSeq++;
+    const item = { kind: 'envelope', seq, ts: env.ts !== null && env.ts !== undefined ? env.ts : this.clock.now(),
+      type: env.type, name: env.name, msgId: env.msgId, parentId: env.parentId, from: env.from, to: env.to, source: env.source,
+      class: env.class, channel: env.channel, obs: env.obs, meta: env.meta };
+    this.spool.push(item);
+    this._schedulePersist();
+    return seq;
+  }
+
+  mergeSnapshot(entries) {
+    if (this._stopped || !entries || !entries.length) return;
+    for (const e of entries) this._snapPending.set(e.itemId, e);
+    this._schedulePersist();
+  }
+
+  requestFull() { this._needFull = true; this._schedulePersist(); }
+
+  setHeartbeat(item, sig) { this._hb = item; this._lastHbSig = sig; this._schedulePersist(); }
+
+  // 하트비트: 주기(30초)마다 무조건 + «변화» 가 감지되면 즉시(디바운스).
+  _heartbeatTick() {
+    if (this._stopped) return;
+    try { if (this.onTick) this.onTick(); const r = this.buildHeartbeat(); if (r) this.setHeartbeat(r.item, r.sig); } catch (e) { this._warnOnce('hb', '[uplink] 하트비트를 만들지 못했어요: ' + (e && e.message)); }
+    this._arm('hb', this.heartbeatMs, () => this._heartbeatTick());
+  }
+
+  notifyChange() {
+    if (this._stopped || this._t.change) return;
+    this._arm('change', 300, () => {
+      const r = this.buildHeartbeat();
+      if (r && r.sig !== this._lastHbSig) this.setHeartbeat(r.item, r.sig);
+    });
+  }
+
+  _schedulePersist() {
+    if (this._stopped || this._t.persist) return;
+    this._arm('persist', this.flushMs, () => { this._persistNow(); this._pump(); });
+  }
+
+  _persistNow() {
+    try {
+      const r = this.spool.flushDisk();
+      if (r.dropped > 0) {
+        this.store.state.dropped += r.dropped;
+        try { this.store.save(); } catch (_) { /* 다음 기회 */ }
+        const now = this.mono.now();
+        if (this._overflowLoggedAt === 0 || now - this._overflowLoggedAt > 60000) { this._overflowLoggedAt = now; this.log('[uplink] 스풀이 가득 차서 오래된 봉투 ' + r.dropped + '개를 버렸어요 (구멍 항목으로 중계에 알려요)'); }
+      }
+    } catch (e) { this._warnOnce('persist', '[uplink] 스풀을 디스크에 쓰지 못했어요 (' + (e && e.code ? e.code : e && e.message) + ') — 메모리에 두고 다시 시도해요'); }
+  }
+
+  _hasWork() { return this.spool.entries.length > 0 || !!this._hb || this._snapPending.size > 0 || this._needFull; }
+
+  // ── 배치 전송 ──
+  _pump() {
+    if (this._stopped || this._revoked || this._inflight) return;
+    if (!this._hasWork()) return;
+    const wait = Math.min(MAX_BACKOFF_MS, this._nextAttemptAt - this.mono.now());      // 상한은 안전망 — 일정은 이미 단조 시계라 점프에 안 흔들려요
+    if (wait > 0) { this._arm('pump', wait, () => this._pump()); return; }
+    this._sendBatch();
+  }
+
+  async _sendBatch() {
+    this._inflight = true;
+    try {
+      this._persistNow();                           // 보내기 «전에» 디스크 확정
+      if (this._needFull) {
+        // 전체 스냅샷은 «시작할 때 한 번» 만들어요 — 덩어리가 여럿이면 남은 덩어리가 다음 배치로 이어지고, 그동안 다시 만들면 첫 덩어리만 영원히 반복돼요.
+        //   실패하면 아래 catch 가 _needFull 을 다시 세워서 «처음부터» 다시 보내요(중계가 일부만 받았을 수 있어서).
+        this._needFull = false;
+        const full = this.snapshotProvider();
+        if (full) { this._snapPending = new Map(full.map((e) => [e.itemId, e])); this._snapFull = true; }
+      }
+      const items = [];
+      let bytes = 64;
+      const hb = this._hb;
+      if (hb) { items.push(hb); bytes += Buffer.byteLength(JSON.stringify(hb)); }
+      // 스냅샷 — 예산 안에서 항목을 덜어 한 덩어리로. 전체(full)이면 덩어리마다 final 로 «끝» 을 표시해요.
+      let snapSent = [];
+      let snapItem = null;
+      if (this._snapPending.size > 0 || this._snapFull) {
+        const entries = [...this._snapPending.values()];
+        let used = 0;
+        for (const e of entries) {
+          const sz = Buffer.byteLength(JSON.stringify(e));
+          if (snapSent.length > 0 && used + sz > SNAP_BUDGET) break;
+          snapSent.push(e); used += sz;
+        }
+        snapItem = { kind: 'items-snapshot', full: this._snapFull, final: snapSent.length === entries.length, items: snapSent };
+        items.push(snapItem);
+        bytes += used + 64;
+      }
+      const spoolSent = [];
+      for (const e of this.spool.entries) {
+        if (items.length >= MAX_BATCH_ITEMS) break;
+        if (spoolSent.length > 0 && bytes + e.bytes > MAX_BATCH_BYTES) break;
+        items.push(e.item); spoolSent.push(e); bytes += e.bytes;
+      }
+      const res = await this._req('POST', '/v1/uplink/batch', JSON.stringify({ boardId: this.cfg.boardId, items }), this.requestTimeoutMs);
+      if (this._stopped) return;
+      if (res.status === 401 || res.status === 403) { this._revoke(res.status); return; }
+      if (res.status !== 200) throw new Error('HTTP ' + res.status);
+      let ack;
+      try { const j = JSON.parse(res.text); ack = j && j.ackSeq; } catch (_) { ack = undefined; }
+      if (!Number.isSafeInteger(ack) || ack < 0 || ack > MAX_SANE_SEQ) throw new Error('이해할 수 없는 ack 응답');
+      for (const e of spoolSent) if (e.pos > this._maxSentPos) this._maxSentPos = e.pos;
+      const base = Math.max(this._maxSentPos, this.store.state.lastSeq);
+      if (ack > base) {
+        // «앞서 있는 중계» — 우리가 보냈을 수 있는 어떤 번호보다 큰 ack. 번호를 잃은 보드(상태·스풀 둘 다 사라짐)가 새로 1 부터 매기는데 중계는 옛 번호까지 받아 둔 경우예요.
+        //   (보내지도 않은 봉투를 ack 로 지워 버리지 않고) 중계의 ack 를 바닥으로 삼아 아직 안 보낸 항목을 그 위로 다시 매겨요 — 안 그러면 새 봉투가 전부 «이미 받은 번호» 로 버려져요.
+        const next = this.spool.renumberAbove(ack);
+        this.nextSeq = Math.max(this.nextSeq, next);
+        this._maxSentPos = this.spool.maxPos;
+        this._warnOnce('ahead', '[uplink] 중계가 우리 번호보다 앞서 있어요 (ack ' + ack + ') — 번호 기록을 잃은 것으로 보고 중계의 ack 뒤로 이어서 다시 매겨요');
+      } else {
+        const advanced = ack > 0 && this.spool.entries.some((e) => e.pos <= ack);
+        if (spoolSent.length > 0 && !advanced) throw new Error('ack 가 진전이 없어요');
+      }
+      this._applyAck(ack);
+      if (this._hb === hb) this._hb = null;
+      for (const e of snapSent) if (this._snapPending.get(e.itemId) === e) this._snapPending.delete(e.itemId);
+      if (snapItem && snapItem.final) this._snapFull = false;
+      this._fails = 0;
+      this._failLogged = false;
+      this._nextAttemptAt = 0;
+    } catch (e) {
+      if (this._stopped) return;
+      this._fails++;
+      this._needFull = true;                        // 연결이 끊겼다 돌아오면 전체 스냅샷을 다시 보내요
+      this._nextAttemptAt = this.mono.now() + this._backoff(this._fails);
+      if (!this._failLogged) { this._failLogged = true; this.log('[uplink] 전송 실패 — 백오프로 재시도해요 (' + String((e && e.message) || e).slice(0, 120) + ')'); }
+    } finally {
+      this._inflight = false;
+    }
+    if (!this._stopped && !this._revoked) this._arm('pump', Math.min(MAX_BACKOFF_MS, Math.max(0, this._nextAttemptAt - this.mono.now())), () => this._pump());
+  }
+
+  _applyAck(ack) {
+    if (ack > this.store.state.lastSeq) {
+      this.store.state.lastSeq = ack;
+      try { this.store.save(); this._stateWarn = false; } catch (e) { this._warnOnce('state', '[uplink] 상태 파일을 쓰지 못했어요 (' + (e && e.code ? e.code : e && e.message) + ')'); }
+    }
+    this.spool.ack(ack);                            // 상태 파일(lastSeq)이 «먼저» — 스풀에서 지운 뒤 죽어도 번호가 되감기지 않아요
+    try { this.spool.flushDisk(); } catch (e) { this._warnOnce('persist', '[uplink] 스풀을 디스크에 쓰지 못했어요 (' + (e && e.code ? e.code : e && e.message) + ')'); }
+  }
+
+  // ── 401/403: 멈춰요 ──
+  _revoke(status) {
+    if (this._revoked) return;
+    this._revoked = true;
+    this._revokedSig = this._tokenSig();
+    for (const k of ['pump', 'poll', 'hb', 'change', 'persist']) { if (this._t[k]) { this.timers.clearTimeout(this._t[k]); this._t[k] = null; } }
+    this.log('[uplink] 중계가 인증을 거절했어요 (HTTP ' + status + ') — 토큰이 폐기된 것으로 보고 전송·폴링을 멈춰요. 토큰 파일을 바꾸면 자동으로 다시 시작해요');
+    this._arm('tokenwatch', TOKEN_WATCH_MS, () => this._tokenWatch());
+  }
+  _tokenSig() { try { return String(this.readToken()); } catch (_) { return null; } }
+  _tokenWatch() {
+    if (this._stopped) return;
+    const sig = this._tokenSig();
+    if (sig && sig !== this._revokedSig) {
+      this._revoked = false; this._fails = 0; this._pollFails = 0; this._nextAttemptAt = 0; this._needFull = true;
+      this.log('[uplink] 토큰 파일이 바뀌었어요 — 전송을 다시 시작해요');
+      this._heartbeatTick(); this._pump(); this._pollSoon(0);
+      return;
+    }
+    this._arm('tokenwatch', TOKEN_WATCH_MS, () => this._tokenWatch());
+  }
+
+  // ── HTTP ──
+  _req(method, pathAndQuery, bodyStr, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const done = (fn, v) => { if (settled) return; settled = true; if (tm) this.timers.clearTimeout(tm); this._live.delete(req); fn(v); };
+      let tm = null;
+      let req;
+      try {
+        const token = this.readToken();
+        const url = new URL(this.cfg.relay + pathAndQuery);
+        const mod = url.protocol === 'https:' ? https : http;
+        const headers = { Authorization: 'Bearer ' + token, Accept: 'application/json', 'User-Agent': 'eg-uplink/' + UPLINK_VERSION };
+        let body = null;
+        if (bodyStr !== null && bodyStr !== undefined) { body = Buffer.from(bodyStr, 'utf8'); headers['Content-Type'] = 'application/json'; headers['Content-Length'] = String(body.length); }
+        req = mod.request({
+          protocol: url.protocol, hostname: url.hostname.replace(/^\[|\]$/g, ''), port: url.port || undefined, path: url.pathname + url.search,
+          method, headers, agent: false,
+        }, (res) => {
+          const chunks = [];
+          let size = 0;
+          res.on('data', (d) => {
+            size += d.length;
+            if (size > MAX_RESPONSE_BYTES) { try { req.destroy(new Error('응답이 너무 커요')); } catch (_) { /* noop */ } return; }
+            chunks.push(d);
+          });
+          res.on('end', () => done(resolve, { status: res.statusCode, text: Buffer.concat(chunks).toString('utf8') }));
+          res.on('error', (e) => done(reject, e));
+        });
+        this._live.add(req);
+        req.on('error', (e) => done(reject, e));
+        tm = this.timers.setTimeout(() => { try { req.destroy(new Error('시간 초과')); } catch (_) { /* noop */ } done(reject, new Error('시간 초과')); }, timeoutMs);
+        if (body) req.write(body);
+        req.end();
+      } catch (e) { done(reject, e); }
+    });
+  }
+
+  // ── 명령 롱폴 ──
+  _pollSoon(ms) {
+    if (this._stopped || this._revoked) return;
+    this._arm('poll', ms, () => this._poll());
+  }
+
+  async _poll() {
+    if (this._stopped || this._revoked) return;
+    const t0 = this.mono.now();
+    let next = 0;
+    try {
+      const res = await this._req('GET', '/v1/uplink/commands?cursor=' + this.store.state.cursor + '&wait=' + this.pollWaitS, null, (this.pollWaitS + 10) * 1000);
+      if (this._stopped) return;
+      if (res.status === 401 || res.status === 403) { this._revoke(res.status); return; }
+      if (res.status === 204) {
+        this._pollFails = 0;
+        next = this.mono.now() - t0 < 500 ? 1000 : 0;     // 중계가 «기다리지 않고» 204 를 돌려주면 요청 폭주 — 최소 간격을 둬요
+      } else if (res.status === 200) {
+        await this._handleCommands(res.text);
+        this._pollFails = 0;
+        next = this.mono.now() - t0 < 500 ? 250 : 0;
+      } else throw new Error('HTTP ' + res.status);
+    } catch (e) {
+      if (this._stopped) return;
+      this._pollFails++;
+      next = this._backoff(this._pollFails);
+      if (this._pollFails === 1) this.log('[uplink] 명령 폴링 실패 — 백오프로 재시도해요 (' + String((e && e.message) || e).slice(0, 120) + ')');
+    }
+    this._pollSoon(next);
+  }
+
+  async _handleCommands(text) {
+    let j;
+    try { j = JSON.parse(text); } catch (_) { throw new Error('명령 응답이 JSON 이 아니에요'); }
+    if (!isPlain(j) || !Array.isArray(j.commands) || j.commands.length > MAX_COMMANDS) throw new Error('명령 응답 모양이 규격이 아니에요');
+    if (j.commands.length === 0) return;
+    const results = [];
+    let cursor = this.store.state.cursor;
+    let sawCursor = false;
+    for (const c of j.commands) {
+      if (!isPlain(c) || typeof c.cmdId !== 'string' || !CMDID_RE.test(c.cmdId)) continue;       // 회신할 id 가 없으면 이 항목은 무시(감사도 못 남겨요 — 어떤 명령인지 말할 수 없어서)
+      if (!this._audited.has(c.cmdId)) {
+        let h = 'unparsed';
+        if (typeof c.cmd === 'string' && c.cmd.length <= MAX_CMD_TEXT) {
+          try { OP.parseCanonical(c.cmd); h = OP.cmdHash(c.cmd).toString('hex').slice(0, 8); } catch (_) { h = 'unparsed'; }
+        }
+        // «받았다» 는 사실이 디스크에 먼저 — 감사를 못 쓰면 회신도 안 해요(기록 없는 응답을 만들지 않아요).
+        this.store.audit({ at: new Date(this.clock.now()).toISOString(), cmdId: c.cmdId, cmdHash: h, status: 'rejected', reason: 'not-implemented' });
+        this._audited.add(c.cmdId);
+        if (this._audited.size > 2000) this._audited.delete(this._audited.values().next().value);
+      }
+      results.push({ cmdId: c.cmdId, status: 'rejected', reason: 'not-implemented' });
+      if (Number.isSafeInteger(c.cursor) && c.cursor >= 0) { sawCursor = true; if (c.cursor > cursor) cursor = c.cursor; }
+    }
+    if (!sawCursor && results.length) throw new Error('명령에 커서가 없어요');       // 커서를 못 올리면 같은 명령이 영원히 와요 — 폭주 대신 백오프
+    if (results.length) {
+      const r = await this._req('POST', '/v1/uplink/results', JSON.stringify({ results }), this.requestTimeoutMs);
+      if (this._stopped) return;
+      if (r.status === 401 || r.status === 403) { this._revoke(r.status); return; }
+      if (r.status < 200 || r.status >= 300) throw new Error('결과 회신 HTTP ' + r.status);
+    }
+    if (cursor > this.store.state.cursor) {
+      this.store.state.cursor = cursor;
+      try { this.store.save(); } catch (e) { this._warnOnce('state', '[uplink] 상태 파일을 쓰지 못했어요 (' + (e && e.code ? e.code : e && e.message) + ')'); }
+    }
+  }
+}
+
+module.exports = { Transport, UPLINK_VERSION, MAX_BATCH_ITEMS, MAX_BATCH_BYTES };

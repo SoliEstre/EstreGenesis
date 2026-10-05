@@ -22,6 +22,11 @@ const ATT_DIR = path.join(DIR, 'feedback-atts');   // 첨부 data-URL 추출 보
 const PORT = Number(process.env.PORT) || 7878;
 const MAX_BODY = 32 * 1024 * 1024;                  // 첨부(이미지 등) 허용 위해 상향
 push.init(DIR, { subject: 'mailto:admin@constellation.local' });   // #3b VAPID 키쌍 로드/생성(.vapid.json) + 구독 로드(.push-subs.json)
+// [uplink-tap] 상향 전송(uplink) 읽기 전용 손잡이 — 핸들은 `uplink.json` 이 있을 때만 파일 맨 아래에서 채워져요(없으면 null → 아래 세 함수는 아무것도 안 해요). 업링크가 던져도 서버는 안 깨져요(한 번만 말해요).
+let _uplink = null, _uplinkFaulted = false;   // [uplink-tap]
+function _uplinkFault(e) { if (!_uplinkFaulted) { _uplinkFaulted = true; console.warn('[uplink] 탭 오류 — 이후 같은 오류는 말하지 않아요: %s', (e && e.message) || e); } }   // [uplink-tap]
+function _uplinkBoard(m) { if (_uplink) { try { _uplink.onBoardBroadcast(m); } catch (e) { _uplinkFault(e); } } }   // [uplink-tap]
+function _uplinkState(t) { if (_uplink) { try { _uplink.onStateChange(t); } catch (e) { _uplinkFault(e); } } }   // [uplink-tap]
 
 // ── #5a 표면별 접근 제어 + 노출 (Constellation §13.25) ─────────────────────────────────────
 // access.json (server 옆, gitignore) = { expose:bool, ui:{allowlist}, agent:{allowlist,requireKey}, mcp:{allowlist} }.
@@ -211,6 +216,7 @@ function readState() {
 }
 function broadcastState() {
   const data = readState();
+  _uplinkState(data);   // [uplink-tap]
   for (const res of sseClients) {
     try { res.write(`event: state\ndata: ${data.replace(/\n/g, ' ')}\n\n`); } catch {}
   }
@@ -2138,7 +2144,7 @@ function wsRelayOperatorFeedback(entry) {
   wsRecord(ev);
   try { push.maybePush(ev); } catch {}
 }
-function wsToBoards(msg) { wsNormTs(msg); for (const c of wsConns) if (c.alive && wsIsBoard(c)) c.send(msg); }   // v2.4.165 — 인가된 보드 연결만
+function wsToBoards(msg) { wsNormTs(msg); for (const c of wsConns) if (c.alive && wsIsBoard(c)) c.send(msg); _uplinkBoard(msg); }   // v2.4.165 — 인가된 보드 연결만
 // v2.4.165 — «전체» 는 에이전트 + 인가된 보드예요. HELLO 판정 전의 연결(열쇠를 든 채 대기 중 · 인가 없는 무키)은 빠져요:
 //   §13.25.14 가 «열쇠를 든 연결은 판정 뒤에만 보드 상태를 받는다» 고 정했는데, 명단 방송이 그 유예를 비켜 가서
 //   판정 전 연결이 «수락 증거» 로 오인할 프레임까지 받았어요(채택자 실측: 거절보다 명단이 먼저 옴).
@@ -2874,3 +2880,20 @@ server.listen(PORT, WS_BIND, () => {
     console.warn(`[server] ⚠ WS_PRIMARY_AGENT 미설정 — WS_PRIMARY_ID 가 generic default 'main-agent' 입니다. 메인 세션의 agentId 와 다르면 그 세션이 local 로 분류돼요. 기동/재기동 시 WS_PRIMARY_AGENT=<main agentId> 주입 권장 (SetMain 핸드오프로도 전환 가능).`);
   }
 });
+// [uplink-begin] 상향 전송 — `uplink.json` 이 있을 때만 켜요. 없으면 이 한 줄(존재 확인) 말고는 아무 일도 없어요: require 없음 · 타이머 없음 · 네트워크 없음 · 파일 생성 없음 · 로그 없음.
+//   업링크가 서버에서 읽는 건 보드로 가는 프레임(wsToBoards 탭) · state.json 새 텍스트(broadcastState 탭) · 접속 현황 getter 셋뿐이고, 서버에 주입하는 hook 은 없어요.
+if (fs.existsSync(path.join(DIR, 'uplink.json'))) {
+  try {
+    _uplink = require('./uplink/index.cjs').start({
+      dir: DIR,
+      log: (...a) => console.log(...a),
+      getState: () => readState(),
+      getAgents: () => ({
+        primaryId: WS_PRIMARY_ID,
+        live: wsAgentList(),
+        known: keyStore.keys.filter((k) => k && k.lastAgent && k.lastSeenAt && !k.deletedAt && !k.revokedAt).map((k) => ({ agentId: k.lastAgent, kind: k.kind || 'upstream', lastSeenAt: k.lastSeenAt })),
+      }),
+    });
+  } catch (e) { _uplink = null; console.warn('[uplink] 비활성 — 로드 실패: %s', (e && e.message) || e); }
+}
+// [uplink-end]

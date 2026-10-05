@@ -8,7 +8,12 @@
  },
  "boardKey": {
   "spkiDerB64": "MCowBQYDK2VwAyEAzgsAosZa6YV0m2o/nmq7wEtAE+J15AxIoyb9w2AHRO8=",
-  "fp": "b7vnVBLY-LwxeSn_tXKxjk"
+  "fp": "b7vnVBLY-LwxeSn_tXKxjk",
+  "p256": {
+   "spkiDerB64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETP4sCrzxzGRgOagJyO9gth1pPQ4rXHegvuIeWXpyOwIVQYHjhHIxQlbCzMdFfByEGydIzt0ayWRmNkFBGs7/KQ==",
+   "spkiCompressedB64": "MDkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDIgADTP4sCrzxzGRgOagJyO9gth1pPQ4rXHegvuIeWXpyOwI=",
+   "fp": "0ToahrcJxmCIfZIf3Ztc7R"
+  }
  },
  "notes": {
   "stringLength": "cmd.acct 의 길이 상한(128)은 UTF-16 코드 유닛 수예요. 코드 포인트나 UTF-8 바이트로 세지 않아요.",

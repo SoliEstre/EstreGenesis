@@ -49,4 +49,33 @@ function stampTelemetry(msg) {
   return msg;
 }
 
-module.exports = { isTelemetryFrame, stampTelemetry, TELEMETRY_NAMES };
+// §13.16.9 의 «군» 분류 — 위 텔레메트리 판정과 같은 부품에 둬요(프레임이 어떤 성격인지 아는 곳이 하나여야 해서).
+//   표는 Constellation.md §13.16.9 의 4-군 표(transport · liveness · handshake · notice)와 board-directed(UX 잔여), 그리고 A2A-intent 의
+//   «문서쪽 정본 이름들» 이에요. 이 표는 **소비자(상향 전송 등)가 프레임에 붙이는 라벨용**이지 «깨울지 말지» 의 판정이 아니에요 —
+//   깨움 판정은 probe 의 합집합 분류(지목 여부 포함)가 따로 있고, 여기엔 그 규칙이 없어요. 이름이 어느 표에도 없으면 'other' 예요
+//   (추측해서 a2a-intent 로 접지 않아요 — 모르는 이름을 의미 있다고 라벨 붙이면 라벨이 거짓말이 돼요).
+const GROUPS = Object.freeze({
+  transport: ['Ack', 'AckProcessed', 'AckCumulative', 'AckPolicyUpdate', 'Ping', 'Pong'],
+  liveness: ['Heartbeat', 'PersistentAdapterSmoke', 'Typing'],
+  handshake: ['AgentHello', 'OnboardAck', 'AgentList', 'History', 'ConnectionInfo'],
+  notice: ['ServerNotice'],
+  'board-directed': ['Status', 'UserPromptAccepted', 'ConnectionRestored', 'MainChanged', 'EditMessage', 'WorkerInboxReceived'],
+  'a2a-intent': [
+    'Report', 'Delegate', 'WorkerReport', 'WorkerAck', 'Handoff', 'HandoffRequested', 'HandoffReady', 'Command', 'Priority', 'Cancel', 'UserPrompt',
+    'BlockerManifest', 'BlockerNudge', 'PRRequest', 'PRDraftReady', 'PRReviewAck', 'PRMergeRequest', 'PRMergeAck', 'PRStatusUpdate', 'PRRequestRejected',
+    'DeadlockProbe', 'ReviewSLAAck', 'PreemptRequest', 'PreemptForce', 'MediationProposal', 'MediationAck', 'EscalationRequest',
+    'DECISION_REQUEST', 'DECISION_RESPONSE', 'DECISION_DEFER', 'DECISION_REJECT_FRAMING', 'HyperbriefCard',
+    'ULTRASAFE_FINDING', 'ULTRASAFE_ITERATION_BOUNDARY', 'ULTRASAFE_RELEASE_GATE', 'SECURITY_DISCLOSURE_INTAKE', 'MPCVD_COORDINATION',
+    // probe 의 열거(stop-hook/pre-send-probe.cjs ALLOWLIST)가 문서 표보다 넓어요 — 와이어 실측으로 늘어난 이름들. 이 목록이 그 열거에서
+    //   뒤처지지 않는지는 smoke-uplink 가 probe 파일을 읽어 «전 이름이 a2a-intent 인가» 로 재요(손 목록이라 단정이 필요해요).
+    'RelayUnreachable', 'Response', 'SelectionPrompt', 'SelectionExpired', 'SelectionResolved', 'SpecGapReport', 'SpecGapCode', 'Proposal',
+    'ReturnPackage', 'PhaseBScopeShare', 'TaskEnvelope', 'Request', 'Reply', 'Attachment', 'AgentText', 'ArtifactManifest', 'ArtifactComplete',
+  ],
+});
+const _GROUP_OF = new Map();
+for (const g of Object.keys(GROUPS)) for (const n of GROUPS[g]) _GROUP_OF.set(n, g);
+
+/** 이름 하나의 군. 표에 없으면 'other'. */
+function groupOfName(name) { return (typeof name === 'string' && _GROUP_OF.get(name)) || 'other'; }
+
+module.exports = { isTelemetryFrame, stampTelemetry, TELEMETRY_NAMES, GROUPS, groupOfName };

@@ -213,4 +213,9 @@ function maybePush(msg) {
   pushAll({ title, body, name: who }).catch(() => {});
 }
 
-module.exports = { isPushEndpoint, init, publicKey, latest, count, subscribe, unsubscribe, pushAll, maybePush, pushSuppressedCount, pushRateAllow, pushRateReset };
+// 소음 이름은 «판정 함수» 와 «복사본» 으로만 내보내요 — 살아 있는 Set 을 내보내면 이 모듈을 require 하는 쪽이 지우기만 해도 알림 정책이 바뀌고,
+//   그 집합을 «밖으로 내보내지 않는 이름» 의 기준으로 삼는 소비자(상향 전송)의 내보내기 범위까지 조용히 넓어져요.
+const isNoise = (name) => NOISE.has(name);
+const noiseNames = () => Object.freeze([...NOISE]);
+
+module.exports = { isNoise, noiseNames, isPushEndpoint, init, publicKey, latest, count, subscribe, unsubscribe, pushAll, maybePush, pushSuppressedCount, pushRateAllow, pushRateReset };

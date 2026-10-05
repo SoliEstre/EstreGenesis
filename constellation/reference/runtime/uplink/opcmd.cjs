@@ -62,7 +62,7 @@ const REJECT_CODES = Object.freeze({
   'nonce-replayed': '이미 소비된 nonce 예요',
   'ledger-corrupt': 'nonce 원장이 손상됐어요 (잃은 nonce 는 재전송 창을 여니 닫힌 채로 실패)',
   'ledger-unavailable': 'nonce 원장을 읽거나 쓸 수 없어요 (기록 못 한 nonce 는 소비된 게 아니라서 거절)',
-  'bad-key': '보드 공개키가 Ed25519 공개키가 아니에요',
+  'bad-key': '보드 공개키가 Ed25519 또는 P-256(ECDSA/ECDH) 공개키가 아니에요',
 });
 
 class OpcmdError extends Error {
@@ -314,8 +314,14 @@ function cmdFingerprint(hashBuf) {
   return hex.slice(0, 4) + '-' + hex.slice(4, 8);
 }
 
-// 보드 공개키 지문 = base64url(SHA-256(SPKI DER)) 앞 22자. Ed25519 만 받아요 — 다른 알고리즘의 키가
-//   같은 지문 자리에 앉으면 «어느 키로 검증하나» 가 모호해져요.
+// 보드 공개키 지문 = base64url(SHA-256(정준 SPKI DER)) 앞 22자. 받는 키는 둘뿐이에요 — Ed25519(종전) 와 ECDSA/ECDH P-256(가산).
+//   P-256 을 더한 이유: 보드 키는 «하나» 이고(봉인 서명 · 명령 영수증 서명 · 이 지문이 전부 같은 키), 폰 브라우저가 WebCrypto 의
+//   기본 알고리즘만으로 검증하려면 P-256 이어야 해요(Ed25519 는 브라우저 지원이 고르지 않아요). 그 밖의 알고리즘/곡선이 같은 지문
+//   자리에 앉으면 «어느 키로 검증하나» 가 모호해져서 거절해요.
+//   P-256 은 seal.cjs 의 normPublic 과 같은 «정준 91바이트 비압축 SPKI»(30 59 … 03 42 00 04 ‖ x ‖ y)로 맞춰서 해시해요 — 입력이 압축점(59바이트)·
+//   하이브리드 표기여도 같은 키는 같은 지문이고, 그래서 브라우저가 exportKey('spki') 로 계산한 값과 어긋나지 않아요(P-256 에선 seal.kidOf 와 같은 식이에요).
+//   Ed25519 의 DER 은 종전 그대로 — 기존 벡터가 그대로 통과해요.
+const SPKI_P256_PREFIX = Buffer.from('3059301306072a8648ce3d020106082a8648ce3d030107034200', 'hex');
 function boardKeyFingerprint(publicKey) {
   let key;
   try {
@@ -323,8 +329,19 @@ function boardKeyFingerprint(publicKey) {
       ? crypto.createPublicKey({ key: publicKey, format: 'der', type: 'spki' })
       : publicKey;
   } catch (_) { throw reject('bad-key', 'unparseable SPKI'); }
-  if (!key || key.type !== 'public' || key.asymmetricKeyType !== 'ed25519') throw reject('bad-key');
-  const der = key.export({ type: 'spki', format: 'der' });   // 입력이 어떤 표기든 정준 DER 로 맞춰요
+  if (!key || key.type !== 'public') throw reject('bad-key');
+  let der;
+  if (key.asymmetricKeyType === 'ed25519') {
+    der = key.export({ type: 'spki', format: 'der' });   // 입력이 어떤 표기든 정준 DER 로 맞춰요
+  } else if (key.asymmetricKeyType === 'ec' && key.asymmetricKeyDetails && key.asymmetricKeyDetails.namedCurve === 'prime256v1') {
+    try {
+      const jwk = key.export({ format: 'jwk' });
+      const pad = (s) => { const b = Buffer.from(String(s), 'base64url'); if (b.length > 32) throw new Error('coord'); return Buffer.concat([Buffer.alloc(32 - b.length), b]); };
+      der = Buffer.concat([SPKI_P256_PREFIX, Buffer.from([0x04]), pad(jwk.x), pad(jwk.y)]);
+    } catch (_) { throw reject('bad-key', 'unparseable P-256'); }
+  } else {
+    throw reject('bad-key');
+  }
   return crypto.createHash('sha256').update(der).digest('base64url').slice(0, 22);
 }
 
