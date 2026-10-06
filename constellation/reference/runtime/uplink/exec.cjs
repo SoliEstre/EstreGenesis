@@ -1,7 +1,7 @@
 'use strict';
 // exec.cjs — 명령 실행 레인: 롱폴로 받은 «사람 기기가 서명한 명령» 을 검증하고, 통과한 것만 «고정된 실행기» 로 보드에 넣어요.
 //
-//   createExecutor({cfg, dir, keys, store, getState, selections, inject, now, audit, log}) → {handle(c) → {status, reason, receipt}, close()}
+//   createExecutor({cfg, dir, keys, store, getState, selections, inject, notice?, now, audit, log}) → {handle(c) → {status, reason, receipt}, spendRecords() → 서명된 TOTP 사용 기록[], close()}
 //
 // **신뢰 경계 — 이 파일이 믿는 것과 안 믿는 것.** 중계는 신뢰할 수 없는 운반자예요. 중계가 «준» 것 중 어떤 것도 판정 재료로 안 써요: 자격증명·TOTP 비밀은 «이 보드 로컬»
 //   uplink-keys.json 에 사람이 등록한 것만, rpId·origin 은 로컬 uplink.json 만, audience(boardId)·보드 키 지문은 로컬 값만이에요. 중계가 «이런 키가 있다» 며 내미는 자격증명은
@@ -23,6 +23,31 @@
 //   consume 은 증명 «뒤에» 해요(거절된 명령이 nonce 를 태우면 공격자가 정당한 명령의 nonce 를 미리 소모시켜요 — opcmd 머리말). TOTP 가 ok 를 낸 뒤 consume 이 일시 장애로 실패하면 그 단계는 탄 채예요
 //   (TotpStore 의 계약 — «다음 코드를 쓰세요»).
 //
+// **TOTP 는 명령에 묶이지 않아요 — 그래서 «바꿔치기된 명령이 할 수 있는 일» 로 verb 를 제한하고, 일어났으면 알아채요.** 중계가 운영자의 «새» 코드를 보고 같은 코드를 «자기가 고른 명령»(다른 선택 · 새 nonce)에 붙여
+//   보드에 먼저 내밀면 보드는 그걸 받아요. 한 번 쓰는 코드(totp.cjs 의 단조 규칙)도 이걸 못 막아요 — 공격자도 코드를 «한 번» 쓰고, 막히는 건 그 뒤에 도착한 «운영자의 진짜 명령» 이에요(totp-replayed). 막을 수 없으니 «피해 반경을 좁히고 + 알아채요».
+//   verb 별로, 코드를 가로챈 쪽이 바꿔치기한 명령으로 할 수 있는 일:
+//     decision.answer    보기 중 «아무거나» 를 운영자 도장으로 고를 수 있어요(자유 서술은 TOTP 로 못 열고 보기 밖은 bad-args 라 «보기 안» 으로 한정). 그 선택이 되돌릴 수 없는 일을 부르면 피해가 커요 →
+//                        결정이 **reversibility === 'two_way' 를 스스로 선언한 경우에만** TOTP 로 열어요(선언이 없거나 어휘 밖이면 one_way — 안전하게 틀려요). 선언은 결정을 쓰는 쪽(메인)이 해요: 그 선택이 되돌려지는지는
+//                        그쪽이 알아요. 판정은 증명 «전» 의 현재 상태로 하고(비최종 거절 — TOTP 단계를 안 태워서 같은 명령을 passkey 로 다시 낼 수 있어요), 커밋 직전에 상태를 «다시 읽어» 한 번 더 봐요(그 사이 메인이 값을 바꿨을 수 있어요).
+//     decision.defer     «보류» 는 그 자체로 되돌릴 수 있어요(결정은 열린 채 남아요). 얻는 건 지연뿐이라 TOTP 유지.
+//     selection.answer   보기는 «프롬프트가 낸 것» 이라 보기 밖은 못 골라요(보기 없는 프롬프트는 거절). 선택지 프롬프트 자체가 «질문하는 쪽이 감수한 선택지» 라 TOTP 유지.
+//     hyperbrief.respond 서술이 없는 defer 만 TOTP — 위와 같은 이유로 보류뿐이에요.
+//   **탐지 (서버 쪽) — «고치지 않고 전달된» 경우만 덮어요.** TOTP 단계가 이미 소비돼서 거절되는데(totp-replayed) 장부가 «그 단계는 다른 cmdHash 가 썼다» 고 하면, 사유를 totp-step-used-by-other-command 로 바꿔 거절하고
+//   (최종 아님 — 새 코드나 passkey 로는 같은 명령이 통과할 수 있고, retryableUntil 로 폰이 재시도를 권해요) 감사 줄(kind totp-substitution-suspected · 두 cmdHash 앞 8자 · 횟수 · 인자 본문 없음)과 서버 알림 한 장을 내요.
+//   증명 단계에 «닿기 전에» 정책으로 거절되는 명령(결정이 사라짐 · 알 수 없는 항목 · 값이 나쁜 인자 · 선언이 없는 결정)도 거절 직전에 같은 장부를 «읽기만» 해서(TotpStore.spentBy — 아무것도 소비하지도 세지도 않아요) 같은 경보를 내요
+//   (사유는 그대로 — 폰엔 정책 거절로 보이고 경보는 따로 가요). 알림은 «운영자 목소리가 아니에요»: 서버 이름의 notice 프레임이고 via/operator 도장이 없어요 — 운영자 실행기(INJECTORS)와 «별개» 의 얼린 객체(NOTICERS)로만 나가요.
+//   같은 cmdHash 가 같은 단계를 또 내민 진짜 재전달이면 알리지 않아요(기존 totp-replayed 그대로). 알림은 «코드를 먼저 쓴 명령 하나당 한 장» 이고(그 명령이 «무엇에 · 어떤 결과로» 썼는지를 기억에서 가져와 말해요 — 먼저 쓴 쪽이 실행되지
+//   않았으면 그 결과(stale-item 등)를 그대로 말하고 «실행됐다» 고 하지 않아요), 감사의 경보 줄은 같은 대치당 자릿수마다(1 · 10 · 100 번째 거절) 한 줄이에요(일반 거절 줄은 건마다 그대로). 중계가 «같은 코드 + 새 nonce» 를 쏟아내도
+//   서버 알림은 한 장이고 감사 표는 경보로 채워지지 않아요. 항목 id 는 식별자 글자 집합(ID_RE)을 통과한 것만 실려요 — 선택지 프롬프트 id 는 에이전트가 고른 자유 서술이라 그대로 실으면 서버 권위 경보에 에이전트의 문장이 들어가요.
+//   **보드는 «어느 쪽이 운영자의 명령인지» 를 몰라요** — 먼저 쓴 쪽과 나중에 온 쪽을 나란히 말하고 판정하지 않아요(운영자 자신의 정당한 명령 뒤에 중계가 같은 코드로 쓰레기 명령을 붙여도 같은 모양이라, 알림은 «의심» 이고
+//   중계가 정당한 사용 뒤에도 거짓 경보를 만들 수는 있어요 — 거짓 경보는 싸고 놓친 대치는 비싸서 이쪽으로 틀려요). 막는 길은 여전히 passkey(명령 해시에 묶임)예요.
+//   **정직한 한계 — 서버 쪽 탐지는 중계가 «운영자의 진짜 명령을 고치지 않고 그대로» 전달할 때만 불려요.** 중계가 운영자의 명령을 코드 한 자리만 고쳐서(totp-invalid) 전달하거나, 증명을 떼어서(bad-proof) 전달하거나, 아예 전달하지 않으면
+//   보드는 대치를 «볼 일» 이 없고 경보도 안 나요(폰엔 그럴듯한 «틀린 코드» 거절이거나 아무 응답이 없어요). 그래서 «경보가 안 왔다» 는 «안전하다» 가 아니에요.
+//   **폰이 확인하는 길 — 서명된 TOTP 사용 기록(spendRecords).** 보드는 «코드의 단계를 처음 쓴 명령» 마다 {boardId, kind:'totp-spend', step, cmdHash(전체), verb, itemId(가명), outcome, codeTag, at} 를 보드 키로 서명해서 `/v1/uplink/results` 회신에
+//   `spends`(최근 8건)로 «모든» 회신에 실어요. codeTag = sha256('eg-totp-spend/v1\n' + boardId + '\n' + step + '\n' + code) 앞 16자라서, 코드의 비밀(시드)을 모르는 폰도 «내가 방금 친 코드 + 시계 ±1 단계» 로 자기 기록을 찾아요.
+//   폰의 규칙: 코드를 쳐서 낸 뒤 ① 자기 영수증이 «수락» 이면 끝 ② 아니면(totp-invalid · 거절 · 응답 없음) 자기 코드의 codeTag 를 가진 기록을 찾아 cmdHash 가 «내 명령의 해시» 와 다르면 대치가 «증명된 것» 이에요(보드 서명이라 중계가
+//   만들 수 없어요) ③ 기록이 없으면 «확인 안 됨» — 중계가 기록을 «빼는» 것은 막을 수 없지만 «고치는» 것은 못 하고, 방금 친 코드 뒤의 틀린 코드·무응답은 의심으로 다뤄야 해요. 기록은 이 프로세스의 기억이라 재시작하면 비어요(그때는 ③).
+
 // **낡은 항목 판정의 자리 — 증명 «뒤», 커밋 «안»(소비하고 거절).** 참조 항목이 이미 닫혔으면 실행하지 않되 nonce 와 signCount 는 «소비해요»: 해소된 결정은 닫힌 채 남지만 같은 id 가 «다시 열리면»
 //   (같은 가명 itemId) 아직 시간 창 안의 옛 서명이 새 질문에 적용될 수 있고, 소비하지 않으면 재전달이 그때마다 같은 판정을 반복하며 창이 열려 있어요. 소비하면 영수증(stale-item)이 남아 재전달도
 //   같은 답을 해요. 증명 «전» 에는 하지 않아요 — 증명 없는 입력(중계)이 nonce 를 태우지 못하게요. 항목이 «아예 흔적 없음» 인 unknown-item 은 증명 전에 거절해요(상태 변화가 없고 영영 못 하는 명령이 TOTP 단계를 태우지 않게).
@@ -39,6 +64,7 @@
 //
 // **실행기는 «고정» 이에요.** inject 는 verb 마다 하나씩, 열쇠 집합이 정확히 INJECTORS 와 같아야만 받아요 — 프레임 하나를 통째로 받는 범용 hook 은 없어요(있으면 이 레인이 «아무 프레임이나 운영자 이름으로 내는» 통로가 돼요).
 //   각 실행기는 «검증된 칸만» 받아요(이 파일이 칸별로 새 객체를 지어 넘겨요). 서버 쪽 구현도 칸별로 프레임을 지어요.
+//   알림 함수(notice)는 운영자 실행기가 «아니에요» — 별도의 얼린 객체(열쇠 집합이 정확히 NOTICERS)이고, 운영자 도장을 달 수 없는 서버 이름의 프레임만 지어요. 그래서 위 «정확히 5개» 는 그대로예요. notice 를 «주었는데» 규격이 아니면 같은 이유로 전부 거절해요.
 //
 // 이 파일의 파이프라인은 6단계부터 커밋까지 «동기» 예요(await 없음) — 같은 프로세스 안에서 두 명령이 끼어들 수 없어서 그 구간이 그대로 임계구역이에요. 프로세스 사이는 파일 잠금이 지켜요(nonce 원장 · TOTP 상태 · uplink-exec.lock).
 
@@ -47,7 +73,7 @@ const crypto = require('crypto');
 const OP = require('./opcmd.cjs');
 const WA = require('./webauthn-verify.cjs');
 const TOTP = require('./totp.cjs');
-const { tagOf } = require('./project.cjs');
+const { tagOf, reversibilityOf } = require('./project.cjs');
 const { ExecState } = require('./exec-state.cjs');
 const KS = require('./keyset.cjs');
 
@@ -66,6 +92,11 @@ const ID_RE = /^[A-Za-z0-9._:@-]{1,64}$/;
 const BRANCHES = Object.freeze(['accept', 'defer', 'reject_framing', 'request_investigation']);
 // 실행기 열쇠 집합 — 서버가 넘기는 inject 의 열쇠는 «정확히» 이거여야 해요(모자라도 남아도 거절).
 const INJECTORS = Object.freeze(['decisionDefer', 'hyperbriefRespond', 'operatorDecision', 'selectionAnswer', 'userPrompt']);
+// 알림 함수 열쇠 집합 — 운영자 실행기와 «별개» 예요(머리말). 주어졌다면 정확히 이것이어야 받아요.
+const NOTICERS = Object.freeze(['totpSubstitutionSuspected']);
+const MAX_NOTICED = 64;            // 알림을 낸 «대치된 명령» 기억 상한 — 오래된 것부터 잊어요
+const MAX_SPENDS = 32;             // TOTP 단계 사용 기록(누가 · 무엇에 썼나) 기억 상한 — 코드 창이 30초라 이만큼이면 한참 지난 것까지 덮어요
+const MAX_SPEND_REPORT = 8;        // 결과 회신에 실어 폰이 확인하게 하는 서명된 사용 기록의 최대 개수(가장 최근 것부터)
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v) && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
@@ -159,8 +190,9 @@ const ENROLL_REFUSALS = new Set(['credential-already-enrolled', 'device-already-
 
 // ── verb 정책 표 — **고정**이에요. 설정(uplink.json totp.verbs)은 «좁히기만» 해요(교집합) — 이 표에 없는 verb 를 TOTP 로 열 수 없어요.
 //   passkey(WebAuthn)는 표에 있는 모든 verb 를 해요. TOTP 는 «명령에 묶이지 않는 증명» 이라(totp.cjs 머리말 — 중계가 새 코드를 다른 명령에 붙일 수 있어요) 자유 서술이 없는 선택·보류에만 허용해요.
+//   totpTwoWay — 그 안에서도 «선택(decision.answer)» 은 결정이 reversibility:'two_way' 를 선언했을 때만 TOTP 로 열려요(머리말 «바꿔치기된 명령이 할 수 있는 일»). 보류·선택지 답은 해당 없음.
 const VERBS = Object.freeze({
-  'decision.answer': Object.freeze({ totp: true, item: 'decision', injector: 'operatorDecision', schema: schemaDecisionAnswer }),
+  'decision.answer': Object.freeze({ totp: true, totpTwoWay: true, item: 'decision', injector: 'operatorDecision', schema: schemaDecisionAnswer }),
   'decision.defer': Object.freeze({ totp: true, item: 'decision', injector: 'decisionDefer', schema: schemaDecisionDefer }),
   'hyperbrief.respond': Object.freeze({ totp: true, item: 'decision', injector: 'hyperbriefRespond', schema: schemaHyperbrief }),
   'selection.answer': Object.freeze({ totp: true, item: 'selection', injector: 'selectionAnswer', schema: schemaSelection }),
@@ -237,6 +269,9 @@ class Executor {
     this._totp = null;
     this.injectError = null;
     this.inject = null;
+    this.notice = null;                              // 서버 알림 함수(없으면 대치 의심은 감사 줄만 남겨요)
+    this._noticed = new Map();                       // 대치된 명령(= 코드를 먼저 쓴 쪽) cmdHash8 → {n: 거절 횟수, sent: 알림을 냈나} (머리말: 대치된 명령 하나당 알림 한 장 · 감사 알림 줄도 자릿수마다 한 줄)
+    this._spends = new Map();                        // TOTP 단계 → {step, cmdHash, verb, itemId, id, codeTag, at, signed} — 이 프로세스가 «처음으로» 그 단계를 쓴 명령(재시작하면 비어요 — 머리말)
     this._idx = null;                                // {text, map} — 결정 가명 색인 캐시(아래 _decisionIndex)
     this._snap = null;                               // 한 번의 명령 처리 안에서 «상태를 한 번만» 읽기 위한 스냅샷(handle 이 비움)
     if (!o.inject || typeof o.inject !== 'object') this.injectError = 'no-injectors';
@@ -244,6 +279,12 @@ class Executor {
       const ks = Object.keys(o.inject).sort();
       if (ks.length !== INJECTORS.length || ks.some((k, i) => k !== INJECTORS[i]) || INJECTORS.some((k) => typeof o.inject[k] !== 'function')) this.injectError = 'bad-injector-set';
       else this.inject = o.inject;
+    }
+    if (o.notice !== undefined) {
+      // 얼린 객체 + 열쇠 집합이 «정확히» NOTICERS — 운영자 실행기 검사와 같은 엄격함(여분의 함수 하나가 «아무 프레임이나 내는 통로» 가 되지 않게). 주었는데 틀리면 안전하게 전부 거절해요.
+      const nk = isPlain(o.notice) ? Object.keys(o.notice).sort() : null;
+      if (!nk || !Object.isFrozen(o.notice) || nk.length !== NOTICERS.length || nk.some((k, i) => k !== NOTICERS[i]) || NOTICERS.some((k) => typeof o.notice[k] !== 'function')) { if (!this.injectError) this.injectError = 'bad-notice-set'; }
+      else this.notice = o.notice;
     }
     if (this.injectError) this._once('inject', '[uplink] 명령 실행기가 규격이 아니에요(' + this.injectError + ') — 받은 명령은 전부 거절해요');
     this.state = new ExecState(this.dir, this.log, o.stateOpts);
@@ -348,13 +389,17 @@ class Executor {
     if (!ACCT_RE.test(cmd.acct)) return rej('bad-acct', true);
 
     // 5. verb 정책 · 인자 · 증명 종류 · 등록 · 항목
-    if (!hasOwn(VERBS, cmd.verb)) return rej('verb-not-allowed');
+    //   rejP — 증명 «전» 에 정책으로 거절하는 자리의 거절 함수예요. TOTP 명령이면 거절 «직전에» 읽기 전용으로 «이 코드가 이미 다른 명령에 쓰였나» 를 엿봐요(머리말 «탐지»):
+    //   증명 단계에 못 닿고 끝나는 거절(결정이 사라짐 · 알 수 없는 항목 · 값이 나쁜 인자 · 선언이 없는 결정)이 대치의 흔적을 «덮어» 버리지 않게요. 사유는 그대로이고 경보만 따로 나가요.
+    let norm = null;
+    let ref = null;
+    const rejP = (reason, fin) => { if (isPlain(f.proof) && f.proof.kind === 'totp') this._peekSubstitution(c, meta, norm, ref, key, f.proof, hashHex, nowMs); return rej(reason, fin); };
+    if (!hasOwn(VERBS, cmd.verb)) return rejP('verb-not-allowed');
     const policy = VERBS[cmd.verb];
-    let norm;
-    try { norm = policy.schema(cmd.args); } catch (e) { if (e instanceof Reject) return rej(e.code, true); throw e; }       // 스키마는 «글자만» 으로 정해져요 — 최종
+    try { norm = policy.schema(cmd.args); } catch (e) { if (e instanceof Reject) return rejP(e.code, true); throw e; }       // 스키마는 «글자만» 으로 정해져요 — 최종
     const kind = f.proof.kind;
     if (kind !== 'webauthn' && kind !== 'totp') return rej('bad-proof');
-    if (kind === 'totp' && (!this._totpAllowed(cmd.verb) || norm.weak)) return rej('proof-too-weak');
+    if (kind === 'totp' && (!this._totpAllowed(cmd.verb) || norm.weak)) return rejP('proof-too-weak');
     let secret = null;
     if (kind === 'webauthn') {
       if (!this.cfg.rp || !key.credentials || key.credentials.length === 0) return rej('proof-not-enrolled');
@@ -364,10 +409,11 @@ class Executor {
       if (!key.totp || key.totp.acct === null || !ACCT_RE.test(key.totp.acct)) return rej('proof-not-enrolled');
       try { secret = TOTP.base32Decode(key.totp.secretB32); } catch (_) { return rej('proof-not-enrolled'); }
     }
-    let ref;
-    try { ref = this._lookup(policy, norm.args); if (!ref.found) throw no('unknown-item'); if (ref.open) this._checkAgainstItem(cmd.verb, norm.args, ref); } catch (e) { if (e instanceof Reject) return rej(e.code); throw e; }
+    try { ref = this._lookup(policy, norm.args); if (!ref.found) throw no('unknown-item'); if (ref.open) this._checkAgainstItem(cmd.verb, norm.args, ref); } catch (e) { if (e instanceof Reject) return rejP(e.code); throw e; }
+    // TOTP 로 «선택» 을 하려면 그 결정이 되돌릴 수 있다고 선언돼 있어야 해요(머리말). 증명 «전» 이라 TOTP 단계를 안 태우고 비최종이에요 — 같은 명령이 passkey 증명으로 오면 통과해요.
+    if (kind === 'totp' && policy.totpTwoWay && !this._twoWay(ref.d)) return rejP('proof-too-weak');
     // 소비 «전» 에 읽기만 하는 nonce 확인 — TOTP 단계가 이미 쓰인 명령에 타지 않게(머리말).
-    if (this.ledger.has(cmd.nonce)) return rej('nonce-replayed');
+    if (this.ledger.has(cmd.nonce)) return rejP('nonce-replayed');
 
     // 6~10. 증명
     let wa = null;
@@ -386,16 +432,29 @@ class Executor {
       if (!v.ok) return rej(v.code);
       wa = { credentialId: v.credentialId, enrolled: enrolledRec.enrolled, stored: enrolledRec.stored, next: v.newSignCount, acct: enrolledRec.acct };
     } else {
-      if (key.totp.acct !== cmd.acct) return rej('acct-mismatch');
+      if (key.totp.acct !== cmd.acct) return rejP('acct-mismatch');
       let store;
       try { store = this._totpStore(sec); } catch (e) { return rej(e && e.code ? e.code : 'state-unavailable'); }
       const r = store.verifyProof(f.proof, hashBuf, { now: sec, secret });
-      if (!r.ok) return rej(r.code);
+      if (!r.ok) {
+        // 단계가 이미 소비됐는데 «다른 명령» 이 쓴 것이면 바꿔치기 의심(머리말 «탐지») — 같은 명령의 진짜 재전달(usedBy 가 내 cmdHash)이면 그냥 totp-replayed 예요.
+        if (r.code === 'totp-replayed' && typeof r.usedBy === 'string' && r.usedBy !== hashHex) {
+          this._substitutionSuspected(c, meta, norm, ref, r.step, r.usedBy, hashHex, nowMs);
+          return rej('totp-step-used-by-other-command');
+        }
+        return rej(r.code);
+      }
+      // 이 명령이 코드의 단계를 «처음으로» 썼어요 — 누가 · 무엇에 썼는지를 기억해요(대치 알림이 «실제로 코드가 쓰인 항목» 을 말하고, 폰이 확인할 서명된 사용 기록의 재료예요).
+      this._noteSpend(r.step, hashHex, cmd.verb, norm, ref, f.proof.code, nowMs);
     }
 
     // 11. 낡은 항목 — «지금» 의 상태로 다시 봐요(위의 조회는 증명 전의 것). 닫혔어도 아래 커밋은 해요(머리말).
+    //   TOTP 는 스냅샷을 버리고 «진짜로 다시 읽어요» — 코드 검증은 디스크 쓰기(fsync)를 낀 단계라 그 사이 메인이 결정의 reversibility 를 바꿨을 수 있고, 위 증명 전 판정은 «옛» 값으로 한 거예요(낡은 항목 판정과 같은 모양의 재확인).
+    //   이 읽기는 TOTP 단계가 «소비된» 명령에만 붙어서(30초 창에 몇 건 못 넘어요) 중계가 명령을 쏟아내도 늘지 않아요 — 증명 전 구간의 «한 번만 읽기»(F5)는 그대로예요.
+    if (kind === 'totp') this._snap = null;
     let cur;
     try { cur = this._lookup(policy, norm.args); } catch (e) { if (e instanceof Reject) return rej(e.code); throw e; }
+    if (kind === 'totp' && policy.totpTwoWay && !this._twoWay(cur.d)) return rej('proof-too-weak');      // 커밋 안의 재확인 — 단계는 탔어도 nonce 는 안 태워요(같은 명령을 passkey 로 다시 낼 수 있어요)
     const stale = !cur.found || !cur.open;
 
     // 12. 커밋 — nonce 소비 → signCount CAS. 둘 다 디스크에 확정된 «뒤에만» 실행해요.
@@ -424,6 +483,96 @@ class Executor {
     if (!p || !p.totp) return false;
     const t = this.cfg.totp;
     return t ? t.verbs.includes(verb) : true;
+  }
+
+  // 결정이 되돌릴 수 있다고 «선언» 했나 — 선언이 없거나 어휘 밖이거나 항목이 상태에 없으면(d 없음) 아니에요(안전하게 틀려요).
+  _twoWay(d) { return isPlain(d) && reversibilityOf(d) === 'two_way'; }
+
+  // ── TOTP 바꿔치기 의심 ─────────────────────────────────────────────────────────────────────────────────────
+  //   항목 id 에 실리는 «진짜 id» 는 ID_RE 를 통과한 글자만이에요 — 선택지 프롬프트의 id 는 «에이전트가 고른 자유 서술» 이라(최대 200자) 그대로 실으면 서버 권위 경보 안에 에이전트의 문장이 들어가요.
+  //   통과 못 하면 빈 문자열이고, 가명(itemId)은 언제나 실려요.
+  _idOut(x) { return typeof x === 'string' && ID_RE.test(x) ? x : ''; }
+  _pseudoOf(norm) {
+    if (!norm || !norm.args) return '';
+    const a = norm.args;
+    const p = hasOwn(a, 'itemId') ? a.itemId : (hasOwn(a, 'decisionId') ? a.decisionId : (hasOwn(a, 'promptId') ? a.promptId : ''));
+    return typeof p === 'string' ? p.slice(0, 40) : '';
+  }
+  _realOf(ref) { return ref && ref.d && typeof ref.d.id === 'string' ? this._idOut(ref.d.id) : (ref && ref.sel && typeof ref.sel.promptId === 'string' ? this._idOut(ref.sel.promptId) : ''); }
+
+  // 이 명령이 TOTP 단계를 «처음으로» 썼어요 — 기억해 둬요. 코드 값은 «단계 + 보드 id 와 함께 해시한 꼬리표» 로만 남겨요(폰이 «내가 친 코드» 가 이 기록의 코드인지 비밀 없이 맞춰 보려는 용도).
+  _noteSpend(step, hashHex, verb, norm, ref, code, nowMs) {
+    if (!Number.isSafeInteger(step)) return;
+    const codeTag = crypto.createHash('sha256').update('eg-totp-spend/v1\n' + this.cfg.boardId + '\n' + step + '\n' + String(code)).digest('hex').slice(0, 16);
+    this._spends.delete(step);
+    this._spends.set(step, { step, cmdHash: hashHex, verb: typeof verb === 'string' ? verb.slice(0, 64) : null, itemId: this._pseudoOf(norm), id: this._realOf(ref), codeTag, at: nowMs, signed: null });
+    while (this._spends.size > MAX_SPENDS) this._spends.delete(this._spends.keys().next().value);
+  }
+
+  // 그 명령의 «결과» — 영수증 장부에서 읽어요(소비된 명령의 결과만 거기 있어요). 없으면 'no-receipt'(실행 안 됨이거나 영수증을 못 남김).
+  _outcomeOf(hashHex) {
+    let r = null;
+    try { r = this.state.getReceipt(hashHex); } catch (_) { r = null; }
+    return r && typeof r === 'object' ? (r.status === 'accepted' ? 'accepted' : (typeof r.reason === 'string' ? r.reason.slice(0, 40) : 'rejected')) : 'no-receipt';
+  }
+
+  // 폰이 «내 코드를 누가 썼나» 를 확인할 수 있는 서명된 사용 기록 — 최근 것부터 MAX_SPEND_REPORT 개. 전송층이 결과 회신에 실어요(중계는 운반자라 빼도 되지만 «고칠» 수는 없어요: 보드 키로 서명).
+  //   서명 대상 칸: boardId · kind · step · cmdHash(전체) · verb · itemId(가명) · outcome · codeTag · at. outcome 은 «지금» 값이라 바뀌면 다시 서명해요(캐시).
+  spendRecords() {
+    const key = this.keys.read();
+    if (!key || !key.ok) return [];
+    const list = [...this._spends.values()].sort((x, y) => y.step - x.step).slice(0, MAX_SPEND_REPORT);
+    const out = [];
+    for (const s of list) {
+      const outcome = this._outcomeOf(s.cmdHash);
+      if (!s.signed || s.signed.outcome !== outcome) {
+        const fields = { boardId: this.cfg.boardId, kind: 'totp-spend', step: s.step, cmdHash: s.cmdHash, verb: s.verb, itemId: s.itemId, outcome, codeTag: s.codeTag, at: s.at };
+        const sig = crypto.sign('sha256', Buffer.from(OP.canonicalize(fields), 'utf8'), { key: key.boardPriv, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+        s.signed = { outcome, rec: Object.assign({}, fields, { sig }) };
+      }
+      out.push(s.signed.rec);
+    }
+    return out;
+  }
+
+  // 증명 «전» 에 거절되는 TOTP 명령 — 이 코드가 «이미 다른 명령에 쓰인 단계» 에 맞으면 같은 경보를 내요(사유는 안 바꿔요).
+  _peekSubstitution(c, meta, norm, ref, key, proof, hashHex, nowMs) {
+    try {
+      if (!key || !key.totp || typeof key.totp.secretB32 !== 'string' || !isPlain(proof) || typeof proof.code !== 'string') return;
+      const sec = Math.floor(nowMs / 1000);
+      const secret = TOTP.base32Decode(key.totp.secretB32);
+      const hit = this._totpStore(sec).spentBy(proof.code, { now: sec, secret });
+      if (hit && hit.usedBy !== hashHex) this._substitutionSuspected(c, meta, norm, ref, hit.step, hit.usedBy, hashHex, nowMs);
+    } catch (_) { /* 엿보기 실패는 «경보를 못 낸 것» 일 뿐 거절 사유를 못 바꿔요 */ }
+  }
+
+  // 감사 줄(대치된 명령당 자릿수마다 — 1 · 10 · 100 … 번째 거절) + 서버 알림(대치된 명령 하나당 한 장). 던지지 않아요(경보가 거절 사유를 못 바꾸게).
+  //   «대치된 명령» = 코드의 단계를 «먼저 쓴» 명령(usedByHex). 보드는 먼저 쓴 쪽과 나중에 온 쪽 중 «어느 것이 운영자의 명령인지» 를 알 수 없어요 — 그래서 알림은 «먼저 쓰인 명령 · 그 항목 · 그 결과» 와
+  //   «나중에 같은 코드를 낸 명령» 을 나란히 말하고 누가 옳은지는 말하지 않아요. 먼저 쓰인 항목은 기억(_spends)에서 가져와요(재시작으로 잃었으면 항목 칸이 비어요).
+  //   감사 줄이 거절마다 나가면 중계가 «같은 코드 + 새 nonce» 를 쏟아내 감사 표를 경보로 채울 수 있어서(실제 거절 줄은 그대로 남아요) 경보 줄은 횟수(count)와 함께 자릿수마다만 써요.
+  _substitutionSuspected(c, meta, norm, ref, step, usedByHex, hashHex, nowMs) {
+    const spent8 = usedByHex.slice(0, 8);
+    const later8 = hashHex.slice(0, 8);
+    const at = new Date(nowMs).toISOString();
+    let rec = this._noticed.get(spent8);
+    if (!rec) { rec = { n: 0, sent: false }; this._noticed.set(spent8, rec); while (this._noticed.size > MAX_NOTICED) this._noticed.delete(this._noticed.keys().next().value); }
+    rec.n++;
+    if (rec.n === 1 || /^10+$/.test(String(rec.n))) {
+      try {
+        this.auditFn({ at, cmdId: c.cmdId, verb: meta.verb, cmdHash8: later8, proof: 'totp', acct: meta.acct, status: 'alert', reason: 'totp-substitution-suspected', kind: 'totp-substitution-suspected', spentCmdHash8: spent8, laterCmdHash8: later8, count: rec.n });
+      } catch (e) { this._once('audit', '[uplink] 감사 로그를 쓰지 못했어요 (' + (e && e.code ? e.code : e && e.message) + ')'); }
+    }
+    if (rec.sent) return;
+    if (!this.notice) { this._once('nonotice', '[uplink] TOTP 바꿔치기가 의심되지만 서버 알림 함수가 없어요 — 감사 줄만 남겨요'); return; }
+    const sp = this._spends.get(step);
+    const known = sp && sp.cmdHash === usedByHex ? sp : null;
+    try {
+      this.notice.totpSubstitutionSuspected({
+        itemId: known ? known.itemId : '', id: known ? known.id : '', verb: known && known.verb ? known.verb : '', outcome: this._outcomeOf(usedByHex),
+        spentCmdHash8: spent8, laterItemId: this._pseudoOf(norm), laterId: this._realOf(ref), laterVerb: typeof meta.verb === 'string' ? meta.verb.slice(0, 64) : '', laterCmdHash8: later8, at,
+      });
+      rec.sent = true;
+    } catch (e) { this._once('notice', '[uplink] 서버 알림을 내지 못했어요: ' + String((e && e.message) || e).slice(0, 120)); }
   }
 
   _totpStore(sec) {
@@ -568,4 +717,4 @@ function createExecutor(o) {
   }
 }
 
-module.exports = { createExecutor, Executor, SelectionTracker, VERBS, INJECTORS, BRANCHES, ACCT_RE };
+module.exports = { createExecutor, Executor, SelectionTracker, VERBS, INJECTORS, NOTICERS, BRANCHES, ACCT_RE };

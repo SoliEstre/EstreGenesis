@@ -795,6 +795,7 @@ async function cmdStatus(args) {
   say('대기열    : 서명된 enroll 명령이 올린 후보 — 자격증명 ' + pq.credentials.length + ' · 기기 ' + pq.devices.length + (pq.credentials.length + pq.devices.length ? '   (등록 전이에요 — enroll --pending 으로 사람이 확인해야 효력이 생겨요)' : '') + (pq.skipped ? '  · 규격 밖 ' + pq.skipped + '개' : ''));
   say('토큰      : ' + (readToken(cfg) ? '있음 (값은 안 보여 줘요)' : '없음 또는 규격 밖'));
   say('TOTP 허용 verb: ' + (cfg.totp ? cfg.totp.verbs.join(', ') || '(없음)' : '(설정 없음 = 고정 표 그대로)'));
+  say('             (decision.answer 는 위에 있어도 «결정이 reversibility:two_way 를 선언한 경우에만» TOTP 로 열려요 — 그 밖엔 passkey 가 필요해요)');
   return E.OK;
 }
 

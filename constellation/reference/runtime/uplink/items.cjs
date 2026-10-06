@@ -7,6 +7,9 @@
 //     같은 재료(tag)를 투영기가 DECISION_* 프레임의 meta.decision_id('h:'+tag)에도 써서, 중계는 «같은 결정» 임을 이어 볼 수 있어요(내용은 몰라도).
 //   · visibility=sealed   — 맥락({question, detail, recommend, recommendChoice, options, kind})을 등록된 모든 기기의 공개키로 봉인해서 «sealed» 에 실어요(중계는 암호문만 봐요).
 //   · visibility=envelope — 메타(itemId · status · rev)만. 맥락 자체가 안 나가요.
+//   · **reversibility(결정 항목이 선언한 «되돌릴 수 있나»)는 봉인 «밖» 메타예요** — 두 모드 모두 같은 칸으로 나가요. 중계·폰이 «이 항목은 TOTP 로 못 답한다 — 패스키가 필요하다» 를 사람이 코드를 치기 «전에»
+//     보여 줄 수 있게요(보드는 어차피 명령 때 다시 판정하니 이 칸은 안내일 뿐 권한이 아니에요). 선언이 없거나 어휘 밖이면 칸 자체가 빠지고, 빠진 칸은 «one_way» 로 읽혀요(project.cjs reversibilityOf).
+//     값이 바뀌면 내용 해시가 달라져 rev 가 올라요 — 봉인 평문은 그대로여도 «판» 이 바뀐 거라서요.
 //   봉인할 수 없는 상황(키 파일 없음·기기 0대)에서 «평문으로 대신» 나가는 길은 없어요 — sealed 칸이 빠진 채 나가고 한 번 말해요(안전하게 틀려요).
 //
 // **rev — 항목별 단조 증가 정수, 로컬에 영속.** 내용이 바뀌면 +1 이에요. **새 항목(기록 없음)의 첫 rev 는 «시계 바닥» (epoch 밀리초)** 이에요 — 상태 파일을 잃거나 항목 기록이 사라져도 새 rev 가 옛 값 아래로
@@ -23,7 +26,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const SEAL = require('./seal.cjs');
 const OP = require('./opcmd.cjs');
-const { tagOf, TAG_HEX } = require('./project.cjs');
+const { tagOf, TAG_HEX, reversibilityDeclared } = require('./project.cjs');
 
 const MAX_STR = 16000;
 const MAX_OPTIONS = 32;
@@ -167,7 +170,9 @@ class DecisionSync {
       openIds.add(itemId);
       const content = contentOf(d);
       // boardId 도 내용의 일부예요 — 봉투의 aad 에 들어가는 값이라, 보드 id 가 바뀌면 «같은 내용» 이어도 새 aad 로 다시 봉인해야 기기가 열 수 있어요.
-      const hash = sha256hex(JSON.stringify(content) + '\n' + this.visibility + '\n' + this.boardId + '\n' + (this.visibility === 'sealed' ? keyInfo.version : '-'));
+      const rv = reversibilityDeclared(d);
+      // 선언이 있을 때만 해시에 넣어요 — 없는 항목의 해시는 이 칸이 생기기 전과 같아서, 업그레이드가 열린 항목 전부를 다시 봉인(rev 증가 + 전체 스냅샷)하지 않아요.
+      const hash = sha256hex(JSON.stringify(content) + '\n' + this.visibility + '\n' + this.boardId + '\n' + (this.visibility === 'sealed' ? keyInfo.version : '-') + (rv ? '\nreversibility:' + rv : ''));
       const rec = items[itemId];
       if (rec && rec.status === 'open' && rec.hash === hash) continue;
       const rev = rec ? rec.rev + 1 : Math.max(1, Math.floor(this.clock.now()));       // 시계 바닥(epoch 밀리초) — 초 단위면 «같은 초 안의 연속 변경» 이 바닥을 넘어 옛 값보다 작아질 수 있어요
@@ -180,6 +185,7 @@ class DecisionSync {
         } else if (keyInfo.ok) this._once('nodev', '[uplink] 등록된 기기가 없어서 맥락을 봉인할 수 없어요 — sealed 칸 없이 나가요');
       }
       items[itemId] = { rev, hash, status: 'open', sealed };
+      if (rv) items[itemId].reversibility = rv;
       changes.push(this._entry(itemId));
     }
     // 열린 목록에서 사라진 항목(resolved 로 바뀜 · 삭제됨) — 종결 통지. rev 를 올려서 «나중 것이 이긴다» 가 성립해요.
@@ -205,6 +211,8 @@ class DecisionSync {
     const rec = this.store.state.items[itemId];
     const e = { itemId, status: rec.status, rev: rec.rev };
     if (rec.status === 'open' && rec.sealed) e.sealed = rec.sealed;
+    const rv = rec.status === 'open' ? reversibilityDeclared(rec) : null;       // 디스크에서 읽은 기록도 같은 검증을 거쳐요
+    if (rv) e.reversibility = rv;
     return e;
   }
 

@@ -1,11 +1,12 @@
 'use strict';
 // index.cjs — 업링크 조립: 설정 읽기 → 투영기 · 상태/키/스풀 · 전송층을 엮고 서버가 부를 «세 개의 손잡이» 를 돌려줘요.
 //
-//   start({dir, getState, getAgents, inject, selectionState, selectionIssuer, log}) → {onBoardBroadcast(msg), onStateChange(text), stop()} | null
+//   start({dir, getState, getAgents, inject, notice, selectionState, selectionIssuer, log}) → {onBoardBroadcast(msg), onStateChange(text), stop()} | null
 //
 // **서버와의 계약 (가산 · 읽기 전용).** 서버는 «uplink.json 이 있을 때만» 이 파일을 require 해요(지연 require — 없으면 이 코드는 로드조차 안 돼요: 타이머 0 · 네트워크 0 · 파일 0).
 //   이 모듈이 서버에서 읽는 건 셋뿐이에요 — ① 보드로 가는 프레임(onBoardBroadcast) ② state.json 의 새 텍스트(onStateChange) ③ 접속 현황 getter(getAgents).
 //   명령 실행은 서버가 «verb 마다 하나씩» 넘기는 고정 실행기(inject — 열쇠 집합이 정확히 exec.cjs 의 INJECTORS)로만 일어나요. 범용 «프레임을 통째로 받는» hook 은 없어요.
+//   notice 는 «운영자 목소리가 아닌» 서버 알림 함수 한 개(고정 · 얼린 객체 — 열쇠 집합이 정확히 exec.cjs 의 NOTICERS)예요: 실행기가 TOTP 대치를 의심할 때 보드·메인에 서버 이름으로 알려요. 운영자 실행기(inject)와 별개의 객체라 실행기 집합은 그대로 5개예요.
 //   inject 가 없거나 규격이 아니면 받은 명령은 전부 거절돼요(exec-unavailable). selectionState 는 서버가 «이 선택지는 이미 닫혔다» 를 아는 만큼만, selectionIssuer 는 서버가 «이 선택지의 답을 보낼 발급자» 로 아는 에이전트를 알려 주는 읽기 전용 조회예요(둘 다 읽기만 — 서버 상태를 바꾸지 않아요).
 //
 // **start 는 던지지 않아요.** 설정이 틀렸거나 토큰·잠금이 안 되면 «이 업링크는 안 켠다» 를 한 줄로 말하고 null 을 돌려줘요 — 서버는 업링크 없이 그대로 돌아요.
@@ -141,11 +142,11 @@ function start(opts) {
     const selections = new SelectionTracker({ secret: store.secret, serverState: opts.selectionState, serverIssuer: opts.selectionIssuer });
     const executor = createExecutor({
       cfg, dir: opts.dir, keys, store, getState: () => (opts.getState ? opts.getState() : lastStateText), selections,
-      inject: opts.inject, now: () => clock.now(), audit: (row) => store.audit(row), log,
+      inject: opts.inject, notice: opts.notice, now: () => clock.now(), audit: (row) => store.audit(row), log,
     });
 
     const transport = new Transport({
-      cfg, store, log, clock, readToken, executor: (c) => executor.handle(c),
+      cfg, store, log, clock, readToken, executor: (c) => executor.handle(c), spends: () => (typeof executor.spendRecords === 'function' ? executor.spendRecords() : []),
       timers: opts.timers, rand: opts.rand, spoolMaxBytes: opts.spoolMaxBytes,
       flushMs: opts.flushMs, heartbeatMs: opts.heartbeatMs, pollWaitS: opts.pollWaitS, requestTimeoutMs: opts.requestTimeoutMs,
       buildHeartbeat,

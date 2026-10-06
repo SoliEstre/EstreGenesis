@@ -41,6 +41,13 @@ const OBS_VALUES = new Set(['observed', 'unobserved', 'unknown']);
 // 와이어 «타입» 허용 집합 — CUSTOM(이름으로 분류) + 본문 없는 수명 신호들. 델타·도구·상태 스트림은 «본문 조각» 이라 목록에 없어요.
 //   TEXT_MESSAGE_START/CHUNK 는 «발화가 있었다» 는 사실만 실어요(text 는 어떤 경로로도 안 나가요). END 는 START 와 중복이라 뺐어요.
 const TYPES = new Set(['CUSTOM', 'TEXT_MESSAGE_START', 'TEXT_MESSAGE_CHUNK', 'RUN_STARTED', 'RUN_FINISHED', 'RUN_ERROR']);
+// 결정 항목의 «되돌릴 수 있나» 선언(state.json decisions[].reversibility — Hyperbrief 의 reversibility_class 와 같은 세 낱말). **이 검증은 한 곳에만 둬요** — 항목 스냅샷(items.cjs)이 메타로 싣는 값과
+//   명령 실행기(exec.cjs)가 TOTP 허용 여부를 정하는 값이 «같은 함수» 를 거쳐야, 한쪽만 느슨한 어휘 해석을 갖는 길이 없어요.
+const REVERSIBILITY = Object.freeze(['two_way', 'one_way_with_migration_path', 'one_way']);
+// 선언된 값이 어휘 안이면 그 값, 아니면 null (없음 · 모르는 문자열 · 문자열이 아닌 값 — 전부 «선언 없음»)
+const reversibilityDeclared = (d) => (d !== null && typeof d === 'object' && typeof d.reversibility === 'string' && REVERSIBILITY.includes(d.reversibility) ? d.reversibility : null);
+// 판정용 — 모르면 «되돌릴 수 없다» 쪽으로 읽어요(안전하게 틀려요). 원격의 약한 증명(TOTP)은 이 값이 two_way 일 때만 결정 답을 열어요.
+const reversibilityOf = (d) => reversibilityDeclared(d) || 'one_way';
 const TAG_HEX = 24;                    // 96 비트 — 한 보드 안의 충돌은 무시할 수 있어요. 결정 항목의 itemId(sd:<tag>)도 같은 재료예요
 
 const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -165,4 +172,4 @@ function createProjector(opts) {
   return { project, ident, pseudo, tag: (s) => tagOf(secret, s) };
 }
 
-module.exports = { createProjector, ID_RE, NAME_RE, TYPES, tagOf, pseudoOf, OBS_VALUES, TAG_HEX };
+module.exports = { createProjector, ID_RE, NAME_RE, TYPES, tagOf, pseudoOf, OBS_VALUES, TAG_HEX, REVERSIBILITY, reversibilityDeclared, reversibilityOf };
