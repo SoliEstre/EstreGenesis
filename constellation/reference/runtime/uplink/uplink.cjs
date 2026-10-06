@@ -9,6 +9,10 @@
 //      실행기가 없으면(전송층만 단독으로 쓰는 시험) 전부 {status:'rejected', reason:'not-implemented'} + 감사 한 줄 — 안전하게 틀려요.
 //   5) 로컬 설정이 정본이에요 — 중계의 응답은 ackSeq · commands 말고는 해석하지 않아요(설정을 바꾸는 응답 필드가 없어요).
 //   6) 토큰은 Authorization 헤더로만 가요 — URL·로그·감사에 안 들어가요(요청 경로엔 cursor/wait 숫자만).
+//   7) **사용 기록 전달 (v2.4.178).** 서명된 TOTP 사용 기록은 결과 회신에만 실리면, 회신할 결과가 없는 동안(그리고 회신이 중계에서 사라진 뒤) 폰이 영영 못 봐요. 그래서 «배치 항목» `{kind:'spends', spends:[…]}` 으로도 실어요
+//      (하트비트에 얹지 않은 이유: 하트비트는 «가장 최근 한 장의 상태» 로 덮어써지고 중계가 칸을 화이트리스트로 고르는 고정 모양이라 «쌓이는 서명 기록» 의 그릇이 아니에요 — 별도 항목이면 중계의 기록 검증·저장 경로가 그대로 받고,
+//      항목 종류를 모르는 옛 중계는 그 항목 하나만 거절로 세고 ack 는 그대로 진행해요). 실리는 때: ① 하트비트 주기마다 기록을 다시 읽어서(결과가 바뀌어 보드가 다시 서명했을 수 있어요) 지문이 «마지막으로 전달된 것» 과 다르면 다음 배치에
+//      ② 전체 스냅샷을 다시 보내는 때(시작 · 재접속 · 실패 뒤)엔 지문과 상관없이 한 번 더 — 중계가 못 받았을 수 있어서요. 결과 회신에도 그대로 실려요(회신이 성공하면 그 지문은 전달된 것으로 쳐요). 기록이 없으면 항목도 없어요.
 //
 // **실패하는 방식.** 네트워크 오류 · 시간 초과 · 이해 못 할 응답 → 지수 백오프(1s~60s, 지터) 후 재시도, 성공하면 초기화. 401/403 은 «토큰이 폐기됐다» 로 읽고 **멈춰요**(한 번 말하고
 //   폭주하지 않아요 — 토큰 파일이 바뀌면 30초 안에 다시 시작해요). 모든 요청에 시간 제한이 있고, stop() 은 타이머와 진행 중 요청을 전부 끊어요(서버가 깨끗하게 끝나게).
@@ -54,7 +58,7 @@ class Transport {
     this.rand = o.rand || Math.random;
     this.readToken = o.readToken;
     this.buildHeartbeat = o.buildHeartbeat || (() => null);        // () => {item, sig} | null
-    this.snapshotProvider = o.snapshotProvider || (() => null);    // () => entries[] (열린 항목 전부)
+    this.snapshotProvider = o.snapshotProvider || (() => null);    // () => entries[] (열린 항목 전부 + 최근 닫힌 항목의 서명된 닫는 기록 — items.cjs fullEntries)
     this.cmdBudgetMs = o.cmdBudgetMs !== undefined ? o.cmdBudgetMs : CMD_BUDGET_MS;
     this.executor = typeof o.executor === 'function' ? o.executor : null;     // (c:{cmdId, cursor, cmd, proof}) => {status, reason, receipt|null} — 동기. 없으면 전부 not-implemented
     this.spends = typeof o.spends === 'function' ? o.spends : null;          // () => 서명된 TOTP 사용 기록[] — 결과 회신에 «그대로» 실어요(exec.cjs spendRecords). 폰이 «내 코드를 누가 썼나» 를 확인하는 길이에요
@@ -75,6 +79,9 @@ class Transport {
     this._lastHbSig = null;
     this._snapPending = new Map();
     this._snapFull = false;
+    this._spendsOut = null;          // 다음 배치에 실을 «최신 서명된 사용 기록들» (없으면 null) — 사용 기록 전달(머리말 7)
+    this._spendsSig = null;          // 위 목록의 지문(기록 sig 이어붙임)
+    this._spendsDelivered = null;    // 마지막으로 «전달에 성공한» 지문
     this._needFull = true;           // 시작·재접속 뒤 첫 성공 전송에는 «열린 항목 전체» 가 실려요
     this._inflight = false;
     this._nextAttemptAt = 0;          // 단조 시계 기준
@@ -148,7 +155,20 @@ class Transport {
   _heartbeatTick() {
     if (this._stopped) return;
     try { if (this.onTick) this.onTick(); const r = this.buildHeartbeat(); if (r) this.setHeartbeat(r.item, r.sig); } catch (e) { this._warnOnce('hb', '[uplink] 하트비트를 만들지 못했어요: ' + (e && e.message)); }
+    this._refreshSpends();
     this._arm('hb', this.heartbeatMs, () => this._heartbeatTick());
+  }
+
+  // 서명된 사용 기록을 다시 읽어요(결과가 바뀌어 다시 서명됐을 수 있어요). 던져도 하트비트·결과 회신은 그대로 나가요. 지문이 마지막 전달과 다르면 «할 일» 이 생겨서 배치가 나가요.
+  _refreshSpends() {
+    if (!this.spends) return;
+    let sp = null;
+    try { sp = this.spends(); } catch (_) { return; }
+    if (!Array.isArray(sp) || sp.length === 0) { this._spendsOut = null; this._spendsSig = null; return; }
+    const sig = sp.map((r) => (r && typeof r.sig === 'string' ? r.sig : '')).join(',');
+    this._spendsOut = sp;
+    this._spendsSig = sig;
+    if (sig !== this._spendsDelivered) this._schedulePersist();       // 할 일이 생겼어요 — 배치를 «지금» 내보내요(다음 하트비트 주기를 기다리지 않아요)
   }
 
   notifyChange() {
@@ -176,7 +196,8 @@ class Transport {
     } catch (e) { this._warnOnce('persist', '[uplink] 스풀을 디스크에 쓰지 못했어요 (' + (e && e.code ? e.code : e && e.message) + ') — 메모리에 두고 다시 시도해요'); }
   }
 
-  _hasWork() { return this.spool.entries.length > 0 || !!this._hb || this._snapPending.size > 0 || this._needFull; }
+  _spendsDue() { return !!this._spendsOut && this._spendsSig !== this._spendsDelivered; }
+  _hasWork() { return this.spool.entries.length > 0 || !!this._hb || this._snapPending.size > 0 || this._needFull || this._spendsDue(); }
 
   // ── 배치 전송 ──
   _pump() {
@@ -192,6 +213,7 @@ class Transport {
     try {
       this._persistNow();                           // 보내기 «전에» 디스크 확정
       if (this._needFull) {
+        this._spendsDelivered = null;                // 처음부터 다시 보낼 때는 사용 기록도 한 번 더(중계가 일부만 받았을 수 있어요)
         // 전체 스냅샷은 «시작할 때 한 번» 만들어요 — 덩어리가 여럿이면 남은 덩어리가 다음 배치로 이어지고, 그동안 다시 만들면 첫 덩어리만 영원히 반복돼요.
         //   실패하면 아래 catch 가 _needFull 을 다시 세워서 «처음부터» 다시 보내요(중계가 일부만 받았을 수 있어서).
         this._needFull = false;
@@ -216,6 +238,15 @@ class Transport {
         snapItem = { kind: 'items-snapshot', full: this._snapFull, final: snapSent.length === entries.length, items: snapSent };
         items.push(snapItem);
         bytes += used + 64;
+      }
+      // 서명된 사용 기록 — 배치 항목으로(머리말 7). 전달에 성공할 때 지문을 «전달됨» 으로 적어요.
+      let spendsItem = null;
+      let spendsSigSent = null;
+      if (this._spendsDue()) {
+        spendsItem = { kind: 'spends', spends: this._spendsOut };
+        spendsSigSent = this._spendsSig;
+        items.push(spendsItem);
+        bytes += Buffer.byteLength(JSON.stringify(spendsItem));
       }
       const spoolSent = [];
       for (const e of this.spool.entries) {
@@ -247,6 +278,7 @@ class Transport {
       if (this._hb === hb) this._hb = null;
       for (const e of snapSent) if (this._snapPending.get(e.itemId) === e) this._snapPending.delete(e.itemId);
       if (snapItem && snapItem.final) this._snapFull = false;
+      if (spendsItem) this._spendsDelivered = spendsSigSent;
       this._fails = 0;
       this._failLogged = false;
       this._nextAttemptAt = 0;
@@ -411,11 +443,13 @@ class Transport {
       // 서명된 TOTP 사용 기록을 같은 회신에 실어요 — 어느 명령의 결과든 «최근 사용 기록» 이 함께 가서, 폰이 자기 명령의 영수증이 안 오거나 «잘못된 코드» 로 거절돼도 «그 코드가 다른 명령에 쓰였나» 를 볼 수 있어요.
       //   중계가 기록을 빼면 폰은 «확인 안 됨» 으로 남아요(숨길 수는 있어도 고칠 수는 없어요 — 보드 키 서명).
       const body = { results };
-      if (this.spends) { try { const sp = this.spends(); if (Array.isArray(sp) && sp.length) body.spends = sp; } catch (_) { /* 기록을 못 내도 결과 회신은 나가요 */ } }
+      let bodySig = null;
+      if (this.spends) { try { const sp = this.spends(); if (Array.isArray(sp) && sp.length) { body.spends = sp; bodySig = sp.map((x) => (x && typeof x.sig === 'string' ? x.sig : '')).join(','); } } catch (_) { /* 기록을 못 내도 결과 회신은 나가요 */ } }
       const r = await this._req('POST', '/v1/uplink/results', JSON.stringify(body), this.requestTimeoutMs);
       if (this._stopped) return;
       if (r.status === 401 || r.status === 403) { this._revoke(r.status); return; }
       if (r.status < 200 || r.status >= 300) throw new Error('결과 회신 HTTP ' + r.status);
+      if (bodySig !== null) { this._spendsOut = body.spends; this._spendsSig = bodySig; this._spendsDelivered = bodySig; }       // 회신에 실려 갔어요 — 같은 지문을 배치로 또 보내지 않아요(실패했다면 위에서 던져서 여기 안 와요)
     }
     if (cursor > this.store.state.cursor) {
       this.store.state.cursor = cursor;

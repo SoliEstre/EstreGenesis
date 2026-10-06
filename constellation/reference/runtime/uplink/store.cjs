@@ -11,7 +11,8 @@
 //                번호가 되감기면 새 봉투가 «이미 받은 것» 으로 버려져요). **이 파일을 잃어도** 스풀 머리의 «바닥값» 이 같은 하한을 따로 쥐고(spool.cjs), 둘 다 잃으면
 //                전송층이 중계의 ack 에 맞춰요(uplink.cjs «앞서 있는 중계»).
 //   · cursor   — 명령 롱폴 커서.  · dropped — 스풀 오버플로로 버린 봉투의 누적 수(하트비트에 실려요).
-//   · items    — 결정 항목별 rev/내용 해시/봉인된 봉투(재시작에 rev 를 되감지도, 불필요하게 올리지도 않으려고 «봉투째» 보관해요).
+//   · items    — 결정 항목별 rev/내용 해시/봉인된 봉투(재시작에 rev 를 되감지도, 불필요하게 올리지도 않으려고 «봉투째» 보관해요) + signedFp(이 보드 키 지문으로 «서명된 판» 이었나) + closedAt(닫은 때, 닫힌 항목만).
+//                읽을 때 rev 가 «음이 아닌 정수» 가 아니거나 status 가 open/resolved 가 아닌 기록은 버려요(항목은 시계 바닥에서 다시 시작).
 //   쓰기는 임시 파일 → fsync → rename 이라 쓰다 죽어도 옛 파일이나 새 파일이에요(반쯤 쓴 파일이 남지 않아요). 모드 0600(봉인된 봉투 + 보드 상태).
 
 const fs = require('fs');
@@ -94,7 +95,18 @@ class UplinkStore {
       if (!j || j.v !== 1 || !isUint(j.lastSeq) || !isUint(j.cursor) || !isUint(j.dropped) || !j.items || typeof j.items !== 'object' || Array.isArray(j.items)) throw new Error('shape');
       if (j.boardId !== undefined && j.boardId !== null && typeof j.boardId !== 'string') throw new Error('shape');
       const items = {};
-      for (const k of Object.keys(j.items)) if (ITEM_KEY_RE.test(k)) items[k] = j.items[k];
+      let badItems = 0;
+      for (const k of Object.keys(j.items)) {
+        if (!ITEM_KEY_RE.test(k)) continue;
+        const r = j.items[k];
+        // rev 는 «정수» 여야 해요(서명할 때 정준화가 소수·NaN 을 거절해서, 손 편집이나 깨진 값 하나가 항목 스냅샷 전체를 — 대기 중인 봉투와 하트비트까지 — 막아요). 어긋난 기록은 버리면
+        //   그 항목이 «새 항목» 으로 시계 바닥(지금)에서 다시 시작해요 — 깨진 값보다 항상 크고, 되감기지 않아요.
+        if (!r || typeof r !== 'object' || Array.isArray(r) || !isUint(r.rev) || (r.status !== 'open' && r.status !== 'resolved')) { badItems++; continue; }
+        if (r.signedFp !== undefined && typeof r.signedFp !== 'string') delete r.signedFp;
+        if (r.closedAt !== undefined && !isUint(r.closedAt)) delete r.closedAt;
+        items[k] = r;
+      }
+      if (badItems) this.log('[uplink] 상태 파일의 항목 기록 ' + badItems + '개가 규격이 아니라(rev 가 음이 아닌 정수가 아님 등) 버렸어요 — 그 항목은 새 항목처럼 시계 바닥의 rev 로 다시 시작해요');
       if (this.boardId !== null && typeof j.boardId === 'string' && j.boardId !== this.boardId) {
         // 보드 신원이 바뀌었어요 — 옛 신원의 번호·커서·항목·«아직 못 보낸 봉투(스풀)» 는 새 스트림의 것이 아니에요. 스풀을 새 신원으로 보내면 남의 이력을 내 이름으로 올리는 셈이라 지워요.
         try { fs.unlinkSync(this.spoolFile); } catch (__) { /* 없으면 그만 */ }
