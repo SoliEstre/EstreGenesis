@@ -638,6 +638,35 @@ function checkSignature(record, authData, clientData, signature) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 등록 도우미 — «이 공개키를 이 알고리즘으로 등록해도 검증 쪽이 받아 주는가»
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 보드 로컬 등록(CLI · 서명된 등록 명령)이 키를 파일에 쓰기 «전에» 부르는 한 함수예요. 검증(checkSignatureOrThrow)이 저장된 키에 거는 규칙을 «그대로» 걸어서
+//   (알고리즘 ↔ 키 종류 · P-256 만 · RSA/Ed25519 파라미터 규칙) 등록은 통과했는데 첫 서명부터 거절되는 키 — 또는 더 나쁘게 작은 위수 점처럼 «개인키 없이도 서명이 만들어지는» 키 — 가
+//   등록부에 앉지 못하게 해요. 규칙을 두 군데에 따로 적으면 한쪽만 낡아 가서(이 파일 머리말의 «같은 규칙») 검증 함수의 비공개 검사를 그대로 불러요.
+//   입력 탓의 실패는 던지지 않고 {ok:false, code}.
+function checkEnrollKey(alg, spki) {
+  if (!ALGS.includes(alg)) return { ok: false, code: 'bad-alg' };
+  if (!(spki instanceof Uint8Array) || spki.length < 32 || spki.length > 1024) return { ok: false, code: 'bad-key' };
+  let key;
+  try { key = crypto.createPublicKey({ key: Buffer.from(spki), format: 'der', type: 'spki' }); } catch (_) { return { ok: false, code: 'bad-key' }; }
+  if (key.asymmetricKeyType !== KEY_TYPE_OF_ALG[alg]) return { ok: false, code: 'alg-mismatch' };
+  const details = key.asymmetricKeyDetails || {};
+  if (alg === ALG_ES256 && details.namedCurve !== 'prime256v1') return { ok: false, code: 'unsupported-key' };
+  try {
+    if (alg === ALG_RS256 || alg === ALG_EDDSA) {
+      const jwk = key.export({ format: 'jwk' });
+      if (alg === ALG_EDDSA) assertEd25519Point(Buffer.from(String(jwk.x), 'base64url'));
+      else assertRsaParams(Buffer.from(String(jwk.n), 'base64url'), Buffer.from(String(jwk.e), 'base64url'));
+    }
+  } catch (e) {
+    if (e instanceof WebauthnError) return { ok: false, code: 'unsupported-key' };
+    return { ok: false, code: 'bad-key' };
+  }
+  return { ok: true, key };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 6~10단계 합성
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -673,6 +702,7 @@ module.exports = {
   checkCounter,
   checkSignature,
   verifyAssertion,
+  checkEnrollKey,
   decodeCbor,
   coseToKeyObject,
   parseAttestedCredentialData,

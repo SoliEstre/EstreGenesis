@@ -49,6 +49,7 @@ const WA = require('./webauthn-verify.cjs');
 const TOTP = require('./totp.cjs');
 const { tagOf } = require('./project.cjs');
 const { ExecState } = require('./exec-state.cjs');
+const KS = require('./keyset.cjs');
 
 const MAX_CMD_TEXT = 20000;
 const SKEW = OP.SKEW_SEC;
@@ -128,6 +129,34 @@ function schemaPrompt(a) {
   return { args: { target: hasOwn(a, 'target') ? a.target : null, text: a.text }, weak: false };   // TOTP 로 못 여는 건 «표의 totp:false» 하나가 막아요(자유 서술이라는 이유와 겹치지 않게 — 두 가드가 서로를 가리지 않아야 각각 시험돼요)
 }
 
+// ── 서명된 «등록» 동사 3종 — 보드 로컬 키 등록부(uplink-keys.json)를 고치는 동사예요. **passkey 전용**이에요(표의 totp:false 가 막아요).
+//   이유: TOTP 는 «명령에 묶이지 않는 증명» 이라(totp.cjs 머리말) 중계가 새 코드를 다른 명령에 붙일 수 있어요. 등록 동사에 그게 통하면 비밀 6자리 하나로 «내 키를 등록부에 넣기» 가 되고,
+//   그 순간 중계가 만든 키가 이후 모든 passkey 동사를 서명해요. 그래서 이 동사들은 «이미 등록된 passkey» 가 명령 해시(챌린지)에 서명한 경우에만 열려요.
+//   **그래도 서명은 «등록» 이 아니라 «후보 올리기» 예요.** passkey 는 명령 해시에 서명할 뿐 «사람이 무엇을 읽고 눌렀는지» 는 보여 주지 않아요(해시로 바꿔 주는 화면은 중계가 서빙해요) — 서명만으로 키가 영구 등록되면
+//   중계가 «결정 승인» 으로 보이는 탭 한 번에 자기 키를 영구 서명자로 만들 수 있어요. 그래서 enroll 동사는 대기열(uplink-pending.json)에 올리기만 하고, 보드 터미널 앞의 사람이 지문을 보고 y 를 친 뒤(cli.cjs enroll)에야
+//   등록부에 들어가요. 수락(accepted)의 뜻은 «대기열에 올렸다» 예요. 폐기(credential.revoke)는 접근을 좁히기만 해서 서명만으로 바로 적용돼요.
+//   주입기(inject)가 아니에요 — 메인으로 가는 프레임이 없고 서버 실행기 열쇠 집합(정확히 5개)은 그대로예요. 보드 «로컬» 파일만 바꿔요(keyset.cjs — CLI 와 같은 함수).
+//   인자는 «글자만으로» 검증해요(키 모양·알고리즘 규칙은 검증 쪽 checkEnrollKey 와 같은 함수) — 틀린 키가 서명된 명령으로 와도 등록부에 앉지 못해요.
+function schemaCredentialEnroll(a) {
+  shape(a, ['credentialId', 'alg', 'publicKeySpki'], ['name']);
+  const c = KS.normalizeCredential({ credentialId: a.credentialId, alg: a.alg, publicKeySpki: a.publicKeySpki, name: hasOwn(a, 'name') ? a.name : undefined });
+  if (!c.ok) throw no('bad-args');
+  return { args: { credentialId: c.credentialId, alg: c.alg, spki: c.spki, name: c.name }, weak: false };
+}
+function schemaDeviceEnroll(a) {
+  shape(a, ['deviceId', 'sealPublicJwk'], ['name']);
+  const d = KS.normalizeDevice({ deviceId: a.deviceId, sealPublicJwk: a.sealPublicJwk, name: hasOwn(a, 'name') ? a.name : undefined });
+  if (!d.ok) throw no('bad-args');
+  return { args: { deviceId: d.deviceId, jwk: d.jwk, kid: d.kid, name: d.name }, weak: false };
+}
+function schemaCredentialRevoke(a) {
+  shape(a, ['credentialId'], []);
+  if (typeof a.credentialId !== 'string' || !KS.CRED_ID_RE.test(a.credentialId) || Buffer.from(a.credentialId, 'base64url').toString('base64url') !== a.credentialId) throw no('bad-args');
+  return { args: { credentialId: a.credentialId }, weak: false };
+}
+// 서명된 등록 동사가 «소비 뒤에» 낼 수 있는 도메인 거절 — 그 밖의 실패(잠금 · 파일 읽기/쓰기)는 execution-failed 예요.
+const ENROLL_REFUSALS = new Set(['credential-already-enrolled', 'device-already-enrolled', 'credential-already-pending', 'device-already-pending', 'pending-full', 'credential-not-found', 'last-credential', 'keys-full']);
+
 // ── verb 정책 표 — **고정**이에요. 설정(uplink.json totp.verbs)은 «좁히기만» 해요(교집합) — 이 표에 없는 verb 를 TOTP 로 열 수 없어요.
 //   passkey(WebAuthn)는 표에 있는 모든 verb 를 해요. TOTP 는 «명령에 묶이지 않는 증명» 이라(totp.cjs 머리말 — 중계가 새 코드를 다른 명령에 붙일 수 있어요) 자유 서술이 없는 선택·보류에만 허용해요.
 const VERBS = Object.freeze({
@@ -136,6 +165,10 @@ const VERBS = Object.freeze({
   'hyperbrief.respond': Object.freeze({ totp: true, item: 'decision', injector: 'hyperbriefRespond', schema: schemaHyperbrief }),
   'selection.answer': Object.freeze({ totp: true, item: 'selection', injector: 'selectionAnswer', schema: schemaSelection }),
   'prompt.send': Object.freeze({ totp: false, item: null, injector: 'userPrompt', schema: schemaPrompt }),
+  // 등록 동사(위 머리말) — passkey 전용 · 주입기 없음(local = 보드 로컬 등록부 변경)
+  'credential.enroll': Object.freeze({ totp: false, item: null, injector: null, local: 'credential.enroll', schema: schemaCredentialEnroll }),
+  'device.enroll': Object.freeze({ totp: false, item: null, injector: null, local: 'device.enroll', schema: schemaDeviceEnroll }),
+  'credential.revoke': Object.freeze({ totp: false, item: null, injector: null, local: 'credential.revoke', schema: schemaCredentialRevoke }),
 });
 
 // ── 선택지 추적 — 서버가 «열린 선택지» 의 보기를 따로 안 쥐고 있어서(타임아웃을 선언한 것만 pending 추적) 보드로 가는 프레임에서 직접 봐요.
@@ -378,6 +411,7 @@ class Executor {
     const opAcct = kind === 'totp' ? key.totp.acct : (wa && wa.acct !== null ? wa.acct : cmd.acct);
     const prov = { via: 'uplink', cmdHash: hashHex, proof: kind, operator: 'acct:' + opAcct };
     try { this._execute(cmd.verb, policy, norm.args, cur, prov, nowMs); } catch (e) {
+      if (e instanceof KS.KeysetRefusal && ENROLL_REFUSALS.has(e.code)) return this._spent(c, hashHex, key, 'rejected', e.code);      // 소비된 뒤의 도메인 거절 — 최종
       this._once('exec:' + cmd.verb, '[uplink] 명령 실행기가 실패했어요 (' + cmd.verb + '): ' + String((e && e.message) || e).slice(0, 120));
       return this._spent(c, hashHex, key, 'rejected', 'execution-failed');
     }
@@ -459,7 +493,32 @@ class Executor {
   }
 
   // 실행 — 각 실행기에 «칸별로 새로 지은» 객체를 넘겨요(요청 객체를 통째로 넘기지 않아요).
+  // 보드 로컬 등록 동사 — 프레임을 만들지 않고 «보드 로컬 파일» 만 고쳐요(잠금 안의 읽고-고치고-쓰기 · 원자 교체는 keyset.cjs). enroll 동사는 키 등록부가 아니라 «대기열» 에 올려요(위 머리말) —
+  //   출처 표기 via = 'signed:<cmdHash 앞 8자>' 가 대기열 항목에 붙고, 사람이 확인하면 그대로 등록부의 enrolledVia 가 돼요(파일만 보고도 명령(감사 줄의 cmdHash8)까지 거슬러 올라가게요).
+  //   새 자격증명의 acct 는 «서명한 운영자 계정» 이에요(같은 계정 아래에서만 넓어져요).
+  //   마지막 자격증명의 폐기는 거절(last-credential) — 서명 경로가 스스로를 잠그는 길을 닫아요. 이 검사는 «잠금 안» 에서 해서 두 폐기 명령이 동시에 와도 한쪽만 통과해요.
+  _local(verb, args, prov, nowMs) {
+    const via = 'signed:' + prov.cmdHash.slice(0, 8);
+    const acct = prov.operator.slice('acct:'.length);
+    const file = this.cfg.keysFile;
+    if (typeof file !== 'string' || !file) throw new Error('keysFile 이 없어요');
+    switch (verb) {
+      case 'credential.enroll':
+        KS.queueCredential(file, { credentialId: args.credentialId, alg: args.alg, spki: args.spki, name: args.name }, acct, via, nowMs);
+        return;
+      case 'device.enroll':
+        KS.queueDevice(file, { deviceId: args.deviceId, jwk: args.jwk, kid: args.kid, name: args.name }, via, nowMs);
+        return;
+      case 'credential.revoke':
+        KS.updateKeys(file, (raw) => KS.removeCredential(raw, args.credentialId, false));
+        return;
+      default:
+        throw new Error('no local executor for verb');
+    }
+  }
+
   _execute(verb, policy, args, cur, prov, nowMs) {
+    if (policy.local) return this._local(verb, args, prov, nowMs);
     const at = new Date(nowMs).toISOString();
     const inj = this.inject[policy.injector];
     const p = { via: prov.via, cmdHash: prov.cmdHash, proof: prov.proof, operator: prov.operator };
@@ -509,4 +568,4 @@ function createExecutor(o) {
   }
 }
 
-module.exports = { createExecutor, Executor, SelectionTracker, VERBS, INJECTORS, BRANCHES };
+module.exports = { createExecutor, Executor, SelectionTracker, VERBS, INJECTORS, BRANCHES, ACCT_RE };

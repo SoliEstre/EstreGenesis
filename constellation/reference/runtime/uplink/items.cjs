@@ -36,7 +36,7 @@ const ITEM_ID_RE = /^[^\x00-\x1f\x7f]{1,200}$/;    // 진짜 id 는 «봉인 평
 const sha256hex = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
 const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-// ── 키 파일 (읽기 전용 — 쓰기는 다음 레인의 페어링 도구 몫) ───────────────────────────────────────────────
+// ── 키 파일 (이 클래스는 읽기 전용 — 쓰기는 keyset.cjs 한 곳: 보드 호스트 CLI(cli.cjs)와 서명된 등록 명령이 같은 함수로 써요) ──────────────
 class KeyReader {
   constructor(file, log) { this.file = file; this.log = log; this._sig = null; this._val = null; this._warned = new Set(); }
 
