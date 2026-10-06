@@ -19,6 +19,26 @@
 //   봉투째 상태 파일에 보관해서, 재시작이 rev 를 되감지도(옛 판이 최신으로 보임) 불필요하게 올리지도 않아요.
 //   rev 의 «출처» 는 이 모듈(보드)예요 — 중계가 준 값을 기대값으로 받는 경로는 없어요(seal.cjs 머리말 «신선도»).
 //
+// **항목 기록 서명 (v2.4.178) — 모든 스냅샷 칸은 보드 키로 «서명된 기록» 을 달고 나가요.** 위의 메타(rev · status · reversibility)는 봉인 aad 에 안 들어가거나(reversibility) envelope 모드에선 서명이 아예 없어서,
+//   중계(또는 업링크 토큰만 쥔 쪽)가 «two_way» 를 써 넣거나 큰 rev 로 항목을 얼릴 수 있었어요. 그래서 칸마다 `kind` · `v` · `sig` 를 더해요(기존 칸은 그대로 — 옛 소비자는 새 칸을 무시해요):
+//     entry = {itemId, status, rev, sealed?, reversibility?, kind, v:1, sig}
+//     sig   = 보드 P-256 키 · ECDSA/SHA-256 · IEEE-P1363 · base64url, 서명 바이트 = utf8(canonicalize({boardId, itemId, rev, status, kind, reversibility | null, v:1}))   (canonicalize = 영수증과 같은 opcmd.canonicalize)
+//     kind  = 항목 종류 — 'state_decision' (itemId 'sd:<tag>' 의 종류. 중계가 접두로 정하는 것과 같은 낱말). reversibility 는 «열린 항목의 선언값», 없거나 닫힌 항목이면 null.
+//   폰·중계는 이미 핀해 둔 보드 키로 «WebCrypto 만으로» 검증해요. boardId 는 칸에 안 실려요 — 검증자가 «이 업링크가 말하는 보드» 의 id 를 써요(다른 보드의 기록을 이 보드 것으로 못 내밀어요).
+//   한 칸만 바꿔도(rev · status · reversibility 의 추가/삭제/변경) 서명이 깨져요. 보드 키가 없으면 sig 칸 없이 나가고 한 번 말해요(서명을 못 한 것이지 «서명이 필요 없다» 가 아니에요 — 검증자는 sig 없는 칸을 «미확인» 으로 다뤄요).
+//   서명은 (itemId, rev, status, kind, reversibility, 키) 가 같으면 프로세스 안에서 «같은 바이트» 로 재사용해요 — **비용 절약이지 약속이 아니에요**(ECDSA 는 매번 다른 서명을 내서 수천 항목을 전체 스냅샷마다 새로 서명하면 비싸요).
+//   재시작하면 캐시가 비어서 «같은 기록» 도 다른 서명 바이트로 나가요(둘 다 검증돼요). 그래서 **검증자는 «서명된 칸» 을 비교하지 서명 바이트를 비교하지 않아요** — 같은 칸에 다른 유효 서명은 변조가 아니라 무해한 재서명이고,
+//   변조는 «검증이 깨지는 것» 으로 드러나요(서명 바이트가 같다/다르다 는 증거가 아니에요).
+//
+// **검증자 규칙 (v2.4.178) — 서명은 «받는 쪽이 어떻게 읽을 때» 만 막아 줘요.** 아래가 빠지면 서명이 있어도 얼리기·거짓 닫힘이 남아요.
+//   ① **서명 없는(또는 검증 실패한) 칸은 rev 순서 겨루기에 끼지 않아요** — 저장된 rev 를 올리지도, 서명된 기록을 밀어내지도 못해요(서명 없는 칸의 rev 를 «나중 것이 이긴다» 에 쓰면 먼 미래의 rev 하나로 진짜 개정이
+//      전부 낡은 것이 돼요). 이 보드의 서명이 한 번이라도 검증된 뒤에는 그 보드의 서명 없는 칸을 받지 않아요. 같은 rev 에서 «서명된 칸» 은 저장된 «서명 없는 행» 을 대체해요(내용이 같을 때).
+//   ② **닫힘의 근거는 «서명된 닫는 기록(status=resolved, 더 큰 rev)» 뿐이에요.** «전체 스냅샷(full·final)에 안 나온 항목 = 닫힘» 은 서명이 덮지 못하는 추론이라(full · final 도, «무엇이 언급됐나» 도 서명 밖) 토큰만 가진 쪽이
+//      빈 전체 스냅샷으로 열린 항목을 전부 «닫을» 수 있어요 — 그래서 부재로 닫은 것은 «미확인 닫힘» 으로 두고, 서명된 닫는 기록이 오면 확정하고, 서명된 «더 큰 rev 의 open» 이 오면 되살려요.
+//      보드는 닫는 기록을 «변경» 으로 한 번 내보낼 뿐 아니라 전체 스냅샷에도 «최근 7일 · 최대 64건» 다시 실어서(fullEntries) 닫는 통지가 전송 전에 사라져도 확정할 길이 남아요.
+//   ③ **서명된 첫 판은 새 rev 예요** — 서명 없이 나갔던 rev 를 서명만 붙여 같은 rev 로 다시 내지 않아요(아래 run() 의 signedFp). 업그레이드 직후·envelope 모드에서 키가 나중에 생긴 때 열린 항목은 rev 가 한 번 올라요.
+//   (보드가 «전체 스냅샷 목록(manifest)» 자체에 서명해서 부재를 증명하게 하는 길은 일부러 안 냈어요 — 닫는 기록을 다시 싣는 쪽이 중계의 기존 «큰 rev 만» 규칙과 맞고, 서명 없는 부재 추론은 «미확인» 으로 남는 것이 정직해요.)
+//
 // **상한.** 봉인 평문은 64KB 까지인데 한 배치(256KB)에 여러 항목이 들어가야 해서 칸마다 상한을 둬요(문자열 16000자 · 선택지 32개×500자). 넘치면 «잘라서» 봉인해요 — 이건
 //   «나가도 되는 내용을 줄이는» 방향의 절단이라 안전하고, 사람이 보는 맥락의 끝이 잘릴 수 있다는 건 문서화된 한계예요.
 
@@ -33,7 +53,10 @@ const MAX_OPTIONS = 32;
 const MAX_OPTION_STR = 500;
 const MAX_DEVICES = 16;
 const MAX_CREDENTIALS = 64;
+const ITEM_KIND = 'state_decision';            // itemId 'sd:<tag>' 의 항목 종류 — 서명 대상 칸(머리말 «항목 기록 서명»). 중계가 접두로 정하는 종류 낱말과 같아요
 const MAX_ITEMS = 2000;                 // 상태 파일 속 항목 기록 상한 — 넘으면 «끝난 것» 부터 지워요
+const CLOSED_RESEND_MS = 7 * 24 * 3600 * 1000;      // 전체 스냅샷에 «최근에 닫힌 항목의 서명된 닫는 기록» 을 함께 싣는 기간 — 중계가 «조용한 보드» 를 놓아주는 창(7일)과 같은 길이
+const MAX_CLOSED_RESEND = 64;           // 그 개수 상한 — 전체 스냅샷이 닫힌 기록으로 부풀지 않게
 const ITEM_ID_RE = /^[^\x00-\x1f\x7f]{1,200}$/;    // 진짜 id 는 «봉인 평문» 으로만 가요 — 여기선 «내보낼 수 있는 모양인가» 정도만 봐요
 
 const sha256hex = (s) => crypto.createHash('sha256').update(s, 'utf8').digest('hex');
@@ -46,18 +69,19 @@ class KeyReader {
   _once(key, msg) { if (this._warned.has(key)) return; this._warned.add(key); this.log(msg); }
 
   // {ok:true, boardPriv, boardPub, boardFp, devices:[{deviceId, kid, pub, name}], credentials:[{credentialId, alg, publicKey(SPKI DER), signCount, acct}], totp:{secretB32, acct}|null, version} | {ok:false, reason, version:'none'}
-  read() {
+  //   quiet — envelope 모드가 «서명 키만» 보려고 읽을 때예요. 봉인 모드 전용 문구를 내지 않아요(호출자가 자기 말을 해요).
+  read(quiet) {
     let st;
-    try { st = fs.statSync(this.file); } catch (_) { this._sig = null; this._val = { ok: false, reason: 'no-file', version: 'none' }; this._once('nofile', '[uplink] 키 파일이 없어요 (uplinkKeys) — 맥락을 봉인할 수 없어서 sealed 칸 없이 나가요'); return this._val; }
+    try { st = fs.statSync(this.file); } catch (_) { this._sig = null; this._val = { ok: false, reason: 'no-file', version: 'none' }; if (!quiet) this._once('nofile', '[uplink] 키 파일이 없어요 (uplinkKeys) — 맥락을 봉인할 수 없어서 sealed 칸 없이 나가요'); return this._val; }
     const sig = st.mtimeMs + ':' + st.size;
     if (sig === this._sig && this._val) return this._val;
     this._sig = sig;
-    this._val = this._parse();
+    this._val = this._parse(quiet);
     return this._val;
   }
 
-  _parse() {
-    const fail = (reason, msg) => { this._once('bad:' + reason, '[uplink] 키 파일을 쓸 수 없어요 (' + msg + ') — sealed 칸 없이 나가요'); return { ok: false, reason, version: 'none' }; };
+  _parse(quiet) {
+    const fail = (reason, msg) => { if (!quiet) this._once('bad:' + reason, '[uplink] 키 파일을 쓸 수 없어요 (' + msg + ') — sealed 칸 없이 나가요'); return { ok: false, reason, version: 'none' }; };
     let j;
     try { j = JSON.parse(fs.readFileSync(this.file, 'utf8')); } catch (_) { return fail('unreadable', '읽기/파싱 실패'); }
     if (!isPlain(j) || !isPlain(j.boardKey) || !isPlain(j.boardKey.privateJwk)) return fail('no-board-key', 'boardKey.privateJwk 없음');
@@ -143,9 +167,36 @@ class DecisionSync {
     this._warned = new Set();
     this.keysVersion = null;       // 마지막 동기 때 본 키 집합 버전
     this.openCount = 0;
+    this._sigCache = new Map();    // itemId → {priv, rev, status, kind, rv, sig} — 같은 기록은 같은 서명 바이트로(머리말)
   }
 
   _once(key, msg) { if (this._warned.has(key)) return; this._warned.add(key); this.log(msg); }
+
+  // 서명에 쓸 보드 키 — 봉인 모드의 키 읽기와 «같은» 판독기를 거치되 envelope 모드에선 조용히(자기 말은 아래에서 한 번만).
+  _signKey() {
+    if (!this.keys || typeof this.keys.read !== 'function') return null;
+    let k = null;
+    try { k = this.keys.read(this.visibility !== 'sealed'); } catch (_) { k = null; }
+    return k && k.ok && k.boardPriv ? k : null;
+  }
+
+  // 보드 키의 지문 — «이 키로 서명된 첫 판» 을 가리는 표지(rec.signedFp)예요. 키 판독기가 안 주면(시험용 대역) 개인키에서 직접 구해요.
+  _fpOf(key) {
+    if (typeof key.boardFp === 'string' && key.boardFp) return key.boardFp;
+    try { return OP.boardKeyFingerprint(crypto.createPublicKey(key.boardPriv)); } catch (_) { return null; }
+  }
+
+  // 항목 기록 서명(머리말) — 서명 바이트의 «정의» 는 이 한 함수예요. 키가 없으면 null.
+  _signRecord(itemId, rec, rv, key) {
+    const kind = ITEM_KIND;
+    if (this._sigCache.size > MAX_ITEMS + 64) this._sigCache.clear();       // 지워진 항목의 서명이 쌓이지 않게 — 비워도 다음에 다시 지어요
+    const c = this._sigCache.get(itemId);
+    if (c && c.priv === key.boardPriv && c.rev === rec.rev && c.status === rec.status && c.rv === rv) return c.sig;
+    const fields = { boardId: this.boardId, itemId, rev: rec.rev, status: rec.status, kind, reversibility: rv, v: 1 };
+    const sig = crypto.sign('sha256', Buffer.from(OP.canonicalize(fields), 'utf8'), { key: key.boardPriv, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+    this._sigCache.set(itemId, { priv: key.boardPriv, rev: rec.rev, status: rec.status, rv, sig });
+    return sig;
+  }
 
   // 상태 텍스트 → {changes, keysChanged, openCount} | null(파싱 불가 — 아무것도 바꾸지 않아요)
   run(stateText) {
@@ -160,6 +211,13 @@ class DecisionSync {
     const items = this.store.state.items;
     const changes = [];
     const openIds = new Set();
+    // «서명된 첫 판은 새 판(rev)» — 서명 없이 나갔던 rev 를 서명만 붙여 «같은 rev» 로 다시 내면, «큰 rev 만 받는» 중계가 낡은 것으로 버려서 서명이 영영 안 닿아요
+    //   (업그레이드 직후의 열린 항목 · envelope 모드에서 키가 나중에 생긴 항목). 그래서 이 키(지문)로 서명된 적 없는 열린 항목은 내용이 같아도 rev 를 한 번 올려 «새 판» 으로 내보내요.
+    //   키가 «지금 없는» 동안엔 비교하지 않아요 — 키 파일이 잠깐 못 읽히는 틈(쓰는 중)에 rev 가 오르락내리락하지 않게.
+    const signKey = this._signKey();
+    const signFp = signKey ? this._fpOf(signKey) : null;
+    const now = Math.max(1, Math.floor(this.clock.now()));
+    let dirty = false;
     for (const d of decisions) {
       if (!isPlain(d) || d.status !== 'open' || typeof d.id !== 'string' || !ITEM_ID_RE.test(d.id)) {
         if (isPlain(d) && d.status === 'open') this._once('id:' + String(d.id).slice(0, 40), '[uplink] 결정 항목 id 가 규격이 아니라(제어문자 없는 200자 이하) 내보내지 않아요');
@@ -174,8 +232,9 @@ class DecisionSync {
       // 선언이 있을 때만 해시에 넣어요 — 없는 항목의 해시는 이 칸이 생기기 전과 같아서, 업그레이드가 열린 항목 전부를 다시 봉인(rev 증가 + 전체 스냅샷)하지 않아요.
       const hash = sha256hex(JSON.stringify(content) + '\n' + this.visibility + '\n' + this.boardId + '\n' + (this.visibility === 'sealed' ? keyInfo.version : '-') + (rv ? '\nreversibility:' + rv : ''));
       const rec = items[itemId];
-      if (rec && rec.status === 'open' && rec.hash === hash) continue;
-      const rev = rec ? rec.rev + 1 : Math.max(1, Math.floor(this.clock.now()));       // 시계 바닥(epoch 밀리초) — 초 단위면 «같은 초 안의 연속 변경» 이 바닥을 넘어 옛 값보다 작아질 수 있어요
+      const needsSignedRev = signFp !== null && !!rec && rec.signedFp !== signFp;
+      if (rec && rec.status === 'open' && rec.hash === hash && !needsSignedRev) continue;
+      const rev = rec ? rec.rev + 1 : now;       // 시계 바닥(epoch 밀리초) — 초 단위면 «같은 초 안의 연속 변경» 이 바닥을 넘어 옛 값보다 작아질 수 있어요
       let sealed;
       if (this.visibility === 'sealed') {
         if (keyInfo.ok && keyInfo.devices.length) {
@@ -186,16 +245,23 @@ class DecisionSync {
       }
       items[itemId] = { rev, hash, status: 'open', sealed };
       if (rv) items[itemId].reversibility = rv;
+      if (signFp !== null) items[itemId].signedFp = signFp;
       changes.push(this._entry(itemId));
     }
     // 열린 목록에서 사라진 항목(resolved 로 바뀜 · 삭제됨) — 종결 통지. rev 를 올려서 «나중 것이 이긴다» 가 성립해요.
+    //   닫은 때(closedAt)를 적어 둬요 — 전체 스냅샷이 «최근에 닫힌 항목의 서명된 닫는 기록» 을 함께 싣는 근거예요(fullEntries). 시각이 없는 옛 닫힌 기록(업그레이드 전)은 처음 본 때를 닫은 때로 쳐요.
     for (const itemId of Object.keys(items)) {
       const rec = items[itemId];
-      if (rec.status !== 'open' || openIds.has(itemId)) continue;
+      if (rec.status !== 'open') {
+        if (!Number.isSafeInteger(rec.closedAt)) { rec.closedAt = now; dirty = true; }
+        continue;
+      }
+      if (openIds.has(itemId)) continue;
       rec.rev += 1;
       rec.status = 'resolved';
+      rec.closedAt = now;
       delete rec.sealed;
-      changes.push({ itemId, status: 'resolved', rev: rec.rev });
+      changes.push(this._entry(itemId));
     }
     // 기록 상한 — 끝난 항목부터 지워요(열린 항목의 rev 를 잃으면 되감겨요).
     const ids = Object.keys(items);
@@ -203,7 +269,7 @@ class DecisionSync {
       for (const id of ids) { if (Object.keys(items).length <= MAX_ITEMS) break; if (items[id].status !== 'open') delete items[id]; }
     }
     this.openCount = openIds.size;
-    if (changes.length) this.store.save();
+    if (changes.length || dirty) this.store.save();
     return { changes, keysChanged, openCount: this.openCount };
   }
 
@@ -213,13 +279,32 @@ class DecisionSync {
     if (rec.status === 'open' && rec.sealed) e.sealed = rec.sealed;
     const rv = rec.status === 'open' ? reversibilityDeclared(rec) : null;       // 디스크에서 읽은 기록도 같은 검증을 거쳐요
     if (rv) e.reversibility = rv;
+    // 서명된 항목 기록 — 칸 «전부»(열린 것 · 닫는 통지 · 전체 스냅샷의 재료)가 이 한 자리를 지나요. 키가 없으면 서명 없이 나가고 한 번 말해요.
+    const key = this._signKey();
+    if (key) {
+      // 서명을 «칸 하나가» 못 만들어도(예: 손으로 고친 상태 파일의 소수 rev — canonicalize 가 던져요) 스냅샷 «전체» 가 막히지 않게 그 칸만 서명 없이 내보내고 한 번 말해요 —
+      //   던지게 두면 전송층이 같은 던짐을 백오프로 반복해서 대기 중인 봉투와 하트비트까지 영영 못 나가요(상태 파일 읽기에서도 이런 rev 는 걸러요 — store.cjs).
+      try { e.sig = this._signRecord(itemId, rec, rv, key); e.kind = ITEM_KIND; e.v = 1; }
+      catch (err) { delete e.sig; delete e.kind; delete e.v; this._once('signfail:' + itemId, '[uplink] 항목 기록 하나를 서명하지 못했어요(' + String((err && (err.code || err.message)) || err).slice(0, 60) + ') — 그 칸만 서명 없이 나가요'); }
+    } else this._once('nosign', '[uplink] 보드 키가 없어서 항목 기록에 서명할 수 없어요 — 서명 칸(sig) 없이 나가요(받는 쪽은 미확인으로 다뤄야 해요)');
     return e;
   }
 
-  // 열린 항목 전부(재접속·키 변경 때의 full 스냅샷 재료).
+  // 전체 스냅샷(재접속·키 변경·시작 때)의 재료 = 열린 항목 전부 + «최근에 닫힌 항목의 서명된 닫는 기록» (최근 7일 · 최대 64건 · 닫은 지 얼마 안 된 것부터).
+  //   닫는 통지는 «변경» 으로 한 번 나가는데 전송층의 메모리에만 있어서, 나가기 전에 보드가 재시작하거나 전송이 실패하면 사라져요. 받는 쪽이 «서명된 닫는 기록» 만 닫힘의 근거로 삼는다면(머리말 «검증자 규칙»)
+  //   그 항목은 영영 열린 채라서, 닫는 기록도 전체 스냅샷에 다시 실어요(디스크의 항목 기록에서 — 같은 rev · 같은 서명 대상이라 중복 전달은 무해해요).
   fullEntries() {
+    const items = this.store.state.items;
     const out = [];
-    for (const itemId of Object.keys(this.store.state.items)) if (this.store.state.items[itemId].status === 'open') out.push(this._entry(itemId));
+    const closed = [];
+    const floor = Math.floor(this.clock.now()) - CLOSED_RESEND_MS;
+    for (const itemId of Object.keys(items)) {
+      const rec = items[itemId];
+      if (rec.status === 'open') out.push(this._entry(itemId));
+      else if (!Number.isSafeInteger(rec.closedAt) || rec.closedAt >= floor) closed.push(itemId);
+    }
+    closed.sort((a, b) => (items[b].closedAt || 0) - (items[a].closedAt || 0));
+    for (const itemId of closed.slice(0, MAX_CLOSED_RESEND)) out.push(this._entry(itemId));
     return out;
   }
 }

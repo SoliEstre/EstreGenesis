@@ -43,10 +43,21 @@
 //   중계가 정당한 사용 뒤에도 거짓 경보를 만들 수는 있어요 — 거짓 경보는 싸고 놓친 대치는 비싸서 이쪽으로 틀려요). 막는 길은 여전히 passkey(명령 해시에 묶임)예요.
 //   **정직한 한계 — 서버 쪽 탐지는 중계가 «운영자의 진짜 명령을 고치지 않고 그대로» 전달할 때만 불려요.** 중계가 운영자의 명령을 코드 한 자리만 고쳐서(totp-invalid) 전달하거나, 증명을 떼어서(bad-proof) 전달하거나, 아예 전달하지 않으면
 //   보드는 대치를 «볼 일» 이 없고 경보도 안 나요(폰엔 그럴듯한 «틀린 코드» 거절이거나 아무 응답이 없어요). 그래서 «경보가 안 왔다» 는 «안전하다» 가 아니에요.
-//   **폰이 확인하는 길 — 서명된 TOTP 사용 기록(spendRecords).** 보드는 «코드의 단계를 처음 쓴 명령» 마다 {boardId, kind:'totp-spend', step, cmdHash(전체), verb, itemId(가명), outcome, codeTag, at} 를 보드 키로 서명해서 `/v1/uplink/results` 회신에
-//   `spends`(최근 8건)로 «모든» 회신에 실어요. codeTag = sha256('eg-totp-spend/v1\n' + boardId + '\n' + step + '\n' + code) 앞 16자라서, 코드의 비밀(시드)을 모르는 폰도 «내가 방금 친 코드 + 시계 ±1 단계» 로 자기 기록을 찾아요.
+//   **폰이 확인하는 길 — 서명된 TOTP 사용 기록(spendRecords).** 보드는 «코드의 단계를 처음 쓴 명령» 마다 {boardId, kind:'totp-spend', step, cmdHash(전체), verb, itemId(가명), outcome, codeTag, at, ver} 를 보드 키로 서명해서 `/v1/uplink/results` 회신에
+//   `spends`(최근 8건)로 «모든» 회신에 실어요(그리고 전송층이 결과가 없는 때에도 `spends` 배치 항목으로 실어요 — uplink.cjs «사용 기록 전달»). codeTag = sha256('eg-totp-spend/v1\n' + boardId + '\n' + step + '\n' + code) 앞 16자라서, 코드의 비밀(시드)을 모르는 폰도 «내가 방금 친 코드 + 시계 ±1 단계» 로 자기 기록을 찾아요.
 //   폰의 규칙: 코드를 쳐서 낸 뒤 ① 자기 영수증이 «수락» 이면 끝 ② 아니면(totp-invalid · 거절 · 응답 없음) 자기 코드의 codeTag 를 가진 기록을 찾아 cmdHash 가 «내 명령의 해시» 와 다르면 대치가 «증명된 것» 이에요(보드 서명이라 중계가
 //   만들 수 없어요) ③ 기록이 없으면 «확인 안 됨» — 중계가 기록을 «빼는» 것은 막을 수 없지만 «고치는» 것은 못 하고, 방금 친 코드 뒤의 틀린 코드·무응답은 의심으로 다뤄야 해요. 기록은 이 프로세스의 기억이라 재시작하면 비어요(그때는 ③).
+//   **ver — 기록마다 단조 «판» 번호 (v2.4.178).** 같은 (step, cmdHash) 기록은 «결과(outcome)» 가 바뀌면 보드가 다시 서명해요(no-receipt → 최종 결과 — 예: 비최종으로 거절됐던 TOTP 명령이 같은 봉투의 passkey 재시도로 수락됨).
+//   서명된 옛 기록(ver 1, 'no-receipt')을 중계가 나중에 «다시 내밀면» 서명이 멀쩡해서 현재 기록과 구분이 안 됐어요 — 그래서 ver(1 부터, 다시 서명할 때마다 +1)가 «서명 바이트 안» 에 들어가요. 받는 쪽은 같은 (보드, step, cmdHash) 에서
+//   «더 큰 ver» 만 받아들여요(같은 ver 인데 내용이 다르면 변조). (step, cmdHash) 는 재시작을 건너서도 겹치지 않아요 — 쓴 단계는 TOTP 장부(디스크)에 남아 같은 명령이 같은 단계를 다시 «처음으로» 쓸 수 없으니, 재시작 뒤 ver 가 1 로
+//   돌아가도 옛 프로세스의 같은 (step, cmdHash) 기록과 충돌하지 않아요. **결과는 한 방향이에요: no-receipt → 최종(수락 · 거절 사유)** — 영수증 장부가 상한을 넘어 정리돼 최종 결과를 서명한 기록의 영수증이 사라져도
+//   «다시 no-receipt 로, 더 큰 ver» 를 서명하지 않아요(받는 쪽의 «가장 큰 ver» 규칙이 최종 결과를 되돌리게 되니까요). 한 번 최종이 된 결과는 이 프로세스가 사는 동안 그 값 그대로 고정이에요.
+//   **itemId — 항목 스냅샷(items.cjs)의 itemId 와 «같은 낱말» (v2.4.178).** 결정류 동사(decision.answer · decision.defer · hyperbrief.respond)의 기록은 명령이 어느 접두(sd: · h:)로 지목했든 언제나 'sd:<tag>' —
+//   스냅샷의 itemId 이고, 하이퍼브리프의 결정 요청 프레임이 싣는 'h:<tag>' 와 «같은 결정» 의 같은 tag 라서 가능해요(tag = 결정 id 의 키 있는 HMAC). 선택지 답(selection.answer)의 기록은 'h:<tag>'(스냅샷에 없는 항목 — 선택지 프롬프트 프레임의
+//   meta.promptId 와 같은 낱말이라 중계가 봉투 스트림으로 이어요). 항목이 없는 동사(prompt.send)는 ''.
+//   **짝짓기 규칙 (한 이름 공간 주의).** 'h:<tag>' 는 «하나의 이름 공간» 이에요 — 선택지 프롬프트 id(promptId) · 하이퍼브리프 decision_id · 메시지 id 가 같은 글자면 같은 tag 가 나와요(tagOf 의 도메인이 하나). 그래서 받는 쪽은
+//   **사용 기록의 'h:' itemId 를 «verb 가 selection.answer 일 때만», 그리고 SelectionPrompt/SelectionResolved 의 meta.promptId 에만 짝지어요.** 결정류 기록(decision.answer · decision.defer · hyperbrief.respond)은 «언제나 sd:» 라서
+//   'h:' 가 결정 요청 프레임(DECISION_REQUEST)에 짝지어질 일이 없어요(적대적 에이전트가 결정 id 와 같은 글자의 promptId 를 내도 코드 사용 기록이 그 결정에 붙지 않아요). 이름 공간을 갈라 가명을 바꾸는 길은 상관관계를 깨뜨려서(호환 깨짐) 안 했어요.
 
 // **낡은 항목 판정의 자리 — 증명 «뒤», 커밋 «안»(소비하고 거절).** 참조 항목이 이미 닫혔으면 실행하지 않되 nonce 와 signCount 는 «소비해요»: 해소된 결정은 닫힌 채 남지만 같은 id 가 «다시 열리면»
 //   (같은 가명 itemId) 아직 시간 창 안의 옛 서명이 새 질문에 적용될 수 있고, 소비하지 않으면 재전달이 그때마다 같은 판정을 반복하며 창이 열려 있어요. 소비하면 영수증(stale-item)이 남아 재전달도
@@ -271,7 +282,7 @@ class Executor {
     this.inject = null;
     this.notice = null;                              // 서버 알림 함수(없으면 대치 의심은 감사 줄만 남겨요)
     this._noticed = new Map();                       // 대치된 명령(= 코드를 먼저 쓴 쪽) cmdHash8 → {n: 거절 횟수, sent: 알림을 냈나} (머리말: 대치된 명령 하나당 알림 한 장 · 감사 알림 줄도 자릿수마다 한 줄)
-    this._spends = new Map();                        // TOTP 단계 → {step, cmdHash, verb, itemId, id, codeTag, at, signed} — 이 프로세스가 «처음으로» 그 단계를 쓴 명령(재시작하면 비어요 — 머리말)
+    this._spends = new Map();                        // TOTP 단계 → {step, cmdHash, verb, itemId, id, codeTag, at, ver, signed} — 이 프로세스가 «처음으로» 그 단계를 쓴 명령(재시작하면 비어요 — 머리말)
     this._idx = null;                                // {text, map} — 결정 가명 색인 캐시(아래 _decisionIndex)
     this._snap = null;                               // 한 번의 명령 처리 안에서 «상태를 한 번만» 읽기 위한 스냅샷(handle 이 비움)
     if (!o.inject || typeof o.inject !== 'object') this.injectError = 'no-injectors';
@@ -495,8 +506,11 @@ class Executor {
   _pseudoOf(norm) {
     if (!norm || !norm.args) return '';
     const a = norm.args;
-    const p = hasOwn(a, 'itemId') ? a.itemId : (hasOwn(a, 'decisionId') ? a.decisionId : (hasOwn(a, 'promptId') ? a.promptId : ''));
-    return typeof p === 'string' ? p.slice(0, 40) : '';
+    // 결정류는 «스냅샷과 같은 낱말»(sd:) — hyperbrief.respond 의 decisionId 는 sd: 로도 h: 로도 올 수 있어서 tag 만 떼어 다시 붙여요(머리말 «itemId»). 선택지 프롬프트는 스냅샷 밖이라 h:<tag> 그대로.
+    if (hasOwn(a, 'itemId')) return typeof a.itemId === 'string' ? a.itemId.slice(0, 40) : '';
+    if (hasOwn(a, 'decisionId')) return typeof a.decisionId === 'string' && TAG_RE.test(a.decisionId.slice(-24)) ? 'sd:' + a.decisionId.slice(-24) : '';
+    if (hasOwn(a, 'promptId')) return typeof a.promptId === 'string' ? a.promptId.slice(0, 40) : '';
+    return '';
   }
   _realOf(ref) { return ref && ref.d && typeof ref.d.id === 'string' ? this._idOut(ref.d.id) : (ref && ref.sel && typeof ref.sel.promptId === 'string' ? this._idOut(ref.sel.promptId) : ''); }
 
@@ -505,7 +519,7 @@ class Executor {
     if (!Number.isSafeInteger(step)) return;
     const codeTag = crypto.createHash('sha256').update('eg-totp-spend/v1\n' + this.cfg.boardId + '\n' + step + '\n' + String(code)).digest('hex').slice(0, 16);
     this._spends.delete(step);
-    this._spends.set(step, { step, cmdHash: hashHex, verb: typeof verb === 'string' ? verb.slice(0, 64) : null, itemId: this._pseudoOf(norm), id: this._realOf(ref), codeTag, at: nowMs, signed: null });
+    this._spends.set(step, { step, cmdHash: hashHex, verb: typeof verb === 'string' ? verb.slice(0, 64) : null, itemId: this._pseudoOf(norm), id: this._realOf(ref), codeTag, at: nowMs, ver: 0, signed: null });
     while (this._spends.size > MAX_SPENDS) this._spends.delete(this._spends.keys().next().value);
   }
 
@@ -517,16 +531,20 @@ class Executor {
   }
 
   // 폰이 «내 코드를 누가 썼나» 를 확인할 수 있는 서명된 사용 기록 — 최근 것부터 MAX_SPEND_REPORT 개. 전송층이 결과 회신에 실어요(중계는 운반자라 빼도 되지만 «고칠» 수는 없어요: 보드 키로 서명).
-  //   서명 대상 칸: boardId · kind · step · cmdHash(전체) · verb · itemId(가명) · outcome · codeTag · at. outcome 은 «지금» 값이라 바뀌면 다시 서명해요(캐시).
+  //   서명 대상 칸: boardId · kind · step · cmdHash(전체) · verb · itemId(스냅샷과 같은 낱말) · outcome · codeTag · at · ver. outcome 은 «지금» 값이라 바뀌면 ver 를 올려 다시 서명해요(캐시 — 같은 outcome 이면 «같은 바이트»).
   spendRecords() {
     const key = this.keys.read();
     if (!key || !key.ok) return [];
     const list = [...this._spends.values()].sort((x, y) => y.step - x.step).slice(0, MAX_SPEND_REPORT);
     const out = [];
     for (const s of list) {
-      const outcome = this._outcomeOf(s.cmdHash);
+      let outcome = this._outcomeOf(s.cmdHash);
+      // 결과는 «no-receipt → 최종» 한 방향으로만 가요. 영수증 장부가 상한을 넘어 정리되면(_prune) 이미 최종 결과를 서명한 기록의 영수증이 사라질 수 있는데, 그때 다시 'no-receipt' 로 «더 큰 ver» 를
+      //   서명하면 받는 쪽의 «가장 큰 ver 가 이긴다» 에 최종 결과가 «되돌려져요»(수락된 명령이 영수증 없음으로 보임). 한 번 최종이 된 결과는 그대로 고정해요.
+      if (outcome === 'no-receipt' && s.signed && s.signed.outcome !== 'no-receipt') outcome = s.signed.outcome;
       if (!s.signed || s.signed.outcome !== outcome) {
-        const fields = { boardId: this.cfg.boardId, kind: 'totp-spend', step: s.step, cmdHash: s.cmdHash, verb: s.verb, itemId: s.itemId, outcome, codeTag: s.codeTag, at: s.at };
+        s.ver += 1;                                  // 첫 서명이 1 — 다시 서명할 때마다 +1 (서명 바이트 안: 머리말 «ver»)
+        const fields = { boardId: this.cfg.boardId, kind: 'totp-spend', step: s.step, cmdHash: s.cmdHash, verb: s.verb, itemId: s.itemId, outcome, codeTag: s.codeTag, at: s.at, ver: s.ver };
         const sig = crypto.sign('sha256', Buffer.from(OP.canonicalize(fields), 'utf8'), { key: key.boardPriv, dsaEncoding: 'ieee-p1363' }).toString('base64url');
         s.signed = { outcome, rec: Object.assign({}, fields, { sig }) };
       }
