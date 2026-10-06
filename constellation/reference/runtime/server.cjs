@@ -2648,6 +2648,9 @@ server.on('upgrade', (req, socket) => {
       //   공지도 정당한 용도라(local-bridge.cjs 재연결 broadcast) main 전용으로 좁히면 어댑터가 깨져요. 위조를
       //   가능케 한 건 verb 가 아니라 `source` 를 claim 할 수 있었다는 것이고, 그건 위에서 닫혔어요. 여기서는
       //   **인증된 발신자를 본문에 못박아** 보드가 "누가 말했나" 를 잃지 않게 해요(대시보드가 라벨을 그에 맞춰 렌더).
+      // 서버 전용 알림 종류 — TOTP 바꿔치기 의심 경보(원격 명령 레인이 내는 것)는 «서버가 보드 판정으로» 내는 보안 알림이에요. 에이전트가 같은 종류를 보내면 대시보드가 같은 🚨 로 그리고(source 만 다름) 메인에는 «경보 위조» 가 되어서
+      //   OperatorFeedback 과 같은 처방으로 버려요(이름 전체를 막지 않는 이유는 위 ServerNotice 설명 그대로 — 워커 브릿지의 online/offline 공지가 정당해요).
+      if (msg && msg.type === 'CUSTOM' && msg.name === 'ServerNotice' && msg.value && typeof msg.value === 'object' && msg.value.kind === 'totp-substitution-suspected') { console.warn('[ws] reserved ServerNotice kind totp-substitution-suspected from agent %s — drop (서버 경보는 서버만)', conn.meta.agentId); return; }
       if (msg && msg.type === 'CUSTOM' && msg.name === 'ServerNotice') {
         if (!msg.value || typeof msg.value !== 'object') msg.value = {};
         msg.value.agentId = conn.meta.agentId; msg.value.senderRole = wsAgentRole(conn);
@@ -2970,16 +2973,53 @@ const _uplinkInject = Object.freeze({
   selectionAnswer: _uplinkSelectionAnswer,
   userPrompt: _uplinkUserPrompt,
 });
+// TOTP 바꿔치기 의심 알림 — **운영자 실행기가 아니에요.** 운영자 도장(via · cmdHash · proof · operator)을 «지을 수 없고», 서버 이름(source 'server')의 notice 프레임 한 종류만 지어요. 위 실행기 객체와 «별개» 의 얼린 객체로 따로 넘어가서
+//   실행기 집합(정확히 5개)은 그대로예요. 값은 실행기(uplink/exec.cjs)가 칸별로 지어 넘긴 고정 칸뿐이고(코드가 «먼저 쓰인» 명령의 cmdHash 앞 8자 · 그 항목 가명 + 진짜 id · verb · 결과, 같은 코드를 낸 «나중» 명령의 같은 칸들, 시각) 인자 본문은 없어요.
+//   **칸마다 모양을 «다시» 검증해요** — 실행기가 이미 거른 값이라도 이 함수는 «서버 권위 경보» 를 짓는 마지막 자리라서, 에이전트가 고른 글자(선택지 프롬프트 id 는 자유 서술이에요)가 메인에게 가는 서버 경보에 한 줄이라도 실리지 않게 식별자 글자 집합만 통과시켜요.
+//   가는 곳은 보드들(대시보드)과 메인뿐이에요 — ServerNotice 는 notice 군이라(§13.16.9) 메인을 «깨우지는» 않고 기록(wsRecord)에 남으며, 대시보드는 이 이름을 «서버 공지» 상태 카드로 그려요(전용 경보 영역은 아직 없어요).
+//   에이전트 연결이 같은 종류(kind)를 보내면 위조 경보라 연결 처리부에서 버려요(OperatorFeedback 과 같은 처방).
+const _UP_TOK = (v, max) => (typeof v === 'string' && v.length <= max && /^[A-Za-z0-9._:@-]*$/.test(v) ? v : '');
+function _uplinkTotpSubstitutionNotice(a) {
+  const mk = () => {
+    const sp = _UP_TOK(a.spentCmdHash8, 8); const lt = _UP_TOK(a.laterCmdHash8, 8);
+    const it = _UP_TOK(a.itemId, 40); const lit = _UP_TOK(a.laterItemId, 40);
+    const vb = _UP_TOK(a.verb, 64); const lvb = _UP_TOK(a.laterVerb, 64); const oc = _UP_TOK(a.outcome, 40);
+    return {
+      kind: 'totp-substitution-suspected',
+      item: { itemId: it, id: _UP_TOK(a.id, 64) }, verb: vb, outcome: oc, spentCmdHash8: sp,
+      laterItem: { itemId: lit, id: _UP_TOK(a.laterId, 64) }, laterVerb: lvb, laterCmdHash8: lt, at: _UP_TOK(a.at, 40),
+      text: '🚨 같은 TOTP 코드가 두 명령에 쓰였어요 — 바꿔치기 의심. 코드가 먼저 쓰인 명령 ' + sp + ' (' + (vb || '?') + ' · 항목 ' + (it || '?') + ' · 결과 ' + (oc || '?') + '), 같은 코드를 낸 나중 명령 ' + lt + ' (' + (lvb || '?') + ' · 항목 ' + (lit || '?') + '). 보드는 둘 중 어느 쪽이 운영자의 명령인지 알 수 없어요 — 운영자가 낸 것이 «나중» 명령이라면 중계가 코드를 가로채 먼저 쓴 것일 수 있으니, 먼저 쓰인 항목의 처리 이력을 확인하고 passkey 로 다시 내세요.',
+    };
+  };
+  const ev = wscore.event('CUSTOM', { name: 'ServerNotice', value: mk() });
+  ev.source = 'server';
+  wsToBoards(ev);
+  const m = wsAgents.get(WS_PRIMARY_ID);   // wsPrimaryAgent() 는 main 이 없으면 아무 에이전트나 돌려줘서 여기엔 안 써요(key-renewed 알림과 같은 규칙)
+  if (m && m.alive) { const e2 = wscore.event('CUSTOM', { name: 'ServerNotice', value: mk() }); e2.source = 'server'; e2.targetAgentId = WS_PRIMARY_ID; try { m.send(e2); } catch (_) { /* 연결이 막 끊김 — 기록이 남아요 */ } }
+  wsRecord(ev);
+}
+const _uplinkNotice = Object.freeze({
+  totpSubstitutionSuspected: _uplinkTotpSubstitutionNotice,
+});
 // [uplink-inject-end]
 // [uplink-begin] 상향 전송 — `uplink.json` 이 있을 때만 켜요. 없으면 이 한 줄(존재 확인) 말고는 아무 일도 없어요: require 없음 · 타이머 없음 · 네트워크 없음 · 파일 생성 없음 · 로그 없음.
 //   업링크가 서버에서 읽는 건 보드로 가는 프레임(wsToBoards 탭) · state.json 새 텍스트(broadcastState 탭) · 접속 현황 getter 셋뿐이고, 서버가 업링크에 «주는» 건 위 고정 실행기 5개와 읽기 전용 조회 둘뿐이에요(범용 hook 없음).
+// 업링크가 «판정 근거로» 읽는 상태 — **엄격해요(닫힌 채 실패).** 화면용 readState 는 state.json 이 깨지면 마지막으로 멀쩡했던 사본(last-good)을 돌려주는데, 그건 «보여 주기» 엔 맞아도 «판정» 엔 틀려요:
+//   메인이 결정의 reversibility 를 one_way 로 고치다 문법 오류를 낸 순간(또는 쓰기 도중) last-good 은 «옛 two_way» 라서, 원격의 약한 증명(TOTP)이 이미 막혀야 할 결정에 열려요. 그래서 여기선 파일을 «지금» 읽고
+//   파싱이 안 되면 던져요 — 실행기는 던짐을 state-unavailable(일시 장애 · 비최종)로 읽어서 «파일이 다시 멀쩡해질 때까지» 명령이 거절만 돼요. 같은 텍스트면 파싱을 건너뛰어요(명령 폭주가 파싱 폭주가 되지 않게 — 실행기의 색인 캐시와 같은 이유).
+let _uplinkStrictText = null;
+function _uplinkReadStateStrict() {
+  const raw = fs.readFileSync(STATE, 'utf8');
+  if (raw !== _uplinkStrictText) { JSON.parse(raw); _uplinkStrictText = raw; }
+  return raw;
+}
 if (fs.existsSync(path.join(DIR, 'uplink.json'))) {
   try {
     _uplink = require('./uplink/index.cjs').start({
       dir: DIR,
-      inject: _uplinkInject, selectionState: _uplinkSelectionState, selectionIssuer: _uplinkSelectionIssuer,   // 고정 실행기(verb 마다 하나) · 읽기 전용 조회 둘 — 위 [uplink-inject] 구역
+      inject: _uplinkInject, notice: _uplinkNotice, selectionState: _uplinkSelectionState, selectionIssuer: _uplinkSelectionIssuer,   // 고정 실행기(verb 마다 하나) · 운영자 목소리가 아닌 서버 알림 함수 한 개 · 읽기 전용 조회 둘 — 위 [uplink-inject] 구역
       log: (...a) => console.log(...a),
-      getState: () => readState(),
+      getState: () => _uplinkReadStateStrict(),
       getAgents: () => ({
         primaryId: WS_PRIMARY_ID,
         live: wsAgentList(),

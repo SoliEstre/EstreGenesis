@@ -107,6 +107,7 @@ The **review-and-decision queue** the human sees. This is the part rough-tier eu
   "recommend":      "2-트랙 단계적 — 즉시 giget/git+ssh ... npm 발행 게이트는 사용자.", // agent's rationale
   "recommendChoice":"2-트랙 (즉시 해소 + npm 배포 준비)",                              // short label for the recommended option
   "options":        ["① ...", "② ...", "③ ..."],          // present only when kind === "choice"
+  "reversibility":  "two_way" | "one_way_with_migration_path" | "one_way",   // optional — can the answer be undone? (see below)
   "reviewedText":   "2-트랙 (권장) — ...",                  // the human's decision text (editable until status=resolved closes it)
   "reviewedAt":     "2026-05-28T01:40:00+09:00"
 }
@@ -118,6 +119,8 @@ The **review-and-decision queue** the human sees. This is the part rough-tier eu
 - `choice` — pick from `options[]`.
 
 **Lifecycle**: agent creates with `status:"open"` + `recommend`/`recommendChoice`. Human reviews → sets `reviewedText` (their decision, editable up to that point) and `reviewedAt`; status flips to `"resolved"`. The dashboard surfaces open decisions in a *blocking* panel (sorted by `priority`) and a collapsed "resolved 12건" counter. **Until reviewed, `reviewedText` is mutable** — the user can keep refining their answer.
+
+**`reversibility` (optional)** — whether acting on this decision's answer can be undone. The vocabulary is the one Hyperbrief uses for `reversibility_class`: `two_way` (undoable at low cost), `one_way_with_migration_path` (undoable only through a migration), `one_way` (not undoable). The agent that writes the decision sets it — it is the one that knows what the chosen option would trigger. **Absence is not neutral: it is read as `one_way`**, and so is any string outside the three values (strictly validated where read, never normalised to a friendlier value). Today one consumer reads it: a remote command channel that carries a weak proof (a time-based one-time code, which cannot be bound to the command it accompanies) may answer a decision **only if it declares `two_way`**; every other value, and absence, requires the strong proof (a device-signed passkey assertion). The board also publishes the declared value as unsealed metadata on the item snapshot so a remote surface can show "passkey required" before a person types a code. Declaring `two_way` is therefore a claim that a substituted answer to this decision would be cheap to take back — set it only when that is true; leaving it out is always safe. The board reads this field from `state.json` at the moment a command arrives and does not fall back to a last-good copy: while the file does not parse, such commands are refused as temporarily unavailable, so a hand edit that flips a decision to `one_way` and leaves a syntax error never keeps the old `two_way` in force.
 
 **Reports convention** (recommended, not enforced): when a decision is preceded by research, link the report path in `detail` (e.g. `reports/<date>-<topic>.md`). This gives reviewers traceable rationale and is the pattern that makes the panel useful beyond a yes/no.
 

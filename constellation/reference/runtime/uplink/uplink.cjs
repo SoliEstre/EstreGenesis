@@ -57,6 +57,7 @@ class Transport {
     this.snapshotProvider = o.snapshotProvider || (() => null);    // () => entries[] (열린 항목 전부)
     this.cmdBudgetMs = o.cmdBudgetMs !== undefined ? o.cmdBudgetMs : CMD_BUDGET_MS;
     this.executor = typeof o.executor === 'function' ? o.executor : null;     // (c:{cmdId, cursor, cmd, proof}) => {status, reason, receipt|null} — 동기. 없으면 전부 not-implemented
+    this.spends = typeof o.spends === 'function' ? o.spends : null;          // () => 서명된 TOTP 사용 기록[] — 결과 회신에 «그대로» 실어요(exec.cjs spendRecords). 폰이 «내 코드를 누가 썼나» 를 확인하는 길이에요
     this.onTick = o.onTick || null;                                // 하트비트 주기마다 먼저 불려요 (키 파일 변경 감시 같은 «주기 점검» 자리)
     this.flushMs = o.flushMs !== undefined ? o.flushMs : 200;
     this.heartbeatMs = o.heartbeatMs !== undefined ? o.heartbeatMs : 30000;
@@ -407,7 +408,11 @@ class Transport {
     if (minSkipped !== Infinity) cursor = Math.max(this.store.state.cursor, Math.min(cursor, minSkipped - 1));
     if (!sawCursor && results.length) throw new Error('명령에 커서가 없어요');       // 커서를 못 올리면 같은 명령이 영원히 와요 — 폭주 대신 백오프
     if (results.length) {
-      const r = await this._req('POST', '/v1/uplink/results', JSON.stringify({ results }), this.requestTimeoutMs);
+      // 서명된 TOTP 사용 기록을 같은 회신에 실어요 — 어느 명령의 결과든 «최근 사용 기록» 이 함께 가서, 폰이 자기 명령의 영수증이 안 오거나 «잘못된 코드» 로 거절돼도 «그 코드가 다른 명령에 쓰였나» 를 볼 수 있어요.
+      //   중계가 기록을 빼면 폰은 «확인 안 됨» 으로 남아요(숨길 수는 있어도 고칠 수는 없어요 — 보드 키 서명).
+      const body = { results };
+      if (this.spends) { try { const sp = this.spends(); if (Array.isArray(sp) && sp.length) body.spends = sp; } catch (_) { /* 기록을 못 내도 결과 회신은 나가요 */ } }
+      const r = await this._req('POST', '/v1/uplink/results', JSON.stringify(body), this.requestTimeoutMs);
       if (this._stopped) return;
       if (r.status === 401 || r.status === 403) { this._revoke(r.status); return; }
       if (r.status < 200 || r.status >= 300) throw new Error('결과 회신 HTTP ' + r.status);

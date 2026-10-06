@@ -10,6 +10,8 @@
 // **위협 모델 한 줄 — 중계는 TOTP 경로에서 명령 무결성을 깰 수 있어요.** 코드는 평문으로 중계를 지나가고 명령에 묶여 있지 않아서, 중계가 사용자의 «새» 코드를
 //   보고 사용자 명령을 붙잡아 둔 채 «같은 코드를 자기가 고른 cmdHash 에 붙여» 먼저 내밀면 그게 이겨요(사용자의 진짜 명령은 totp-replayed 로 떨어져요).
 //   장부는 «사후 감사» 일 뿐 막아 주지 않아요. 이 모듈이 줄 수 있는 건 막이 아니라 «확인 재료» 예요 — ledgerFor(step) 이 «그 단계가 어느 명령에 쓰였나» 를
+//   (그리고 totp-replayed 거절은 같은 정보를 {step, usedBy} 로 바로 실어요 — 호출자가 «이 코드는 다른 명령에 쓰였다» 를 한 번에 알아서 탐지·경보를 걸 수 있게요: 정당한 명령이 totp-replayed 로 떨어지는 건
+//   중계가 코드를 가로채 자기 명령에 먼저 쓴 «흔적» 일 수 있어요.)
 //   돌려주니, 호출자는 ① TOTP 를 저위험 verb 에만 허용하고 ② 수락 직후 (step → cmdHash) 를 보드가 서명·봉인해 사용자에게 되돌려 보여 주는 확인 루프를 두거나
 //   ③ 보드가 cmdHash 요약을 봉인해 보내고 사용자가 그걸 확인한 «뒤에» 코드를 입력하게 하는 2단계로 가야 해요(이 라이브러리 밖의 프로토콜 몫).
 //
@@ -375,6 +377,27 @@ class TotpStore {
     return e ? e.cmdHashHex : null;
   }
 
+  // 이 코드가 «이미 쓰인 단계» 에 맞는가 — **읽기 전용 엿보기**예요. 상태를 쓰지 않고(실패 횟수 · 잠금 · 단계 소비 모두 안 건드려요) {step, usedBy(hex)} 또는 null 을 돌려줘요.
+  //   왜 있나: 명령이 «증명 단계에 닿기 전에» 정책(결정이 사라짐 · 알 수 없는 항목 · 값이 나쁜 인자)으로 거절되면 verify 가 불리지 않아서, 그 코드가 다른 명령에 쓰였다는 흔적을 못 봐요.
+  //   호출자가 거절 직전에 이걸 불러서 바꿔치기 의심을 «정책 거절 뒤에도» 알아챌 수 있게요. ctx = {now, secret}(verify 와 같은 의미). 모양이 틀리면 null(던지지 않아요).
+  spentBy(code, ctx) {
+    if (this._closed || !ctx || typeof ctx !== 'object' || !Buffer.isBuffer(ctx.secret) || !Number.isSafeInteger(ctx.now) || ctx.now < 0) return null;
+    if (typeof code !== 'string' || !CODE_RE.test(code)) return null;
+    if (ctx.secret.length < MIN_SECRET_BYTES || ctx.secret.length > MAX_SECRET_BYTES) return null;
+    const cur = Math.floor(ctx.now / PROOF_PERIOD);
+    const given = Buffer.from(code, 'ascii');
+    let found = null;
+    for (let s = cur - WINDOW_STEPS; s <= cur + WINDOW_STEPS; s++) {
+      if (s < 0) continue;
+      const want = Buffer.from(hotp(ctx.secret, s), 'ascii');
+      if (crypto.timingSafeEqual(given, want)) {
+        const by = this.ledgerFor(s);
+        if (by !== null) found = { step: s, usedBy: by };       // 큰 단계가 이겨요(verify 의 totp-replayed 와 같은 규칙)
+      }
+    }
+    return found;
+  }
+
   // 재등록(비밀·주기·알고리즘 교체) 또는 하드 비활성 해제 — 상태를 처음으로 되돌려요. «보드 로컬 코드만» 부를 것(중계 입력으로 닿으면 잠금이 무의미해져요).
   reset() {
     this._persist(freshState());
@@ -451,7 +474,15 @@ class TotpStore {
       }
       return { ok: true, step };
     }
-    if (matched.length > 0) return { ok: false, code: 'totp-replayed' };   // 맞는 코드지만 소비된 단계 — 세지 않아요
+    if (matched.length > 0) {
+      // 맞는 코드지만 소비된 단계 — 세지 않아요. 그 단계가 장부에 남아 있으면 «어느 명령에 쓰였나» 도 같이 돌려줘요(큰 단계부터 — 장부 보존(24시간) 밖이면 null 이라 생략).
+      const res = { ok: false, code: 'totp-replayed' };
+      for (let i = matched.length - 1; i >= 0; i--) {
+        const by = this.ledgerFor(matched[i].step);
+        if (by !== null) { res.step = matched[i].step; res.usedBy = by; break; }
+      }
+      return res;
+    }
 
     // 6) 틀린 6자리 — 센다. 기록 못 하면 «틀렸다» 도 말하지 않고 닫힌 채 실패해요.
     const failures = st.failures + 1;
