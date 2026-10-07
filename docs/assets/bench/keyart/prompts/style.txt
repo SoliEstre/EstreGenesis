@@ -1,0 +1,8 @@
+Use case: stylized-concept
+Asset type: key image for one rung of a coding-benchmark ladder (shown small, about 300 px wide, next to its siblings)
+Style/medium: flat vector-style isometric illustration, clean geometric shapes, gentle soft shadows, no gradients heavier than a soft vignette
+Composition/framing: one centered subject group, generous white margin, square 1:1, readable at thumbnail size
+Lighting/mood: calm, precise, engineering-desk mood
+Color palette: slate blue-grey, teal, warm amber accent, off-white paper tones, on a plain white background
+Constraints: absolutely no text, no letters, no numbers, no digits, no code glyphs, no logos, no watermarks, no UI chrome; convey meaning only with shapes, objects and arrows
+Avoid: people, faces, hands, brand marks, photorealism, clutter, dark backgrounds

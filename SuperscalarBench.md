@@ -4,7 +4,7 @@
 
 [한국어](#한국어)
 
-![The aim ladder — six tasks in designed order of difficulty, and what was measured](docs/assets/bench/trust-cost-ladder.png)
+![Superscalar Bench — the six aims, one key image each, on the designed ladder](docs/assets/bench/trust-cost-aims-en.png)
 
 ## What is measured
 
@@ -18,14 +18,18 @@
 
 Each aim is one task. Within an aim every model is judged by the same hidden suite. The aims form a ladder ordered by task scope, designed to get harder as it climbs (an aim itself is a result level, not a difficulty grade — §5.1.5):
 
-| aim | task | hidden tests | reach | first answer | median trust time | median trust cost |
-|---|---|---|---|---|---|---|
-| 1 | mechanical multi-file edit | 25 | 100% | 95% | 3.7 min | $0.36 |
-| 2 | spec-complete implementation | 73 | 100% | 88% | 5.0 min | $0.55 |
-| 3 | multi-step feature + schema migration | 49 | 100% | 98% | 6.1 min | $0.71 |
-| 4 | diagnose-and-fix from a symptom report | 37 | 100% | 99% | 5.3 min | $0.49 |
-| 5 | design + build a small language interpreter | 96 | 100% | 89% | 10.2 min | $1.06 |
-| 6 | crash-safe transactional key-value store | 58 | **96%** | **85%** | **12.9 min** | **$1.09** |
+| | aim | task | hidden tests | reach | first answer | median trust time | median trust cost |
+|---|---|---|---|---|---|---|---|
+| <img src="docs/assets/bench/keyart/aim1.png" width="56" alt="aim 1 key image"> | 1 | mechanical multi-file edit | 25 | 100% | 95% | 3.7 min | $0.36 |
+| <img src="docs/assets/bench/keyart/aim2.png" width="56" alt="aim 2 key image"> | 2 | spec-complete implementation | 73 | 100% | 88% | 5.0 min | $0.55 |
+| <img src="docs/assets/bench/keyart/aim3.png" width="56" alt="aim 3 key image"> | 3 | multi-step feature + schema migration | 49 | 100% | 98% | 6.1 min | $0.71 |
+| <img src="docs/assets/bench/keyart/aim4.png" width="56" alt="aim 4 key image"> | 4 | diagnose-and-fix from a symptom report | 37 | 100% | 99% | 5.3 min | $0.49 |
+| <img src="docs/assets/bench/keyart/aim5.png" width="56" alt="aim 5 key image"> | 5 | design + build a small language interpreter | 96 | 100% | 89% | 10.2 min | $1.06 |
+| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | 6 | crash-safe transactional key-value store | 58 | **96%** | **85%** | **12.9 min** | **$1.09** |
+
+![The aim ladder — six tasks in designed order of difficulty, and what was measured](docs/assets/bench/trust-cost-ladder.png)
+
+Key images: one wordless picture per aim, generated with Codex CLI's built-in image tool from published prompts ([how they were made](docs/assets/bench/keyart/README.md)); the sheet's text, numbers and ladder are drawn by code.
 
 Medians are over the 54 model × harness × effort combinations of each aim (3 runs each; one aim-2 combination has 2 — see [Setup](#setup)). On aim 6 the trust medians are over 53: Claude Haiku 4.5 never reached, so it has no trust cost.
 
@@ -148,6 +152,8 @@ In one run (Fable 5.1, max effort, aim 2) every round graded as «no tests execu
 
 ## 한국어
 
+![Superscalar Bench — 여섯 aim, aim 마다 키 이미지 한 장, 설계한 사다리 위에](docs/assets/bench/trust-cost-aims-ko.png)
+
 > 검증된 코딩 결과 하나에 드는 돈과 시간 — 모델 × 하네스 × effort 마다, 숨긴 수용 시험이 있는 여섯 과제의 사다리 위에서 쟀어요. 용어(aim · 도달 · 첫 답 · 신뢰비용)의 정의는 [Superscalar.md §5.1.5](Superscalar.md) 에 있고, 여기는 무엇을 어떻게 쟀는지만 적어요. **관측자 한 명 · 비공개 과제** — 숫자를 인용하기 전에 [한계](#한계)를 읽어 주세요.
 
 ### 무엇을 재나
@@ -162,14 +168,16 @@ In one run (Fable 5.1, max effort, aim 2) every round graded as «no tests execu
 
 aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같은 숨긴 시험으로 판정돼요. aim 은 과제 범위 순의 사다리이고, 위로 갈수록 어려워지게 설계했어요(aim 자체는 난도 등급이 아니라 결과 수준이에요 — §5.1.5).
 
-| aim | 과제 | 숨긴 시험 | 도달 | 첫 답 | 신뢰시간 중앙값 | 신뢰비용 중앙값 |
-|---|---|---|---|---|---|---|
-| 1 | 여러 파일 기계적 수정 | 25 | 100% | 95% | 3.7분 | $0.36 |
-| 2 | 사양서대로 구현 | 73 | 100% | 88% | 5.0분 | $0.55 |
-| 3 | 여러 단계 기능 + 스키마 이전 | 49 | 100% | 98% | 6.1분 | $0.71 |
-| 4 | 증상 보고에서 진단·수정 | 37 | 100% | 99% | 5.3분 | $0.49 |
-| 5 | 작은 언어 인터프리터 설계·구현 | 96 | 100% | 89% | 10.2분 | $1.06 |
-| 6 | 충돌에 안전한 트랜잭션 키-값 저장소 | 58 | **96%** | **85%** | **12.9분** | **$1.09** |
+| | aim | 과제 | 숨긴 시험 | 도달 | 첫 답 | 신뢰시간 중앙값 | 신뢰비용 중앙값 |
+|---|---|---|---|---|---|---|---|
+| <img src="docs/assets/bench/keyart/aim1.png" width="56" alt="aim 1 key image"> | 1 | 여러 파일 기계적 수정 | 25 | 100% | 95% | 3.7분 | $0.36 |
+| <img src="docs/assets/bench/keyart/aim2.png" width="56" alt="aim 2 key image"> | 2 | 사양서대로 구현 | 73 | 100% | 88% | 5.0분 | $0.55 |
+| <img src="docs/assets/bench/keyart/aim3.png" width="56" alt="aim 3 key image"> | 3 | 여러 단계 기능 + 스키마 이전 | 49 | 100% | 98% | 6.1분 | $0.71 |
+| <img src="docs/assets/bench/keyart/aim4.png" width="56" alt="aim 4 key image"> | 4 | 증상 보고에서 진단·수정 | 37 | 100% | 99% | 5.3분 | $0.49 |
+| <img src="docs/assets/bench/keyart/aim5.png" width="56" alt="aim 5 key image"> | 5 | 작은 언어 인터프리터 설계·구현 | 96 | 100% | 89% | 10.2분 | $1.06 |
+| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | 6 | 충돌에 안전한 트랜잭션 키-값 저장소 | 58 | **96%** | **85%** | **12.9분** | **$1.09** |
+
+키 이미지: aim 마다 글자 없는 그림 한 장 — 공개한 프롬프트로 Codex CLI 의 내장 이미지 도구가 만들었어요([만든 방법](docs/assets/bench/keyart/README.md)). 시트의 글자 · 번호 · 사다리는 코드로 그려요.
 
 중앙값은 aim 마다 54개 모델 × 하네스 × effort 조합(각 3회 — aim 2 의 한 조합만 2회, [설정](#설정) 참고) 위에서 냈어요. aim 6 의 신뢰 중앙값은 53개 위에서 냈어요 — Claude Haiku 4.5 는 한 번도 못 닿아 신뢰비용이 없어요.
 
