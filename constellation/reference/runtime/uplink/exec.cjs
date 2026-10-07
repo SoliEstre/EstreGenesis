@@ -1,7 +1,7 @@
 'use strict';
 // exec.cjs — 명령 실행 레인: 롱폴로 받은 «사람 기기가 서명한 명령» 을 검증하고, 통과한 것만 «고정된 실행기» 로 보드에 넣어요.
 //
-//   createExecutor({cfg, dir, keys, store, getState, selections, inject, notice?, now, audit, log}) → {handle(c) → {status, reason, receipt}, spendRecords() → 서명된 TOTP 사용 기록[], close()}
+//   createExecutor({cfg, dir, keys, store, getState, syncItems?, selections, inject, notice?, now, audit, log}) → {handle(c) → {status, reason, receipt}, spendRecords() → 서명된 TOTP 사용 기록[], close()}
 //
 // **신뢰 경계 — 이 파일이 믿는 것과 안 믿는 것.** 중계는 신뢰할 수 없는 운반자예요. 중계가 «준» 것 중 어떤 것도 판정 재료로 안 써요: 자격증명·TOTP 비밀은 «이 보드 로컬»
 //   uplink-keys.json 에 사람이 등록한 것만, rpId·origin 은 로컬 uplink.json 만, audience(boardId)·보드 키 지문은 로컬 값만이에요. 중계가 «이런 키가 있다» 며 내미는 자격증명은
@@ -10,9 +10,11 @@
 // **파이프라인(번호는 opcmd/webauthn-verify/totp 머리말의 단계 번호와 같아요).**
 //   0 멱등성 — 이 cmdHash 의 영수증이 이미 있으면 «그것을 그대로» 다시 내보내고 끝(응답이 사라진 재전달이 «실행됐는데 거절됐다» 로 보이지 않게). 형식을 못 읽으면 bad-format(저장 없음).
 //   1~3 형식 · audience(+보드 키 지문) · 시간 — opcmd 의 단계 함수를 그대로 이어요.
-//   5  verb 정책(코드 안의 고정 표 — 설정으로 «넓힐» 수 없어요) · 인자 모양(밖의 칸은 bad-args) · 증명 종류별 허용(TOTP 는 낮은 위험의 선택만) · 등록 여부 · 항목 매핑(가명 → 진짜 id).
+//   5  verb 정책(코드 안의 고정 표 — 설정으로 «넓힐» 수 없어요) · 인자 모양(밖의 칸은 bad-args) · 증명 종류별 허용(TOTP 는 낮은 위험의 선택만) · 등록 여부 · 항목 매핑(가명 → 진짜 id) ·
+//      맥락 묶음(사람이 본 판 = 지금 판 — 아래 «맥락 묶음»).
 //   6~10 증명 — WebAuthn(챌린지 = cmdHash) 또는 TOTP(장부). 읽기 전용 단계예요(TOTP 만 단계를 소비).
-//   11 낡은 항목 — 참조한 항목이 «지금» 아직 열려 있는가.
+//   11 낡은 항목 — 참조한 항목이 «지금» 아직 열려 있는가 · 열려 있으면 맥락 묶음을 «지금» 상태로 한 번 더.
+//   (영수증 · 사용 기록 형식은 그대로예요 — cmdHash 가 명령 글자 전체(args 의 rev · contextHash 포함)의 해시라서 «어느 판에 답한 명령인가» 가 이미 영수증의 cmdHash 에 묶여요.)
 //   12 커밋 + 실행 — nonce 소비 → signCount 비교-후-교체(둘 다 디스크에 확정) → «그 다음에» 고정 실행기 호출 → 영수증 영속 → 감사 → 결과 회신(전송층).
 //
 // **nonce 는 «실행 전에» 소비돼요 — 크래시 창이 «이중 실행» 이 아니라 «실행 안 됨» 쪽으로 열려요.** 실행 후에 소비하면 실행기가 던지거나 프로세스가 죽는 순간 «실행됐는데 nonce 가 살아 있는» 창이 생겨서
@@ -63,13 +65,37 @@
 //   (같은 가명 itemId) 아직 시간 창 안의 옛 서명이 새 질문에 적용될 수 있고, 소비하지 않으면 재전달이 그때마다 같은 판정을 반복하며 창이 열려 있어요. 소비하면 영수증(stale-item)이 남아 재전달도
 //   같은 답을 해요. 증명 «전» 에는 하지 않아요 — 증명 없는 입력(중계)이 nonce 를 태우지 못하게요. 항목이 «아예 흔적 없음» 인 unknown-item 은 증명 전에 거절해요(상태 변화가 없고 영영 못 하는 명령이 TOTP 단계를 태우지 않게).
 //
+// **맥락 묶음 (v2.4.179) — 답이 «사람이 본 판» 을 말하고, 보드는 그 판이 «지금 판» 일 때만 받아요.** 항목 기록 서명(items.cjs, v2.4.178)으로 기기는 «진짜 판» 을 알아볼 수 있게 됐지만,
+//   새 판을 «못 본» 기기는 옛 판(서명이 멀쩡해요)과 지금 판을 가를 수 없고 중계는 옛 판을 다시 내밀 수 있었어요. 답 명령도 {itemId, choice|text|accept} 뿐이라 보드는 사람이 «어느 판의 맥락» 에 답했는지 몰랐어요.
+//   그래서 맥락에 기대는 동사는 인자에 판을 실어요(서명된 명령 안 — cmdHash 가 덮어요):
+//     rev          필수 · 음이 아닌 안전 정수 = 사람이 본 «서명된 항목 기록» 의 rev(스냅샷 칸의 rev — 서명 대상이라 중계가 못 고쳐요).
+//     contextHash  64자 소문자 hex = 기기가 연 봉투의 seal.contextHash(sig 포함 봉투 전체의 정준 바이트 SHA-256). **그 판에 보드가 봉인한 맥락이 있을 때(visibility=sealed)만 필수, 그 밖엔 금지** —
+//                  envelope 모드(맥락이 아예 안 나가요)나 봉인을 못 한 판에 해시가 실려 오면 «없는 것에 묶인» 명령이라 bad-args 예요. 모양이 틀린 값은 스키마 bad-args(최종),
+//                  있어야 하는데 없음/없어야 하는데 있음은 «그 판의 상태가 정하는» bad-args(비최종 — 항목 값의 bad-args 와 같은 부류)예요.
+//   보드의 비교 대상 = 이 보드가 내보낸 항목 기록(store.state.items — rev · 봉투째 상태 파일에 영속, 재시작을 건너요). 판이 다르거나(옛 판 · 미래 판) 해시가 다르거나(옛 봉투 · 지어낸 봉투 · 수신자를 뺀 봉투)
+//   열린 결정인데 기록이 없으면 **stale-context** — 최종이 아니에요: 사람은 새 판을 읽고 «새 명령» 으로 다시 답하면 돼요. 닫혔거나 흔적이 없는 항목은 기존 사유(stale-item · unknown-item) 그대로예요.
+//   판정 텍스트와 판의 어긋남 — 상태 파일 감시(폴링)가 돌기 전엔 «판정에 쓰는 상태 텍스트» 가 «항목 기록» 보다 앞서 있을 수 있어서, 상태를 읽을 때마다 syncItems(텍스트)로 항목 기록을 같은 텍스트에 맞춘 뒤 비교해요.
+//   **TOTP 단계와의 순서.** 묶음 검사는 «증명 전»(5단계 — TOTP 검증이 단계를 소비하기 전)에 해요: 도착할 때 이미 낡은 명령은 단계도 nonce 도 안 태우고 거절돼서, 같은 코드를 새 판의 명령에 그대로 쓸 수 있어요.
+//   그리고 커밋 직전(11단계)에 «지금» 상태로 한 번 더 봐요 — TOTP 는 검증(fsync)을 낀 사이 상태를 진짜로 다시 읽고, 그 읽기가 항목을 다시 봉인했으면(새 판) 여기서 거절돼요.
+//   이 두 번째 거절은 단계가 «이미 탄» 뒤예요(되돌릴 수 없는 소비가 검증 안에 있어서 피할 자리가 없어요 — two_way 재확인과 같은 대가) · nonce 는 안 태워요 · 비최종.
+//   되돌림 선언(reversibility)도 판의 일부라(items.cjs 의 내용 해시) 동기가 붙은 배선에선 검증 사이의 two_way → one_way 변경이 «새 판» 이 되어 이 재확인이 stale-context 로 먼저 거절해요 —
+//   two_way 재확인(proof-too-weak)은 그 뒤의 두 번째 층으로 남아요(동기가 없거나 늦은 배선에서 그 자리를 지켜요). 둘 다 비최종이고 nonce 를 안 태워요.
+//   판의 근거는 «디스크에 있는» 항목 기록뿐이에요 — 기록 저장이 실패한 동기는 기록을 되돌리고 던져서(items.cjs) syncItems 가 실패하고, 그동안 명령은 state-unavailable(일시 장애 · 비최종)이에요.
+//   **동사별 판정.**
+//     decision.answer    묶어요 — 고른 보기·추천 수락의 «뜻» 이 판의 맥락(질문 · 보기 · 추천)에 달려 있어요.
+//     hyperbrief.respond 묶어요 — 가지(accept · reject_framing · request_investigation)가 브리프 맥락에 답하는 것이고, defer 가지도 «한 동사 한 모양» 을 지키려고 같은 칸을 요구해요(가지마다 칸 집합이 달라지면 클라이언트가 추측해요).
+//     decision.defer     안 묶어요 — 보류는 맥락과 무관하게 «아직 안 정함» 이고 결정은 열린 채 남아요(얻는 건 지연뿐 — 위 «바꿔치기» 표와 같은 이유).
+//     selection.answer   안 묶어요(남은 한계) — 'h:' id 는 프롬프트의 «신원» 만 묶고 내용(질문 글 · 보기)은 안 묶어요. 선택지 프롬프트는 서명된 항목 기록이 없는 «봉투 스트림» 항목이라(스냅샷 밖)
+//                        기기가 얻을 «서명된 판» 이 없어요. 보기 밖 라벨은 «지금» 프롬프트의 보기로 거절되고(bad-args) 다른 발급자의 덮어쓰기는 issuer-conflict 지만, 같은 발급자가 같은 id 로 같은 라벨을 다른 질문에 다시 내면 구분이 안 돼요.
+//                        묶으려면 보드가 선택지 프롬프트 기록에도 서명해야 해요(이 판에서는 안 했어요).
+//
 // **영수증은 «소비된 명령» 의 결과만 저장해요(exec-state.cjs).** 소비 전 거절(일시 장애 포함)은 저장하지 않고 같은 봉투의 재시도를 열어 둬요. 서명은 모든 거절에도 붙어서 폰이 «보드가 거절했다: <사유>» 를 보여줄 수 있어요.
 //   **서명된 거절은 «최종인지» 를 스스로 말해요 — `final`(서명 대상 칸).** 소비 전 거절은 중계가 «고친 증명으로 같은 명령을 다시 내밀 수» 있어서(틀린 서명 → 올바른 서명) 서명된 «거절» 과 서명된 «수락» 이 같은 cmdHash 로 공존할 수 있어요.
 //   폰이 서명된 거절을 «끝난 일» 로 믿으면 중계는 «거절됐다» 를 보여 주고 나중에 실행할 수 있고(exp+60초까지), 사람이 다시 내리면 이중 실행이에요. 그래서:
 //     final:true  = 이 cmdHash 는 «영원히» 이 결과예요(수락 · 소비된 뒤의 거절 · 명령 «글자만으로» 정해지는 거절 — 증명을 바꿔도 못 뒤집어요). retryableUntil:null.
 //     final:false = 아직 실행될 수 있어요. retryableUntil(초, = exp+60 — 시간 검사가 받아들이는 마지막 초)까지는 같은 명령이 수락될 수 있고, 그 뒤엔 어떤 증명으로도 못 해요. 폰은 «아직 실행 안 됨 — <시각>까지 실행될 수도 있음» 으로 보여야 해요.
 //   최종인 사유(FINAL_REASONS): aud-mismatch · board-key-mismatch · ttl-too-long · expired · verb-not-allowed · 스키마 bad-args · bad-acct + 소비 뒤 결과(accepted · stale-item · execution-failed · commit-failed · counter-regression).
-//   최종이 «아닌» 사유: 증명이 정하는 것(bad-signature · totp-invalid · proof-too-weak · credential-not-enrolled · bad-proof …) · 시각이 정하는 것(not-yet-valid) · 상태가 정하는 것(unknown-item · 항목 값의 bad-args · issuer-conflict) · 일시 장애(*-unavailable) · nonce-replayed.
+//   최종이 «아닌» 사유: 증명이 정하는 것(bad-signature · totp-invalid · proof-too-weak · credential-not-enrolled · bad-proof …) · 시각이 정하는 것(not-yet-valid) · 상태가 정하는 것(unknown-item · 항목 값의 bad-args · issuer-conflict · stale-context · 판이 정하는 contextHash 유무의 bad-args) · 일시 장애(*-unavailable) · nonce-replayed.
 //   nonce-replayed 가 «최종이 아닌» 이유: 그 nonce 를 «이 명령 자신» 이 이미 소비했을 수도 있어요(영수증 장부 쓰기가 실패했거나 장부를 잃은 뒤의 재전달) — 그때 최종 거절을 서명하면 같은 cmdHash 에 수락 영수증과 final:true 거절이 공존해요.
 //   소비 전의 «글자만으로 정해지는» 최종 거절도 장부엔 저장하지 않아요(선택): 저장하면 중계가 «글자만 다른 명령» 을 쏟아내 디스크 쓰기(fsync)를 건당 일으켜요. 대신 같은 봉투를 다시 받으면 «같은 사유의 새 서명(시각만 다름)» 이 나가고 final:true 라 폰에겐 같은 결론이에요.
 //
@@ -84,6 +110,7 @@ const crypto = require('crypto');
 const OP = require('./opcmd.cjs');
 const WA = require('./webauthn-verify.cjs');
 const TOTP = require('./totp.cjs');
+const SEAL = require('./seal.cjs');
 const { tagOf, reversibilityOf } = require('./project.cjs');
 const { ExecState } = require('./exec-state.cjs');
 const KS = require('./keyset.cjs');
@@ -99,6 +126,7 @@ const MAX_NOTE = 4000;
 const MAX_LABEL = 500;
 const MAX_SELECTED = 32;
 const TAG_RE = /^[0-9a-f]{24}$/;
+const HEX64_RE = /^[0-9a-f]{64}$/;
 const ID_RE = /^[A-Za-z0-9._:@-]{1,64}$/;
 const BRANCHES = Object.freeze(['accept', 'defer', 'reject_framing', 'request_investigation']);
 // 실행기 열쇠 집합 — 서버가 넘기는 inject 의 열쇠는 «정확히» 이거여야 해요(모자라도 남아도 거절).
@@ -127,9 +155,16 @@ function shape(args, req, opt) {
 const strIn = (v, min, max) => typeof v === 'string' && v.length >= min && v.length <= max;
 
 // 각 스키마는 «새 객체» 와 weak(자유 서술을 담았나 — TOTP 로는 못 하는 것)를 돌려줘요.
+// 맥락 묶음 칸(v2.4.179 — 머리말 «맥락 묶음») — rev 는 필수, contextHash 는 «글자 모양» 만 여기서 봐요(있어야 하는지 · 없어야 하는지는 그 판의 상태가 정해요 — _checkContext).
+function bindingOf(a) {
+  if (!Number.isSafeInteger(a.rev) || a.rev < 0) throw no('bad-args');
+  if (hasOwn(a, 'contextHash') && (typeof a.contextHash !== 'string' || !HEX64_RE.test(a.contextHash))) throw no('bad-args');
+  return { rev: a.rev, contextHash: hasOwn(a, 'contextHash') ? a.contextHash : null };
+}
 function schemaDecisionAnswer(a) {
-  shape(a, ['itemId'], ['choice', 'text', 'accept']);
+  shape(a, ['itemId', 'rev'], ['choice', 'text', 'accept', 'contextHash']);
   if (typeof a.itemId !== 'string' || !/^sd:[0-9a-f]{24}$/.test(a.itemId)) throw no('bad-args');
+  const bind = bindingOf(a);
   if (hasOwn(a, 'choice') && !strIn(a.choice, 1, MAX_LABEL)) throw no('bad-args');
   if (hasOwn(a, 'text') && !strIn(a.text, 0, MAX_TEXT)) throw no('bad-args');
   // accept 의 값 도메인은 문자열 'recommended' «하나» 예요(대시보드의 결정 답과 같은 값) — true 같은 불리언은 bad-args. 클라이언트는 추측하지 말고 이 값을 보내야 해요.
@@ -138,7 +173,7 @@ function schemaDecisionAnswer(a) {
   const choice = hasOwn(a, 'choice') ? a.choice : null;
   const accept = hasOwn(a, 'accept') ? 'recommended' : null;
   if (choice === null && text === '' && accept === null) throw no('bad-args');     // 빈 답은 답이 아니에요
-  return { args: { itemId: a.itemId, choice, text, accept }, weak: text !== '' };
+  return { args: { itemId: a.itemId, choice, text, accept, rev: bind.rev, contextHash: bind.contextHash }, weak: text !== '' };
 }
 function schemaDecisionDefer(a) {
   shape(a, ['itemId'], []);
@@ -146,12 +181,13 @@ function schemaDecisionDefer(a) {
   return { args: { itemId: a.itemId }, weak: false };
 }
 function schemaHyperbrief(a) {
-  shape(a, ['decisionId', 'branch'], ['note']);
+  shape(a, ['decisionId', 'branch', 'rev'], ['note', 'contextHash']);
   if (typeof a.decisionId !== 'string' || !/^(sd|h):[0-9a-f]{24}$/.test(a.decisionId)) throw no('bad-args');
   if (typeof a.branch !== 'string' || !BRANCHES.includes(a.branch)) throw no('bad-args');
   if (hasOwn(a, 'note') && !strIn(a.note, 0, MAX_NOTE)) throw no('bad-args');
+  const bind = bindingOf(a);
   const note = hasOwn(a, 'note') ? a.note : '';
-  return { args: { decisionId: a.decisionId, branch: a.branch, note }, weak: a.branch !== 'defer' || note !== '' };
+  return { args: { decisionId: a.decisionId, branch: a.branch, note, rev: bind.rev, contextHash: bind.contextHash }, weak: a.branch !== 'defer' || note !== '' };
 }
 function schemaSelection(a) {
   shape(a, ['promptId', 'selected'], []);
@@ -202,10 +238,11 @@ const ENROLL_REFUSALS = new Set(['credential-already-enrolled', 'device-already-
 // ── verb 정책 표 — **고정**이에요. 설정(uplink.json totp.verbs)은 «좁히기만» 해요(교집합) — 이 표에 없는 verb 를 TOTP 로 열 수 없어요.
 //   passkey(WebAuthn)는 표에 있는 모든 verb 를 해요. TOTP 는 «명령에 묶이지 않는 증명» 이라(totp.cjs 머리말 — 중계가 새 코드를 다른 명령에 붙일 수 있어요) 자유 서술이 없는 선택·보류에만 허용해요.
 //   totpTwoWay — 그 안에서도 «선택(decision.answer)» 은 결정이 reversibility:'two_way' 를 선언했을 때만 TOTP 로 열려요(머리말 «바꿔치기된 명령이 할 수 있는 일»). 보류·선택지 답은 해당 없음.
+//   ctx — 사람이 «본 판» 에 묶이는 동사(머리말 «맥락 묶음», v2.4.179): 인자에 rev(+ 봉인된 판이면 contextHash)가 있어야 하고 보드의 현재 판과 같아야 해요.
 const VERBS = Object.freeze({
-  'decision.answer': Object.freeze({ totp: true, totpTwoWay: true, item: 'decision', injector: 'operatorDecision', schema: schemaDecisionAnswer }),
+  'decision.answer': Object.freeze({ totp: true, totpTwoWay: true, ctx: true, item: 'decision', injector: 'operatorDecision', schema: schemaDecisionAnswer }),
   'decision.defer': Object.freeze({ totp: true, item: 'decision', injector: 'decisionDefer', schema: schemaDecisionDefer }),
-  'hyperbrief.respond': Object.freeze({ totp: true, item: 'decision', injector: 'hyperbriefRespond', schema: schemaHyperbrief }),
+  'hyperbrief.respond': Object.freeze({ totp: true, ctx: true, item: 'decision', injector: 'hyperbriefRespond', schema: schemaHyperbrief }),
   'selection.answer': Object.freeze({ totp: true, item: 'selection', injector: 'selectionAnswer', schema: schemaSelection }),
   'prompt.send': Object.freeze({ totp: false, item: null, injector: 'userPrompt', schema: schemaPrompt }),
   // 등록 동사(위 머리말) — passkey 전용 · 주입기 없음(local = 보드 로컬 등록부 변경)
@@ -285,6 +322,8 @@ class Executor {
     this._spends = new Map();                        // TOTP 단계 → {step, cmdHash, verb, itemId, id, codeTag, at, ver, signed} — 이 프로세스가 «처음으로» 그 단계를 쓴 명령(재시작하면 비어요 — 머리말)
     this._idx = null;                                // {text, map} — 결정 가명 색인 캐시(아래 _decisionIndex)
     this._snap = null;                               // 한 번의 명령 처리 안에서 «상태를 한 번만» 읽기 위한 스냅샷(handle 이 비움)
+    this.syncItems = typeof o.syncItems === 'function' ? o.syncItems : null;     // (상태 텍스트) => void — 항목 기록(rev · 봉투)을 «판정에 쓰는 바로 그 텍스트» 로 맞춰요(머리말 «맥락 묶음»)
+    this._ctxHash = new WeakMap();                   // 봉투 객체 → contextHash(hex) — 같은 판의 해시를 명령마다 다시 계산하지 않게
     if (!o.inject || typeof o.inject !== 'object') this.injectError = 'no-injectors';
     else {
       const ks = Object.keys(o.inject).sort();
@@ -420,7 +459,8 @@ class Executor {
       if (!key.totp || key.totp.acct === null || !ACCT_RE.test(key.totp.acct)) return rej('proof-not-enrolled');
       try { secret = TOTP.base32Decode(key.totp.secretB32); } catch (_) { return rej('proof-not-enrolled'); }
     }
-    try { ref = this._lookup(policy, norm.args); if (!ref.found) throw no('unknown-item'); if (ref.open) this._checkAgainstItem(cmd.verb, norm.args, ref); } catch (e) { if (e instanceof Reject) return rejP(e.code); throw e; }
+    // 맥락 묶음(머리말) — 열린 항목만: «사람이 본 판» 이 지금 판인가를 «증명 전» 에 봐요(낡은 판의 명령이 TOTP 단계를 태우지 않게). 닫혔거나 흔적이 없는 항목은 기존 사유 그대로예요.
+    try { ref = this._lookup(policy, norm.args); if (!ref.found) throw no('unknown-item'); if (ref.open) { this._checkContext(policy, norm.args); this._checkAgainstItem(cmd.verb, norm.args, ref); } } catch (e) { if (e instanceof Reject) return rejP(e.code); throw e; }
     // TOTP 로 «선택» 을 하려면 그 결정이 되돌릴 수 있다고 선언돼 있어야 해요(머리말). 증명 «전» 이라 TOTP 단계를 안 태우고 비최종이에요 — 같은 명령이 passkey 증명으로 오면 통과해요.
     if (kind === 'totp' && policy.totpTwoWay && !this._twoWay(ref.d)) return rejP('proof-too-weak');
     // 소비 «전» 에 읽기만 하는 nonce 확인 — TOTP 단계가 이미 쓰인 명령에 타지 않게(머리말).
@@ -465,6 +505,10 @@ class Executor {
     if (kind === 'totp') this._snap = null;
     let cur;
     try { cur = this._lookup(policy, norm.args); } catch (e) { if (e instanceof Reject) return rej(e.code); throw e; }
+    // 맥락 묶음의 커밋 안 재확인 — TOTP 는 위에서 상태를 «진짜로 다시» 읽었고 그 읽기가 항목 기록을 같은 텍스트로 맞춰요(syncItems). 증명 사이에 다시 봉인됐으면(새 판) 여기서 거절해요:
+    //   nonce 는 안 태우고(비최종 — 사람은 새 판을 읽고 «새 명령» 으로 다시 답해요) TOTP 단계는 이미 탔어요(two_way 재확인과 같은 자리 · 같은 대가).
+    //   되돌림 선언의 변경도 새 판이라 동기가 붙은 배선에선 여기서 stale-context 로 먼저 걸려요 — 아래 two_way 재확인은 두 번째 층이에요(머리말 «맥락 묶음»).
+    if (cur.found && cur.open) { try { this._checkContext(policy, norm.args); } catch (e) { if (e instanceof Reject) return rej(e.code); throw e; } }
     if (kind === 'totp' && policy.totpTwoWay && !this._twoWay(cur.d)) return rej('proof-too-weak');      // 커밋 안의 재확인 — 단계는 탔어도 nonce 는 안 태워요(같은 명령을 passkey 로 다시 낼 수 있어요)
     const stale = !cur.found || !cur.open;
 
@@ -638,8 +682,46 @@ class Executor {
       }
       this._idx = { text, map };
     }
+    // 항목 기록을 «판정에 쓰는 이 텍스트» 로 맞춰요(머리말 «맥락 묶음») — 상태 파일 감시가 아직 안 돈 틈(폴링 간격)에 판정은 새 내용으로, 판 비교는 옛 rev 로 하면
+    //   «옛 맥락에 서명된 답» 이 «새 맥락» 에 적용돼요. 같은 텍스트면 동기 쪽이 문자열 비교로 끝내요(명령 폭주가 동기 폭주가 되지 않게). 맞추지 못하면 일시 장애예요.
+    if (this.syncItems) { try { this.syncItems(text); } catch (_) { throw no('state-unavailable'); } }
     this._snap = this._idx;
     return this._snap.map;
+  }
+
+  // ── 맥락 묶음 (v2.4.179 — 머리말) ──
+  //   열린 결정 항목의 «지금 판» = 보드가 내보낸 항목 기록(store.state.items['sd:<tag>'])의 rev, 그리고 그 판에 봉인해 둔 봉투가 있으면 그 봉투의 contextHash.
+  //   순서: 기록 없음/열린 기록 아님 → stale-context(보드가 «지금 판» 을 내보낸 적이 없어서 사람이 본 판일 수 없어요) · rev 다름 → stale-context ·
+  //   봉인된 판인데 contextHash 없음 / 봉인 안 된 판(envelope 모드 · 봉인 실패)인데 contextHash 있음 → bad-args(상태가 정하는 값 — 비최종) · 해시 다름 → stale-context.
+  //   rev 를 먼저 봐요 — 판이 바뀌었으면 «봉인 여부» 도 그 판의 것이 아니라서, 낡은 명령이 «칸이 틀렸다» 가 아니라 «낡았다» 로 거절돼요.
+  _checkContext(policy, args) {
+    if (!policy.ctx) return;
+    const pseudo = hasOwn(args, 'itemId') ? args.itemId : args.decisionId;
+    const tag = pseudo.slice(-24);
+    const items = this.store && this.store.state ? this.store.state.items : null;
+    const rec = isPlain(items) && hasOwn(items, 'sd:' + tag) ? items['sd:' + tag] : null;
+    if (!isPlain(rec) || rec.status !== 'open' || !Number.isSafeInteger(rec.rev)) throw no('stale-context');
+    if (args.rev !== rec.rev) throw no('stale-context');
+    const want = this._contextHashOf(rec);
+    if (want === null) {
+      if (args.contextHash !== null) throw no('bad-args');        // 봉인된 맥락이 없는 판 — 해시를 실은 명령은 «없는 것에 묶인» 명령이에요
+      return;
+    }
+    if (args.contextHash === null) throw no('bad-args');
+    if (args.contextHash !== want) throw no('stale-context');
+  }
+
+  // 그 판에 봉인해 둔 봉투의 contextHash(seal.cjs — sig 포함 봉투 전체의 정준 바이트 SHA-256 hex) · 봉투가 없으면 null. 해시를 못 내는 봉투(손상)는 «지금 판» 을 보증할 수 없어서 stale-context 예요
+  //   (상태 파일 읽기가 이런 기록을 걸러내요 — store.cjs).
+  _contextHashOf(rec) {
+    if (rec.sealed === undefined || rec.sealed === null) return null;
+    if (!isPlain(rec.sealed)) throw no('stale-context');
+    let h = this._ctxHash.get(rec.sealed);
+    if (h === undefined) {
+      try { h = SEAL.contextHash(rec.sealed); } catch (_) { throw no('stale-context'); }
+      this._ctxHash.set(rec.sealed, h);
+    }
+    return h;
   }
 
   // 열린 항목에 대해서만 — 인자가 «그 항목이 허용하는 값» 인가(증명 전에 거절해야 값이 나쁜 명령이 TOTP 단계를 안 태워요).
