@@ -69,7 +69,9 @@
 //   새 판을 «못 본» 기기는 옛 판(서명이 멀쩡해요)과 지금 판을 가를 수 없고 중계는 옛 판을 다시 내밀 수 있었어요. 답 명령도 {itemId, choice|text|accept} 뿐이라 보드는 사람이 «어느 판의 맥락» 에 답했는지 몰랐어요.
 //   그래서 맥락에 기대는 동사는 인자에 판을 실어요(서명된 명령 안 — cmdHash 가 덮어요):
 //     rev          필수 · 음이 아닌 안전 정수 = 사람이 본 «서명된 항목 기록» 의 rev(스냅샷 칸의 rev — 서명 대상이라 중계가 못 고쳐요).
-//     contextHash  64자 소문자 hex = 기기가 연 봉투의 seal.contextHash(sig 포함 봉투 전체의 정준 바이트 SHA-256). **그 판에 보드가 봉인한 맥락이 있을 때(visibility=sealed)만 필수, 그 밖엔 금지** —
+//     contextHash  64자 소문자 hex = 기기가 연 봉투의 seal.contextHash(sig 만 뺀 봉투의 정준 바이트 SHA-256 — 서명이 덮는 바이트 그대로, v2.4.181). sig 를 안 넣는 건 ECDSA 가변성 때문이에요:
+//                  중계가 s 를 n−s 로 뒤집은 봉투도 검증되는데, sig 가 해시에 들어가면 그런 봉투를 연 기기의 «바뀐 것 없는 답» 이 stale-context 가 돼요(seal.cjs 머리말 «신선도»).
+//                  **그 판에 보드가 봉인한 맥락이 있을 때(visibility=sealed)만 필수, 그 밖엔 금지** —
 //                  envelope 모드(맥락이 아예 안 나가요)나 봉인을 못 한 판에 해시가 실려 오면 «없는 것에 묶인» 명령이라 bad-args 예요. 모양이 틀린 값은 스키마 bad-args(최종),
 //                  있어야 하는데 없음/없어야 하는데 있음은 «그 판의 상태가 정하는» bad-args(비최종 — 항목 값의 bad-args 와 같은 부류)예요.
 //   보드의 비교 대상 = 이 보드가 내보낸 항목 기록(store.state.items — rev · 봉투째 상태 파일에 영속, 재시작을 건너요). 판이 다르거나(옛 판 · 미래 판) 해시가 다르거나(옛 봉투 · 지어낸 봉투 · 수신자를 뺀 봉투)
@@ -711,7 +713,7 @@ class Executor {
     if (args.contextHash !== want) throw no('stale-context');
   }
 
-  // 그 판에 봉인해 둔 봉투의 contextHash(seal.cjs — sig 포함 봉투 전체의 정준 바이트 SHA-256 hex) · 봉투가 없으면 null. 해시를 못 내는 봉투(손상)는 «지금 판» 을 보증할 수 없어서 stale-context 예요
+  // 그 판에 봉인해 둔 봉투의 contextHash(seal.cjs — sig 만 뺀 봉투의 정준 바이트 SHA-256 hex · 서명 가변성에 안 흔들려요) · 봉투가 없으면 null. 해시를 못 내는 봉투(손상)는 «지금 판» 을 보증할 수 없어서 stale-context 예요
   //   (상태 파일 읽기가 이런 기록을 걸러내요 — store.cjs).
   _contextHashOf(rec) {
     if (rec.sealed === undefined || rec.sealed === null) return null;

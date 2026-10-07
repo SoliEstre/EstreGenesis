@@ -24,6 +24,13 @@
 //   맥락에 기대는 답 명령(decision.answer · hyperbrief.respond)이 {rev, contextHash} 를 «서명된 인자» 로 실어요. 보드는 rev 가 «지금 판» 이고 contextHash 가 «지금 판에 봉인해 둔 봉투» 의 contextHash 와 같을 때만
 //   받고, 아니면 stale-context(비최종 — 새 판을 읽고 새 명령으로 다시 답해요)예요(exec.cjs «맥락 묶음»). 그래서 새 판을 «못 본» 기기가 옛 판(서명은 진짜)을 보고 답해도, 중계가 옛 판을 다시 내밀어도
 //   그 답은 지금 판에 적용되지 않아요. 남는 것: 판이 바뀌는 사이 오프라인이던 기기는 그냥 stale-context 를 받아요(막을 일이 아니라 다시 읽을 일이에요).
+//   **contextHash 는 «sig 를 뺀» 봉투의 해시예요(v2.4.181).** contextHash(봉투) = SHA-256(utf8(canonicalize(봉투에서 sig 만 뺀 객체))) 의 소문자 hex — 서명이 덮는 바이트(아래 «서명») 그 자체의 해시예요.
+//   v2.4.179 의 정의는 sig 까지 넣었는데, ECDSA P-256 서명은 «가변(malleable)» 이에요: (r, s) 가 검증되면 (r, n−s) 도 같은 내용에 대해 검증돼요. 중계가 s 를 뒤집어 넘기면 기기는 봉투를 정상으로 검증하고 열지만
+//   보드와 다른 해시를 계산해서, 아무것도 안 바뀌었는데 보드가 «진짜 서명된» stale-context 거절을 내요 — 모든 답에 걸 수 있는 중계발 서비스 거부예요. 기기는 원래 s 를 모르니 보드의 해시를 다시 낼 수 없고,
+//   기기가 high-s 를 거절하면 노드가 서명한 정상 봉투의 절반가량을 거절해요. 그래서 해시에서 sig 를 뺐어요: 기기는 «바로 그 바이트» 에 대한 서명을 이미 검증했으니, 같은 내용에 대한 유효한 서명 둘은
+//   같은 맥락을 가리켜요. 내용을 바꾸는 것(ct · iv · aad · recipients — 수신자 하나를 뺀 판 · 옛 판 포함)은 여전히 해시를 바꿔요. 서명이 틀린 봉투는 기기가 열기 전에 거절하니(bad-signature) 해시까지 가지 않아요.
+//   **보드 서명을 low-s 로 맞추지는 않아요.** 이 수정에 필요 없고(해시가 sig 를 안 봐요), 맞춰도 중계가 뒤집은 high-s 봉투는 여전히 «검증되는» 봉투라서 기기가 그걸 받아야 하는 건 같아요 —
+//   옛 보드도 있고요. 기기 구현은 high-s 서명을 거절하지 마세요(WebCrypto verify 도 둘 다 받아요). «받은» 서명 바이트의 동일성에 기대는 수락·거절 판정은 없어요(보드는 재전송 여부만 자기 서명끼리 비교해요 — 중계가 그 바이트를 대지 않아요).
 //
 // **봉투(JSON 객체, 직렬화는 opcmd 의 canonicalize).**
 //   { "v":1, "alg":"ECDH-ES+HKDF-SHA256+A256GCM",
@@ -37,6 +44,7 @@
 //            KEK = HKDF-SHA256(ikm=Z, salt=SHA-256(utf8(canonicalize(aad))), info = utf8("eg-seal/v1\n") ‖ epk(65) ‖ SHA-256(수신자 SPKI DER)(32), L=32)
 //            wk  = AES-256-GCM(KEK, iv_r, CEK, additionalData = utf8(canonicalize(aad)))
 //   서명   : sig = ECDSA(보드 개인키, SHA-256, utf8(canonicalize(봉투에서 sig 만 뺀 객체)))
+//   맥락   : contextHash = hex(SHA-256(utf8(canonicalize(봉투에서 sig 만 뺀 객체)))) — 서명 대상과 같은 바이트(위 «신선도», v2.4.181)
 //   수신자 SPKI DER 은 «정준 91바이트 비압축형»(30 59 … 03 42 00 04 ‖ x ‖ y)으로 맞춰서 kid · info 해시를 내요 — 입력 SPKI 가 압축점(02/03)이나 하이브리드(06/07)여도
 //   같은 키는 같은 kid 라서, 기기가 WebCrypto exportKey('spki') 로 계산하는 kid 와 어긋나지 않고 «같은 기기를 두 표기로 넣어 중복 검사를 우회» 하는 길도 닫혀요.
 //   aad 가 salt «와» 래핑 additionalData «양쪽에» 들어가는 이유: 래핑된 키를 다른 항목의 봉투로 옮기면 KEK 도 다르고 태그도 안 맞아요(이중 구속).
@@ -353,9 +361,15 @@ function open(envelope, expectedAad, recipientPrivateKey, boardPublicKey) {
 //   커서 opcmd.parseCanonical 을 못 써요 — 같은 엄격 파서의 «한도 없는 진입점» 을 쓰되 크기는 여기서 먼저 재요.
 function serialize(envelope) { return OP.canonicalize(envelope); }
 
-// 맥락 해시 — 사용자의 서명된 답(opcmd args 의 contextHash)에 실어 보내고 보드가 «자기가 그 항목에 봉인해 둔 봉투» 의 해시와 비교하는 값(머리말 «신선도» · exec.cjs «맥락 묶음»). sig 까지 포함한
-//   봉투 전체의 SHA-256(hex) 이라 옛 판 · 지어낸 판 · 수신자를 뺀 판이 전부 다른 값이에요.
-function contextHash(envelope) { return sha256(Buffer.from(serialize(envelope), 'utf8')).toString('hex'); }
+// 맥락 해시 — 사용자의 서명된 답(opcmd args 의 contextHash)에 실어 보내고 보드가 «자기가 그 항목에 봉인해 둔 봉투» 의 해시와 비교하는 값(머리말 «신선도» · exec.cjs «맥락 묶음»).
+//   = SHA-256(utf8(canonicalize(sig 만 뺀 봉투))) 의 소문자 hex — 서명이 덮는 바로 그 바이트의 해시예요(v2.4.181 — v2.4.179 는 sig 를 넣었어요). 기기는 그 바이트에 대한 서명을 이미 검증했으니
+//   같은 내용에 대한 유효한 서명 둘((r, s) 와 (r, n−s) — ECDSA 의 가변성)은 같은 맥락이에요: 중계가 s 를 뒤집어도 해시가 안 바뀌어서 «아무것도 안 바뀐 답» 을 낡았다고 거절하게 만들 수 없어요.
+//   옛 판 · 지어낸 판 · 수신자를 뺀 판 · 내용(ct · iv · aad)을 바꾼 판은 전부 다른 값이에요. 호출자의 객체는 건드리지 않아요(복사본에서 sig 를 빼요 — fromEntries 라서 '__proto__' 같은 키도 그대로 칸이에요).
+function contextHash(envelope) {
+  if (envelope === null || typeof envelope !== 'object' || Array.isArray(envelope)) throw new TypeError('seal: contextHash 는 봉투 객체를 받아요');
+  const body = Object.fromEntries(Object.entries(envelope).filter(([k]) => k !== 'sig'));
+  return sha256(Buffer.from(serialize(body), 'utf8')).toString('hex');
+}
 
 const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 function parseSeal(input) {
