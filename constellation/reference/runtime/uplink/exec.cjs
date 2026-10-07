@@ -464,7 +464,8 @@ class Executor {
     // 맥락 묶음(머리말) — 열린 항목만: «사람이 본 판» 이 지금 판인가를 «증명 전» 에 봐요(낡은 판의 명령이 TOTP 단계를 태우지 않게). 닫혔거나 흔적이 없는 항목은 기존 사유 그대로예요.
     try { ref = this._lookup(policy, norm.args); if (!ref.found) throw no('unknown-item'); if (ref.open) { this._checkContext(policy, norm.args); this._checkAgainstItem(cmd.verb, norm.args, ref); } } catch (e) { if (e instanceof Reject) return rejP(e.code); throw e; }
     // TOTP 로 «선택» 을 하려면 그 결정이 되돌릴 수 있다고 선언돼 있어야 해요(머리말). 증명 «전» 이라 TOTP 단계를 안 태우고 비최종이에요 — 같은 명령이 passkey 증명으로 오면 통과해요.
-    if (kind === 'totp' && policy.totpTwoWay && !this._twoWay(ref.d)) return rejP('proof-too-weak');
+    //   열린 항목에만 물어요 — 닫힌 항목은 d 가 없어서(_lookup) 선언을 읽을 수 없고, 닫힌 항목은 증명 종류와 무관하게 아래 커밋에서 «소비하고 stale-item(최종)» 으로 가는 게 규칙이에요(머리말 «낡은 항목 판정»).
+    if (kind === 'totp' && policy.totpTwoWay && ref.open && !this._twoWay(ref.d)) return rejP('proof-too-weak');
     // 소비 «전» 에 읽기만 하는 nonce 확인 — TOTP 단계가 이미 쓰인 명령에 타지 않게(머리말).
     if (this.ledger.has(cmd.nonce)) return rejP('nonce-replayed');
 
@@ -511,7 +512,8 @@ class Executor {
     //   nonce 는 안 태우고(비최종 — 사람은 새 판을 읽고 «새 명령» 으로 다시 답해요) TOTP 단계는 이미 탔어요(two_way 재확인과 같은 자리 · 같은 대가).
     //   되돌림 선언의 변경도 새 판이라 동기가 붙은 배선에선 여기서 stale-context 로 먼저 걸려요 — 아래 two_way 재확인은 두 번째 층이에요(머리말 «맥락 묶음»).
     if (cur.found && cur.open) { try { this._checkContext(policy, norm.args); } catch (e) { if (e instanceof Reject) return rej(e.code); throw e; } }
-    if (kind === 'totp' && policy.totpTwoWay && !this._twoWay(cur.d)) return rej('proof-too-weak');      // 커밋 안의 재확인 — 단계는 탔어도 nonce 는 안 태워요(같은 명령을 passkey 로 다시 낼 수 있어요)
+    //   커밋 안의 재확인 — 단계는 탔어도 nonce 는 안 태워요(같은 명령을 passkey 로 다시 낼 수 있어요). 열린 항목에만 물어요: 검증 사이에 닫혔으면 아래에서 다른 증명과 똑같이 nonce 를 소비하고 stale-item(최종)이에요.
+    if (kind === 'totp' && policy.totpTwoWay && cur.found && cur.open && !this._twoWay(cur.d)) return rej('proof-too-weak');
     const stale = !cur.found || !cur.open;
 
     // 12. 커밋 — nonce 소비 → signCount CAS. 둘 다 디스크에 확정된 «뒤에만» 실행해요.
