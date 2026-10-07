@@ -6,6 +6,7 @@
 
 - [README](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/README.md): overview, versioning policy, install, module registry
 - [CHANGELOG](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/CHANGELOG.md): full release history (per-cut entries)
+- [Superscalar Bench](https://raw.githubusercontent.com/SoliEstre/EstreGenesis/main/SuperscalarBench.md): measured trust cost (cost and time per verified coding result) per model × harness × effort on a six-task ladder with hidden acceptance suites — single observer, private tasks, limits stated
 
 ## Module specs (complete normative text)
 

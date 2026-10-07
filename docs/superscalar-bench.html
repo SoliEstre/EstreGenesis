@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superscalar Bench — trust cost · EstreGenesis</title>
+  <meta name="description" content="Superscalar Bench — what one verified coding result costs in money and minutes, per model × harness × effort, on a ladder of six tasks graded by hidden acceptance suites (971 runs, n=3 per cell, one cell n=2). Single observer, private tasks.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="shared/shared.css">
+  <link rel="stylesheet" href="shared/themes.css">
+  <style>
+    .bench-fig { margin: 1.2rem 0 2rem; }
+    .bench-fig img { width: 100%; height: auto; border: 1px solid var(--color-border); border-radius: 6px; background: #fff; }
+    .bench-fig figcaption { font-size: 0.88rem; color: var(--color-text-muted); margin-top: 0.4rem; }
+  </style>
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var levels = ['general', 'dev', 'expert'];
+      var aud = localStorage.getItem('eg-promo-audience') || 'general';
+      if (levels.indexOf(aud) === -1) aud = 'general';
+      html.setAttribute('data-audience', aud);
+      var langs = (navigator.languages && navigator.languages.length)
+        ? navigator.languages
+        : [navigator.language || navigator.userLanguage || ''];
+      var detected = 'en';
+      for (var i = 0; i < langs.length; i++) {
+        if (typeof langs[i] === 'string' && langs[i].toLowerCase().indexOf('ko') === 0) { detected = 'ko'; break; }
+      }
+      var lang = localStorage.getItem('eg-promo-lang') || detected;
+      html.setAttribute('lang', lang);
+    })();
+  </script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="logo logo-dark" src="assets/logo-dark.png" alt="EstreGenesis">
+        <img class="logo logo-light" src="assets/logo-light.png" alt="EstreGenesis">
+      </a>
+      <nav class="nav">
+        <a href="index.html" data-en="Home" data-ko="홈">Home</a>
+        <a href="docs.html" data-en="Docs" data-ko="문서">Docs</a>
+        <a href="modules.html" class="active" data-en="Modules" data-ko="모듈">Modules</a>
+        <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <div class="controls">
+        <div class="control-group"><div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="ko">KO</button></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-wide">
+    <section class="hero">
+      <h1>Superscalar Bench</h1>
+      <p class="spec-source"><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md" target="_blank" rel="noopener" data-en="Full report (AI-readable): SuperscalarBench.md →" data-ko="전체 보고서 (AI-readable): SuperscalarBench.md →">Full report (AI-readable): SuperscalarBench.md →</a></p>
+      <p class="tagline" data-en="What one verified coding result costs, in money and minutes — per model × harness × effort, on a ladder of six tasks graded by hidden acceptance suites." data-ko="검증된 코딩 결과 하나에 드는 돈과 시간 — 모델 × 하네스 × effort 마다, 숨긴 수용 시험으로 채점하는 여섯 과제의 사다리 위에서.">What one verified coding result costs, in money and minutes — per model × harness × effort, on a ladder of six tasks graded by hidden acceptance suites.</p>
+      <div class="badges">
+        <span class="badge">971 runs</span>
+        <span class="badge">n = 3 per cell (one cell: 2)</span>
+        <span class="badge">2026-09-30 → 10-06</span>
+        <span class="badge" data-en="single observer · private tasks" data-ko="관측자 한 명 · 비공개 과제">single observer · private tasks</span>
+      </div>
+    </section>
+
+    <section>
+      <h2 data-en="The aim ladder" data-ko="aim 사다리">The aim ladder</h2>
+      <p data-en="Each aim is one task; within an aim every model is judged by the same hidden suite. The aims form a ladder ordered by task scope, designed to get harder as it climbs — the panels show what was measured, not a smoothed trend." data-ko="aim 하나가 과제 하나이고, 같은 aim 안에서는 모든 모델이 같은 숨긴 시험으로 판정돼요. aim 은 과제 범위 순의 사다리로, 위로 갈수록 어려워지게 설계했고, 아래 칸들은 매끈한 추세가 아니라 잰 그대로예요.">Each aim is one task; within an aim every model is judged by the same hidden suite. The aims form a ladder ordered by task scope, designed to get harder as it climbs — the panels show what was measured, not a smoothed trend.</p>
+      <figure class="bench-fig"><img src="assets/bench/trust-cost-ladder.png" alt="The aim ladder — runs not reaching, first-answer pass rate, median trust time and median trust cost for aims 1 to 6" loading="lazy"></figure>
+      <table class="data">
+        <thead><tr><th>aim</th><th data-en="task" data-ko="과제">task</th><th class="num" data-en="hidden tests" data-ko="숨긴 시험">hidden tests</th><th class="num" data-en="reach" data-ko="도달">reach</th><th class="num" data-en="first answer" data-ko="첫 답">first answer</th><th class="num" data-en="median trust time" data-ko="신뢰시간 중앙값">median trust time</th><th class="num" data-en="median trust cost" data-ko="신뢰비용 중앙값">median trust cost</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td data-en="mechanical multi-file edit" data-ko="여러 파일 기계적 수정">mechanical multi-file edit</td><td class="num">25</td><td class="num">100%</td><td class="num">95%</td><td class="num">3.7 min</td><td class="num">$0.36</td></tr>
+          <tr><td>2</td><td data-en="spec-complete implementation" data-ko="사양서대로 구현">spec-complete implementation</td><td class="num">73</td><td class="num">100%</td><td class="num">88%</td><td class="num">5.0 min</td><td class="num">$0.55</td></tr>
+          <tr><td>3</td><td data-en="multi-step feature + schema migration" data-ko="여러 단계 기능 + 스키마 이전">multi-step feature + schema migration</td><td class="num">49</td><td class="num">100%</td><td class="num">98%</td><td class="num">6.1 min</td><td class="num">$0.71</td></tr>
+          <tr><td>4</td><td data-en="diagnose-and-fix from a symptom report" data-ko="증상 보고에서 진단·수정">diagnose-and-fix from a symptom report</td><td class="num">37</td><td class="num">100%</td><td class="num">99%</td><td class="num">5.3 min</td><td class="num">$0.49</td></tr>
+          <tr><td>5</td><td data-en="design + build a small language interpreter" data-ko="작은 언어 인터프리터 설계·구현">design + build a small language interpreter</td><td class="num">96</td><td class="num">100%</td><td class="num">89%</td><td class="num">10.2 min</td><td class="num">$1.06</td></tr>
+          <tr><td>6</td><td data-en="crash-safe transactional key-value store" data-ko="충돌에 안전한 트랜잭션 키-값 저장소">crash-safe transactional key-value store</td><td class="num">58</td><td class="num highlight">96%</td><td class="num highlight">85%</td><td class="num highlight">12.9 min</td><td class="num highlight">$1.09</td></tr>
+        </tbody>
+      </table>
+      <p data-en="Aims 1–4 fall within $0.36–0.71 and 3.7–6.1 min per verified result without a steady rise: aim 2 trips the first answer more often than aims 3–4, and aim 4 is cheaper than aim 3. Aims 5 and 6 sit above that range ($1.06–1.09, 10–13 min — roughly twice the aims 1–4 median); aim 6 costs about the same as aim 5 at the median, but it is the first aim where runs fail to reach." data-ko="aim 1–4 는 검증된 결과당 $0.36–0.71 · 3.7–6.1분 안에 있고 고르게 오르지 않아요 — aim 2 가 aim 3–4 보다 첫 답에서 더 자주 걸리고, aim 4 가 aim 3 보다 싸요. aim 5·6 은 그 범위 위에 있어요($1.06–1.09 · 10–13분, aim 1–4 중앙값의 대략 두 배). aim 6 은 중앙값으로 aim 5 와 비슷하지만, 처음으로 도달 못 한 실행이 나와요.">Aims 1–4 fall within $0.36–0.71 and 3.7–6.1 min per verified result without a steady rise: aim 2 trips the first answer more often than aims 3–4, and aim 4 is cheaper than aim 3. Aims 5 and 6 sit above that range ($1.06–1.09, 10–13 min — roughly twice the aims 1–4 median); aim 6 costs about the same as aim 5 at the median, but it is the first aim where runs fail to reach.</p>
+    </section>
+
+    <section>
+      <h2 data-en="What is measured" data-ko="무엇을 재나">What is measured</h2>
+      <div class="callout headline">
+        <h4 data-en="Trust cost" data-ko="신뢰비용">Trust cost</h4>
+        <p data-en="Mean cost (or wall time) over all attempts — refinement rounds included — divided by the reach rate. A model that is cheap per attempt but rarely reaches pays for its misses here." data-ko="모든 시도(보정 라운드 포함)의 평균 비용(또는 시간)을 도달률로 나눈 값이에요. 시도당 싸도 자주 못 닿는 모델은 여기서 그 값을 치러요.">Mean cost (or wall time) over all attempts — refinement rounds included — divided by the reach rate. A model that is cheap per attempt but rarely reaches pays for its misses here.</p>
+      </div>
+      <ul>
+        <li data-en="Unit: model × harness × effort — the same model behaves differently under different harnesses." data-ko="단위: 모델 × 하네스 × effort — 같은 모델도 하네스마다 다르게 움직여요.">Unit: model × harness × effort — the same model behaves differently under different harnesses.</li>
+        <li data-en="Reach: the hidden acceptance suite passes completely; no partial credit. First answer = reached with no refinement round." data-ko="도달: 숨긴 수용 시험이 전부 통과. 부분 점수 없음. 첫 답 = 보정 라운드 없이 도달.">Reach: the hidden acceptance suite passes completely; no partial credit. First answer = reached with no refinement round.</li>
+        <li data-en="The first answer, then up to three refinement rounds (four in all); feedback is failing test names and assertion messages, never the test code. Round budget 90 minutes." data-ko="첫 답 뒤 보정 라운드 최대 세 번(모두 네 라운드) — 피드백은 실패한 시험 이름과 단정 메시지뿐, 시험 코드는 안 보여 줘요. 라운드 예산 90분.">The first answer, then up to three refinement rounds (four in all); feedback is failing test names and assertion messages, never the test code. Round budget 90 minutes.</li>
+        <li data-en="Cost is API-equivalent list price, not a subscription charge. Invalid runs (quota refusals, sessions that did no work, defects fixed and re-measured, one grader-probing run) are counted apart from unreached runs." data-ko="비용은 API 정가 환산이에요(구독 요금 아님). 무효 실행(할당량 거절 · 아무 일도 안 한 세션 · 고쳐서 다시 잰 결함 · 채점기를 들여다본 1건)은 미도달과 따로 셌어요.">Cost is API-equivalent list price, not a subscription charge. Invalid runs (quota refusals, sessions that did no work, defects fixed and re-measured, one grader-probing run) are counted apart from unreached runs.</li>
+      </ul>
+      <table class="data">
+        <thead><tr><th data-en="harness" data-ko="하네스">harness</th><th data-en="models" data-ko="모델">models</th><th data-en="effort levels" data-ko="effort 단계">effort levels</th></tr></thead>
+        <tbody>
+          <tr><td>Claude Code (CLI 2.1.284)</td><td>Sonnet 5.5 · Opus 5.5 · Fable 5.1 · Fable 5 (earlier version) · Haiku 4.5</td><td>low – max · Haiku: default</td></tr>
+          <tr><td>Codex</td><td>GPT-6.1 Sol · GPT-6 Sol · GPT-6 Astra · GPT-6 Luna</td><td>low – max</td></tr>
+          <tr><td>Grok Build</td><td>grok-4.7 · grok-4.6</td><td>low – xhigh</td></tr>
+          <tr><td>Antigravity</td><td>Gemini 3.8 Flash · Gemini 3.1 Pro</td><td>Flash: low · medium · high · Pro: low · high</td></tr>
+        </tbody>
+      </table>
+      <p data-en="Claude Fable 5 is the earlier version of Fable 5.1, measured with the same CLI version, flags, effort levels, round limit and budget, at n = 3 per cell. Claude Code sends each model its own built-in system prompt — part of the harness, as for every model here. Fable 5 mostly ran later, mostly on the second Claude subscription account, and alone on aim 6, so its time axis is the least comparable." data-ko="Claude Fable 5 는 Fable 5.1 의 이전 버전이에요. 같은 CLI 버전 · 플래그 · effort 단계 · 라운드 한도 · 예산으로, 칸마다 n = 3 으로 쟀어요. Claude Code 는 모델마다 자기 내장 시스템 프롬프트를 보내요 — 하네스의 일부이고, 여기 모든 모델이 그래요. Fable 5 는 대체로 늦게, 주로 두 번째 Claude 구독 계정에서, aim 6 에선 혼자 돌아서 시간 축이 가장 비교하기 어려워요.">Claude Fable 5 is the earlier version of Fable 5.1, measured with the same CLI version, flags, effort levels, round limit and budget, at n = 3 per cell. Claude Code sends each model its own built-in system prompt — part of the harness, as for every model here. Fable 5 mostly ran later, mostly on the second Claude subscription account, and alone on aim 6, so its time axis is the least comparable.</p>
+    </section>
+
+    <section>
+      <h2 data-en="Findings" data-ko="찾은 것">Findings</h2>
+      <div class="callout">
+        <h4 data-en="The ladder separates on time, cost and the first answer before it separates on reach" data-ko="사다리는 도달보다 먼저 시간 · 비용 · 첫 답에서 갈려요">The ladder separates on time, cost and the first answer before it separates on reach</h4>
+        <p data-en="All 809 runs of aims 1–5 reached. On aim 6, 156 of 162 reached — the misses are Claude Haiku 4.5 (3 of 3), GPT-6 Luna at low (2 of 3) and Gemini 3.1 Pro at low (1 of 3)." data-ko="aim 1–5 의 809회는 전부 도달했어요. aim 6 은 162회 중 156회 — 놓친 건 Claude Haiku 4.5(3/3) · GPT-6 Luna low(2/3) · Gemini 3.1 Pro low(1/3) 예요.">All 809 runs of aims 1–5 reached. On aim 6, 156 of 162 reached — the misses are Claude Haiku 4.5 (3 of 3), GPT-6 Luna at low (2 of 3) and Gemini 3.1 Pro at low (1 of 3).</p>
+      </div>
+      <div class="callout">
+        <h4 data-en="The cheapest effort is almost always low or medium" data-ko="가장 싼 effort 는 거의 늘 low 나 medium 이에요">The cheapest effort is almost always low or medium</h4>
+        <p data-en="In 70 of 72 model × aim pairs with more than one effort level. On aims 1–5 higher effort bought no extra reach, only cost and time (low → max mean cost on aim 4: Sonnet 5.5 23.9× · Fable 5.1 19.1× · Opus 5.5 12.5× · GPT-6.1 Sol 2.7×). On aim 6 it did: apart from Claude Haiku 4.5 (one effort level, never reached), every miss was at the lowest effort, and GPT-6 Luna and Gemini 3.1 Pro reached in every run one step up." data-ko="effort 가 둘 이상인 모델 × aim 72쌍 중 70쌍이 그래요. aim 1–5 에서는 effort 를 올려도 도달이 늘지 않고 비용과 시간만 바뀌었어요(aim 4 의 low → max 평균 비용: Sonnet 5.5 23.9× · Fable 5.1 19.1× · Opus 5.5 12.5× · GPT-6.1 Sol 2.7×). aim 6 에선 달랐어요 — Claude Haiku 4.5(effort 하나 · 한 번도 못 닿음)를 빼면 놓친 실행은 전부 가장 낮은 effort 였고, GPT-6 Luna 와 Gemini 3.1 Pro 는 한 단 올리면 매번 닿았어요.">In 70 of 72 model × aim pairs with more than one effort level. On aims 1–5 higher effort bought no extra reach, only cost and time (low → max mean cost on aim 4: Sonnet 5.5 23.9× · Fable 5.1 19.1× · Opus 5.5 12.5× · GPT-6.1 Sol 2.7×). On aim 6 it did: apart from Claude Haiku 4.5 (one effort level, never reached), every miss was at the lowest effort, and GPT-6 Luna and Gemini 3.1 Pro reached in every run one step up.</p>
+      </div>
+      <div class="callout">
+        <h4 data-en="Cheaper per token is not cheaper per verified result" data-ko="토큰당 싸다고 결과당 싼 게 아니에요">Cheaper per token is not cheaper per verified result</h4>
+        <p data-en="In Claude Code, Claude Haiku 4.5's first answer alone cost as much as or more than Claude Sonnet 5.5's at Sonnet's cheapest effort on every aim, and it needed refinement more often. Per verified result it cost 1.3–4.5× as much on aims 1–5 (Haiku has one effort level, compared here with the best of Sonnet's five), and it did not reach aim 6." data-ko="Claude Code 에서 Claude Haiku 4.5 의 첫 답 하나가 가장 싼 effort 의 Claude Sonnet 5.5 첫 답과 같거나 더 비쌌고(모든 aim), 보정도 더 자주 필요했어요. 검증된 결과당으로는 aim 1–5 에서 1.3–4.5배(Haiku 는 effort 가 하나라 Sonnet 다섯 칸 중 가장 싼 것과 비교), aim 6 에선 못 닿았어요.">In Claude Code, Claude Haiku 4.5's first answer alone cost as much as or more than Claude Sonnet 5.5's at Sonnet's cheapest effort on every aim, and it needed refinement more often. Per verified result it cost 1.3–4.5× as much on aims 1–5 (Haiku has one effort level, compared here with the best of Sonnet's five), and it did not reach aim 6.</p>
+      </div>
+      <h3 data-en="Claude Fable 5.1 vs Fable 5 — cost ratio by effort" data-ko="Claude Fable 5.1 대 Fable 5 — effort 별 비용비">Claude Fable 5.1 vs Fable 5 — cost ratio by effort</h3>
+      <table class="data">
+        <thead><tr><th></th><th class="num">low</th><th class="num">medium</th><th class="num">high</th><th class="num">xhigh</th><th class="num">max</th></tr></thead>
+        <tbody>
+          <tr><td data-en="aims 1–5 (geometric mean)" data-ko="aim 1–5 (기하평균)">aims 1–5 (geometric mean)</td><td class="num">0.74×</td><td class="num">0.63×</td><td class="num">0.64×</td><td class="num">1.09×</td><td class="num highlight">2.38×*</td></tr>
+          <tr><td>aim 6</td><td class="num">0.53×</td><td class="num">0.29×</td><td class="num">0.51×</td><td class="num">0.96×</td><td class="num highlight">2.58×*</td></tr>
+        </tbody>
+      </table>
+      <p data-en="At max, Fable 5.1 cost more on all six tasks (1.7–3.4× per task) and took longer for the same result. At low–high it cost less or about the same on every task (0.29–0.91×); xhigh is mixed. * Includes a partial-cost cell (lower bound)." data-ko="max 에선 Fable 5.1 이 여섯 과제 모두 더 비쌌고(과제별 1.7–3.4배) 같은 결과에 더 오래 걸렸어요. low–high 에선 모든 과제에서 더 싸거나 비슷했고(0.29–0.91배), xhigh 는 섞여 있어요. * 비용 일부가 빠진 칸이 들어 있어 하한이에요.">At max, Fable 5.1 cost more on all six tasks (1.7–3.4× per task) and took longer for the same result. At low–high it cost less or about the same on every task (0.29–0.91×); xhigh is mixed. * Includes a partial-cost cell (lower bound).</p>
+      <p data-en="Run-to-run spread (median coefficient of variation of cost over the 3 runs of a cell, aims 1–5): Codex 11% · Claude Code 15% · Antigravity 17% · Grok Build 19%. Read a difference under ~20% between two cells as a tie." data-ko="반복 간 흔들림(같은 칸 3회 비용의 변동계수 중앙값, aim 1–5): Codex 11% · Claude Code 15% · Antigravity 17% · Grok Build 19%. 두 칸의 차가 20% 안쪽이면 같다고 읽으세요.">Run-to-run spread (median coefficient of variation of cost over the 3 runs of a cell, aims 1–5): Codex 11% · Claude Code 15% · Antigravity 17% · Grok Build 19%. Read a difference under ~20% between two cells as a tie.</p>
+    </section>
+
+    <section>
+      <h2 data-en="All six aims" data-ko="여섯 aim 전체">All six aims</h2>
+      <p data-en="x = trust cost (log) · y = trust time (log) · each line one model in one harness · points = effort levels (● first answer in at least half the runs, ○ otherwise) · lower-left is better. The marker at the top right shows the rung on the ladder." data-ko="x = 신뢰비용(로그) · y = 신뢰시간(로그) · 선 하나 = 한 하네스의 한 모델 · 점 = effort 단계(● 실행 절반 이상이 첫 답 · ○ 그 밖) · 왼쪽 아래가 좋아요. 오른쪽 위 표시가 사다리의 몇 번째 단인지 보여 줘요.">x = trust cost (log) · y = trust time (log) · each line one model in one harness · points = effort levels (● first answer in at least half the runs, ○ otherwise) · lower-left is better. The marker at the top right shows the rung on the ladder.</p>
+      <figure class="bench-fig"><img src="assets/bench/trust-cost-aim1.png" alt="aim 1 — mechanical multi-file edit" loading="lazy"><figcaption>aim 1 — mechanical multi-file edit · 25 hidden tests</figcaption></figure>
+      <figure class="bench-fig"><img src="assets/bench/trust-cost-aim2.png" alt="aim 2 — spec-complete implementation" loading="lazy"><figcaption>aim 2 — spec-complete implementation · 73 hidden tests</figcaption></figure>
+      <figure class="bench-fig"><img src="assets/bench/trust-cost-aim3.png" alt="aim 3 — multi-step feature + schema migration" loading="lazy"><figcaption>aim 3 — multi-step feature + schema migration · 49 hidden tests</figcaption></figure>
+      <figure class="bench-fig"><img src="assets/bench/trust-cost-aim4.png" alt="aim 4 — diagnose-and-fix from a symptom report" loading="lazy"><figcaption>aim 4 — diagnose-and-fix from a symptom report · 37 hidden tests</figcaption></figure>
+      <figure class="bench-fig"><img src="assets/bench/trust-cost-aim5.png" alt="aim 5 — design + build a small language interpreter" loading="lazy"><figcaption>aim 5 — design + build a small language interpreter · 96 hidden tests</figcaption></figure>
+      <figure class="bench-fig"><img src="assets/bench/trust-cost-aim6.png" alt="aim 6 — crash-safe transactional key-value store" loading="lazy"><figcaption>aim 6 — crash-safe transactional key-value store · 58 hidden tests</figcaption></figure>
+    </section>
+
+    <section>
+      <h2 data-en="Limits" data-ko="한계">Limits</h2>
+      <ul>
+        <li data-en="Single observer, single machine — nothing here has been reproduced independently." data-ko="관측자 한 명, 기계 한 대 — 독립 재현은 아직 없어요.">Single observer, single machine — nothing here has been reproduced independently.</li>
+        <li data-en="Tasks and hidden suites are not published (kept out of training data and out of reach of the runs), so the benchmark cannot be rerun yet — read it as a report, not a standard." data-ko="과제와 숨긴 시험은 공개하지 않아요(학습 데이터와 실행 중인 모델에서 떼어 두려고). 아직 다시 돌려 볼 수 없으니 표준이 아니라 보고서로 읽어 주세요.">Tasks and hidden suites are not published (kept out of training data and out of reach of the runs), so the benchmark cannot be rerun yet — read it as a report, not a standard.</li>
+        <li data-en="Only the Claude Code CLI version is recorded (in each Claude transcript); time is the weaker axis (machine load, run order, two Claude subscription accounts, and 43 early Claude runs that loaded the machine's plugin hooks); cost is API-equivalent; n = 3 per cell (one cell 2); four max-effort runs reached but have no cost record, so their cells are lower bounds." data-ko="남은 버전은 Claude Code CLI(Claude 전사마다)뿐이에요. 시간은 더 약한 축이에요(기계 부하 · 실행 순서 · Claude 구독 계정 두 개 · 기계의 플러그인 훅이 실린 초기 Claude 실행 43회). 비용은 API 정가 환산 · 칸마다 n = 3(한 칸만 2) · max 실행 4건은 도달했지만 비용 기록이 없어 그 칸은 하한이에요.">Only the Claude Code CLI version is recorded (in each Claude transcript); time is the weaker axis (machine load, run order, two Claude subscription accounts, and 43 early Claude runs that loaded the machine's plugin hooks); cost is API-equivalent; n = 3 per cell (one cell 2); four max-effort runs reached but have no cost record, so their cells are lower bounds.</li>
+      </ul>
+      <p><a href="https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md" target="_blank" rel="noopener" data-en="Setup details, the measurement defects found and fixed, and an incident where empty grader feedback led a model to probe the evaluator: SuperscalarBench.md →" data-ko="설정 세부 · 찾아 고친 측정 결함 · 빈 채점 피드백이 모델의 평가기 탐색을 부른 사건: SuperscalarBench.md →">Setup details, the measurement defects found and fixed, and an incident where empty grader feedback led a model to probe the evaluator: SuperscalarBench.md →</a></p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>EstreGenesis · Apache-2.0 · <a href="https://github.com/SoliEstre/EstreGenesis" target="_blank">github.com/SoliEstre/EstreGenesis</a></p>
+    <div class="footer-style"><span class="control-label">Style</span><div class="theme-toggle"><button data-theme="technical">tech</button><button data-theme="marketing">market</button><button data-theme="academic">paper</button></div></div>
+  </footer>
+
+  <script src="shared/data.js"></script>
+  <script src="shared/i18n.js"></script>
+  <script src="shared/theme.js"></script>
+  <script src="shared/audience.js"></script>
+</body>
+</html>
