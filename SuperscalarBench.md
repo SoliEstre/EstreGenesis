@@ -50,7 +50,7 @@ Medians are over the 54 model × harness × effort combinations of each aim (3 r
 - Each run works in an isolated copy of the task repository. The model may run `node` there (a gate admits node commands only); other shell commands are denied. Plugin hooks are disabled in the Claude Code benchmark sessions from 2026-10-01 11:00 (earlier runs: see the defects table).
 - Round budget 90 minutes of wall time.
 - **Procedure vs §5.1.5.** This campaign ran every combination on all six aims instead of stopping at the first unreached aim, and reports API-equivalent cost only (no plan-quota figure). The aim list in §5.1.5 predates the sixth aim.
-- **Claude Fable 5 is the earlier version** of Fable 5.1. It was measured with the same CLI version, flags, effort levels, round limit and budget, at n=3 per cell. Claude Code sends each model its own built-in system prompt — that is part of the harness, as it is for every model here. Fable 5 mostly ran later than Fable 5.1 (interleaved on aims 1–5, after it on aim 6), mostly on the second Claude subscription account, and alone on aim 6 while Fable 5.1 shared the machine with other chains — so its time axis is the least comparable. The figures mark it «earlier version».
+- **Harness prompts.** Claude Code sends each Claude model its own built-in system prompt — that is part of the harness, so a comparison between two Claude models is a comparison of model plus harness prompt, as it is under any harness.
 - **Invalid runs are counted apart from unreached runs** (failing and breaking the rules are different outcomes). 141 records were set aside: runs under measurement-condition defects that were fixed and re-measured, quota and entitlement refusals, harness sessions that did no work (0 tokens in every round), and one run whose submission inspected the grader.
 
 ## Findings
@@ -67,6 +67,23 @@ Medians are over the 54 model × harness × effort combinations of each aim (3 r
 | GPT-6.1 Sol | 2.7× | 1.8× | 2.4× |
 
 \* Lower bounds. Some max-effort runs reached but hit the round budget, which leaves no cost record — aim 5: Fable 5.1 ×1; aim 6: Sonnet 5.5 ×2, Fable 5.1 ×1. Those means use the runs whose cost is known (Sonnet 5.5 at max on aim 6 rests on a single run), and the missing runs were the longest.
+
+**Recommended effort by aim** — the ★ / ☆ marks in the figures. Four steps, per model and aim. (1) Eligible: efforts that reached on the first answer in every run. (2) Exception: an effort that needed refinement still qualifies if its cost or time per verified result is at most half that of the best eligible effort — far beyond the ~20% noise band. (3) Excluded: a lower effort that costs more than 20% more than some higher effort cannot get ★, and one that takes more than 20% longer cannot get ☆ — a lower effort that spends more must not look recommended. (4) Ranked: ★ on every remaining effort within 20% of the cheapest cost per verified result (the report's tie rule, so ties are all marked), ☆ on every remaining effort within 20% of the fastest that is not already ★. — means no effort passed on the first answer in every run; a single-effort model (Haiku 4.5) and a cell with a missing cost record get no ★.
+
+| harness · model | aim 1 | aim 2 | aim 3 | aim 4 | aim 5 | aim 6 |
+|---|---|---|---|---|---|---|
+| Codex · GPT-6 Astra | L★ M★ | L★ M★ | L★ M★ | L★ M★ | L★ M★ | L★ M★ |
+| Codex · GPT-6 Luna | L★ M★ H★ | H★ | L★ M★ | L★ M★ | M★ | H★ |
+| Codex · GPT-6 Sol | L★ | L★ | L★ M★ | L★ | L★ | M★ H★ |
+| Codex · GPT-6.1 Sol | L★ | L★ | L★ M★ | L★ | L★ M★ | L★ |
+| Claude Code · Fable 5 | H★ | L★ | L★ | L★ | L★ | L★ |
+| Claude Code · Fable 5.1 | L★ M★ H★ | L★ | L★ M★ | L★ | M★ | M★ |
+| Claude Code · Opus 5.5 | M★ | L★ | L★ M★ | L★ M★ | L★ | M★ |
+| Claude Code · Sonnet 5.5 | L★ M☆ | L★ M★ H☆ | L★ M★ | L★ M★ | H★ L☆ | L★ M★ |
+| Grok Build · grok-4.6 | L★ | L★ | L★ | L★ | L★ | L★ |
+| Grok Build · grok-4.7 | L★ | L★ | L★ | L★ | L★ | L★ |
+| Antigravity · Gemini 3.1 Pro | L★ | — | H★ | L★ | — | — |
+| Antigravity · Gemini 3.8 Flash | L★ | L★ | L★ | L★ M☆ | L★ | H★ |
 
 **3. Cheaper per token is not cheaper per verified result.** In Claude Code, Claude Haiku 4.5's first answer alone cost as much as or more than Claude Sonnet 5.5's first answer at Sonnet's cheapest effort, on every aim, and Haiku needed refinement more often (it had refining runs on every aim). Per verified result it cost 1.3–4.5× as much on aims 1–5 (Haiku has a single effort level, so this compares one cell with the best of five), and it did not reach aim 6.
 
@@ -96,7 +113,7 @@ At max, Fable 5.1 cost more on all six tasks (1.7–3.4× per task) and took lon
 | Antigravity · Gemini 3.8 Flash | 9/9 | 6/9 | medium | $1.100 | 6.9 min |
 | Claude Code · Fable 5.1 | 15/15 | 14/15 | medium | $2.047 | 4.3 min |
 | Antigravity · Gemini 3.1 Pro | 5/6 | 0/6 | high | $4.199 | 8.3 min |
-| Claude Code · Fable 5 (earlier version) | 15/15 | 15/15 | low | $4.795 | 8.1 min |
+| Claude Code · Fable 5 | 15/15 | 15/15 | low | $4.795 | 8.1 min |
 | Claude Code · Haiku 4.5 | 0/3 | 0/3 | — | — | — |
 
 Rows are ordered by the lowest of 2–5 effort cells (n = 3 each), which favours models with more effort levels; neighbours within ~20% are ties, not a ranking.
@@ -105,7 +122,7 @@ Rows are ordered by the lowest of 2–5 effort cells (n = 3 each), which favours
 
 ## Figures
 
-One figure per aim: x = trust cost (log), y = trust time (log), each line one model in one harness, points = effort levels (● reached on the first answer in at least half the runs, ○ otherwise). Lower-left is better. The marker at the top right shows the rung on the ladder.
+One figure per aim: x = trust cost (log), y = trust time (log), each line one model in one harness, points = effort levels (● reached on the first answer in at least half the runs, ○ otherwise; ★ / ☆ = recommended effort, see finding 2). Lower-left is better. The marker at the top right shows the rung on the ladder.
 
 ![aim 1](docs/assets/bench/trust-cost-aim1.png)
 ![aim 2](docs/assets/bench/trust-cost-aim2.png)
@@ -190,13 +207,13 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 - 실행마다 과제 저장소의 격리된 사본에서 일해요. 모델은 거기서 `node` 를 실행할 수 있고(node 명령만 통과시키는 게이트), 다른 셸 명령은 거부돼요. Claude Code 벤치 세션의 플러그인 훅은 2026-10-01 11:00 부터 껐어요(그 전 실행은 영어 절의 결함 표 참고).
 - 라운드 예산은 벽시계 90분.
 - **§5.1.5 절차와 다른 점.** 이번 측정은 처음 못 닿은 aim 에서 멈추지 않고 모든 조합을 여섯 aim 전부에서 돌렸고, 비용은 API 정가 환산만 냈어요(플랜 할당량 수치 없음). §5.1.5 의 aim 목록은 여섯째 aim 보다 먼저 쓰였어요.
-- **Claude Fable 5 는 Fable 5.1 의 이전 버전**이에요. 같은 CLI 버전 · 플래그 · effort 단계 · 라운드 한도 · 예산으로, 칸마다 n=3 으로 쟀어요. Claude Code 는 모델마다 자기 내장 시스템 프롬프트를 보내요 — 하네스의 일부이고, 여기 모든 모델이 그래요. Fable 5 는 대체로 Fable 5.1 보다 늦게 돌았고(aim 1–5 는 섞여서, aim 6 은 뒤에), 주로 두 번째 Claude 구독 계정에서, aim 6 에선 혼자 돌았어요(Fable 5.1 은 다른 체인과 기계를 나눠 썼고요) — 그래서 시간 축이 가장 비교하기 어려워요. 그림에선 «earlier version» 으로 표시해요.
+- **하네스 프롬프트.** Claude Code 는 Claude 모델마다 자기 내장 시스템 프롬프트를 보내요 — 하네스의 일부라서, Claude 모델 둘의 비교는 어느 하네스에서나처럼 «모델 + 하네스 프롬프트» 의 비교예요.
 - **무효 실행은 미도달과 따로 셌어요**(실패와 규칙 위반은 다른 결과예요). 141건을 뺐어요: 고친 뒤 다시 잰 측정 조건 결함 아래의 실행, 할당량·자격 거절, 아무 일도 안 한 하네스 세션(모든 라운드 0토큰), 채점기를 들여다본 실행 1건.
 
 ### 찾은 것
 
 1. **사다리는 도달보다 먼저 시간·비용·첫 답에서 갈려요.** aim 1–5 의 809회가 전부 도달했어요. 처음 놓친 단은 aim 6 — 162회 중 156회 도달, 놓친 6회는 Claude Haiku 4.5(3/3) · GPT-6 Luna low(2/3) · Gemini 3.1 Pro low(1/3), 전부 네 라운드 뒤에도 시험이 실패했어요.
-2. **가장 싼 effort 는 거의 늘 low 나 medium 이에요** — effort 가 둘 이상인 모델 × aim 72쌍 중 70쌍(low 59 · medium 11 · high 2). aim 1–5 에서는 effort 를 올려도 도달이 늘지 않고 비용과 시간만 바뀌었어요. aim 6 에선 달랐어요: Claude Haiku 4.5(effort 하나 · 한 번도 못 닿음)를 빼면 놓친 실행은 전부 가장 낮은 effort 였고, GPT-6 Luna 와 Gemini 3.1 Pro 는 한 단 올리면 매번 닿았어요. low → max 평균 비용: Sonnet 5.5 23.9× · 17.6× · 29.0×(aim 4 · 5 · 6) · Fable 5.1 19.1× · 13.3× · 16.2× · Opus 5.5 12.5× · 11.3× · 9.3× · GPT-6.1 Sol 2.7× · 1.8× · 2.4×. Sonnet 5.5 의 aim 6 과 Fable 5.1 의 aim 5·6 max 는 **하한**이에요 — max 실행 일부(aim 5 Fable 5.1 1건 · aim 6 Sonnet 5.5 2건 · Fable 5.1 1건)가 도달했지만 라운드 예산에 걸려 비용 기록이 없어서, 비용을 아는 실행으로만 냈어요(Sonnet 5.5 aim 6 max 는 1회뿐). 빠진 건 가장 오래 걸린 실행이에요.
+2. **가장 싼 effort 는 거의 늘 low 나 medium 이에요** — effort 가 둘 이상인 모델 × aim 72쌍 중 70쌍(low 59 · medium 11 · high 2). aim 1–5 에서는 effort 를 올려도 도달이 늘지 않고 비용과 시간만 바뀌었어요. aim 6 에선 달랐어요: Claude Haiku 4.5(effort 하나 · 한 번도 못 닿음)를 빼면 놓친 실행은 전부 가장 낮은 effort 였고, GPT-6 Luna 와 Gemini 3.1 Pro 는 한 단 올리면 매번 닿았어요. low → max 평균 비용: Sonnet 5.5 23.9× · 17.6× · 29.0×(aim 4 · 5 · 6) · Fable 5.1 19.1× · 13.3× · 16.2× · Opus 5.5 12.5× · 11.3× · 9.3× · GPT-6.1 Sol 2.7× · 1.8× · 2.4×. Sonnet 5.5 의 aim 6 과 Fable 5.1 의 aim 5·6 max 는 **하한**이에요 — max 실행 일부(aim 5 Fable 5.1 1건 · aim 6 Sonnet 5.5 2건 · Fable 5.1 1건)가 도달했지만 라운드 예산에 걸려 비용 기록이 없어서, 비용을 아는 실행으로만 냈어요(Sonnet 5.5 aim 6 max 는 1회뿐). 빠진 건 가장 오래 걸린 실행이에요. **aim 별 권장 effort**(그림의 ★ / ☆)는 영어 절의 «Recommended effort by aim» 표에 있어요. 모델 × aim 마다 네 단계예요. ① 자격: 모든 실행이 첫 답에서 통과한 effort. ② 예외: 보정이 필요했어도, 검증된 결과당 비용이나 시간이 자격 있는 최선의 절반 이하면 후보에 넣어요 — ~20% 잡음 띠보다 훨씬 큰 차이만. ③ 제외: 더 높은 effort 보다 비용이 20% 넘게 더 드는 하위 effort 는 ★ 를, 시간이 20% 넘게 더 드는 하위 effort 는 ☆ 를 못 받아요 — 더 쓰는 하위 effort 가 권장으로 보이면 안 되니까요. ④ 순위: 남은 후보 중 검증된 결과당 비용이 가장 싼 칸의 20% 안 전부에 ★(보고서 동률 규칙이라 동률은 함께 표시), 가장 빠른 칸의 20% 안이면서 ★ 가 아닌 것에 ☆. — 는 모든 실행이 첫 답에서 통과한 effort 가 없다는 뜻이고, effort 가 하나뿐인 모델(Haiku 4.5)과 비용 기록이 빠진 칸은 ★ 를 받지 않아요.
 3. **토큰당 싸다고 결과당 싼 게 아니에요.** Claude Code 에서 Claude Haiku 4.5 의 첫 답 하나가, 가장 싼 effort 의 Claude Sonnet 5.5 첫 답과 같거나 더 비쌌어요(모든 aim). 게다가 보정이 더 자주 필요했어요(모든 aim 에 보정한 실행이 있었어요). 검증된 결과당으로는 aim 1–5 에서 1.3–4.5배(Haiku 는 effort 가 하나라, 칸 하나를 다섯 칸 중 가장 싼 것과 비교한 값이에요)였고, aim 6 에선 못 닿았어요.
 4. **Claude Fable 5.1 대 Fable 5 는 effort 에 달렸어요.** 5.1 / 5 비용비 — aim 1–5(과제별 비율의 기하평균): low 0.74× · medium 0.63× · high 0.64× · xhigh 1.09× · max 2.38×(하한) / aim 6: 0.53× · 0.29× · 0.51× · 0.96× · 2.58×(하한). max 에선 Fable 5.1 이 여섯 과제 모두 더 비쌌고(과제별 1.7–3.4배) 같은 결과에 더 오래 걸렸어요. low–high 에선 모든 과제에서 더 싸거나 비슷했어요(과제별 0.29–0.91배 — aim 3–5 의 low 는 6번의 ~20% 동률 범위 안). xhigh 는 섞여 있어요(0.90–1.62배). 두 버전 모두 매번 도달했어요.
 5. **aim 6 모델별 표**는 위 영어 절의 표를 보세요(숫자는 같아요). 행 순서는 2–5개 effort 칸 중 가장 싼 값 기준이라 effort 가 많은 모델에 유리하고, ~20% 안의 이웃은 순위가 아니라 동률이에요.
