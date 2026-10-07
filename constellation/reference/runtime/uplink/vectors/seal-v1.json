@@ -16,7 +16,7 @@
   "wrap": "Z = ECDH(임시 개인키, 수신자 공개키) 32바이트 x 좌표 · KEK = HKDF-SHA256(ikm=Z, salt=SHA-256(utf8(canonicalize(aad))), info = utf8(\"eg-seal/v1\\n\") ‖ epk(65) ‖ SHA-256(수신자 SPKI DER)(32), L=32) · wk = AES-256-GCM(KEK, iv_r, CEK, additionalData = utf8(canonicalize(aad))).",
   "signature": "sig = b64url(ECDSA-P256-SHA256(보드 개인키, utf8(canonicalize(sig 만 뺀 봉투)))), IEEE P1363 r‖s 64바이트(WebCrypto sign/verify 의 출력 형식 그대로). 기기는 등록 때 보드 서명 공개키를 고정(pin)하고 «복호 전에» 검증해요. 서명이 덮는 건 aad · iv · ct · recipients 전부라서 수신자 목록 변경 · 내용 재작성 · 새로 지어낸 봉투가 모두 서명에서 죽어요.",
   "freshness": "rev 는 aad 에 묶이고 열기는 «호출자가 기대하는 rev» 를 정준 바이트로 비교해요. 기대 rev 의 출처는 인증된 경로여야 해요(중계가 준 값을 기대값으로 쓰면 막지 못해요). 더 단단한 방법: 서명된 답이 contextHash(봉투)를 실어 보내고 보드가 자기가 봉인한 봉투의 해시와 비교.",
-  "contextHash": "contextHash(봉투) = SHA-256(utf8(canonicalize(봉투 전체, sig 포함))) 의 hex. contextHashes 에 기본 봉투 두 개의 값이 있어요.",
+  "contextHash": "contextHash(봉투) = SHA-256(utf8(canonicalize(sig 만 뺀 봉투))) 의 소문자 hex — 서명 대상과 같은 바이트예요(v2.4.181; v2.4.179·v2.4.180 은 sig 를 넣었어요). ECDSA 서명은 가변이라((r, s) 가 검증되면 (r, n−s) 도 검증) sig 를 넣으면 중계가 s 를 뒤집는 것만으로 기기와 보드의 해시가 갈라져요. 기기는 그 바이트에 대한 서명을 이미 검증했으니 같은 내용의 유효한 서명 둘은 같은 맥락이에요. 내용(ct · iv · aad · recipients)을 바꾸면 다른 값이에요. contextHashes 에 기본 봉투 두 개의 값이, contextHashCases 에 서명만 다른 봉투(같은 값 — sameAsBaseA:true)와 내용을 바꾼 봉투(다른 값)가 있어요. 기기는 high-s 서명을 거절하지 마세요(열기 사례 sig-s-flipped-to-n-minus-s-still-verifies-and-opens — base-A 와 그 사례 중 하나는 high-s 예요).",
   "kid": "b64url(SHA-256(수신자 SPKI DER)) 의 앞 22자. SPKI DER 은 «정준 91바이트 비압축형»(WebCrypto exportKey(\"spki\") 출력과 같음)이에요. 입력 SPKI 가 압축(02/03)·하이브리드(06/07)여도 정준형으로 맞춰서 해시해요 — recipients[].spkiCompressedB64/spkiHybridB64 가 그 입력들이고 같은 kid 가 나와야 해요. kid 는 «불투명 문자열» 이라 /^[A-Za-z0-9_-]{22}$/ 만 검사하고 디코드하지 않아요(정준 후행 비트 규칙을 지키지 않는 kid 가 정상이에요).",
   "epk": "epk 는 importKey 에 넣기 전에 길이 65 · 첫 바이트 0x04 를 명시 검사하세요. WebCrypto importKey(\"raw\") 는 압축점(33바이트)도 받아들이지만 이 형식은 비압축점만 허용해요(벡터 epk-compressed-prefix-0x02).",
   "rng": "rng.kind 'sha256-ctr': 스트림 = SHA-256(seed ‖ uint32be(0)) ‖ SHA-256(seed ‖ uint32be(1)) ‖ … 를 이어 붙인 바이트열이고, 호출 순서대로 앞에서부터 소비해요. 순서: CEK 32 → 내용 iv 12 → 수신자마다 [임시 스칼라 48 → 래핑 iv 12]. 임시 개인 스칼라 d = (48바이트 빅엔디언 정수 mod (n-1)) + 1. 이 난수 주입은 시험 전용(_sealWithRng)이고 운영 seal() 은 받지 않아요.",
@@ -2979,6 +2979,47 @@
    "recipient": "r1",
    "expect": {
     "code": "bad-signature"
+   }
+  },
+  {
+   "name": "sig-s-flipped-to-n-minus-s-still-verifies-and-opens",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "kPmaX2jebRF6UZZH",
+    "ct": "Vr7B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     },
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BO8na-OS3g-Q-Iu3zxvHXrAoW3o4xqW01_6lk6lFMuS4y1Ftn__xjTvWoUsuJ1BpSWBti2rZ7x7W17Tbp3QGbFQ",
+      "iv": "EPhBxhG5-mCdslLv",
+      "wk": "yz2rtQ1LJRmNvtzJchHkMs8A5WfqmZRBlfvMcR-hHtBDOF0uaN2cJySQRwt75Baz"
+     }
+    ],
+    "sig": "mk005JY6Qw7VT0nsXWY1InRWkKti4lR2Tzj3MwTEMhvhNu93KmwVV2Fn2PdVs7uEnN1k_-1YCuLKYUX4gfs__w"
+   },
+   "expectedAad": {
+    "boardId": "board-test-01",
+    "itemId": "dec-0042",
+    "rev": 1,
+    "v": 1
+   },
+   "recipient": "r1",
+   "expect": {
+    "ok": true,
+    "plaintextHex": "7175657374696f6e20666f72206974656d204120287477656e74792d6973682062797465732b29"
    }
   },
   {
@@ -8613,7 +8654,290 @@
   }
  ],
  "contextHashes": {
-  "base-A": "c10fa37e1803eb4e1bf76efd34f52087f1b6ff88f9416cf70d14db1e8128ba64",
-  "base-B": "396cffac81d7c338d6d931eedc669d2a003d9f13ff1e2edd66f84e0ec5cc3338"
- }
+  "base-A": "ad5df2e38c443abbbf40c6cc12a62ae879b404340826ef446e0d6bf12ff70b5a",
+  "base-B": "c4492aca8c3c232026f0ae0994079659584e7ca7f5b11db999f372af62867349"
+ },
+ "contextHashCases": [
+  {
+   "name": "base-A",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "kPmaX2jebRF6UZZH",
+    "ct": "Vr7B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     },
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BO8na-OS3g-Q-Iu3zxvHXrAoW3o4xqW01_6lk6lFMuS4y1Ftn__xjTvWoUsuJ1BpSWBti2rZ7x7W17Tbp3QGbFQ",
+      "iv": "EPhBxhG5-mCdslLv",
+      "wk": "yz2rtQ1LJRmNvtzJchHkMs8A5WfqmZRBlfvMcR-hHtBDOF0uaN2cJySQRwt75Baz"
+     }
+    ],
+    "sig": "mk005JY6Qw7VT0nsXWY1InRWkKti4lR2Tzj3MwTEMhseyRCH1ZPqqZ6YJwiqTER7IAmVrbm_k6IpWITKemflUg"
+   },
+   "hex": "ad5df2e38c443abbbf40c6cc12a62ae879b404340826ef446e0d6bf12ff70b5a",
+   "sameAsBaseA": true
+  },
+  {
+   "name": "base-A-sig-s-flipped-to-n-minus-s",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "kPmaX2jebRF6UZZH",
+    "ct": "Vr7B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     },
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BO8na-OS3g-Q-Iu3zxvHXrAoW3o4xqW01_6lk6lFMuS4y1Ftn__xjTvWoUsuJ1BpSWBti2rZ7x7W17Tbp3QGbFQ",
+      "iv": "EPhBxhG5-mCdslLv",
+      "wk": "yz2rtQ1LJRmNvtzJchHkMs8A5WfqmZRBlfvMcR-hHtBDOF0uaN2cJySQRwt75Baz"
+     }
+    ],
+    "sig": "mk005JY6Qw7VT0nsXWY1InRWkKti4lR2Tzj3MwTEMhvhNu93KmwVV2Fn2PdVs7uEnN1k_-1YCuLKYUX4gfs__w"
+   },
+   "hex": "ad5df2e38c443abbbf40c6cc12a62ae879b404340826ef446e0d6bf12ff70b5a",
+   "sameAsBaseA": true
+  },
+  {
+   "name": "base-A-without-sig-member",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "kPmaX2jebRF6UZZH",
+    "ct": "Vr7B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     },
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BO8na-OS3g-Q-Iu3zxvHXrAoW3o4xqW01_6lk6lFMuS4y1Ftn__xjTvWoUsuJ1BpSWBti2rZ7x7W17Tbp3QGbFQ",
+      "iv": "EPhBxhG5-mCdslLv",
+      "wk": "yz2rtQ1LJRmNvtzJchHkMs8A5WfqmZRBlfvMcR-hHtBDOF0uaN2cJySQRwt75Baz"
+     }
+    ]
+   },
+   "hex": "ad5df2e38c443abbbf40c6cc12a62ae879b404340826ef446e0d6bf12ff70b5a",
+   "sameAsBaseA": true
+  },
+  {
+   "name": "base-A-recipient-dropped",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "kPmaX2jebRF6UZZH",
+    "ct": "Vr7B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     }
+    ],
+    "sig": "mk005JY6Qw7VT0nsXWY1InRWkKti4lR2Tzj3MwTEMhseyRCH1ZPqqZ6YJwiqTER7IAmVrbm_k6IpWITKemflUg"
+   },
+   "hex": "10aa802252195c9abd36905418630f2534000b21f021b573bc29460563cde902",
+   "sameAsBaseA": false
+  },
+  {
+   "name": "base-A-recipients-reordered",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "kPmaX2jebRF6UZZH",
+    "ct": "Vr7B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BO8na-OS3g-Q-Iu3zxvHXrAoW3o4xqW01_6lk6lFMuS4y1Ftn__xjTvWoUsuJ1BpSWBti2rZ7x7W17Tbp3QGbFQ",
+      "iv": "EPhBxhG5-mCdslLv",
+      "wk": "yz2rtQ1LJRmNvtzJchHkMs8A5WfqmZRBlfvMcR-hHtBDOF0uaN2cJySQRwt75Baz"
+     },
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     }
+    ],
+    "sig": "mk005JY6Qw7VT0nsXWY1InRWkKti4lR2Tzj3MwTEMhseyRCH1ZPqqZ6YJwiqTER7IAmVrbm_k6IpWITKemflUg"
+   },
+   "hex": "c8ed8804bb8461141f479ab36e3df8dbb2b12559dc9d9e2645612f9f207f2f6b",
+   "sameAsBaseA": false
+  },
+  {
+   "name": "base-A-ct-first-byte-changed",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "kPmaX2jebRF6UZZH",
+    "ct": "V77B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     },
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BO8na-OS3g-Q-Iu3zxvHXrAoW3o4xqW01_6lk6lFMuS4y1Ftn__xjTvWoUsuJ1BpSWBti2rZ7x7W17Tbp3QGbFQ",
+      "iv": "EPhBxhG5-mCdslLv",
+      "wk": "yz2rtQ1LJRmNvtzJchHkMs8A5WfqmZRBlfvMcR-hHtBDOF0uaN2cJySQRwt75Baz"
+     }
+    ],
+    "sig": "mk005JY6Qw7VT0nsXWY1InRWkKti4lR2Tzj3MwTEMhseyRCH1ZPqqZ6YJwiqTER7IAmVrbm_k6IpWITKemflUg"
+   },
+   "hex": "3a640b3d54c1b0307b2595013e8654a97185efc384c6df8fffd148904b873b2e",
+   "sameAsBaseA": false
+  },
+  {
+   "name": "base-A-iv-first-byte-changed",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "kfmaX2jebRF6UZZH",
+    "ct": "Vr7B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     },
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BO8na-OS3g-Q-Iu3zxvHXrAoW3o4xqW01_6lk6lFMuS4y1Ftn__xjTvWoUsuJ1BpSWBti2rZ7x7W17Tbp3QGbFQ",
+      "iv": "EPhBxhG5-mCdslLv",
+      "wk": "yz2rtQ1LJRmNvtzJchHkMs8A5WfqmZRBlfvMcR-hHtBDOF0uaN2cJySQRwt75Baz"
+     }
+    ],
+    "sig": "mk005JY6Qw7VT0nsXWY1InRWkKti4lR2Tzj3MwTEMhseyRCH1ZPqqZ6YJwiqTER7IAmVrbm_k6IpWITKemflUg"
+   },
+   "hex": "1ae3b0ebfb41fe055e0af89a5fdf0da5000c0029f88cd452699de37a5ea72236",
+   "sameAsBaseA": false
+  },
+  {
+   "name": "base-A-aad-rev-incremented",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0042",
+     "rev": 2,
+     "v": 1
+    },
+    "iv": "kPmaX2jebRF6UZZH",
+    "ct": "Vr7B9hK-KLVAazQHcWqwTYBAOHwXAnRfLtQWA0qH4r5rzAhp5glHfucOl1GBv-819VeIsR4k2w",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BGSOeuKuF6EZkPP6sedJS0ci74HHZu3ORx9Koiayl5Ay4H5rA-wvC0cQ-dsaakxFKGocrOu1sEBc5bQ2aBO07tU",
+      "iv": "NNrRfaanneubUKRI",
+      "wk": "cRyOIMqPsESMb6nBIvGsQmxzQBBR-GShONM4gE5YB-LkKWfE_zc5Ro2WqRJsZasQ"
+     },
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BO8na-OS3g-Q-Iu3zxvHXrAoW3o4xqW01_6lk6lFMuS4y1Ftn__xjTvWoUsuJ1BpSWBti2rZ7x7W17Tbp3QGbFQ",
+      "iv": "EPhBxhG5-mCdslLv",
+      "wk": "yz2rtQ1LJRmNvtzJchHkMs8A5WfqmZRBlfvMcR-hHtBDOF0uaN2cJySQRwt75Baz"
+     }
+    ],
+    "sig": "mk005JY6Qw7VT0nsXWY1InRWkKti4lR2Tzj3MwTEMhseyRCH1ZPqqZ6YJwiqTER7IAmVrbm_k6IpWITKemflUg"
+   },
+   "hex": "a724af7d1b96ed8f70faa5b887a575f30755c023847bc806f2767cff5152a2c7",
+   "sameAsBaseA": false
+  },
+  {
+   "name": "base-B",
+   "envelope": {
+    "v": 1,
+    "alg": "ECDH-ES+HKDF-SHA256+A256GCM",
+    "aad": {
+     "boardId": "board-test-01",
+     "itemId": "dec-0043",
+     "rev": 1,
+     "v": 1
+    },
+    "iv": "KSPsyxRmrOPL6egN",
+    "ct": "_919a-Y-0XMDS7WchB4SYTmMw0mrMsofbw8A6SCYQr_M-Xk",
+    "recipients": [
+     {
+      "kid": "XibuqUh8fjDbUxsg4sy5em",
+      "epk": "BLsQD1pKcRs5oieKQ5g_gc2r_LDYX11aE8EaDfMJAoPcmX7wbWKLmJBeL_gk8joF5eB_HtpIPwld4L33bXgnJyY",
+      "iv": "Ix_EY8mu97a3z5t1",
+      "wk": "9u7XHzYb6Fv3R93bHi1eZyV0z7xp7iyxqShCdGICOriwQCxEk_1bm96qPokspXez"
+     },
+     {
+      "kid": "G_IWztA7ubHXJWZU0KXUT_",
+      "epk": "BBZeOATI-Bpw6eZSYVgq8YsCmuG1TJmP5Q0a_tEF58W53dIu9OIw4nyCoHTLH5UKOwPGdacdTIrp7_ufA1JgtXw",
+      "iv": "KPW9SVm_G04-Aupg",
+      "wk": "9tj5Lp5EnhmlhqNWIsSdwTdZ6qrgh_r5G9g3dnc_O80vHYoP_5xM80t54PafziK9"
+     }
+    ],
+    "sig": "x9nz52NFmoMOuOygU3ny96MU0tXI0qa0z9UY0UhblEI_ZYo4AoraHq78XFqlyuPUB4x3uF6sFPhpFrzQRWUnqw"
+   },
+   "hex": "c4492aca8c3c232026f0ae0994079659584e7ca7f5b11db999f372af62867349",
+   "sameAsBaseA": false
+  }
+ ]
 }

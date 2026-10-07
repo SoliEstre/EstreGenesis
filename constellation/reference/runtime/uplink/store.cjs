@@ -103,7 +103,7 @@ class UplinkStore {
         // rev 는 «정수» 여야 해요(서명할 때 정준화가 소수·NaN 을 거절해서, 손 편집이나 깨진 값 하나가 항목 스냅샷 전체를 — 대기 중인 봉투와 하트비트까지 — 막아요). 어긋난 기록은 버리면
         //   그 항목이 «새 항목» 으로 시계 바닥(지금)에서 다시 시작해요 — 깨진 값보다 항상 크고, 되감기지 않아요.
         if (!r || typeof r !== 'object' || Array.isArray(r) || !isUint(r.rev) || (r.status !== 'open' && r.status !== 'resolved')) { badItems++; continue; }
-        // 봉인된 봉투는 «맥락 묶음» 의 비교 대상이에요(실행기가 그 contextHash 와 사람의 답을 대조해요 — exec.cjs). 정준화가 안 되는 봉투(객체가 아님 · 소수 · 깨진 값)는 해시를 낼 수 없어서
+        // 봉인된 봉투는 «맥락 묶음» 의 비교 대상이에요(실행기가 그 contextHash — sig 만 뺀 봉투의 해시, seal.cjs — 와 사람의 답을 대조해요 — exec.cjs). 정준화가 안 되는 봉투(객체가 아님 · 소수 · 깨진 값)는 해시를 낼 수 없어서
         //   그 판을 «보증할 수 없는 판» 으로 남기지 않고 기록째 버려요 — 항목은 새 항목처럼 시계 바닥의 새 rev 로 다시 봉인되고, 옛 판에 묶인 답은 stale-context 로 거절돼요(받아들여지지 않아요).
         if (r.sealed !== undefined && !this._sealedOk(r.sealed)) { badItems++; continue; }
         if (r.signedFp !== undefined && typeof r.signedFp !== 'string') delete r.signedFp;
