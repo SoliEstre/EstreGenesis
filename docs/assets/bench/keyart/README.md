@@ -18,6 +18,11 @@ One key image per aim, made so that a glance tells which *kind* of coding task t
 - **Checks on every output**: a new file in that session's own output folder (located by the session id, not by «newest file»), a PNG signature, a square size and a minimum byte size. Originals are 1254 × 1254; the files here are high-quality downscales to 600 × 600.
 - **Not deterministic**: rerunning the prompts gives similar, not identical, images.
 
+## The bench emblem and the link-preview card
+
+- `../bench-logo.png` — the Superscalar Bench emblem (512 × 512, transparent background): six glass steps rising from amber to teal with a four-point glass star on top, made to sit beside the EstreGenesis star. Generated the same way as the key images (Codex CLI's built-in image tool, 2026-10-07; prompt = the `logo` entry in [`prompts/aims.json`](prompts/aims.json) with its own style block), checked as a new transparent PNG in its own session folder, then downscaled from 1254 × 1254.
+- `../og-card.png` — the 1200 × 630 card that link previews show for the docs page. The emblem is the only generated part; the dark background, the title and the one-line description are drawn by code, and the description stays at the level of task shape.
+
 ## The guide sheets
 
 `../trust-cost-aims-en.png` and `../trust-cost-aims-ko.png` assemble the six images into one page. Everything except the pictures — titles, aim numbers, task names, test counts and the rising ladder — is drawn by code, so both languages share the same pictures. The ladder is the **designed** order of difficulty; what was measured, including where it is not a smooth rise, is in [SuperscalarBench.md](../../../../SuperscalarBench.md).
