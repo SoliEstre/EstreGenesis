@@ -7,6 +7,7 @@
 //   이 모듈이 서버에서 읽는 건 셋뿐이에요 — ① 보드로 가는 프레임(onBoardBroadcast) ② state.json 의 새 텍스트(onStateChange) ③ 접속 현황 getter(getAgents).
 //   명령 실행은 서버가 «verb 마다 하나씩» 넘기는 고정 실행기(inject — 열쇠 집합이 정확히 exec.cjs 의 INJECTORS)로만 일어나요. 범용 «프레임을 통째로 받는» hook 은 없어요.
 //   notice 는 «운영자 목소리가 아닌» 서버 알림 함수 한 개(고정 · 얼린 객체 — 열쇠 집합이 정확히 exec.cjs 의 NOTICERS)예요: 실행기가 TOTP 대치를 의심할 때 보드·메인에 서버 이름으로 알려요. 운영자 실행기(inject)와 별개의 객체라 실행기 집합은 그대로 5개예요.
+//   실행기가 상태를 읽을 때마다 항목 기록을 «그 텍스트» 로 맞추는 syncItems(아래 syncFrom — 감시가 할 동기를 앞당길 뿐 서버 상태는 안 바꿔요)도 함께 넘겨요(exec.cjs «맥락 묶음»).
 //   inject 가 없거나 규격이 아니면 받은 명령은 전부 거절돼요(exec-unavailable). selectionState 는 서버가 «이 선택지는 이미 닫혔다» 를 아는 만큼만, selectionIssuer 는 서버가 «이 선택지의 답을 보낼 발급자» 로 아는 에이전트를 알려 주는 읽기 전용 조회예요(둘 다 읽기만 — 서버 상태를 바꾸지 않아요).
 //
 // **start 는 던지지 않아요.** 설정이 틀렸거나 토큰·잠금이 안 되면 «이 업링크는 안 켠다» 를 한 줄로 말하고 null 을 돌려줘요 — 서버는 업링크 없이 그대로 돌아요.
@@ -129,19 +130,32 @@ function start(opts) {
       return { item, sig };
     }
 
+    // 항목 기록이 «디스크까지» 맞춰진 텍스트 — 동기가 성공한 뒤에만 바꿔요(items.cjs «맥락 묶음»). 저장이 실패하면 run() 이 기록을 되돌리고 던지고 이 값은 그대로라서,
+    //   실행기의 다음 읽기(syncFrom)가 같은 텍스트로 다시 동기해요 — 그때도 실패하면 실행기는 state-unavailable 로 거절해요(저장 안 된 판이나 «옛 텍스트의 판» 으로 판정하지 않아요).
+    let syncedText = null;
     function syncDecisions() {
       if (!lastStateText) return;
-      const r = sync.run(lastStateText);
+      const text = lastStateText;
+      const r = sync.run(text);
+      syncedText = text;
       if (!r) return;
       if (r.keysChanged) transport.requestFull();
       else if (r.changes.length) transport.mergeSnapshot(r.changes);
       if (r.keysChanged || r.changes.length) transport.notifyChange();
     }
 
+    // 실행기가 «판정에 쓰는» 상태 텍스트로 항목 기록을 맞춰요(exec.cjs «맥락 묶음») — 상태 파일 감시(폴링)보다 실행기의 읽기가 먼저 새 텍스트를 볼 수 있어서요.
+    //   같은 텍스트면 문자열 비교로 끝나요. 바뀌었으면 감시가 할 일과 «같은» 동기(rev · 봉인 · 스냅샷 변경분)를 지금 해요 — 감시가 나중에 같은 텍스트로 오면 아무것도 안 바뀌어요.
+    function syncFrom(text) {
+      if (typeof text !== 'string' || text === syncedText) return;
+      lastStateText = text;
+      syncDecisions();
+    }
+
     // 명령 실행 레인 — 서버가 «고정 실행기» 를 안 줬거나 상태를 못 열면 `createExecutor` 가 «전부 거절» 실행기를 돌려줘요(던지지 않아요).
     const selections = new SelectionTracker({ secret: store.secret, serverState: opts.selectionState, serverIssuer: opts.selectionIssuer });
     const executor = createExecutor({
-      cfg, dir: opts.dir, keys, store, getState: () => (opts.getState ? opts.getState() : lastStateText), selections,
+      cfg, dir: opts.dir, keys, store, getState: () => (opts.getState ? opts.getState() : lastStateText), syncItems: syncFrom, selections,
       inject: opts.inject, notice: opts.notice, now: () => clock.now(), audit: (row) => store.audit(row), log,
     });
 
@@ -156,7 +170,7 @@ function start(opts) {
 
     // 시작 시점의 상태로 한 번 동기 — 변경분은 버려요(첫 성공 전송이 «전체» 스냅샷을 싣기 때문).
     try { lastStateText = opts.getState ? opts.getState() : null; } catch (_) { lastStateText = null; }
-    if (lastStateText) sync.run(lastStateText);
+    if (lastStateText) { sync.run(lastStateText); syncedText = lastStateText; }
 
     log('[uplink] 시작 — board=' + cfg.boardId + ' relay=' + cfg.relay + ' visibility=' + cfg.visibility);
     transport.start();

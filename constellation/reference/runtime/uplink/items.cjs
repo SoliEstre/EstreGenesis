@@ -39,6 +39,15 @@
 //   ③ **서명된 첫 판은 새 rev 예요** — 서명 없이 나갔던 rev 를 서명만 붙여 같은 rev 로 다시 내지 않아요(아래 run() 의 signedFp). 업그레이드 직후·envelope 모드에서 키가 나중에 생긴 때 열린 항목은 rev 가 한 번 올라요.
 //   (보드가 «전체 스냅샷 목록(manifest)» 자체에 서명해서 부재를 증명하게 하는 길은 일부러 안 냈어요 — 닫는 기록을 다시 싣는 쪽이 중계의 기존 «큰 rev 만» 규칙과 맞고, 서명 없는 부재 추론은 «미확인» 으로 남는 것이 정직해요.)
 //
+// **맥락 묶음 (v2.4.179) — 남아 있던 신선도 구멍이 닫힌 방식.** 위 서명으로 기기는 «진짜 판» 을 알아보지만, 새 판을 못 본 기기는 옛 판(서명이 진짜)과 지금 판을 못 가르고 중계는 옛 판을 다시 내밀 수 있었어요.
+//   이제 맥락에 기대는 답 명령(decision.answer · hyperbrief.respond)이 «사람이 본 판» 을 서명된 인자로 실어요 — rev(이 스냅샷 칸의 rev, 서명된 기록에서 읽어요)와, 칸에 sealed 가 있으면
+//   기기가 연 그 봉투의 seal.contextHash. 보드는 «자기가 내보낸» 이 모듈의 기록(store.state.items — rev · 봉투째 상태 파일에 영속)과 비교해서 다르면 stale-context 로 거절해요(exec.cjs «맥락 묶음»).
+//   **새로 판정에 쓰이게 된 «서명 밖» 칸은 없어요.** rev 는 서명 대상이고, contextHash 는 기기가 «서명된 봉투» 에서 스스로 계산해요. 칸에 sealed 가 «있는지» 는 서명 밖이지만 해시가 필요한지는 보드가 자기 기록으로 정해요 —
+//   중계가 sealed 를 빼면 기기는 해시 없이 답하고 보드는 bad-args 로 거절하고, 옛 봉투로 바꿔 끼우면 기기의 열기가 aad-mismatch(서명된 rev 로 지은 aad)이거나 해시가 달라 stale-context 예요(어느 쪽도 «받아들여짐» 이 아니에요).
+//   기록을 잃으면(상태 파일 손상 · 깨진 봉투 기록을 버림) 항목은 시계 바닥의 새 rev 로 다시 나가서 옛 판에 묶인 답은 거절돼요 — 묶음을 잃는 쪽은 «거절» 로만 틀려요.
+//   이게 성립하려면 «내보낸 판 ⊆ 디스크에 있는 판» 이어야 해요 — 저장이 실패한 동기는 메모리의 기록을 되돌리고 던져서(run()) 저장 안 된 rev 가 스냅샷에 실리지도 판정에 쓰이지도 않아요.
+//   안 그러면 재시작 뒤 같은 rev 가 다른 내용에 다시 붙어서 옛 판에 묶인 답이 «같은 rev» 로 통과해요. 조립부(index.cjs)도 «동기에 성공한 텍스트» 만 동기된 것으로 쳐서, 실패하면 실행기의 다음 읽기가 다시 동기하고(그때도 실패면 state-unavailable) 감시의 다음 주기가 같은 변경을 다시 내보내요.
+//
 // **상한.** 봉인 평문은 64KB 까지인데 한 배치(256KB)에 여러 항목이 들어가야 해서 칸마다 상한을 둬요(문자열 16000자 · 선택지 32개×500자). 넘치면 «잘라서» 봉인해요 — 이건
 //   «나가도 되는 내용을 줄이는» 방향의 절단이라 안전하고, 사람이 보는 맥락의 끝이 잘릴 수 있다는 건 문서화된 한계예요.
 
@@ -207,8 +216,15 @@ class DecisionSync {
     const decisions = st && Array.isArray(st.decisions) ? st.decisions : [];
     const keyInfo = this.visibility === 'sealed' ? this.keys.read() : { ok: true, version: 'envelope' };
     const keysChanged = this.keysVersion !== null && this.keysVersion !== keyInfo.version;
+    const prevKeysVersion = this.keysVersion;
     this.keysVersion = keyInfo.version;
     const items = this.store.state.items;
+    // **디스크에 없는 판은 없는 판이에요.** 바꾸기 «전» 의 기록을 적어 두고, 저장(store.save)이 실패하면 메모리를 그대로 되돌린 뒤 던져요.
+    //   되돌리지 않으면 «저장 안 된 새 rev» 가 메모리에 남아 전체 스냅샷으로 서명돼 나가는데(디스크엔 옛 rev), 재시작하면 같은 rev 가 «다른 내용» 에 다시 붙어요 —
+    //   그 rev 에 묶인 답이 새 내용에 적용돼요(envelope 모드엔 해시가 없어서 rev 가 유일한 묶음이에요). 변경분 목록도 버려지면 다음 주기가 같은 텍스트에서 «바뀐 게 없다» 로 읽어 새 판이 영영 안 나가요.
+    //   되돌리면 다음 동기가 같은 변경을 처음부터 다시 계산해서 저장 · 통지해요. 키 버전도 되돌려요(키 변경의 전체 스냅샷 요청이 사라지지 않게).
+    const undo = new Map();
+    const touch = (id) => { if (!undo.has(id)) undo.set(id, Object.prototype.hasOwnProperty.call(items, id) ? Object.assign({}, items[id]) : undefined); };
     const changes = [];
     const openIds = new Set();
     // «서명된 첫 판은 새 판(rev)» — 서명 없이 나갔던 rev 를 서명만 붙여 «같은 rev» 로 다시 내면, «큰 rev 만 받는» 중계가 낡은 것으로 버려서 서명이 영영 안 닿아요
@@ -243,6 +259,7 @@ class DecisionSync {
           } catch (e) { this._once('seal:' + itemId, '[uplink] 봉인에 실패했어요(' + (e && e.code ? e.code : 'error') + ') — 이 항목은 sealed 칸 없이 나가요'); }
         } else if (keyInfo.ok) this._once('nodev', '[uplink] 등록된 기기가 없어서 맥락을 봉인할 수 없어요 — sealed 칸 없이 나가요');
       }
+      touch(itemId);
       items[itemId] = { rev, hash, status: 'open', sealed };
       if (rv) items[itemId].reversibility = rv;
       if (signFp !== null) items[itemId].signedFp = signFp;
@@ -253,10 +270,11 @@ class DecisionSync {
     for (const itemId of Object.keys(items)) {
       const rec = items[itemId];
       if (rec.status !== 'open') {
-        if (!Number.isSafeInteger(rec.closedAt)) { rec.closedAt = now; dirty = true; }
+        if (!Number.isSafeInteger(rec.closedAt)) { touch(itemId); rec.closedAt = now; dirty = true; }
         continue;
       }
       if (openIds.has(itemId)) continue;
+      touch(itemId);
       rec.rev += 1;
       rec.status = 'resolved';
       rec.closedAt = now;
@@ -266,10 +284,16 @@ class DecisionSync {
     // 기록 상한 — 끝난 항목부터 지워요(열린 항목의 rev 를 잃으면 되감겨요).
     const ids = Object.keys(items);
     if (ids.length > MAX_ITEMS) {
-      for (const id of ids) { if (Object.keys(items).length <= MAX_ITEMS) break; if (items[id].status !== 'open') delete items[id]; }
+      for (const id of ids) { if (Object.keys(items).length <= MAX_ITEMS) break; if (items[id].status !== 'open') { touch(id); delete items[id]; } }
+    }
+    if (changes.length || dirty) {
+      try { this.store.save(); } catch (e) {
+        for (const [id, prev] of undo) { if (prev === undefined) delete items[id]; else items[id] = prev; }
+        this.keysVersion = prevKeysVersion;
+        throw e;
+      }
     }
     this.openCount = openIds.size;
-    if (changes.length || dirty) this.store.save();
     return { changes, keysChanged, openCount: this.openCount };
   }
 

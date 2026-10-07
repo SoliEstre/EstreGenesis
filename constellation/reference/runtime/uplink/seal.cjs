@@ -20,6 +20,10 @@
 //   그래서 aad 에 단조 증가하는 rev(정수)가 들어가고, 열기는 «호출자가 기대하는 rev» 가 든 aad 와 정준 바이트로 비교해요. 단 이 모듈은 기대 rev 가 «어디서 왔는지» 까지는
 //   못 지켜요 — 중계가 준 값을 그대로 기대값으로 쓰면 아무것도 막지 못해요. 기대 rev 는 인증된 경로(보드가 서명한 항목 레코드)에서 오거나, 더 단단하게는 사용자의 서명된
 //   답(opcmd args)이 contextHash(봉투) 를 실어 보내고 보드가 «자기가 그 항목에 봉인해 둔 봉투» 의 해시와 같을 때만 받아들이는 거예요(옛 판 · 지어낸 판 · 수신자 누락판을 한꺼번에 거절).
+//   **이 두 길이 이제 둘 다 있어요.** 기대 rev 의 출처는 보드가 서명한 항목 기록(items.cjs, v2.4.178)이고 — 기기는 그 기록의 rev 로 aad 를 지어 열어요 — 답 쪽은 v2.4.179 부터
+//   맥락에 기대는 답 명령(decision.answer · hyperbrief.respond)이 {rev, contextHash} 를 «서명된 인자» 로 실어요. 보드는 rev 가 «지금 판» 이고 contextHash 가 «지금 판에 봉인해 둔 봉투» 의 contextHash 와 같을 때만
+//   받고, 아니면 stale-context(비최종 — 새 판을 읽고 새 명령으로 다시 답해요)예요(exec.cjs «맥락 묶음»). 그래서 새 판을 «못 본» 기기가 옛 판(서명은 진짜)을 보고 답해도, 중계가 옛 판을 다시 내밀어도
+//   그 답은 지금 판에 적용되지 않아요. 남는 것: 판이 바뀌는 사이 오프라인이던 기기는 그냥 stale-context 를 받아요(막을 일이 아니라 다시 읽을 일이에요).
 //
 // **봉투(JSON 객체, 직렬화는 opcmd 의 canonicalize).**
 //   { "v":1, "alg":"ECDH-ES+HKDF-SHA256+A256GCM",
@@ -349,7 +353,7 @@ function open(envelope, expectedAad, recipientPrivateKey, boardPublicKey) {
 //   커서 opcmd.parseCanonical 을 못 써요 — 같은 엄격 파서의 «한도 없는 진입점» 을 쓰되 크기는 여기서 먼저 재요.
 function serialize(envelope) { return OP.canonicalize(envelope); }
 
-// 맥락 해시 — 사용자의 서명된 답(opcmd args)에 실어 보내고 보드가 «자기가 그 항목에 봉인해 둔 봉투» 의 해시와 비교하는 값(머리말 «신선도»). sig 까지 포함한
+// 맥락 해시 — 사용자의 서명된 답(opcmd args 의 contextHash)에 실어 보내고 보드가 «자기가 그 항목에 봉인해 둔 봉투» 의 해시와 비교하는 값(머리말 «신선도» · exec.cjs «맥락 묶음»). sig 까지 포함한
 //   봉투 전체의 SHA-256(hex) 이라 옛 판 · 지어낸 판 · 수신자를 뺀 판이 전부 다른 값이에요.
 function contextHash(envelope) { return sha256(Buffer.from(serialize(envelope), 'utf8')).toString('hex'); }
 

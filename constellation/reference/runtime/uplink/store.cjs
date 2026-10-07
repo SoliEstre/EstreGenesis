@@ -12,7 +12,8 @@
 //                전송층이 중계의 ack 에 맞춰요(uplink.cjs «앞서 있는 중계»).
 //   · cursor   — 명령 롱폴 커서.  · dropped — 스풀 오버플로로 버린 봉투의 누적 수(하트비트에 실려요).
 //   · items    — 결정 항목별 rev/내용 해시/봉인된 봉투(재시작에 rev 를 되감지도, 불필요하게 올리지도 않으려고 «봉투째» 보관해요) + signedFp(이 보드 키 지문으로 «서명된 판» 이었나) + closedAt(닫은 때, 닫힌 항목만).
-//                읽을 때 rev 가 «음이 아닌 정수» 가 아니거나 status 가 open/resolved 가 아닌 기록은 버려요(항목은 시계 바닥에서 다시 시작).
+//                읽을 때 rev 가 «음이 아닌 정수» 가 아니거나 status 가 open/resolved 가 아니거나 봉투(sealed)가 정준화되지 않는 기록은 버려요(항목은 시계 바닥에서 다시 시작).
+//                rev · 봉투는 명령 실행 레인의 «맥락 묶음» 비교 대상이기도 해요(exec.cjs, v2.4.179) — 재시작을 건너 같은 판에 묶인 답이 그대로 받아들여지는 근거예요.
 //   쓰기는 임시 파일 → fsync → rename 이라 쓰다 죽어도 옛 파일이나 새 파일이에요(반쯤 쓴 파일이 남지 않아요). 모드 0600(봉인된 봉투 + 보드 상태).
 
 const fs = require('fs');
@@ -102,6 +103,9 @@ class UplinkStore {
         // rev 는 «정수» 여야 해요(서명할 때 정준화가 소수·NaN 을 거절해서, 손 편집이나 깨진 값 하나가 항목 스냅샷 전체를 — 대기 중인 봉투와 하트비트까지 — 막아요). 어긋난 기록은 버리면
         //   그 항목이 «새 항목» 으로 시계 바닥(지금)에서 다시 시작해요 — 깨진 값보다 항상 크고, 되감기지 않아요.
         if (!r || typeof r !== 'object' || Array.isArray(r) || !isUint(r.rev) || (r.status !== 'open' && r.status !== 'resolved')) { badItems++; continue; }
+        // 봉인된 봉투는 «맥락 묶음» 의 비교 대상이에요(실행기가 그 contextHash 와 사람의 답을 대조해요 — exec.cjs). 정준화가 안 되는 봉투(객체가 아님 · 소수 · 깨진 값)는 해시를 낼 수 없어서
+        //   그 판을 «보증할 수 없는 판» 으로 남기지 않고 기록째 버려요 — 항목은 새 항목처럼 시계 바닥의 새 rev 로 다시 봉인되고, 옛 판에 묶인 답은 stale-context 로 거절돼요(받아들여지지 않아요).
+        if (r.sealed !== undefined && !this._sealedOk(r.sealed)) { badItems++; continue; }
         if (r.signedFp !== undefined && typeof r.signedFp !== 'string') delete r.signedFp;
         if (r.closedAt !== undefined && !isUint(r.closedAt)) delete r.closedAt;
         items[k] = r;
@@ -122,6 +126,11 @@ class UplinkStore {
       this.log('[uplink] uplink-state.json 이 깨져 있어서 옆으로 치우고 새로 시작해요 — 번호는 스풀의 바닥값에서 이어가고(없으면 중계의 ack 에 맞춰요), 항목 rev 는 시계 바닥에서 다시 시작해요');
     }
     if (this.state.boardId === null && this.boardId !== null) this.state.boardId = this.boardId;
+  }
+
+  _sealedOk(s) {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return false;
+    try { OP.canonicalize(s); return true; } catch (_) { return false; }
   }
 
   // 임시 파일 → fsync → rename. 실패는 던져요(호출자가 한 번 로그하고 다음 기회에 다시 써요).
