@@ -29,8 +29,16 @@
 // Config (optional): .agent/context-watch.json under CLAUDE_PROJECT_DIR (override path via
 // CONTEXT_WATCH_FILE): { enabled, threshold (0.75), window (200000), handoffPath
 // (.agent/compact-handoff.md) }. Absent file = defaults (registering the hook is the opt-in).
-// State: .agent/.context-watch-state.json (git-ignore it) — armed flag, turn baseline,
-// per-session observed max.
+// State: .agent/.context-watch-state/<session>.json (git-ignore the folder) — armed flag,
+// turn baseline, observed max — ONE FILE PER SESSION. Several sessions often share one
+// workspace, and with a single project-wide file each Stop of a session below the threshold
+// replaced the state of a session above it (different session id → reset): the high session
+// lost its turn baseline, so «card updated this turn» could never become true and every turn
+// was blocked with the first-crossing message, card updates notwithstanding. A session now
+// reads and writes only its own file; files untouched for 7 days are pruned. The legacy
+// single file (.agent/.context-watch-state.json) is ignored and can be deleted.
+// Limit: the handoff card itself is shared, so another session's card edit also counts as
+// «updated this turn» here — the guard errs toward passing, never toward a block it cannot lift.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -47,7 +55,10 @@ const threshold = Number(cfg.threshold) > 0 ? Number(cfg.threshold) : 0.75;
 const cfgWindow = Number(cfg.window) > 0 ? Number(cfg.window) : 200000;
 const handoffRel = cfg.handoffPath || '.agent/compact-handoff.md';
 const handoffPath = path.resolve(projDir, handoffRel);
-const statePath = path.join(projDir, '.agent', '.context-watch-state.json');
+const stateDir = path.join(projDir, '.agent', '.context-watch-state');
+const sid = String(input.session_id || 'no-session').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 128) || 'no-session';
+const statePath = path.join(stateDir, sid + '.json');
+const PRUNE_MS = 7 * 24 * 3600 * 1000;
 
 const tPath = input.transcript_path;
 if (!tPath || !fs.existsSync(tPath)) process.exit(0);
@@ -88,7 +99,9 @@ const thrPct = Math.round(threshold * 100);
 const now = Date.now();
 
 function save(patch) {
-  try { fs.mkdirSync(path.dirname(statePath), { recursive: true }); fs.writeFileSync(statePath, JSON.stringify({ ...state, ...patch, lastRatio: Number(ratio.toFixed(4)), updatedAt: now }, null, 1)); } catch {}
+  try { fs.mkdirSync(stateDir, { recursive: true }); fs.writeFileSync(statePath, JSON.stringify({ ...state, ...patch, lastRatio: Number(ratio.toFixed(4)), updatedAt: now }, null, 1)); } catch {}
+  // Prune other sessions' files only when stale (a live session's file is rewritten every Stop).
+  try { for (const f of fs.readdirSync(stateDir)) { const p = path.join(stateDir, f); if (p !== statePath && f.endsWith('.json') && now - fs.statSync(p).mtimeMs > PRUNE_MS) fs.unlinkSync(p); } } catch {}
 }
 function out(obj) { process.stdout.write(JSON.stringify(obj)); process.exit(0); }
 
