@@ -6,14 +6,22 @@
  * What it protects: a fan-out lane that omits its model inherits the main conversation's model, and a lane
  *   that omits its effort inherits the session's. When the main runs on a T1 model (a Fable-class flagship),
  *   "no choice" therefore silently selects the most expensive tier — at the top effort rung if the session
- *   runs `ultracode` — for lanes whose work shape mostly belongs two tiers down. Measured 2026-08-02: two
+ *   runs at xhigh|max — for lanes whose work shape mostly belongs two tiers down. Measured 2026-08-02: two
  *   workflows, 24 lanes, every one inheriting the frontier model with the delegation rule already written down.
  *   A rule without a mechanism is a document; this file is the mechanism.
  *
  * Verdicts (`judge` is a pure function so a checker can call it directly):
  *   session model = last "model":"…" in the transcript tail (the hook input has no model field). Unreadable ⇒ strict.
- *   Agent    · no `model` while the main is T1 or unknown            → deny (bind sonnet/haiku · opus · fable-when-justified)
- *            · `model` is fable-class and session effort is xhigh|max → deny unless the prompt carries «fable-xhigh-ok»
+ *   session effort = hook input `effort.level` (documented common field), else CLAUDE_CODE_EFFORT_LEVEL.
+ *   Agent    · no `model` while the main is T1 or unknown            → deny (bind sonnet/haiku · opus · fable-when-justified);
+ *              an `effort` without `model` does not count — it lowers the rung, the lane still inherits the T1 model
+ *            · `model` is fable-class:
+ *                explicit `effort` (Claude Code 2.1.292+ Agent parameter; a level or a numeric budget) = a binding,
+ *                  judged like Workflow opts.effort: xhigh|max → deny unless the prompt carries «fable-xhigh-ok»;
+ *                  a lower level → allow — EXCEPT while CLAUDE_CODE_EFFORT_LEVEL is xhigh|max: the precedence of the
+ *                  per-call value against that variable is undocumented and frontmatter `effort` is documented to
+ *                  lose to it, so the guard does not trust the lower value there (deny, naming the variable)
+ *                no `effort` and session effort xhigh|max → deny unless «fable-xhigh-ok» (inherits the session rung)
  *   Workflow · per agent(...) span in the script:
  *              a lane without `model:` while the main is T1/unknown  → deny, naming the lane labels
  *              a fable-class lane with effort xhigh|max              → deny unless «// lane-model-guard: allow-fable-xhigh»
@@ -25,6 +33,16 @@
  *     guard approves is void while FORCE is on. The guard reads the env: FORCE on and the forced model empty or T1 while
  *     the main is T1 ⇒ deny every Agent/Workflow lane; FORCE on with a non-T1 forced model ⇒ allow (all lanes cheap).
  *   Off: env LANE_MODEL_GUARD=off (tell a human why) · «// lane-model-guard: off» inside the script.
+ *
+ * What it cannot see:
+ *   · ultracode. Since Claude Code 2.1.284 ultracode is a toggle independent of the effort level (it stays on at
+ *     any level; only `--effort ultracode` / SDK effortLevel "ultracode" also set xhigh). The hook input carries
+ *     `effort.level` but no ultracode field, and the per-session `/effort ultracode` toggle is not in any settings
+ *     file, so the «heavy session» test keys on the effort LEVEL — which is what an inheriting lane is billed at —
+ *     not on ultracode. An ultracode session below xhigh is treated like any session at that level.
+ *   · the CLI version. On Claude Code < 2.1.292 the Agent tool has no `effort` parameter; the hook input does not
+ *     say which version is running, so an explicit Agent `effort` is trusted as written.
+ *   · the effort a lane actually ran at. Verify with `/tasks` (names each subagent's model and configured effort).
  *
  * Hook contract: PreToolUse JSON on stdin. Deny = exit 2 + hookSpecificOutput.permissionDecision:"deny" on stdout
  *   (+ the same reason on stderr for older clients). Unparseable input ⇒ exit 0: a guard that kills the tool on
@@ -71,6 +89,12 @@ function laneLabel(span) {
   const l = /label\s*:\s*[`'"]([^`'"]*)[`'"]/.exec(span);
   return l ? l[1] : span.slice(0, 48).replace(/\s+/g, ' ') + '…';
 }
+// Agent `effort`: a level string or a numeric token budget (status-line docs). Anything else = not bound.
+function laneEffort(v) {
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0) return String(v);
+  if (typeof v === 'string' && v.trim()) return v.trim().toLowerCase();
+  return null;
+}
 const allow = () => ({ deny: false, reason: '' });
 const deny = (reason) => ({ deny: true, reason });
 
@@ -94,13 +118,24 @@ function judge(input, ctx) {
 
   if (tool === 'Agent') {
     const lm = ti.model;
+    const le = laneEffort(ti.effort);   // Agent 도구의 레인별 effort (Claude Code 2.1.292+) — 없으면 null
     if (!lm) {
       if (!mainFable) return allow();
-      return deny(`[lane-model-guard] Agent 호출에 model 이 없어요 — ${modelNote}이라 서브에이전트가 Fable 을 상속해요. ${RULE}`);
+      return deny(`[lane-model-guard] Agent 호출에 model 이 없어요 — ${modelNote}이라 서브에이전트가 Fable 을 상속해요${le ? ` (effort ${le} 는 단만 낮출 뿐 모델은 그대로 상속돼요)` : ''}. ${RULE}`);
     }
-    if (FABLE.test(String(lm)) && HEAVY.test(eff)) {
+    if (FABLE.test(String(lm))) {
       const txt = `${ti.prompt || ''} ${ti.description || ''}`;
-      if (!/fable-xhigh-ok/.test(txt)) return deny(`[lane-model-guard] Fable 레인을 세션 effort ${eff}(ultracode 급)로 띄우려 해요 — Agent 도구엔 레인별 effort 가 없어 세션 값을 그대로 상속해요. 정말 필요하면 prompt 에 «fable-xhigh-ok» 를 적어 의도를 남기고, 아니면 model 을 opus/sonnet 으로 내리거나 Workflow agent() 의 opts.effort 로 낮추세요.`);
+      const ok = /fable-xhigh-ok/.test(txt);
+      if (le) {
+        if (HEAVY.test(le)) {
+          if (!ok) return deny(`[lane-model-guard] Fable 레인에 effort ${le} 를 명시했어요 — T1 × 최상단은 의도 표시가 있을 때만이에요. 정말 필요하면 prompt 에 «fable-xhigh-ok» 를 적고, 아니면 effort 를 low/medium 으로 내리거나 model 을 opus/sonnet 으로 바꾸세요.`);
+          return allow();
+        }
+        const envEff = String((ctx && ctx.effortEnv) || '').toLowerCase();
+        if (HEAVY.test(envEff) && !ok) return deny(`[lane-model-guard] Fable 레인에 effort ${le} 를 명시했지만 CLAUDE_CODE_EFFORT_LEVEL=${envEff} 가 걸려 있어요 — 레인별 effort 와 그 환경변수의 우선순위는 문서에 없고, 정의 frontmatter 의 effort 는 그 변수를 못 이긴다고 문서화돼 있어서 낮춘 값이 실제로 적용된다고 셀 수 없어요. 변수를 풀거나, model 을 opus/sonnet 으로 내리거나, 의도라면 prompt 에 «fable-xhigh-ok» 를 적으세요.`);
+        return allow();
+      }
+      if (HEAVY.test(eff) && !ok) return deny(`[lane-model-guard] Fable 레인을 effort 없이 세션 effort ${eff} 로 띄우려 해요 — 레인이 세션 값을 그대로 상속해요. Agent 호출에 effort(low/medium 등, Claude Code 2.1.292+)를 명시하거나 model 을 opus/sonnet 으로 내리거나 Workflow agent() 의 opts.effort 로 낮추세요. 정말 최상단이 필요하면 prompt 에 «fable-xhigh-ok» 를 적어 의도를 남기세요.`);
     }
     return allow();
   }
@@ -132,6 +167,7 @@ function main() {
   const ctx = {
     sessionModel: process.env.LANE_MODEL_GUARD_MODEL || sessionModelFromTranscript(input.transcript_path),
     sessionEffort: (input.effort && input.effort.level) || process.env.CLAUDE_CODE_EFFORT_LEVEL || '',
+    effortEnv: process.env.CLAUDE_CODE_EFFORT_LEVEL || '',
     forceEnv: process.env.CLAUDE_CODE_SUBAGENT_MODEL_FORCE || '',
     forceModel: process.env.CLAUDE_CODE_SUBAGENT_MODEL || '',
   };
@@ -143,4 +179,4 @@ function main() {
 }
 
 if (require.main === module) main();
-else module.exports = { judge, agentSpans, sessionModelFromTranscript, FABLE, HEAVY };
+else module.exports = { judge, agentSpans, laneEffort, sessionModelFromTranscript, FABLE, HEAVY };

@@ -40,6 +40,13 @@ function render(reg) {
   const isNew = (rel) => rel && asOfDay - dayNum(rel) >= 0 && asOfDay - dayNum(rel) <= NEW_WINDOW_DAYS;
   const newCount = rows.filter((r) => isNew(r.rel)).length;
   const perTier = tierOrder.map((t) => `${esc(t.split(' · ')[0])} ${rows.filter((r) => r.m.tier === t).length}`).join(' · ');
+  // A watchlist item is closed only when it OPENS with a dated marker («CLOSED 2026-10-08 …» / «RESOLVED 2026-09-22 …»).
+  // Items kept for the record carry that marker; «PARTLY RESOLVED», «PARTIAL», «UPDATED» or a marker later in the text stay open.
+  const isClosed = (w) => /^(CLOSED|RESOLVED)\s+\d{4}-\d{2}-\d{2}\b/.test(String(w));
+  const watchClosed = reg.revisit.watchlist.filter(isClosed).length;
+  const watchOpen = reg.revisit.watchlist.length - watchClosed;
+  const closedNoteEn = watchClosed ? ` (+${watchClosed} closed, kept for the record)` : '';
+  const closedNoteKo = watchClosed ? ` (해소되어 기록으로 남긴 ${watchClosed}건 별도)` : '';
   const L = [];
   L.push(BEGIN);
   L.push('    <section id="model-profile-status">');
@@ -48,7 +55,7 @@ function render(reg) {
   L.push('      <ul>');
   L.push(`        <li data-en="Last researched: ${esc(reg.asOf)} · next scheduled re-check: ${esc(reg.revisit.date)}" data-ko="마지막 조사: ${esc(reg.asOf)} · 다음 재조사 예정: ${esc(reg.revisit.date)}">Last researched: ${esc(reg.asOf)} · next scheduled re-check: ${esc(reg.revisit.date)}</li>`);
   L.push(`        <li data-en="${reg.models.length} models from ${providers.length} providers (${perTier}) · ${newCount} released within ${NEW_WINDOW_DAYS} days of that date" data-ko="모델 ${reg.models.length}개 · 제공사 ${providers.length}곳 (${perTier}) · 조사일 기준 ${NEW_WINDOW_DAYS}일 안에 출시된 모델 ${newCount}개">${reg.models.length} models from ${providers.length} providers (${perTier}) · ${newCount} released within ${NEW_WINDOW_DAYS} days of that date</li>`);
-  L.push(`        <li data-en="Open items on the watchlist: ${reg.revisit.watchlist.length} · recorded caveats (what was not verified): ${reg.caveats.length}" data-ko="감시 목록: ${reg.revisit.watchlist.length}건 · 기록된 주의사항(확인하지 못한 것): ${reg.caveats.length}건">Open items on the watchlist: ${reg.revisit.watchlist.length} · recorded caveats (what was not verified): ${reg.caveats.length}</li>`);
+  L.push(`        <li data-en="Open items on the watchlist: ${watchOpen}${closedNoteEn} · recorded caveats (what was not verified): ${reg.caveats.length}" data-ko="감시 목록 미해소: ${watchOpen}건${closedNoteKo} · 기록된 주의사항(확인하지 못한 것): ${reg.caveats.length}건">Open items on the watchlist: ${watchOpen}${closedNoteEn} · recorded caveats (what was not verified): ${reg.caveats.length}</li>`);
   L.push('      </ul>');
   L.push('      <div style="overflow-x:auto">');
   L.push('      <table class="data">');
