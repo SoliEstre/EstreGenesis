@@ -55,7 +55,7 @@ Medians are over the <!--bn:a1Combos-->89<!--/bn--> model × harness × effort c
 - **n=1 rows.** <!--bn:n1ModelsEn-->Opus 4.8, Opus 5 and Sonnet 5<!--/bn--> have one run per task × effort so far. Runs 2–3 are being measured, and the figures and tables will be updated when they finish. Their rankings are mostly reliable, but read a gap under ~20% between two n=1 cells as a tie.
 - Each run works in an isolated copy of the task repository. The model may run `node` there (a gate admits node commands only); other shell commands are denied. Plugin hooks are disabled in the Claude Code benchmark sessions from 2026-10-01 11:00 (earlier runs: see the defects table).
 - Round budget 90 minutes of wall time. Claude Code's per-response output cap was kept at the harness default (64,000 tokens); see [limits](#limits).
-- **Procedure vs §5.1.5.** This campaign ran every combination on all six aims instead of stopping at the first unreached aim, and reports API-equivalent cost only (no plan-quota figure). The aim list in §5.1.5 predates the sixth aim.
+- **Procedure vs §5.1.5.** This campaign ran every combination on all six aims instead of stopping at the first unreached aim, and reports API-equivalent cost only (no plan-quota figure).
 - **Harness prompts.** Claude Code sends each Claude model its own built-in system prompt — that is part of the harness, so a comparison between two Claude models is a comparison of model plus harness prompt, as it is under any harness.
 - **Invalid runs are counted apart from unreached runs** (failing and breaking the rules are different outcomes). <!--bn:setAside-->141<!--/bn--> records were set aside: runs under measurement-condition defects that were fixed and re-measured, quota and entitlement refusals, harness sessions that did no work (0 tokens in every round), and one run whose submission inspected the grader.
 
@@ -313,7 +313,7 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 - **n=1 행.** <!--bn:n1ModelsKo-->Opus 4.8, Opus 5, Sonnet 5<!--/bn--> 는 과제 × effort 마다 아직 실행이 한 번이에요. 두 번째·세 번째 실행을 재는 중이고, 끝나면 그림과 표를 갱신해요. 순위는 대체로 믿을 만하지만, n=1 칸 둘의 차가 ~20% 안쪽이면 동률로 읽어 주세요.
 - 실행마다 과제 저장소의 격리된 사본에서 일해요. 모델은 거기서 `node` 를 실행할 수 있고(node 명령만 통과시키는 게이트), 다른 셸 명령은 거부돼요. Claude Code 벤치 세션의 플러그인 훅은 2026-10-01 11:00 부터 껐어요(그 전 실행은 영어 절의 [결함 표](#measurement-defects-found-and-fixed) 참고).
 - 라운드 예산은 벽시계 90분. Claude Code 의 응답당 출력 상한은 하네스 기본값(64,000 토큰) 그대로 뒀어요 — [한계](#한계) 참고.
-- **§5.1.5 절차와 다른 점.** 이번 측정은 처음 못 닿은 aim 에서 멈추지 않고 모든 조합을 여섯 aim 전부에서 돌렸고, 비용은 API 정가 환산만 냈어요(플랜 할당량 수치 없음). §5.1.5 의 aim 목록은 여섯째 aim 보다 먼저 쓰였어요.
+- **§5.1.5 절차와 다른 점.** 이번 측정은 처음 못 닿은 aim 에서 멈추지 않고 모든 조합을 여섯 aim 전부에서 돌렸고, 비용은 API 정가 환산만 냈어요(플랜 할당량 수치 없음).
 - **하네스 프롬프트.** Claude Code 는 Claude 모델마다 자기 내장 시스템 프롬프트를 보내요 — 하네스의 일부라서, Claude 모델 둘의 비교는 어느 하네스에서나처럼 «모델 + 하네스 프롬프트» 의 비교예요.
 - **무효 실행은 미도달과 따로 셌어요**(실패와 규칙 위반은 다른 결과예요). <!--bn:setAside-->141<!--/bn-->건을 뺐어요: 고친 뒤 다시 잰 측정 조건 결함 아래의 실행, 할당량·자격 거절, 아무 일도 안 한 하네스 세션(모든 라운드 0토큰), 제출물이 채점기를 들여다본 실행 하나.
 
