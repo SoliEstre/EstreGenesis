@@ -1,0 +1,149 @@
+/* bench-chart.css — interactive trust-cost chart on superscalar-bench.html (bench-chart.js).
+ * Colours come from the docs theme variables (themes.css), so every theme stays readable. */
+
+.bix-mount { margin: 1.2rem 0 2rem; min-width: 0; scroll-margin-top: 6rem; }   /* a shared #chart link scrolls here, clear of the sticky header */
+.bix-replaced { display: none; }
+.bix-notice { font-size: 0.85rem; color: var(--color-text-muted); margin: 0.4rem 0 0; }
+
+.bix {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-card-bg);
+  color: var(--color-text);
+  padding: 0.75rem 0.9rem 0.9rem;
+  min-width: 0;
+}
+.bix :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+
+.bix-tabs { display: flex; gap: 0.15rem; overflow-x: auto; border-bottom: 1px solid var(--color-border); scrollbar-width: thin; }
+.bix-tab {
+  font: inherit; font-size: 0.92rem; background: none; border: 0; border-bottom: 3px solid transparent;
+  padding: 0.5rem 0.75rem; color: var(--color-text-muted); cursor: pointer; white-space: nowrap; min-height: 42px;
+}
+.bix-tab:hover { color: var(--color-heading); }
+.bix-tab[aria-selected="true"] { color: var(--color-heading); border-bottom-color: var(--color-accent); font-weight: 600; }
+
+.bix-aimtitle { margin: 0.6rem 0 0.5rem; font-weight: 600; color: var(--color-heading); }
+
+.bix-filters { border: 1px solid var(--color-border); border-radius: 6px; padding: 0.35rem 0.7rem; margin: 0 0 0.5rem; }
+.bix-filters > summary { cursor: pointer; font-weight: 600; padding: 0.25rem 0; color: var(--color-heading); }
+.bix-filters-on { font-weight: 400; color: var(--color-text-muted); font-style: italic; }
+.bix-frow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.35rem 0.75rem; margin: 0.45rem 0; }
+.bix-flabel { flex: 0 0 7.5rem; font-size: 0.85rem; color: var(--color-text-muted); padding-top: 0.35rem; }
+.bix-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; flex: 1 1 14rem; min-width: 0; }
+.bix-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem; font: inherit; font-size: 0.85rem; line-height: 1.2;
+  border: 1px solid var(--color-border); border-radius: 999px; padding: 0.3rem 0.7rem; min-height: 34px;
+  background: transparent; color: var(--color-text-muted); cursor: pointer;
+}
+.bix-chip::before { content: ''; display: inline-block; width: 0.7rem; text-align: center; font-size: 0.8rem; }
+.bix-chip[aria-pressed="true"] { border-color: var(--color-accent); background: var(--color-callout-bg); color: var(--color-heading); }
+.bix-chip[aria-pressed="true"]::before { content: '✓'; color: var(--color-accent); }
+/* struck through = excluded: only the exclusion chips (vendor, tier, unknown dates). An option chip that is merely off
+   («current generation only») stays plain — a strike there would read as «already applied». */
+.bix-chip.bix-excl[aria-pressed="false"] span { text-decoration: line-through; text-decoration-thickness: 1px; }
+.bix-glyph { flex: none; }
+
+.bix-daterow .bix-date { flex: 1 1 14rem; min-width: 0; }
+.bix-dateout { display: block; font-size: 0.85rem; font-variant-numeric: tabular-nums; margin: 0.3rem 0 0.15rem; }
+.bix-range { position: relative; height: 30px; margin: 0 2px; }
+.bix-track { position: absolute; left: 10px; right: 10px; top: 13px; height: 4px; border-radius: 2px; background: var(--color-border); }
+.bix-sel { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: var(--color-accent); }
+.bix-range input[type="range"] {
+  position: absolute; left: 0; top: 0; z-index: 1; width: 100%; height: 30px; margin: 0; padding: 0;
+  background: transparent; pointer-events: none; -webkit-appearance: none; appearance: none;
+}
+.bix-range input[type="range"]::-webkit-slider-runnable-track { height: 30px; background: transparent; border: 0; }
+.bix-range input[type="range"]::-moz-range-track { height: 30px; background: transparent; border: 0; }
+.bix-range input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; pointer-events: auto; cursor: pointer;
+  width: 20px; height: 20px; margin-top: 5px; border-radius: 50%;
+  background: var(--color-accent); border: 3px solid var(--color-card-bg); box-shadow: 0 0 0 1px var(--color-accent);
+}
+.bix-range input[type="range"]::-moz-range-thumb {
+  pointer-events: auto; cursor: pointer; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--color-accent); border: 3px solid var(--color-card-bg); box-shadow: 0 0 0 1px var(--color-accent);
+}
+.bix-range input.bix-top { z-index: 2; }   /* set when the handles meet near the latest date: «from» is the one that can still move */
+.bix-range input[type="range"]:focus-visible { outline: none; }
+.bix-range input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--color-heading); }
+.bix-range input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--color-heading); }
+
+.bix-ticks { position: relative; height: 24px; margin: 0 12px 0.4rem; }
+/* one button per cluster of releases closer than a 24 px tap target (laid out in JS from the drawn width); one thin line per release */
+.bix-ticks { height: 26px; }
+.bix-tick { position: absolute; top: 0; min-width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: none; cursor: pointer; }
+.bix-tick:hover { background: var(--color-callout-bg); }
+.bix-tick-line { position: absolute; top: 4px; width: 2px; height: 14px; background: var(--color-text-muted); opacity: 0.6; pointer-events: none; }
+.bix-tick-line.bix-in { background: var(--color-accent); opacity: 1; }
+.bix-tick-tip {
+  display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); z-index: 4;
+  white-space: nowrap; font-size: 0.75rem; line-height: 1.35; padding: 0.15rem 0.45rem; border-radius: 4px; text-align: left;
+  background: var(--color-heading); color: var(--color-bg); pointer-events: none;
+}
+.bix-tick.bix-edge-l .bix-tick-tip { left: 0; transform: none; }
+.bix-tick.bix-edge-r .bix-tick-tip { left: auto; right: 0; transform: none; }
+.bix-tick:hover .bix-tick-tip, .bix-tick:focus-visible .bix-tick-tip { display: block; }
+.bix-tick-tip > span { display: block; }
+
+.bix-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin: 0.25rem 0 0.4rem; font-size: 0.9rem; }
+.bix-count { font-variant-numeric: tabular-nums; }
+.bix-btn {
+  font: inherit; font-size: 0.85rem; padding: 0.3rem 0.75rem; min-height: 34px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);
+}
+.bix-btn:hover { border-color: var(--color-accent); }
+
+.bix-chart { position: relative; min-width: 0; }
+.bix-svgwrap { width: 100%; overflow: hidden; border-radius: 4px; }
+.bix-svg { display: block; width: 100%; height: auto; }
+.bix-pt { cursor: pointer; outline: none; }
+.bix-pt:focus .bix-ring, .bix-pt:focus-visible .bix-ring { stroke: var(--color-heading); stroke-width: 2; }
+.bix-tip {
+  position: absolute; z-index: 5; max-width: min(320px, 92%); pointer-events: none;
+  background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18); padding: 0.45rem 0.6rem; font-size: 0.8rem; line-height: 1.4;
+}
+.bix-tip-sub { color: var(--color-text-muted); }
+.bix-tip-note { color: var(--color-text-muted); font-size: 0.75rem; }
+
+.bix-legend-head { margin: 0.75rem 0 0.3rem; font-size: 0.85rem; color: var(--color-text-muted); }
+.bix-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 0.1rem 0.8rem; }
+.bix-lg {
+  display: flex; align-items: flex-start; gap: 0.4rem; width: 100%; text-align: left; font: inherit; font-size: 0.82rem;
+  padding: 0.3rem 0.35rem; border: 1px solid transparent; border-radius: 5px; background: none; color: var(--color-text); cursor: pointer;
+}
+.bix-lg:hover { border-color: var(--color-border); }
+.bix-lg-check { flex: 0 0 0.8rem; color: var(--color-accent); }
+.bix-sample { flex: none; margin-top: 1px; }
+.bix-lg-name { font-weight: 600; }
+.bix-lg-meta { color: var(--color-text-muted); }
+/* hidden model: still an operable control, so its text keeps 4.5:1 — muted colour + strike + empty check, no fading of text */
+.bix-lg[aria-pressed="false"] .bix-sample { opacity: 0.5; }
+.bix-lg[aria-pressed="false"] .bix-lg-name { text-decoration: line-through; color: var(--color-text-muted); }
+
+.bix-key { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.bix-key p { margin: 0.15rem 0; }
+.bix-cond a { white-space: nowrap; }
+.bix-notes { margin: 0.5rem 0 0; font-size: 0.8rem; }
+.bix-notes > summary { cursor: pointer; color: var(--color-text-muted); }
+.bix-notes ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.bix-export { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin: 0.7rem 0 0; font-size: 0.85rem; }
+.bix-opt { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--color-text-muted); }
+.bix-opt select { font: inherit; background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 4px; padding: 0.15rem 0.3rem; }
+
+/* the page's summary tables are wider than a phone: they scroll inside a wrapper (the table keeps display:table, so
+   screen readers still get table semantics) instead of scrolling the page */
+.bench-tscroll { max-width: 100%; overflow-x: auto; }
+
+/* text alternative: read by assistive technology, not drawn */
+.bix-sr {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+@media (max-width: 720px) {
+  .bix { padding: 0.6rem 0.55rem 0.7rem; }
+  .bix-flabel { flex-basis: 100%; padding-top: 0; }
+  .bix-tab { padding: 0.5rem 0.55rem; }
+}
