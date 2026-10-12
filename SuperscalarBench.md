@@ -1,6 +1,6 @@
 # Superscalar Bench — trust cost
 
-> What one **verified** coding result costs, in money and minutes, per model × harness × effort — measured on a ladder of six tasks with hidden acceptance suites, across <!--bn:models-->20<!--/bn--> models in <!--bn:harnesses-->4<!--/bn--> harnesses. Vocabulary (aim, reach, one-shot, trust cost) is defined in [Superscalar.md §5.1.5](Superscalar.md); this page reports what was measured and how. **Single observer, private tasks** — read the [limits](#limits) before quoting a number.<!--bn:repsNoteSpEn--> Rows with fewer than three runs: Opus 4.8 and Opus 5 have two runs per task × effort so far (run 3 of Opus 5 is being measured; the figures will be updated). Their rankings are mostly reliable, but read a gap under ~20% between their cells as a tie.<!--/bn-->
+> What one **verified** coding result costs, in money and minutes, per model × harness × effort — measured on a ladder of six tasks with hidden acceptance suites, across <!--bn:models-->20<!--/bn--> models in <!--bn:harnesses-->4<!--/bn--> harnesses. Vocabulary (aim, reach, one-shot, trust cost) is defined in [Superscalar.md §5.1.5](Superscalar.md); this page reports what was measured and how. **Single observer, private tasks** — read the [limits](#limits) before quoting a number.<!--bn:repsNoteSpEn--> Rows with fewer than three runs: Opus 4.8 has two runs per task × effort so far (run 3 of Opus 4.8 is being measured; the figures will be updated). Its rankings are mostly reliable, but read a gap under ~20% between its cells as a tie.<!--/bn-->
 
 [한국어](#한국어)
 
@@ -13,7 +13,7 @@
 - **Rounds**: the first answer, then up to three refinement rounds (four rounds in all). Refinement feedback is what CI gives a person — failing test names and assertion messages, never the test code. A run that passes on the first answer is **one-shot**.
 - **Trust cost / trust time** = mean cost / wall time over *all* attempts (refinement rounds included) ÷ reach rate. A model that is cheap per attempt but rarely reaches pays for its misses here. A combination that never reached has no trust cost.
 - **Cost** is API-equivalent list price, not what a subscription costs: Claude Code and Grok Build report it; Codex and Antigravity runs are priced from token counts × published prices.
-- **Repetitions**: <!--bn:nNoteEn-->n = 3 per cell; Opus 5: 30 cells with n = 2; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->. The numbers on this page, in the figures and in the tables all come from one snapshot of the run records.
+- **Repetitions**: <!--bn:nNoteEn-->n = 3 per cell; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->. The numbers on this page, in the figures and in the tables all come from one snapshot of the run records.
 
 ## The aim ladder
 
@@ -27,14 +27,14 @@ Each aim is one task. Within an aim every model is judged by the same hidden sui
 | <img src="docs/assets/bench/keyart/aim3.png" width="56" alt="aim 3 key image"> | aim 3 | multi-step feature + schema migration | 49 | 100% | 98% | 6.4 min | $0.72 |
 | <img src="docs/assets/bench/keyart/aim4.png" width="56" alt="aim 4 key image"> | aim 4 | diagnose-and-fix from a symptom report | 37 | 100% | 99% | 4.8 min | $0.53 |
 | <img src="docs/assets/bench/keyart/aim5.png" width="56" alt="aim 5 key image"> | aim 5 | design + build a small language interpreter | 96 | 98% | 89% | 10.6 min | $1.06 |
-| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | aim 6 | crash-safe transactional key-value store | 58 | 93% | 79% | 13.5 min | $1.10 |
+| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | aim 6 | crash-safe transactional key-value store | 58 | 94% | 80% | 13.5 min | $1.10 |
 <!--/bn-block-->
 
 ![The aim ladder — six tasks in designed order of difficulty, and what was measured](docs/assets/bench/trust-cost-ladder.png)
 
 Key images: one wordless picture per aim, generated with Codex CLI's built-in image tool from published prompts ([how they were made](docs/assets/bench/keyart/README.md)); the sheet's text, numbers and ladder are drawn by code.
 
-Medians are over the <!--bn:a1Combos-->89<!--/bn--> model × harness × effort combinations of each aim (<!--bn:nNoteEn-->n = 3 per cell; Opus 5: 30 cells with n = 2; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->). A combination that never reached on an aim has no trust cost and is left out of that aim's trust medians — this happens only on aim 6 (see finding 1).
+Medians are over the <!--bn:a1Combos-->89<!--/bn--> model × harness × effort combinations of each aim (<!--bn:nNoteEn-->n = 3 per cell; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->). A combination that never reached on an aim has no trust cost and is left out of that aim's trust medians — this happens only on aim 6 (see finding 1).
 
 **How to read it.** Aims 1–4 fall within <!--bn:a1Cost-->$0.40<!--/bn-->–<!--bn:a3Cost-->$0.72<!--/bn--> and <!--bn:a1Time-->3.5<!--/bn-->–<!--bn:a3Time-->6.4<!--/bn--> min per verified result without a steady rise — aim 2 trips the first answer more often than aims 3–4, and aim 4 is cheaper than aim 3. Aims 5 and 6 sit above that range: about twice the aims 1–4 median in cost, and two to nearly three times in time. They cost about the same at the median, but aim 6 takes longer and misses more; aims 5 and 6 are the only rungs where runs fail to reach. The order is the designed one; the table is what was measured, and it is not a smooth trend.
 
@@ -43,7 +43,7 @@ Medians are over the <!--bn:a1Combos-->89<!--/bn--> model × harness × effort c
 | harness | models | effort levels |
 |---|---|---|
 | Claude Code (CLI 2.1.284) | Claude Sonnet 5.5 · Claude Opus 5.5 · Claude Fable 5.1 · Claude Fable 5 | low · medium · high · xhigh · max |
-| | Claude Opus 5 (n=<!--bn:m_opus5_n-->2<!--/bn-->) · Claude Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) · Claude Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) | low · medium · high · xhigh · max |
+| | Claude Opus 5 (n=<!--bn:m_opus5_n-->3<!--/bn-->) · Claude Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) · Claude Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) | low · medium · high · xhigh · max |
 | | Claude Haiku 4.5 | default |
 | Claude Code (CLI 2.1.293, installed side by side) | Claude Haiku 5.5 | low · medium · high · xhigh · max |
 | Codex | GPT-6.1 Sol · GPT-6 Sol · GPT-6 Astra · GPT-6 Luna · GPT-5.6 Sol · GPT-5.6 Terra · GPT-5.6 Luna | low · medium · high · xhigh · max |
@@ -51,9 +51,9 @@ Medians are over the <!--bn:a1Combos-->89<!--/bn--> model × harness × effort c
 | Antigravity | Gemini 3.8 Flash | low · medium · high |
 | | Gemini 3.1 Pro | low · high |
 
-- **<!--bn:combos-->89<!--/bn--> combinations × 6 aims (<!--bn:nNoteEn-->n = 3 per cell; Opus 5: 30 cells with n = 2; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->), less one invalid run that was not re-measured** (Claude Fable 5.1 at max on aim 2 — the [incident](#an-incident-empty-feedback-invites-probing) below): <!--bn:runs-->1,541<!--/bn--> valid runs (aims 1–5: <!--bn:runsAims1to5-->1,284<!--/bn-->, aim 6: <!--bn:runsAim6-->257<!--/bn-->), measured <!--bn:dateFirst-->2026-09-30<!--/bn--> → <!--bn:dateLast-->2026-10-12<!--/bn--> on one machine (all dates and times on this page are UTC). The rows for Claude Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8 and GPT-5.6 Sol · Terra · Luna were measured after all the others.
+- **<!--bn:combos-->89<!--/bn--> combinations × 6 aims (<!--bn:nNoteEn-->n = 3 per cell; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->), less one invalid run that was not re-measured** (Claude Fable 5.1 at max on aim 2 — the [incident](#an-incident-empty-feedback-invites-probing) below): <!--bn:runs-->1,571<!--/bn--> valid runs (aims 1–5: <!--bn:runsAims1to5-->1,309<!--/bn-->, aim 6: <!--bn:runsAim6-->262<!--/bn-->), measured <!--bn:dateFirst-->2026-09-30<!--/bn--> → <!--bn:dateLast-->2026-10-12<!--/bn--> on one machine (all dates and times on this page are UTC). The rows for Claude Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8 and GPT-5.6 Sol · Terra · Luna were measured after all the others.
 <!--bn-block:reps-bullet-en-->
-- **Rows with fewer than three runs.** Opus 4.8 and Opus 5 have two runs per task × effort so far (run 3 of Opus 5 is being measured; the figures will be updated). Their rankings are mostly reliable, but read a gap under ~20% between their cells as a tie.
+- **Rows with fewer than three runs.** Opus 4.8 has two runs per task × effort so far (run 3 of Opus 4.8 is being measured; the figures will be updated). Its rankings are mostly reliable, but read a gap under ~20% between its cells as a tie.
 <!--/bn-block-->
 - Each run works in an isolated copy of the task repository. The model may run `node` there (a gate admits node commands only); other shell commands are denied. Plugin hooks are disabled in the Claude Code benchmark sessions from 2026-10-01 11:00 (earlier runs: see the defects table).
 - Round budget 90 minutes of wall time. Claude Code's per-response output cap was kept at the harness default (64,000 tokens); see [limits](#limits).
@@ -63,7 +63,7 @@ Medians are over the <!--bn:a1Combos-->89<!--/bn--> model × harness × effort c
 
 ## Findings
 
-**1. The ladder separates on time, cost and the first answer before it separates on reach.** Every run of aims 1–4 reached. Aim 5 is the first rung with misses — <!--bn:a5Unreached-->5<!--/bn--> of <!--bn:a5Runs-->257<!--/bn--> runs did not reach — and aim 6 has the most: <!--bn:a6Unreached-->17<!--/bn--> of <!--bn:a6Runs-->257<!--/bn-->. The cells with misses (reached / runs):
+**1. The ladder separates on time, cost and the first answer before it separates on reach.** Every run of aims 1–4 reached. Aim 5 is the first rung with misses — <!--bn:a5Unreached-->5<!--/bn--> of <!--bn:a5Runs-->262<!--/bn--> runs did not reach — and aim 6 has the most: <!--bn:a6Unreached-->17<!--/bn--> of <!--bn:a6Runs-->262<!--/bn-->. The cells with misses (reached / runs):
 
 <!--bn-block:misses-md-en-->
 | aim | harness · model · effort | reached |
@@ -82,7 +82,7 @@ Medians are over the <!--bn:a1Combos-->89<!--/bn--> model × harness × effort c
 | 6 | Claude Code · Sonnet 5 · max | 0/3 |
 <!--/bn-block-->
 
-Most misses are at the model's lowest effort. For GPT-5.6 Luna, GPT-6 Luna and Gemini 3.1 Pro, one step up reached in every run (medium, medium, and high — Gemini 3.1 Pro's only other level). Claude Haiku 4.5 has a single effort level and never reached aim 6. Two exceptions run the other way: GPT-5.6 Terra missed at efforts above its lowest (finding 5), and Sonnet 5's misses at <!--bn:m_sonnet5_capMissEn-->high, xhigh and max on aim 6<!--/bn--> come from Claude Code's default output cap ending its responses mid-thought (finding 7) — a harness limit, kept as measured.
+<!--bn:missRunsLowest-->12<!--/bn--> of the <!--bn:missRunsAll-->22<!--/bn--> missed runs are at the model's lowest effort (<!--bn:missCellsLowest-->6<!--/bn--> of the <!--bn:missCellsAll-->12<!--/bn--> cells with misses). For GPT-5.6 Luna, GPT-6 Luna and Gemini 3.1 Pro, one step up reached in every run (medium, medium, and high — Gemini 3.1 Pro's only other level). Claude Haiku 4.5 has a single effort level and never reached aim 6. Two exceptions run the other way: GPT-5.6 Terra missed at efforts above its lowest (finding 5), and Sonnet 5's misses at <!--bn:m_sonnet5_capMissEn-->high, xhigh and max on aim 6<!--/bn--> come from Claude Code's default output cap ending its responses mid-thought (finding 7) — a harness limit, kept as measured.
 
 **2. The cheapest effort is almost always low or medium, and the top rung is a cost multiplier.** In all but a handful of the model × aim pairs that have more than one effort level, the cheapest effort per verified result is low or medium (the rest: high). On aims 1–4 higher effort bought no extra reach. On aims 5–6 it bought reach where the lowest effort missed (finding 1; GPT-5.6 Terra aside — finding 5) — and for Sonnet 5 the output cap cost reach at <!--bn:m_sonnet5_capMissEn-->high, xhigh and max on aim 6<!--/bn--> (finding 7). What max costs over low, as the geometric mean over aims of the trust-cost ratio max ÷ low:
 
@@ -94,7 +94,7 @@ Most misses are at the model's lowest effort. For GPT-5.6 Luna, GPT-6 Luna and G
 | Claude Code · Opus 5.5 | <!--bn:spread_opus55-->9.37×<!--/bn--> |
 | Claude Code · Fable 5 | <!--bn:spread_fable5-->3.90×<!--/bn--> |
 | Claude Code · Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) | <!--bn:spread_opus48-->3.65×<!--/bn--> |
-| Claude Code · Opus 5 (n=<!--bn:m_opus5_n-->2<!--/bn-->) | <!--bn:spread_opus5-->3.89×<!--/bn--> |
+| Claude Code · Opus 5 (n=<!--bn:m_opus5_n-->3<!--/bn-->) | <!--bn:spread_opus5-->3.61×<!--/bn--> |
 | Claude Code · Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) | <!--bn:spread_sonnet5-->3.51×<!--/bn-->‡ |
 | Codex · GPT-5.6 Terra | <!--bn:spread_gpt56terra-->2.70×<!--/bn--> |
 | Codex · GPT-5.6 Luna | <!--bn:spread_gpt56luna-->2.60×<!--/bn-->‡ |
@@ -124,7 +124,7 @@ In Claude Code the newest versions spread far wider than the earlier ones — <!
 | Claude Code · Fable 5.1 | L★ M★ H★ | L★ | L★ M★ | L★ | M★ | M★ |
 | Claude Code · Haiku 5.5 | L★ | L★ | L★ | L★ | L★ | M★ |
 | Claude Code · Opus 4.8 | L★ H★ | L★ | L★ M★ | L★ M☆ | L★ | L★ |
-| Claude Code · Opus 5 | L★ M★ | L★ M★ | L★ | L★ | L★ | L★ M☆ |
+| Claude Code · Opus 5 | L★ M★ | L★ M★ | L★ | L★ M★ | L★ | L★ M☆ |
 | Claude Code · Opus 5.5 | M★ | L★ | L★ M★ | L★ M★ | L★ | M★ |
 | Claude Code · Sonnet 5 | L★ M★ | M★ | M★ | L★ M★ | L★ | M★ |
 | Claude Code · Sonnet 5.5 | L★ M☆ | L★ M★ H☆ | L★ M★ | L★ M★ | H★ L☆ | L★ M★ |
@@ -151,7 +151,7 @@ Over all its cells, Haiku 5.5's median trust cost (<!--bn:m_haiku55_medTC-->$0.1
 
 | newer ÷ older | low | medium | high | xhigh | max |
 |---|---|---|---|---|---|
-| Claude Opus 5.5 ÷ Opus 5 (n=<!--bn:m_opus5_n-->2<!--/bn-->) | <!--bn:pair_opus55_opus5_low-->0.42×<!--/bn--> | <!--bn:pair_opus55_opus5_medium-->0.36×<!--/bn--> | <!--bn:pair_opus55_opus5_high-->0.31×<!--/bn--> | <!--bn:pair_opus55_opus5_xhigh-->0.52×<!--/bn--> | <!--bn:pair_opus55_opus5_max-->1.00×<!--/bn--> |
+| Claude Opus 5.5 ÷ Opus 5 (n=<!--bn:m_opus5_n-->3<!--/bn-->) | <!--bn:pair_opus55_opus5_low-->0.39×<!--/bn--> | <!--bn:pair_opus55_opus5_medium-->0.37×<!--/bn--> | <!--bn:pair_opus55_opus5_high-->0.31×<!--/bn--> | <!--bn:pair_opus55_opus5_xhigh-->0.52×<!--/bn--> | <!--bn:pair_opus55_opus5_max-->1.01×<!--/bn--> |
 | Claude Opus 5.5 ÷ Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) | <!--bn:pair_opus55_opus48_low-->0.41×<!--/bn--> | <!--bn:pair_opus55_opus48_medium-->0.37×<!--/bn--> | <!--bn:pair_opus55_opus48_high-->0.46×<!--/bn--> | <!--bn:pair_opus55_opus48_xhigh-->0.58×<!--/bn--> | <!--bn:pair_opus55_opus48_max-->1.04×<!--/bn--> |
 | Claude Sonnet 5.5 ÷ Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) | <!--bn:pair_sonnet55_sonnet5_low-->0.50×<!--/bn--> | <!--bn:pair_sonnet55_sonnet5_medium-->0.42×<!--/bn--> | <!--bn:pair_sonnet55_sonnet5_high-->0.33×<!--/bn--> | <!--bn:pair_sonnet55_sonnet5_xhigh-->0.86×<!--/bn-->‡ | <!--bn:pair_sonnet55_sonnet5_max-->2.18×<!--/bn-->‡ |
 | Claude Fable 5.1 ÷ Fable 5 | <!--bn:pair_fable51_fable5_low-->0.70×<!--/bn--> | <!--bn:pair_fable51_fable5_medium-->0.55×<!--/bn--> | <!--bn:pair_fable51_fable5_high-->0.62×<!--/bn--> | <!--bn:pair_fable51_fable5_xhigh-->1.06×<!--/bn--> | <!--bn:pair_fable51_fable5_max-->2.41×<!--/bn-->* |
@@ -165,7 +165,7 @@ Over all its cells, Haiku 5.5's median trust cost (<!--bn:m_haiku55_medTC-->$0.1
 - **Claude Code.** From low to high every newer Claude version cost less per verified result than its predecessor — Opus 5.5 under half of Opus 5 and Opus 4.8, Sonnet 5.5 about half or less of Sonnet 5, Fable 5.1 <!--bn:pair_fable51_fable5_medium-->0.55×<!--/bn-->–<!--bn:pair_fable51_fable5_low-->0.70×<!--/bn--> of Fable 5. The gap closes at the top: at max Opus 5.5 is level with both earlier Opus versions, and Sonnet 5.5 and Fable 5.1 cost more than their predecessors; at xhigh Sonnet and Fable are within the ~20% tie band. This is the other side of finding 2 — the newer versions got cheaper at low, not at max, so their low→max spread widened.
 - **Codex.** GPT-6.1 Sol cost less than GPT-6 Sol at every effort and roughly a third of GPT-5.6 Sol; GPT-6 Luna cost about a quarter to a third of GPT-5.6 Luna. No reversal at max. GPT-5.6 Luna and Terra also missed runs on aim 5, where every GPT-6-generation row reached in every run (finding 5).
 - **Grok Build.** grok-4.7 cost more than grok-4.6 at every effort and took longer (median trust time <!--bn:m_grok47_medTT-->22.5<!--/bn--> vs <!--bn:m_grok46_medTT-->10.9<!--/bn--> min); in return it passed on the first answer in every run (<!--bn:m_grok47_oneShotPct-->100%<!--/bn--> vs <!--bn:m_grok46_oneShotPct-->92%<!--/bn-->). Both reached in every run.
-- **Repetitions.** Per cell, the Opus 5 side rests on n = <!--bn:m_opus5_n-->2<!--/bn-->, Opus 4.8 on n = <!--bn:m_opus48_n-->2<!--/bn--> and Sonnet 5 on n = <!--bn:m_sonnet5_n-->3<!--/bn-->. The direction of the large gaps is mostly reliable; ratios within ~20% of 1× are ties.
+- **Repetitions.** Per cell, the Opus 5 side rests on n = <!--bn:m_opus5_n-->3<!--/bn-->, Opus 4.8 on n = <!--bn:m_opus48_n-->2<!--/bn--> and Sonnet 5 on n = <!--bn:m_sonnet5_n-->3<!--/bn-->. The direction of the large gaps is mostly reliable; ratios within ~20% of 1× are ties.
 
 **5. Every aim 5 miss is GPT-5.6 Terra or Luna.** GPT-5.6 Luna missed only at low — on aim 5 (<!--bn:c_gpt56luna_low_a5_reach-->1/3<!--/bn--> reached) and aim 6 (<!--bn:c_gpt56luna_low_a6_reach-->0/3<!--/bn-->) — and reached in every run from medium up; because medium needed refinement on those aims (first answer <!--bn:c_gpt56luna_medium_a5_first-->1/3<!--/bn--> on aim 5, <!--bn:c_gpt56luna_medium_a6_first-->0/3<!--/bn--> on aim 6), its recommended effort there is xhigh (and high on aim 6). GPT-5.6 Terra missed at low, medium and high on aim 5 (<!--bn:c_gpt56terra_low_a5_reach-->2/3<!--/bn-->, <!--bn:c_gpt56terra_medium_a5_reach-->2/3<!--/bn-->, <!--bn:c_gpt56terra_high_a5_reach-->2/3<!--/bn-->) and at medium on aim 6 (<!--bn:c_gpt56terra_medium_a6_reach-->2/3<!--/bn-->), yet reached in every run at low on aim 6 — for Terra, reach did not rise steadily with effort. It reached in every run at xhigh and max, and xhigh is its recommended effort on aim 5. Its aim 6 mark at low comes through the exception rule: low needed refinement (first answer <!--bn:c_gpt56terra_low_a6_first-->1/3<!--/bn-->) but took less than half the time of its best one-shot effort. GPT-6 Luna, the successor, missed only at low on aim 6 (<!--bn:c_gpt6luna_low_a6_reach-->1/3<!--/bn-->); GPT-5.6 Sol and GPT-6.1 Sol reached in every run.
 
@@ -189,7 +189,7 @@ Over all its cells, Haiku 5.5's median trust cost (<!--bn:m_haiku55_medTC-->$0.1
 | Antigravity · Gemini 3.8 Flash | medium | 3/3 | 2/3 | $1.10 | 6.9 |
 | Claude Code · Fable 5.1 | medium | 3/3 | 3/3 | $2.05 | 4.3 |
 | Claude Code · Sonnet 5 | low | 3/3 | 0/3 | $2.19 | 17.8 |
-| Claude Code · Opus 5 (n=2) | low | 2/2 | 2/2 | $3.79 | 25.8 |
+| Claude Code · Opus 5 | low | 3/3 | 3/3 | $3.60 | 21.0 |
 | Antigravity · Gemini 3.1 Pro | high | 3/3 | 0/3 | $4.20 | 8.3 |
 | Claude Code · Fable 5 | low | 3/3 | 3/3 | $4.80 | 8.1 |
 | Claude Code · Opus 4.8 (n=2) | low | 2/2 | 2/2 | $5.59 | 18.7 |
@@ -198,7 +198,7 @@ Over all its cells, Haiku 5.5's median trust cost (<!--bn:m_haiku55_medTC-->$0.1
 
 Rows are ordered by the cheapest of each model's 2–5 effort cells, which favours models with more effort levels; neighbours within ~20% are ties, not a ranking. "Cheapest effort" is by trust cost, so it can be an effort that needed refinement in some runs. Misses at other efforts are in finding 1.
 
-**7. Claude Code's default output cap ended some aim 6 rounds.** On aim 6, Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) at high, xhigh and max and Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) at xhigh and max wrote responses that hit Claude Code's per-response output cap (64,000 tokens) while still thinking, which ended the round. Sonnet 5 did not reach at xhigh (<!--bn:c_sonnet5_xhigh_a6_reach-->0/3<!--/bn-->) or max (<!--bn:c_sonnet5_max_a6_reach-->0/3<!--/bn-->); at high it reached in <!--bn:c_sonnet5_high_a6_reach-->2/3<!--/bn--> runs, and the run it missed is the one the cap ended. Opus 4.8 reached on a later round in both of its cells. Rounds that run up to the cap are long, so these are the three slowest cells in the whole table (trust time: Sonnet 5 high <!--bn:c_sonnet5_high_a6_tt-->166.9<!--/bn-->, Opus 4.8 max <!--bn:c_opus48_max_a6_tt-->159.0<!--/bn--> and xhigh <!--bn:c_opus48_xhigh_a6_tt-->156.5<!--/bn--> min). The cap was kept at the harness default; the full account is under «Output cap» in [limits](#limits).
+**7. Claude Code's default output cap ended some aim 6 rounds.** On aim 6, Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) at high, xhigh and max and Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) at xhigh and max wrote responses that hit Claude Code's per-response output cap (64,000 tokens) while still thinking, which ended the round. Sonnet 5 did not reach at xhigh (<!--bn:c_sonnet5_xhigh_a6_reach-->0/3<!--/bn-->) or max (<!--bn:c_sonnet5_max_a6_reach-->0/3<!--/bn-->); at high it reached in <!--bn:c_sonnet5_high_a6_reach-->2/3<!--/bn--> runs, and the run it missed is the one the cap ended. Opus 4.8 reached on a later round in both of its cells. <!--bn:capCleanEn-->No run of the other Claude Code rows (Fable 5, Fable 5.1, Haiku 4.5, Haiku 5.5, Opus 5, Opus 5.5 and Sonnet 5.5) hit the cap.<!--/bn--> Rounds that run up to the cap are long, so these are the three slowest cells in the whole table (trust time: Sonnet 5 high <!--bn:c_sonnet5_high_a6_tt-->166.9<!--/bn-->, Opus 4.8 max <!--bn:c_opus48_max_a6_tt-->159.0<!--/bn--> and xhigh <!--bn:c_opus48_xhigh_a6_tt-->156.5<!--/bn--> min). The cap was kept at the harness default; the full account is under «Output cap» in [limits](#limits).
 
 **8. Run-to-run spread is moderate.** Across the runs of a cell, the typical (median) coefficient of variation of cost and of time is about 20% or less in every harness, which is where the report's tie rule comes from: read a difference under ~20% between two cells as a tie. Some cells swing much more — when a refinement round appears in one run and not another, and sometimes when runs of the same length simply spend differently. The time axis also moves with machine load. An n=1 cell shows no spread at all, which is why its marks are provisional.
 
@@ -235,7 +235,7 @@ In one run (Fable 5.1, max effort, aim 2) every round graded as «no tests execu
 
 - **Single observer, single machine.** Every measurement was run by a single observer on one Windows workstation. Nothing here has been reproduced independently.
 - **Tasks and hidden suites are not published**, to keep them out of training data and out of reach of the runs. You cannot rerun this benchmark yet; treat it as a report, not a standard.
-- **Repetitions differ by row.** <!--bn:nNoteEn-->n = 3 per cell; Opus 5: 30 cells with n = 2; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->. Three runs are enough to see the spread, not enough for fine rankings.<!--bn:repsNoteSpEn--> Rows with fewer than three runs: Opus 4.8 and Opus 5 have two runs per task × effort so far (run 3 of Opus 5 is being measured; the figures will be updated). Their rankings are mostly reliable, but read a gap under ~20% between their cells as a tie.<!--/bn-->
+- **Repetitions differ by row.** <!--bn:nNoteEn-->n = 3 per cell; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->. Three runs are enough to see the spread, not enough for fine rankings.<!--bn:repsNoteSpEn--> Rows with fewer than three runs: Opus 4.8 has two runs per task × effort so far (run 3 of Opus 4.8 is being measured; the figures will be updated). Its rankings are mostly reliable, but read a gap under ~20% between its cells as a tie.<!--/bn-->
 - **Run order.** Grok Build's third runs on aims 1–5 (and one second run), and all its aim 6 runs, were measured on 2026-10-06, after the other rows of the first measurement. The rows added in this update (Claude Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8, GPT-5.6 Sol · Terra · Luna) were measured after that, on different days and under different machine load.
 - **Versions.** The Claude Code CLI version is recorded in the Claude transcripts (runs stopped at the round budget left none). For the other harnesses the version was recorded only in some of the most recent Codex runs. Model behaviour is as of the measurement dates.
 - **Time is the weaker axis.** Wall time depends on machine load (how many chains ran at once), run order and the serving account. Two Claude accounts were used, switching on 2026-10-03; cost is unaffected, time may not be. The hook-era Claude runs (see the defects table) carry extra seconds per tool call.
@@ -254,7 +254,7 @@ The cost of 2 runs was restored from the session log's last cumulative token cou
 
 **Output cap.**
 <!--bn-block:cap-en-->
-Claude Code's default output cap (64,000 tokens per response) ended 35 rounds in 6 cells: Sonnet 5 max on aim 5 (1 of 2 rounds in 1 of its 3 runs; reached on a later round), Opus 4.8 xhigh on aim 6 (4 of 6 rounds; reached on a later round), Opus 4.8 max on aim 6 (3 of 5 rounds; reached on a later round), Sonnet 5 high on aim 6 (4 of 4 rounds in 1 of its 3 runs; that run did not reach), Sonnet 5 xhigh on aim 6 (11 of 12 rounds; did not reach), Sonnet 5 max on aim 6 (12 of 12 rounds; did not reach). The responses ran out of room while still thinking. The cap was kept at the harness default, so these cells are measured as the harness ships — a cell that did not reach here says more about the default cap than about the model.
+Claude Code's default output cap (64,000 tokens per response) ended 35 rounds in 6 cells: Sonnet 5 max on aim 5 (1 of 2 rounds in 1 of its 3 runs; reached on a later round), Opus 4.8 xhigh on aim 6 (4 of 6 rounds; reached on a later round), Opus 4.8 max on aim 6 (3 of 5 rounds; reached on a later round), Sonnet 5 high on aim 6 (4 of 4 rounds in 1 of its 3 runs; that run did not reach), Sonnet 5 xhigh on aim 6 (11 of 12 rounds; did not reach), Sonnet 5 max on aim 6 (12 of 12 rounds; did not reach). The responses ran out of room while still thinking. No run of the other Claude Code rows (Fable 5, Fable 5.1, Haiku 4.5, Haiku 5.5, Opus 5, Opus 5.5 and Sonnet 5.5) hit the cap. The cap was kept at the harness default, so these cells are measured as the harness ships — a cell that did not reach here says more about the default cap than about the model.
 <!--/bn-block-->
 
 ## Where it is used
@@ -269,7 +269,7 @@ Claude Code's default output cap (64,000 tokens per response) ended 35 rounds in
 
 ![Superscalar Bench — 여섯 aim, aim 마다 키 이미지 한 장, 설계한 사다리 위에](docs/assets/bench/trust-cost-aims-ko.png)
 
-> **검증된** 코딩 결과 하나에 드는 돈과 시간 — 모델 × 하네스 × effort 마다, 숨긴 수용 시험이 있는 여섯 과제의 사다리 위에서, 하네스 <!--bn:harnesses-->4<!--/bn-->종의 모델 <!--bn:models-->20<!--/bn-->개를 쟀어요. 용어(aim · 도달 · 첫 답 · 신뢰비용)의 정의는 [Superscalar.md §5.1.5](Superscalar.md) 에 있고, 여기는 무엇을 어떻게 쟀는지만 적어요. **관측자 한 명 · 비공개 과제** — 숫자를 인용하기 전에 [한계](#한계)를 읽어 주세요.<!--bn:repsNoteSpKo--> 실행이 셋보다 적은 행: Opus 4.8, Opus 5 는 과제 × effort 마다 아직 실행이 두 번이에요(Opus 5 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행들 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.<!--/bn-->
+> **검증된** 코딩 결과 하나에 드는 돈과 시간 — 모델 × 하네스 × effort 마다, 숨긴 수용 시험이 있는 여섯 과제의 사다리 위에서, 하네스 <!--bn:harnesses-->4<!--/bn-->종의 모델 <!--bn:models-->20<!--/bn-->개를 쟀어요. 용어(aim · 도달 · 첫 답 · 신뢰비용)의 정의는 [Superscalar.md §5.1.5](Superscalar.md) 에 있고, 여기는 무엇을 어떻게 쟀는지만 적어요. **관측자 한 명 · 비공개 과제** — 숫자를 인용하기 전에 [한계](#한계)를 읽어 주세요.<!--bn:repsNoteSpKo--> 실행이 셋보다 적은 행: Opus 4.8 은 과제 × effort 마다 아직 실행이 두 번이에요(Opus 4.8 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행의 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.<!--/bn-->
 
 ### 무엇을 재나
 
@@ -278,7 +278,7 @@ Claude Code's default output cap (64,000 tokens per response) ended 35 rounds in
 - **라운드**: 첫 답 뒤 보정 라운드 최대 세 번(모두 네 라운드). 보정 피드백은 CI 가 사람에게 주는 만큼 — 실패한 시험 이름과 단정 메시지뿐, 시험 코드는 안 보여 줘요. 첫 답에서 통과하면 **첫 답 통과**예요.
 - **신뢰비용 · 신뢰시간** = 모든 시도(보정 라운드 포함)의 평균 비용·시간 ÷ 도달률. 시도당 싸도 자주 못 닿는 모델은 여기서 그 값을 치러요. 한 번도 못 닿은 조합은 신뢰비용이 없어요.
 - **비용**은 API 정가 환산이에요(구독 요금이 아님). Claude Code·Grok Build 는 하네스가 보고하고, Codex·Antigravity 는 토큰 수 × 공개 단가로 계산해요.
-- **반복**: <!--bn:nNoteKo-->칸마다 n = 3 · Opus 5 30칸은 n = 2 · Opus 4.8 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->. 이 문서와 그림 · 표의 숫자는 모두 실행 기록의 스냅샷 하나에서 나왔어요.
+- **반복**: <!--bn:nNoteKo-->칸마다 n = 3 · Opus 4.8 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->. 이 문서와 그림 · 표의 숫자는 모두 실행 기록의 스냅샷 하나에서 나왔어요.
 
 ### aim 사다리
 
@@ -292,14 +292,14 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 | <img src="docs/assets/bench/keyart/aim3.png" width="56" alt="aim 3 key image"> | 3 | 여러 단계 기능 + 스키마 이전 | 49 | 100% | 98% | 6.4분 | $0.72 |
 | <img src="docs/assets/bench/keyart/aim4.png" width="56" alt="aim 4 key image"> | 4 | 증상 보고에서 진단·수정 | 37 | 100% | 99% | 4.8분 | $0.53 |
 | <img src="docs/assets/bench/keyart/aim5.png" width="56" alt="aim 5 key image"> | 5 | 작은 언어 인터프리터 설계·구현 | 96 | 98% | 89% | 10.6분 | $1.06 |
-| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | 6 | 충돌에 안전한 트랜잭션 키-값 저장소 | 58 | 93% | 79% | 13.5분 | $1.10 |
+| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | 6 | 충돌에 안전한 트랜잭션 키-값 저장소 | 58 | 94% | 80% | 13.5분 | $1.10 |
 <!--/bn-block-->
 
 ![aim 사다리 — 설계한 난도 순서의 여섯 과제와 잰 것](docs/assets/bench/trust-cost-ladder.png)
 
 키 이미지: aim 마다 글자 없는 그림 한 장 — 공개한 프롬프트로 Codex CLI 의 내장 이미지 도구가 만들었어요([만든 방법](docs/assets/bench/keyart/README.md)). 시트의 글자 · 번호 · 사다리는 코드로 그려요.
 
-중앙값은 aim 마다 모델 × 하네스 × effort 조합 <!--bn:a1Combos-->89<!--/bn-->개 위에서 냈어요(<!--bn:nNoteKo-->칸마다 n = 3 · Opus 5 30칸은 n = 2 · Opus 4.8 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->). 어떤 aim 에서 한 번도 못 닿은 조합은 신뢰비용이 없어서 그 aim 의 신뢰 중앙값에서 빠져요 — 이런 조합은 aim 6 에만 있어요(찾은 것 1).
+중앙값은 aim 마다 모델 × 하네스 × effort 조합 <!--bn:a1Combos-->89<!--/bn-->개 위에서 냈어요(<!--bn:nNoteKo-->칸마다 n = 3 · Opus 4.8 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->). 어떤 aim 에서 한 번도 못 닿은 조합은 신뢰비용이 없어서 그 aim 의 신뢰 중앙값에서 빠져요 — 이런 조합은 aim 6 에만 있어요(찾은 것 1).
 
 **읽는 법.** aim 1–4 는 검증된 결과당 <!--bn:a1Cost-->$0.40<!--/bn-->–<!--bn:a3Cost-->$0.72<!--/bn--> · <!--bn:a1Time-->3.5<!--/bn-->–<!--bn:a3Time-->6.4<!--/bn-->분 안에 있고 고르게 오르지 않아요 — aim 2 가 aim 3–4 보다 첫 답에서 더 자주 걸리고, aim 4 가 aim 3 보다 싸요. aim 5·6 은 그 범위 위에 있어요: 비용은 aim 1–4 중앙값의 대략 두 배, 시간은 두 배에서 세 배 가까이예요. 중앙값 비용은 둘이 비슷하지만 aim 6 이 더 오래 걸리고 더 많이 놓쳐요. 도달 못 한 실행이 나오는 단은 aim 5·6 뿐이에요. 순서는 설계한 그대로이고, 표는 잰 그대로예요 — 매끈한 추세가 아니에요.
 
@@ -308,7 +308,7 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 | 하네스 | 모델 | effort 단계 |
 |---|---|---|
 | Claude Code(CLI 2.1.284) | Claude Sonnet 5.5 · Claude Opus 5.5 · Claude Fable 5.1 · Claude Fable 5 | low · medium · high · xhigh · max |
-| | Claude Opus 5 (n=<!--bn:m_opus5_n-->2<!--/bn-->) · Claude Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) · Claude Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) | low · medium · high · xhigh · max |
+| | Claude Opus 5 (n=<!--bn:m_opus5_n-->3<!--/bn-->) · Claude Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) · Claude Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) | low · medium · high · xhigh · max |
 | | Claude Haiku 4.5 | default |
 | Claude Code(CLI 2.1.293, 나란히 설치) | Claude Haiku 5.5 | low · medium · high · xhigh · max |
 | Codex | GPT-6.1 Sol · GPT-6 Sol · GPT-6 Astra · GPT-6 Luna · GPT-5.6 Sol · GPT-5.6 Terra · GPT-5.6 Luna | low · medium · high · xhigh · max |
@@ -316,9 +316,9 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 | Antigravity | Gemini 3.8 Flash | low · medium · high |
 | | Gemini 3.1 Pro | low · high |
 
-- **<!--bn:combos-->89<!--/bn--> 조합 × 6 aim(<!--bn:nNoteKo-->칸마다 n = 3 · Opus 5 30칸은 n = 2 · Opus 4.8 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->)에서, 다시 재지 않은 무효 실행 하나를 뺀** 유효 실행 <!--bn:runs-->1,541<!--/bn-->회(aim 1–5: <!--bn:runsAims1to5-->1,284<!--/bn--> · aim 6: <!--bn:runsAim6-->257<!--/bn-->) — 빠진 하나는 Claude Fable 5.1 max 의 aim 2([아래 사건](#사건--빈-피드백이-탐색을-부른다)). <!--bn:dateFirst-->2026-09-30<!--/bn--> → <!--bn:dateLast-->2026-10-12<!--/bn-->, 기계 한 대(이 문서의 날짜·시각은 모두 UTC). Claude Haiku 5.5 · Opus 5 · Sonnet 5 · Opus 4.8 과 GPT-5.6 Sol · Terra · Luna 행은 나머지를 모두 잰 뒤에 쟀어요.
+- **<!--bn:combos-->89<!--/bn--> 조합 × 6 aim(<!--bn:nNoteKo-->칸마다 n = 3 · Opus 4.8 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->)에서, 다시 재지 않은 무효 실행 하나를 뺀** 유효 실행 <!--bn:runs-->1,571<!--/bn-->회(aim 1–5: <!--bn:runsAims1to5-->1,309<!--/bn--> · aim 6: <!--bn:runsAim6-->262<!--/bn-->) — 빠진 하나는 Claude Fable 5.1 max 의 aim 2([아래 사건](#사건--빈-피드백이-탐색을-부른다)). <!--bn:dateFirst-->2026-09-30<!--/bn--> → <!--bn:dateLast-->2026-10-12<!--/bn-->, 기계 한 대(이 문서의 날짜·시각은 모두 UTC). Claude Haiku 5.5 · Opus 5 · Sonnet 5 · Opus 4.8 과 GPT-5.6 Sol · Terra · Luna 행은 나머지를 모두 잰 뒤에 쟀어요.
 <!--bn-block:reps-bullet-ko-->
-- **실행이 셋보다 적은 행.** Opus 4.8, Opus 5 는 과제 × effort 마다 아직 실행이 두 번이에요(Opus 5 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행들 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.
+- **실행이 셋보다 적은 행.** Opus 4.8 은 과제 × effort 마다 아직 실행이 두 번이에요(Opus 4.8 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행의 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.
 <!--/bn-block-->
 - 실행마다 과제 저장소의 격리된 사본에서 일해요. 모델은 거기서 `node` 를 실행할 수 있고(node 명령만 통과시키는 게이트), 다른 셸 명령은 거부돼요. Claude Code 벤치 세션의 플러그인 훅은 2026-10-01 11:00 부터 껐어요(그 전 실행은 영어 절의 [결함 표](#measurement-defects-found-and-fixed) 참고).
 - 라운드 예산은 벽시계 90분. Claude Code 의 응답당 출력 상한은 하네스 기본값(64,000 토큰) 그대로 뒀어요 — [한계](#한계) 참고.
@@ -328,7 +328,7 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 
 ### 찾은 것
 
-**1. 사다리는 도달보다 먼저 시간 · 비용 · 첫 답에서 갈려요.** aim 1–4 는 모든 실행이 도달했어요. 처음 놓친 단은 aim 5 — <!--bn:a5Runs-->257<!--/bn-->회 중 <!--bn:a5Unreached-->5<!--/bn-->회가 못 닿았어요 — 이고, 가장 많이 놓친 단은 aim 6 이에요: <!--bn:a6Runs-->257<!--/bn-->회 중 <!--bn:a6Unreached-->17<!--/bn-->회. 놓친 실행이 있는 칸(도달 / 실행):
+**1. 사다리는 도달보다 먼저 시간 · 비용 · 첫 답에서 갈려요.** aim 1–4 는 모든 실행이 도달했어요. 처음 놓친 단은 aim 5 — <!--bn:a5Runs-->262<!--/bn-->회 중 <!--bn:a5Unreached-->5<!--/bn-->회가 못 닿았어요 — 이고, 가장 많이 놓친 단은 aim 6 이에요: <!--bn:a6Runs-->262<!--/bn-->회 중 <!--bn:a6Unreached-->17<!--/bn-->회. 놓친 실행이 있는 칸(도달 / 실행):
 
 <!--bn-block:misses-md-ko-->
 | aim | 하네스 · 모델 · effort | 도달 |
@@ -347,7 +347,7 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 | 6 | Claude Code · Sonnet 5 · max | 0/3 |
 <!--/bn-block-->
 
-놓친 실행은 대부분 그 모델의 가장 낮은 effort 에서 나왔어요. GPT-5.6 Luna · GPT-6 Luna · Gemini 3.1 Pro 는 한 단 올리면 매번 닿았어요(각각 medium · medium · high — high 는 Gemini 3.1 Pro 의 유일한 다른 단계예요). Claude Haiku 4.5 는 effort 가 하나뿐이고 aim 6 에 한 번도 못 닿았어요. 반대 방향의 예외가 둘 있어요: GPT-5.6 Terra 는 가장 낮은 effort 보다 위에서도 놓쳤고(찾은 것 5), Sonnet 5 의 <!--bn:m_sonnet5_capMissKo-->aim 6 high · xhigh · max<!--/bn--> 미도달은 Claude Code 의 기본 출력 상한이 생각 도중에 응답을 끊어서 생겼어요(찾은 것 7) — 하네스의 한계이고, 잰 그대로 뒀어요.
+놓친 실행 <!--bn:missRunsAll-->22<!--/bn-->회 중 <!--bn:missRunsLowest-->12<!--/bn-->회가 그 모델의 가장 낮은 effort 에서 나왔어요(놓친 실행이 있는 칸 <!--bn:missCellsAll-->12<!--/bn-->개 중 <!--bn:missCellsLowest-->6<!--/bn-->개). GPT-5.6 Luna · GPT-6 Luna · Gemini 3.1 Pro 는 한 단 올리면 매번 닿았어요(각각 medium · medium · high — high 는 Gemini 3.1 Pro 의 유일한 다른 단계예요). Claude Haiku 4.5 는 effort 가 하나뿐이고 aim 6 에 한 번도 못 닿았어요. 반대 방향의 예외가 둘 있어요: GPT-5.6 Terra 는 가장 낮은 effort 보다 위에서도 놓쳤고(찾은 것 5), Sonnet 5 의 <!--bn:m_sonnet5_capMissKo-->aim 6 high · xhigh · max<!--/bn--> 미도달은 Claude Code 의 기본 출력 상한이 생각 도중에 응답을 끊어서 생겼어요(찾은 것 7) — 하네스의 한계이고, 잰 그대로 뒀어요.
 
 **2. 가장 싼 effort 는 거의 늘 low 나 medium 이고, 맨 윗단은 비용 배수예요.** effort 가 둘 이상인 모델 × aim 쌍 가운데 몇 쌍을 빼면, 검증된 결과당 가장 싼 effort 는 low 나 medium 이에요(나머지는 high). aim 1–4 에선 effort 를 올려도 도달이 늘지 않았어요. aim 5–6 에선 가장 낮은 effort 가 놓친 자리에서 도달을 샀고(찾은 것 1 · GPT-5.6 Terra 는 예외 — 찾은 것 5) — Sonnet 5 는 오히려 <!--bn:m_sonnet5_capMissKo-->aim 6 high · xhigh · max<!--/bn--> 에서 출력 상한 때문에 도달을 잃었어요(찾은 것 7). max 가 low 보다 얼마나 드는지 — aim 별 신뢰비용 비 max ÷ low 의 기하평균:
 
@@ -359,7 +359,7 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 | Claude Code · Opus 5.5 | <!--bn:spread_opus55-->9.37×<!--/bn--> |
 | Claude Code · Fable 5 | <!--bn:spread_fable5-->3.90×<!--/bn--> |
 | Claude Code · Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) | <!--bn:spread_opus48-->3.65×<!--/bn--> |
-| Claude Code · Opus 5 (n=<!--bn:m_opus5_n-->2<!--/bn-->) | <!--bn:spread_opus5-->3.89×<!--/bn--> |
+| Claude Code · Opus 5 (n=<!--bn:m_opus5_n-->3<!--/bn-->) | <!--bn:spread_opus5-->3.61×<!--/bn--> |
 | Claude Code · Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) | <!--bn:spread_sonnet5-->3.51×<!--/bn-->‡ |
 | Codex · GPT-5.6 Terra | <!--bn:spread_gpt56terra-->2.70×<!--/bn--> |
 | Codex · GPT-5.6 Luna | <!--bn:spread_gpt56luna-->2.60×<!--/bn-->‡ |
@@ -389,7 +389,7 @@ Claude Code 에선 최신 버전들이 앞 버전보다 훨씬 넓게 벌어져�
 | Claude Code · Fable 5.1 | L★ M★ H★ | L★ | L★ M★ | L★ | M★ | M★ |
 | Claude Code · Haiku 5.5 | L★ | L★ | L★ | L★ | L★ | M★ |
 | Claude Code · Opus 4.8 | L★ H★ | L★ | L★ M★ | L★ M☆ | L★ | L★ |
-| Claude Code · Opus 5 | L★ M★ | L★ M★ | L★ | L★ | L★ | L★ M☆ |
+| Claude Code · Opus 5 | L★ M★ | L★ M★ | L★ | L★ M★ | L★ | L★ M☆ |
 | Claude Code · Opus 5.5 | M★ | L★ | L★ M★ | L★ M★ | L★ | M★ |
 | Claude Code · Sonnet 5 | L★ M★ | M★ | M★ | L★ M★ | L★ | M★ |
 | Claude Code · Sonnet 5.5 | L★ M☆ | L★ M★ H☆ | L★ M★ | L★ M★ | H★ L☆ | L★ M★ |
@@ -416,7 +416,7 @@ Claude Code 에선 최신 버전들이 앞 버전보다 훨씬 넓게 벌어져�
 
 | 새 ÷ 옛 | low | medium | high | xhigh | max |
 |---|---|---|---|---|---|
-| Claude Opus 5.5 ÷ Opus 5 (n=<!--bn:m_opus5_n-->2<!--/bn-->) | <!--bn:pair_opus55_opus5_low-->0.42×<!--/bn--> | <!--bn:pair_opus55_opus5_medium-->0.36×<!--/bn--> | <!--bn:pair_opus55_opus5_high-->0.31×<!--/bn--> | <!--bn:pair_opus55_opus5_xhigh-->0.52×<!--/bn--> | <!--bn:pair_opus55_opus5_max-->1.00×<!--/bn--> |
+| Claude Opus 5.5 ÷ Opus 5 (n=<!--bn:m_opus5_n-->3<!--/bn-->) | <!--bn:pair_opus55_opus5_low-->0.39×<!--/bn--> | <!--bn:pair_opus55_opus5_medium-->0.37×<!--/bn--> | <!--bn:pair_opus55_opus5_high-->0.31×<!--/bn--> | <!--bn:pair_opus55_opus5_xhigh-->0.52×<!--/bn--> | <!--bn:pair_opus55_opus5_max-->1.01×<!--/bn--> |
 | Claude Opus 5.5 ÷ Opus 4.8 (n=<!--bn:m_opus48_n-->2<!--/bn-->) | <!--bn:pair_opus55_opus48_low-->0.41×<!--/bn--> | <!--bn:pair_opus55_opus48_medium-->0.37×<!--/bn--> | <!--bn:pair_opus55_opus48_high-->0.46×<!--/bn--> | <!--bn:pair_opus55_opus48_xhigh-->0.58×<!--/bn--> | <!--bn:pair_opus55_opus48_max-->1.04×<!--/bn--> |
 | Claude Sonnet 5.5 ÷ Sonnet 5 (n=<!--bn:m_sonnet5_n-->3<!--/bn-->) | <!--bn:pair_sonnet55_sonnet5_low-->0.50×<!--/bn--> | <!--bn:pair_sonnet55_sonnet5_medium-->0.42×<!--/bn--> | <!--bn:pair_sonnet55_sonnet5_high-->0.33×<!--/bn--> | <!--bn:pair_sonnet55_sonnet5_xhigh-->0.86×<!--/bn-->‡ | <!--bn:pair_sonnet55_sonnet5_max-->2.18×<!--/bn-->‡ |
 | Claude Fable 5.1 ÷ Fable 5 | <!--bn:pair_fable51_fable5_low-->0.70×<!--/bn--> | <!--bn:pair_fable51_fable5_medium-->0.55×<!--/bn--> | <!--bn:pair_fable51_fable5_high-->0.62×<!--/bn--> | <!--bn:pair_fable51_fable5_xhigh-->1.06×<!--/bn--> | <!--bn:pair_fable51_fable5_max-->2.41×<!--/bn-->* |
@@ -430,7 +430,7 @@ Claude Code 에선 최신 버전들이 앞 버전보다 훨씬 넓게 벌어져�
 - **Claude Code.** low 에서 high 까지는 새 Claude 버전이 모두 앞 버전보다 검증된 결과당 덜 들었어요 — Opus 5.5 는 Opus 5 · Opus 4.8 의 절반 아래이고, Sonnet 5.5 는 Sonnet 5 의 절반 안팎이나 그 아래, Fable 5.1 은 Fable 5 의 <!--bn:pair_fable51_fable5_medium-->0.55×<!--/bn-->–<!--bn:pair_fable51_fable5_low-->0.70×<!--/bn--> 예요. 맨 위에선 차이가 닫혀요: max 에서 Opus 5.5 는 앞 Opus 두 버전과 같은 수준이고, Sonnet 5.5 와 Fable 5.1 은 앞 버전보다 더 들어요. xhigh 에선 Sonnet 과 Fable 이 ~20% 동률 띠 안이에요. 찾은 것 2 의 뒷면이에요 — 새 버전은 max 가 아니라 low 에서 싸져서 low→max 폭이 넓어졌어요.
 - **Codex.** GPT-6.1 Sol 은 모든 effort 에서 GPT-6 Sol 보다 덜 들었고, GPT-5.6 Sol 의 대략 삼분의 일이에요. GPT-6 Luna 는 GPT-5.6 Luna 의 사분의 일에서 삼분의 일 정도예요. max 에서 뒤집히지 않아요. GPT-5.6 Luna 와 Terra 는 aim 5 에서도 놓친 실행이 있어요 — 같은 aim 에서 GPT-6 세대 행은 모든 실행이 도달했어요(찾은 것 5).
 - **Grok Build.** grok-4.7 은 모든 effort 에서 grok-4.6 보다 더 들고 더 오래 걸렸어요(신뢰시간 중앙값 <!--bn:m_grok47_medTT-->22.5<!--/bn--> 대 <!--bn:m_grok46_medTT-->10.9<!--/bn-->분). 대신 모든 실행이 첫 답 통과였어요(<!--bn:m_grok47_oneShotPct-->100%<!--/bn--> 대 <!--bn:m_grok46_oneShotPct-->92%<!--/bn-->). 둘 다 모든 실행이 도달했어요.
-- **반복 수.** 칸마다 Opus 5 쪽은 n = <!--bn:m_opus5_n-->2<!--/bn-->, Opus 4.8 은 n = <!--bn:m_opus48_n-->2<!--/bn-->, Sonnet 5 는 n = <!--bn:m_sonnet5_n-->3<!--/bn--> 에 기대요. 큰 차이의 방향은 대체로 믿을 만하고, 1× 에서 ~20% 안쪽인 비율은 동률이에요.
+- **반복 수.** 칸마다 Opus 5 쪽은 n = <!--bn:m_opus5_n-->3<!--/bn-->, Opus 4.8 은 n = <!--bn:m_opus48_n-->2<!--/bn-->, Sonnet 5 는 n = <!--bn:m_sonnet5_n-->3<!--/bn--> 에 기대요. 큰 차이의 방향은 대체로 믿을 만하고, 1× 에서 ~20% 안쪽인 비율은 동률이에요.
 
 **5. aim 5 에서 놓친 실행은 전부 GPT-5.6 Terra 나 Luna 예요.** GPT-5.6 Luna 는 low 에서만 놓쳤어요 — aim 5(<!--bn:c_gpt56luna_low_a5_reach-->1/3<!--/bn--> 도달)와 aim 6(<!--bn:c_gpt56luna_low_a6_reach-->0/3<!--/bn-->) — 그리고 medium 부터는 모든 실행이 닿았어요. 다만 그 aim 들에서 medium 은 보정이 필요했기 때문에(첫 답 aim 5 <!--bn:c_gpt56luna_medium_a5_first-->1/3<!--/bn--> · aim 6 <!--bn:c_gpt56luna_medium_a6_first-->0/3<!--/bn-->) 거기서 권장 effort 는 xhigh(aim 6 은 high 도)예요. GPT-5.6 Terra 는 aim 5 의 low · medium · high(<!--bn:c_gpt56terra_low_a5_reach-->2/3<!--/bn--> · <!--bn:c_gpt56terra_medium_a5_reach-->2/3<!--/bn--> · <!--bn:c_gpt56terra_high_a5_reach-->2/3<!--/bn-->)와 aim 6 의 medium(<!--bn:c_gpt56terra_medium_a6_reach-->2/3<!--/bn-->)에서 놓쳤는데, aim 6 의 low 에선 모든 실행이 닿았어요 — Terra 는 effort 를 올린다고 도달이 고르게 오르지 않았어요. xhigh 와 max 에선 모든 실행이 닿았고, aim 5 의 권장 effort 는 xhigh 예요. aim 6 의 low 표시는 예외 규칙으로 받은 거예요: low 는 보정이 필요했지만(첫 답 <!--bn:c_gpt56terra_low_a6_first-->1/3<!--/bn-->) 첫 답 통과한 최선의 effort 의 절반도 안 되는 시간이 걸렸어요. 후속 모델 GPT-6 Luna 는 aim 6 의 low 에서만 놓쳤고(<!--bn:c_gpt6luna_low_a6_reach-->1/3<!--/bn-->), GPT-5.6 Sol 과 GPT-6.1 Sol 은 모든 실행이 닿았어요.
 
@@ -454,7 +454,7 @@ Claude Code 에선 최신 버전들이 앞 버전보다 훨씬 넓게 벌어져�
 | Antigravity · Gemini 3.8 Flash | medium | 3/3 | 2/3 | $1.10 | 6.9 |
 | Claude Code · Fable 5.1 | medium | 3/3 | 3/3 | $2.05 | 4.3 |
 | Claude Code · Sonnet 5 | low | 3/3 | 0/3 | $2.19 | 17.8 |
-| Claude Code · Opus 5 (n=2) | low | 2/2 | 2/2 | $3.79 | 25.8 |
+| Claude Code · Opus 5 | low | 3/3 | 3/3 | $3.60 | 21.0 |
 | Antigravity · Gemini 3.1 Pro | high | 3/3 | 0/3 | $4.20 | 8.3 |
 | Claude Code · Fable 5 | low | 3/3 | 3/3 | $4.80 | 8.1 |
 | Claude Code · Opus 4.8 (n=2) | low | 2/2 | 2/2 | $5.59 | 18.7 |
@@ -463,7 +463,7 @@ Claude Code 에선 최신 버전들이 앞 버전보다 훨씬 넓게 벌어져�
 
 행 순서는 모델마다 2–5개 effort 칸 중 가장 싼 값 기준이라 effort 가 많은 모델에 유리하고, ~20% 안의 이웃은 순위가 아니라 동률이에요. «가장 싼 effort» 는 신뢰비용 기준이라, 일부 실행에서 보정이 필요했던 effort 일 수도 있어요. 다른 effort 의 미도달은 찾은 것 1 에 있어요.
 
-**7. Claude Code 의 기본 출력 상한이 aim 6 의 몇 라운드를 끝냈어요.** aim 6 에서 Sonnet 5(n=<!--bn:m_sonnet5_n-->3<!--/bn-->)는 high · xhigh · max, Opus 4.8(n=<!--bn:m_opus48_n-->2<!--/bn-->)은 xhigh · max 에서 쓴 응답이 생각하는 도중에 Claude Code 의 응답당 출력 상한(64,000 토큰)에 걸렸고, 그 라운드가 끝났어요. Sonnet 5 는 xhigh(<!--bn:c_sonnet5_xhigh_a6_reach-->0/3<!--/bn-->)와 max(<!--bn:c_sonnet5_max_a6_reach-->0/3<!--/bn-->)에서 못 닿았고, high 에선 <!--bn:c_sonnet5_high_a6_reach-->2/3<!--/bn--> 닿았어요 — 못 닿은 한 번이 상한이 끝낸 실행이에요. Opus 4.8 은 두 칸 모두 뒤 라운드에서 닿았어요. 상한까지 가는 라운드는 길어서, 이 세 칸이 전체 표에서 가장 느려요(신뢰시간 Sonnet 5 high <!--bn:c_sonnet5_high_a6_tt-->166.9<!--/bn-->분 · Opus 4.8 max <!--bn:c_opus48_max_a6_tt-->159.0<!--/bn-->분 · xhigh <!--bn:c_opus48_xhigh_a6_tt-->156.5<!--/bn-->분). 상한은 하네스 기본값 그대로 뒀어요. 자세한 내용은 [한계](#한계)의 «출력 상한» 에 있어요.
+**7. Claude Code 의 기본 출력 상한이 aim 6 의 몇 라운드를 끝냈어요.** aim 6 에서 Sonnet 5(n=<!--bn:m_sonnet5_n-->3<!--/bn-->)는 high · xhigh · max, Opus 4.8(n=<!--bn:m_opus48_n-->2<!--/bn-->)은 xhigh · max 에서 쓴 응답이 생각하는 도중에 Claude Code 의 응답당 출력 상한(64,000 토큰)에 걸렸고, 그 라운드가 끝났어요. Sonnet 5 는 xhigh(<!--bn:c_sonnet5_xhigh_a6_reach-->0/3<!--/bn-->)와 max(<!--bn:c_sonnet5_max_a6_reach-->0/3<!--/bn-->)에서 못 닿았고, high 에선 <!--bn:c_sonnet5_high_a6_reach-->2/3<!--/bn--> 닿았어요 — 못 닿은 한 번이 상한이 끝낸 실행이에요. Opus 4.8 은 두 칸 모두 뒤 라운드에서 닿았어요. <!--bn:capCleanKo-->나머지 Claude Code 행(Fable 5 · Fable 5.1 · Haiku 4.5 · Haiku 5.5 · Opus 5 · Opus 5.5 · Sonnet 5.5)은 어느 실행도 상한에 걸리지 않았어요.<!--/bn--> 상한까지 가는 라운드는 길어서, 이 세 칸이 전체 표에서 가장 느려요(신뢰시간 Sonnet 5 high <!--bn:c_sonnet5_high_a6_tt-->166.9<!--/bn-->분 · Opus 4.8 max <!--bn:c_opus48_max_a6_tt-->159.0<!--/bn-->분 · xhigh <!--bn:c_opus48_xhigh_a6_tt-->156.5<!--/bn-->분). 상한은 하네스 기본값 그대로 뒀어요. 자세한 내용은 [한계](#한계)의 «출력 상한» 에 있어요.
 
 **8. 반복 간 흔들림은 중간 정도예요.** 한 칸의 실행들 사이에서 비용과 시간의 변동계수 중앙값은 모든 하네스에서 20% 안팎이나 그 아래예요 — 보고서의 동률 규칙이 여기서 나와요: 두 칸의 차가 ~20% 안쪽이면 동률로 읽어요. 어떤 칸은 훨씬 크게 흔들려요 — 보정 라운드가 한 실행엔 끼고 다른 실행엔 안 낄 때, 그리고 가끔은 같은 길이의 실행이 그냥 다르게 쓸 때요. 시간 축은 기계 부하에도 흔들려요. n=1 칸은 흔들림이 아예 안 보이고, 그래서 그 표시가 잠정이에요.
 
@@ -490,7 +490,7 @@ aim 마다 그림 하나: x = 신뢰비용(로그), y = 신뢰시간(로그), �
 
 - **관측자 한 명, 기계 한 대.** 측정은 전부 관측자 한 명이 Windows 워크스테이션 한 대에서 했어요. 독립 재현은 아직 없어요.
 - **과제와 숨긴 시험은 공개하지 않아요** — 학습 데이터와 실행 중인 모델 양쪽에서 떼어 두려고요. 아직 다시 돌려 볼 수 없으니 표준이 아니라 보고서로 읽어 주세요.
-- **반복 수가 행마다 달라요.** <!--bn:nNoteKo-->칸마다 n = 3 · Opus 5 30칸은 n = 2 · Opus 4.8 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->. 실행 세 번은 흔들림을 볼 만큼이지 촘촘한 순위를 낼 만큼은 아니에요.<!--bn:repsNoteSpKo--> 실행이 셋보다 적은 행: Opus 4.8, Opus 5 는 과제 × effort 마다 아직 실행이 두 번이에요(Opus 5 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행들 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.<!--/bn-->
+- **반복 수가 행마다 달라요.** <!--bn:nNoteKo-->칸마다 n = 3 · Opus 4.8 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->. 실행 세 번은 흔들림을 볼 만큼이지 촘촘한 순위를 낼 만큼은 아니에요.<!--bn:repsNoteSpKo--> 실행이 셋보다 적은 행: Opus 4.8 은 과제 × effort 마다 아직 실행이 두 번이에요(Opus 4.8 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행의 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.<!--/bn-->
 - **실행 순서.** Grok Build 의 aim 1–5 세 번째 실행(과 두 번째 실행 하나), 그리고 aim 6 실행 전부는 첫 측정의 다른 행보다 늦은 2026-10-06 에 쟀어요. 이번 갱신에 더한 행(Claude Haiku 5.5 · Opus 5 · Sonnet 5 · Opus 4.8, GPT-5.6 Sol · Terra · Luna)은 그 뒤에, 다른 날짜와 다른 기계 부하 아래에서 쟀어요.
 - **버전.** Claude Code CLI 버전은 Claude 전사에 남아 있어요(라운드 예산에 걸려 멈춘 실행은 전사가 없어요). 다른 하네스는 가장 최근 Codex 실행 일부에만 버전이 기록됐어요. 모델 동작은 측정 날짜 기준이에요.
 - **시간이 더 약한 축이에요.** 벽시계 시간은 기계 부하(동시에 돈 체인 수) · 실행 순서 · 서빙 계정에 따라 흔들려요. Claude 계정을 두 개 썼고 2026-10-03 에 바꿨어요 — 비용엔 영향이 없고 시간엔 있을 수 있어요. 훅 시기의 Claude 실행(결함 표)은 도구 호출마다 몇 초씩 더 걸렸어요.
@@ -509,7 +509,7 @@ Claude Haiku 5.5 는 Claude Code 2.1.293 를 나란히 설치해 쟀어요. 나�
 
 **출력 상한.**
 <!--bn-block:cap-ko-->
-Claude Code 의 기본 출력 상한(응답당 64,000 토큰)이 6칸에서 라운드 35개를 끝냈어요: aim 5 의 Sonnet 5 max(라운드 2개 중 1개 · 실행 3회 중 1회 · 뒤 라운드에서 도달), aim 6 의 Opus 4.8 xhigh(라운드 6개 중 4개 · 뒤 라운드에서 도달), aim 6 의 Opus 4.8 max(라운드 5개 중 3개 · 뒤 라운드에서 도달), aim 6 의 Sonnet 5 high(라운드 4개 중 4개 · 실행 3회 중 1회 · 그 실행은 도달 못 함), aim 6 의 Sonnet 5 xhigh(라운드 12개 중 11개 · 도달 못 함), aim 6 의 Sonnet 5 max(라운드 12개 중 12개 · 도달 못 함). 생각하는 도중에 응답 자리가 다 찼어요. 상한은 하네스 기본값 그대로 뒀어요 — 이 칸들은 하네스가 나오는 그대로 잰 값이고, 여기서 도달하지 못한 칸은 모델보다 기본 상한에 대해 더 많이 말해요.
+Claude Code 의 기본 출력 상한(응답당 64,000 토큰)이 6칸에서 라운드 35개를 끝냈어요: aim 5 의 Sonnet 5 max(라운드 2개 중 1개 · 실행 3회 중 1회 · 뒤 라운드에서 도달), aim 6 의 Opus 4.8 xhigh(라운드 6개 중 4개 · 뒤 라운드에서 도달), aim 6 의 Opus 4.8 max(라운드 5개 중 3개 · 뒤 라운드에서 도달), aim 6 의 Sonnet 5 high(라운드 4개 중 4개 · 실행 3회 중 1회 · 그 실행은 도달 못 함), aim 6 의 Sonnet 5 xhigh(라운드 12개 중 11개 · 도달 못 함), aim 6 의 Sonnet 5 max(라운드 12개 중 12개 · 도달 못 함). 생각하는 도중에 응답 자리가 다 찼어요. 나머지 Claude Code 행(Fable 5 · Fable 5.1 · Haiku 4.5 · Haiku 5.5 · Opus 5 · Opus 5.5 · Sonnet 5.5)은 어느 실행도 상한에 걸리지 않았어요. 상한은 하네스 기본값 그대로 뒀어요 — 이 칸들은 하네스가 나오는 그대로 잰 값이고, 여기서 도달하지 못한 칸은 모델보다 기본 상한에 대해 더 많이 말해요.
 <!--/bn-block-->
 
 ### 쓰이는 곳

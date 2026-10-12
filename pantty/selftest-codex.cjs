@@ -24,11 +24,24 @@ function check(cond, name, detail) {
   else { fail += 1; fails.push(name + (detail ? ' — ' + detail : '')); console.log('  FAIL ' + name + (detail ? ' — ' + detail : '')); }
 }
 
+// 만든 임시 폴더는 모든 종료 경로에서 지워요(안 지우면 실행마다 하나씩 쌓여요).
+// Windows 에선 cwd 가 그 폴더인 좌석 프로세스가 막 끝난 직후엔 rmSync 가 EPERM 을 낼 수 있고,
+// rmSync 의 maxRetries 는 EPERM 을 재시도하지 않아서 잠깐씩 기다리며 직접 다시 시도해요.
+const made = [];
 function tmpdir(tag) {
   const d = path.join(os.tmpdir(), 'pantty-selftest-' + tag + '-' + process.pid);
   fs.mkdirSync(d, { recursive: true });
+  made.push(d);
   return d;
 }
+process.on('exit', () => {
+  const nap = new Int32Array(new SharedArrayBuffer(4));
+  for (const d of made) {
+    for (let i = 0; i < 30; i += 1) {
+      try { fs.rmSync(d, { recursive: true, force: true }); break; } catch (_) { Atomics.wait(nap, 0, 0, 100); }
+    }
+  }
+});
 
 // ── 층 1: 모델을 안 부르는 단정 ──────────────────────────────────────────────
 function offline() {
