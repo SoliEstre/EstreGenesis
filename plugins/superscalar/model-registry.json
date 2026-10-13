@@ -135,7 +135,7 @@
       "effort": "output_config.effort = low | medium (DEFAULT on the Claude API) | high | xhigh | max. THE DEFAULT DROPPED A RUNG: «A request that omits `effort` runs at `medium`; on Claude Opus 5 it ran at `high`.» Vendor: «Opus 5.5 at medium matches or exceeds Opus 5 at high on coding and knowledge-work evaluations, and on several coding evaluations low comes close to it», but also «At a given level, Claude Opus 5.5 tends to think more per turn than Claude Opus 5, especially at xhigh and max» — so a lane copied from Opus 5 at the same effort name gets LONGER turns, not the same ones. «Reserve xhigh and max for work where you've measured a quality gain.» Thinking is adaptive and ALWAYS ON (thinking disabled or enabled+budget_tokens → 400). Claude Code 2.1.280: an effort saved before /effort became per-model no longer applies to newly released models such as Opus 5.5 — they start at their default. Claude Code default CONFIRMED 2026-10-08 verbatim (model-config.md): «`high` on every model that supports effort, except that Opus 5.5, Sonnet 5.5, and Haiku 5.5 default to `medium`…» — the same as the API. An organization default effort level overrides it for the organization default model, and «a top-level `effortLevel` in your user settings file doesn't count for Opus 5.5» (project, local, managed or --settings `effortLevel` applies to every model).",
       "notes": "Released 2026-09-22 («Latest.»), retirement not sooner than 2027-09-22; the first model of the Claude 5.5 family. Positioning moved the start-here pointer: «If you're unsure which model to use, start with Claude Opus 5.5 for most workloads» — with Fable 5.1 reserved «for demanding reasoning and long-horizon agentic work, or when your evals on Claude Opus 5.5 at higher effort still fall short». Vendor claim: «performs at the level of Claude Fable 5.1 on most work and costs 40% less to run than Opus 5», output >30% faster than Opus 5, better sustained multi-hour autonomous runs «with parallel subagents and little oversight», and the strongest indirect-prompt-injection resistance of any Opus. FIRST Opus launched with Fable-class safeguards (cyber, biology, distillation) that «fall back to another model transparently» — a lane can be silently served by a different model on those topics (2026-10-08: the refusals page now states fallbacks are VISIBLE — see below). BREAKING vs Opus 5 (four): thinking cannot be disabled; forced tool use (`tool_choice` any/tool) returns 400 — «say in the prompt when the tool applies» or use strict tools/structured outputs; thinking blocks are bound to model+conversation (Opus 5.5 reads Opus 5-and-earlier blocks but not Fable/Mythos ones; a changed prefix before a replayed block is a 400 by default for accounts created on or after 2026-08-31, opt-in drop via thinking-binding-controls-2026-08-01); `computer_20251124` rejected on the Claude API and Google Cloud (still fine on Bedrock). Non-failing but loud: text between tool calls arrives in EMPTY thinking blocks at the default display — a harness that streamed it as progress goes quiet until it sets display:\"updates\" (thinking-display-updates-2026-08-18). Unattended-loop foot-gun: «some of those updates end the turn with text rather than a tool call (stop_reason: \"end_turn\")» — a loop that treats end_turn as task end stops early. Harness hint the vendor documents: append an elapsed-time line («elapsed 340s / 1200s») to messages returned to a lead agent to improve parallelization. Knowledge cutoff (reliable and training) Jun 2026. Requires Claude Code ≥ v2.1.280. 2026-10-08 RE-CONFIRMED: $4/$20, cache write 5m $5 / 1h $8, cache read $0.20 (0.05x), batch $2/$10, 1M/128K (300K Batch beta), thinking always on (disabled and enabled+budget both 400), default effort medium, five levels, Active (latest), floor 2027-09-22, minimum cacheable prompt 512 tokens, fast mode (research preview, Claude API only) $8/$40; per-message effort on Claude API / Google Cloud / Bedrock. Models overview: description «For long-running agentic coding and knowledge work», comparative latency «Moderate» (Fable 5.1 «Slower», Sonnet 5.5 «Fast», Haiku 5.5 «Fastest»). FALLBACK IS VISIBLE, NOT TRANSPARENT: «Fallbacks are visible either way: the response names the model that served it, and the `fallback` content block marks the handoff.»; «Sticky routing can send a later turn straight to the fallback model. Such a turn carries no `fallback` content block, because no model declined that turn.» — identify it by `fallback_message` in usage.iterations and by the response `model`; «The routing is applied server-side and is not published per model on the Models API.» API server-side fallback = beta server-side-fallback-2026-07-01 with fallbacks:\"default\", Claude API only (not Batches, Bedrock, Google Cloud or Foundry). Claude Code routing: biology → Opus 5, cybersecurity → Opus 4.8; since 2.1.287 an automatic switch keeps the session's current effort level instead of the new model's default, and 2.1.290 fixed the level changing when the fallback model has a different level saved in settings. Refusals before output with category bio / frontier_llm / reasoning_extraction are billed again since 2026-09-24. Since 2.1.287, switching between Opus 5.5 and Sonnet 5.5 (`/model`, `opusplan`) no longer rewrites earlier MCP tool announcements (which could drop earlier extended thinking). Only change in the release notes after launch: the inline-tools beta (inline-tools-2026-09-15).",
       "confirmedBy": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
-      "inHouse": "MEASURED IN-HOUSE (Superscalar Bench, 2026-09-30 → 10-04; n=3 runs per cell; Claude Code headless; report: https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md) — single-observer evidence on private tasks, so weigh it as such. 90 of 90 runs reached the hidden-suite target over 6 coding tasks × 5 effort levels, 96% on the first answer; no cell missed. Median over its task × effort cells: $1.16 and 5.7 min per verified result (API-equivalent cost as reported by Claude Code). Recommended effort by task (★ cheapest per verified result, ☆ fastest where not ★): aim 1 M★ · aim 2 L★ · aim 3 L★ M★ · aim 4 L★ M★ · aim 5 L★ · aim 6 M★. low → max multiplies its cost per verified result by 9.37× (geometric mean over 6 tasks). Trust cost, this model ÷ its predecessor (geometric mean over tasks): versus Opus 5: low 0.39× · medium 0.37× · high 0.31× · xhigh 0.52× · max 1.01×; versus Opus 4.8: low 0.41× · medium 0.37× · high 0.46× · xhigh 0.58× · max 1.04×."
+      "inHouse": "MEASURED IN-HOUSE (Superscalar Bench, 2026-09-30 → 10-04; n=3 runs per cell; Claude Code headless; report: https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md) — single-observer evidence on private tasks, so weigh it as such. 90 of 90 runs reached the hidden-suite target over 6 coding tasks × 5 effort levels, 96% on the first answer; no cell missed. Median over its task × effort cells: $1.16 and 5.7 min per verified result (API-equivalent cost as reported by Claude Code). Recommended effort by task (★ cheapest per verified result, ☆ fastest where not ★): aim 1 M★ · aim 2 L★ · aim 3 L★ M★ · aim 4 L★ M★ · aim 5 L★ · aim 6 M★. low → max multiplies its cost per verified result by 9.37× (geometric mean over 6 tasks). Trust cost, this model ÷ its predecessor (geometric mean over tasks): versus Opus 5: low 0.39× · medium 0.37× · high 0.31× · xhigh 0.52× · max 1.01×; versus Opus 4.8: low 0.41× · medium 0.39× · high 0.45× · xhigh 0.54× · max 0.96×."
     },
     {
       "provider": "Anthropic",
@@ -186,7 +186,7 @@
       "effort": "output_config.effort = low | medium | high (default on API, Claude Code AND claude.ai) | xhigh | max. thinking:{type:\"adaptive\"} must be set EXPLICITLY — omitting it means no thinking, the opposite of Opus 5. In Claude Code it holds its default effort across sessions until you make an explicit choice.",
       "notes": "Keep configured as the designated fallback target, not as a primary: Claude Code re-runs cybersecurity-flagged requests from Opus 5 and Fable 5 on Opus 4.8, and after fallback the session stays there. Vendor effort guidance: \"Start with xhigh for coding and agentic use cases\" — the same guidance as Opus 4.7, and different from Opus 5's start-at-high. Anthropic's Model status table lists it Active (2026-10-08: the model page now says «Active (legacy)» — Legacy became a defined lifecycle term meaning no further updates, still callable); retirement not sooner than 2027-05-28. 2026-10-08 RE-CONFIRMED: $5/$25, cache read $0.50, 1M/128K, default effort high, floor 2027-05-28, no deprecation notice, fast mode $10/$50; still the cybersecurity fallback target for Fable 5.1 / Fable 5 / Opus 5.5 / Opus 5. Released 2026-05-28 (source: https://platform.claude.com/docs/en/models/opus-4-8/overview).",
       "confirmedBy": "https://platform.claude.com/docs/en/about-claude/models/overview",
-      "inHouse": "MEASURED IN-HOUSE (Superscalar Bench, 2026-10-08 → 10-11; n=2 runs per cell; Claude Code headless; report: https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md) — single-observer evidence on private tasks, so weigh it as such. 60 of 60 runs reached the hidden-suite target over 6 coding tasks × 5 effort levels, 87% on the first answer; no cell missed. Median over its task × effort cells: $2.14 and 7.3 min per verified result (API-equivalent cost as reported by Claude Code). Recommended effort by task (★ cheapest per verified result, ☆ fastest where not ★): aim 1 L★ H★ · aim 2 L★ · aim 3 L★ M★ · aim 4 L★ M☆ · aim 5 L★ · aim 6 L★. low → max multiplies its cost per verified result by 3.65× (geometric mean over 6 tasks)."
+      "inHouse": "MEASURED IN-HOUSE (Superscalar Bench, 2026-10-08 → 10-13; n=3 runs per cell; Claude Code headless; report: https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md) — single-observer evidence on private tasks, so weigh it as such. 89 of 90 runs reached the hidden-suite target over 6 coding tasks × 5 effort levels, 87% on the first answer; cells that missed at least once: aim 6 max 2/3 (ended by Claude Code's default 64K output cap). Median over its task × effort cells: $2.17 and 7.2 min per verified result (API-equivalent cost as reported by Claude Code). Recommended effort by task (★ cheapest per verified result, ☆ fastest where not ★): aim 1 L★ H★ · aim 2 L★ · aim 3 L★ M☆ · aim 4 L★ · aim 5 L★ · aim 6 L★. low → max multiplies its cost per verified result by 4.00× (geometric mean over 6 tasks)."
     },
     {
       "provider": "Anthropic",
@@ -757,7 +757,7 @@
   ],
   "measuredRouting": {
     "$comment": "Generated by bench/trust-cost/sync-bench-numbers.cjs from the upstream docs/assets/bench/bench-stats.json (source) — do not edit by hand. For each benchAim named in taskShapeRouting, the recommended model × effort cells of that Superscalar Bench task (report: https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md; rec is star, hollow or only), sorted by trustCostUsd ascending; every measured cell is in fullGrid. Paths: fullGrid is RELATIVE TO THIS REGISTRY FILE — bench-cells.json, its sibling shipped in the superscalar plugin (the same snapshot as the upstream docs/assets/bench/bench-cells.json, which the bench web page reads); source and the report are upstream URLs (provenance, not shipped in the plugin or in composed editions). trustCostUsd / trustTimeMin = mean API-equivalent cost / wall minutes over all attempts ÷ reachRate (share of runs that passed the hidden acceptance suite); oneShotRate = share passed on the first answer. rec: star = cheapest per verified result, hollow = fastest where not star (ties within 20% all marked), only = the model was measured at a single effort; provisional = the mark comes from a model × task group with n=1 cells. Cells that never reached the target are listed under notReached (over the full grid, not only recommended cells). Single-observer evidence on private tasks, so weigh it as such.",
-    "snapshotAt": "2026-10-12T15:49:42.704Z",
+    "snapshotAt": "2026-10-13T04:08:27.331Z",
     "source": "https://github.com/SoliEstre/EstreGenesis/blob/main/docs/assets/bench/bench-stats.json",
     "aims": [
       {
@@ -1147,6 +1147,19 @@
           },
           {
             "harness": "claude",
+            "apiModelId": "claude-opus-4-8",
+            "name": "Opus 4.8",
+            "effort": "low",
+            "trustCostUsd": 1.394,
+            "trustTimeMin": 2.009,
+            "reachRate": 1,
+            "oneShotRate": 1,
+            "n": 3,
+            "provisional": false,
+            "rec": "star"
+          },
+          {
+            "harness": "claude",
             "apiModelId": "claude-fable-5-1",
             "name": "Fable 5.1",
             "effort": "high",
@@ -1162,25 +1175,12 @@
             "harness": "claude",
             "apiModelId": "claude-opus-4-8",
             "name": "Opus 4.8",
-            "effort": "low",
-            "trustCostUsd": 1.42,
-            "trustTimeMin": 2.179,
-            "reachRate": 1,
-            "oneShotRate": 1,
-            "n": 2,
-            "provisional": false,
-            "rec": "star"
-          },
-          {
-            "harness": "claude",
-            "apiModelId": "claude-opus-4-8",
-            "name": "Opus 4.8",
             "effort": "high",
-            "trustCostUsd": 1.633,
-            "trustTimeMin": 2.752,
+            "trustCostUsd": 1.638,
+            "trustTimeMin": 2.707,
             "reachRate": 1,
             "oneShotRate": 1,
-            "n": 2,
+            "n": 3,
             "provisional": false,
             "rec": "star"
           },
@@ -1434,11 +1434,11 @@
             "apiModelId": "claude-opus-4-8",
             "name": "Opus 4.8",
             "effort": "low",
-            "trustCostUsd": 0.8076,
-            "trustTimeMin": 3.025,
+            "trustCostUsd": 0.8221,
+            "trustTimeMin": 3.156,
             "reachRate": 1,
             "oneShotRate": 1,
-            "n": 2,
+            "n": 3,
             "provisional": false,
             "rec": "star"
           },
@@ -1835,11 +1835,11 @@
             "apiModelId": "claude-opus-4-8",
             "name": "Opus 4.8",
             "effort": "low",
-            "trustCostUsd": 1.151,
-            "trustTimeMin": 4.434,
+            "trustCostUsd": 1.109,
+            "trustTimeMin": 3.949,
             "reachRate": 1,
             "oneShotRate": 1,
-            "n": 2,
+            "n": 3,
             "provisional": false,
             "rec": "star"
           },
@@ -1861,13 +1861,13 @@
             "apiModelId": "claude-opus-4-8",
             "name": "Opus 4.8",
             "effort": "medium",
-            "trustCostUsd": 1.35,
-            "trustTimeMin": 4.428,
+            "trustCostUsd": 1.367,
+            "trustTimeMin": 4.539,
             "reachRate": 1,
             "oneShotRate": 1,
-            "n": 2,
+            "n": 3,
             "provisional": false,
-            "rec": "star"
+            "rec": "hollow"
           },
           {
             "harness": "agy",
@@ -1943,7 +1943,7 @@
     "`ultracode` and `ultrathink` are not effort levels and should not be modelled as such. Ultracode \"is a Claude Code setting rather than a model effort level: it sends xhigh to the model and additionally has Claude orchestrate dynamic workflows\", is session-only, and is rejected by both the persisted effortLevel setting and CLAUDE_CODE_EFFORT_LEVEL. Ultrathink \"adds an in-context instruction\" and \"The effort level sent to the API is unchanged\" — so it costs nothing at the API-parameter layer and changes nothing there either. 2026-10-08: since Claude Code 2.1.284 ultracode «no longer forces xhigh effort and stays on at any effort level», and it CAN now be persisted (`\"ultracode\": true` settings key); only `--effort ultracode` / SDK effortLevel 'ultracode' also set xhigh.",
     "A T1 main inherits into every fan-out lane by default, and on Fable 5.1 that default is the expensive failure mode. Claude Code (v2.1.251+) resolves a subagent's model as per-invocation `model` → frontmatter `model` → CLAUDE_CODE_SUBAGENT_MODEL (a default, not a pin) → the main conversation's model, and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` (v2.1.257+) overrides all of them — including bindings a guard just approved, which is why the reference guard reads that variable, and a Workflow lane that omits opts.model does the same — so with Fable 5.1 as main, an unbound research fan-out runs at $10/$50 with $0.25 cache reads it mostly cannot use (each lane starts cache-cold). The vendor's own guidance points the other way twice: Opus 5 is «the model the docs tell you to start with», and on Fable 5.1 «At low … often competitive with Claude Opus and Claude Sonnet models on cost per task while scoring higher» — i.e. when Fable IS the right lane, its cheap rung is the first thing to try, and `ultracode` (which sends xhigh) is a session setting that a lane inherits unless bound. Registry-level rule (2026-09-02): bind model AND effort on every lane; T1 only for lanes whose failure cost justifies it (architecture, ambiguous requirements, final adversarial review); never let a T1 × xhigh|max lane exist by inheritance. Reference mechanism: a PreToolUse guard that reads the session model and denies unbound Agent/Workflow lanes (plugins/superscalar/reference/lane-model-guard.cjs). Sources: https://code.claude.com/docs/en/model-config · https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1 2026-10-08: the vendor start-here row is Opus 5.5 (since 2026-09-22), not Opus 5; ultracode no longer sends xhigh by itself (2.1.284); and the Agent tool gained a per-invocation `effort` (2.1.292) that the reference guard does not read yet — see harnessBinding «Claude Code» and the watchlist.",
     "Vendor-stated cross-model ordering (model-selection guide, 2026-09-30): Luna·Low < Luna·Extra high < GPT-6.1 Sol·Medium < GPT-6.1 Sol·Extra high < Astra·Low < Astra·Medium < Astra·Extra high. The vendor places the cheap rung of the bigger model ABOVE the top rung of the smaller one. That is the opposite of the Anthropic generation-bump pattern already recorded here, and it is OpenAI's claim for its own lineup, not a measurement. Source: https://developers.openai.com/api/docs/guides/model-selection",
-    "MEASURED IN-HOUSE (Superscalar Bench, 2026-09-30 → 10-12; report: https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md; each measured model's own result is on its row under inHouse) — single-observer evidence on private tasks, so weigh it as such: 6 coding tasks on a ladder of designed scope (mechanical multi-file edit → spec-complete implementation → multi-step feature with schema migration → diagnose-and-fix from a symptom report → design-and-build of a small language interpreter → crash-safe transactional key-value store), each graded by a hidden acceptance suite, every effort level, n = 3 per cell; Opus 4.8: 30 cells with n = 2; Fable 5.1: one cell with n = 2; 1,571 valid runs over 20 models on 4 harnesses, headless. Runs missed only on aims 5 and 6: of the 12 task × effort cells that missed at least once, 6 were the model's lowest effort and 3 ended on Claude Code's default 64K output cap (a harness limit, kept as measured) — GPT-5.6 Luna low aim 5 1/3, GPT-5.6 Terra low aim 5 2/3, GPT-5.6 Terra medium aim 5 2/3, GPT-5.6 Terra high aim 5 2/3, Gemini 3.1 Pro low aim 6 2/3, GPT-5.6 Luna low aim 6 0/3, GPT-5.6 Terra medium aim 6 2/3, GPT-6 Luna low aim 6 1/3, Haiku 4.5 default aim 6 0/3, Sonnet 5 high aim 6 2/3 [cap], Sonnet 5 xhigh aim 6 0/3 [cap], Sonnet 5 max aim 6 0/3 [cap]; a miss at the lowest rung is the case the escalate-on-observed-failure rule below is for. Within one model the top rung is a cost multiplier, not a quality lever on such tasks: low → max multiplied cost per verified result by 1.50×–19× (geometric mean over tasks; highest Haiku 5.5). Generations, trust cost newer ÷ older (geometric mean over tasks): Fable 5.1 vs Fable 5 low 0.70× · medium 0.55× · high 0.62× · xhigh 1.06× · max 2.41×; Opus 5.5 vs Opus 5 low 0.39× · medium 0.37× · high 0.31× · xhigh 0.52× · max 1.01×; Opus 5.5 vs Opus 4.8 low 0.41× · medium 0.37× · high 0.46× · xhigh 0.58× · max 1.04×; Sonnet 5.5 vs Sonnet 5 low 0.50× · medium 0.42× · high 0.33× · xhigh 0.86× · max 2.18×; GPT-6.1 Sol vs GPT-6 Sol low 0.73× · medium 0.64× · high 0.71× · xhigh 0.80× · max 0.77×; GPT-6.1 Sol vs GPT-5.6 Sol low 0.29× · medium 0.29× · high 0.27× · xhigh 0.35× · max 0.34×; GPT-6 Luna vs GPT-5.6 Luna low 0.35× · medium 0.33× · high 0.23× · xhigh 0.35× · max 0.26×; grok-4.7 vs grok-4.6 low 1.64× · medium 1.93× · high 1.87× · xhigh 2.03×. Practical rule: start at low/medium, escalate only on an observed failure, and treat max as an escalation of last resort rather than a default."
+    "MEASURED IN-HOUSE (Superscalar Bench, 2026-09-30 → 10-13; report: https://github.com/SoliEstre/EstreGenesis/blob/main/SuperscalarBench.md; each measured model's own result is on its row under inHouse) — single-observer evidence on private tasks, so weigh it as such: 6 coding tasks on a ladder of designed scope (mechanical multi-file edit → spec-complete implementation → multi-step feature with schema migration → diagnose-and-fix from a symptom report → design-and-build of a small language interpreter → crash-safe transactional key-value store), each graded by a hidden acceptance suite, every effort level, n = 3 per cell; Fable 5.1: one cell with n = 2; 1,601 valid runs over 20 models on 4 harnesses, headless. Runs missed only on aims 5 and 6: of the 13 task × effort cells that missed at least once, 6 were the model's lowest effort and 4 ended on Claude Code's default 64K output cap (a harness limit, kept as measured) — GPT-5.6 Luna low aim 5 1/3, GPT-5.6 Terra low aim 5 2/3, GPT-5.6 Terra medium aim 5 2/3, GPT-5.6 Terra high aim 5 2/3, Gemini 3.1 Pro low aim 6 2/3, GPT-5.6 Luna low aim 6 0/3, GPT-5.6 Terra medium aim 6 2/3, GPT-6 Luna low aim 6 1/3, Haiku 4.5 default aim 6 0/3, Opus 4.8 max aim 6 2/3 [cap], Sonnet 5 high aim 6 2/3 [cap], Sonnet 5 xhigh aim 6 0/3 [cap], Sonnet 5 max aim 6 0/3 [cap]; a miss at the lowest rung is the case the escalate-on-observed-failure rule below is for. Within one model the top rung is a cost multiplier, not a quality lever on such tasks: low → max multiplied cost per verified result by 1.50×–19× (geometric mean over tasks; highest Haiku 5.5). Generations, trust cost newer ÷ older (geometric mean over tasks): Fable 5.1 vs Fable 5 low 0.70× · medium 0.55× · high 0.62× · xhigh 1.06× · max 2.41×; Opus 5.5 vs Opus 5 low 0.39× · medium 0.37× · high 0.31× · xhigh 0.52× · max 1.01×; Opus 5.5 vs Opus 4.8 low 0.41× · medium 0.39× · high 0.45× · xhigh 0.54× · max 0.96×; Sonnet 5.5 vs Sonnet 5 low 0.50× · medium 0.42× · high 0.33× · xhigh 0.86× · max 2.18×; GPT-6.1 Sol vs GPT-6 Sol low 0.73× · medium 0.64× · high 0.71× · xhigh 0.80× · max 0.77×; GPT-6.1 Sol vs GPT-5.6 Sol low 0.29× · medium 0.29× · high 0.27× · xhigh 0.35× · max 0.34×; GPT-6 Luna vs GPT-5.6 Luna low 0.35× · medium 0.33× · high 0.23× · xhigh 0.35× · max 0.26×; grok-4.7 vs grok-4.6 low 1.64× · medium 1.93× · high 1.87× · xhigh 2.03×. Practical rule: start at low/medium, escalate only on an observed failure, and treat max as an escalation of last resort rather than a default."
   ],
   "planGating": [
     "Claude Code — Pro: `default` resolves to Opus 5.5 since v2.1.280 («Pro, Max, Team, Enterprise, and Anthropic API: defaults to Opus 5.5»; «Before v2.1.280, `default` resolved to Sonnet 5 on Pro and Team Standard»). Opus with the 1M window \"Requires usage credits\" on Pro — it is included with subscription only on Max/Team/Enterprise. Sonnet 5.5 runs the 1M window in Claude Code on the Anthropic API with «no usage credits required on any plan». Sonnet 4.6 at 1M needs credits on every plan including Max.",
