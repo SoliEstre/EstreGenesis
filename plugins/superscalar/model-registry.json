@@ -1,7 +1,7 @@
 {
   "$schema": "https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md#51-tiered-model-composition",
   "$comment": "Volatile model facts for the /subscaler tier-composition toggle. The DURABLE contract is the tier vocabulary + the routing rubric in Superscalar.md §5.1; this file carries only the perishable part (which concrete models occupy which tier today, and what each vendor actually accepts as an effort value). Replace the data, keep the vocabulary. Every row is expected to carry a confirmedBy URL — an unverifiable claim belongs in caveats[], not in models[].",
-  "asOf": "2026-10-13",
+  "asOf": "2026-10-16",
   "method": "Six-axis live-source sweep (Anthropic / OpenAI / Google+xAI / open-weight / benchmarks / harness binding), each axis independently fact-checked by an adversarial pass instructed to refute; only vendor-page-confirmed ids and values were promoted here. Corrections applied included one fabricated model id, one shut-down model presented as current, and several mis-attributed benchmark sources. 2026-08-01 structural adjustment (not a data re-sweep): the T1.5 · Frontier Execution band was split out of T1 — the 2026-07-25 sweep recorded the 2x intra-T1 price spread ($10/$50 vs $5/$25) but the tier boundary absorbed it, and a temperament axis (think-to-action latency) surfaced in dogfood that the price rows do not carry. claude-opus-5 moved T1 → T1.5, and a per-account entitlement-check rule was added for invitation-gated models (claude-mythos-5). 2026-09-02 refresh — ANTHROPIC AXIS ONLY, triggered by the 2026-09-01 Fable 5.1 / Mythos 5.1 launch (revisit rule (c): new flagship). Re-derived from the vendor models-overview, per-model overview, what's-new, migration-guide, pricing, model-deprecations and Claude Code model-config pages fetched the same day; two dated watchlist items were re-baselined (Sonnet 5 introductory pricing made permanent; Opus 4.1 retired 2026-08-05 with zero pins found in this estate). OpenAI, Google, xAI and open-weight rows were NOT re-swept in this pass and carry their 2026-07-25 / 2026-08-16 values; their watchlist items stand unverified. 2026-09-05 refresh, four axes, each run as two independent collectors plus one adversarial verifier that re-opened every cited URL and marked each field confirmed / unconfirmed / contradicted: Google Flash line (gemini-3.8-flash added, 3.7 Flash demoted to previous-generation), OpenAI (gpt-6-astra added; the entire gpt-5.6 family was found repriced on 2026-07-30 and is corrected here — neither collector looked at the sibling rows while standing on the pricing page), Anthropic Fable 5.1 delta (the Claude Code changelog for 2.1.257–2.1.261 was transcribed verbatim after both collectors mis-versioned three Fable-specific fixes when they summarized it), and harness binding (the Claude Code subagent model resolution order was found REVERSED since v2.1.251 — this registry carried the pre-reversal order through three refreshes because a version-range delta cannot see drift that entered before the range; Codex CLI 0.153.4 moved the bundled default to Astra). One standing claim was contradicted by the vendor page and re-baselined: the Google 2.5-family shutdown 2026-10-16 appears on no row of the deprecations page as of 2026-09-05. xAI and open-weight rows were NOT re-swept and remain on their 2026-07-25 / 2026-08-16 values. 2026-09-23 TARGETED refresh (not a full re-survey): four new rows (claude-opus-5-5, gpt-6-sol, gpt-6-luna, grok-4.7) from vendor model/pricing/changelog pages read verbatim by one web-fetch lane per vendor (Anthropic, Claude Code, OpenAI+Codex, xAI), cross-checked against installed-harness primary sources (Claude Code 2.1.280 --help, codex-cli 0.156.0 client model catalog, grok CLI 1.0.40 model list); sibling rows annotated where the new models changed their standing. Google, DeepSeek, Zhipu, Moonshot and harnessProfile were NOT re-researched in this pass. 2026-09-29 TARGETED refresh: claude-sonnet-5-5 added from vendor pages read verbatim (per-model overview, what's new, models overview, pricing, effort, prompting guide, deprecations, launch page raw HTML, Claude Code model-config and changelog raw) by one lane plus an independent changelog/live-probe lane, then reconciled field by field (37 claims); Claude Code 2.1.284 accepted all five effort values live. planGating defaults that had drifted since v2.1.280 (Opus 5.5 became the default model) were corrected in the same pass. A separate communityRank block (see its own $comment) was added from an X sentiment sweep — it is a signal layer, not a sweep of models[] values. 2026-09-30 TARGETED refresh (OpenAI axis only): gpt-6.1-sol added from vendor pages read as .md (model page, pricing, changelog, GPT-6 guide, models index, model-selection, fast/ultrafast guides, deprecations), the Codex models and pricing docs (developers.openai.com/codex/models 308-redirects to learn.chatgpt.com/docs/models), the openai.com launch post (direct fetch 403; read through the r.jina.ai reader), Codex release notes 0.157.0–0.159.2, and harness primaries (`codex debug models` live + --bundled on codex-cli 0.159.1, one live `codex exec` probe). Two collector lanes plus one adversarial verifier; 37 claims reconciled. gpt-6-sol re-annotated as superseded. Anthropic, Google, xAI and open-weight rows were NOT re-swept. 2026-10-08 FULL refresh (the scheduled revisit; benchmarks axis not run): five axes — Anthropic, OpenAI, Google+xAI, open-weight (DeepSeek, Z.ai, Moonshot, Alibaba Qwen, MiniMax, Xiaomi MiMo), harness binding (Claude Code, Codex CLI, grok CLI / Grok Build, Gemini CLI). Per axis one research lane ran TWO passes — (1) transcribe the vendor changelog / release notes / deprecations page since that axis's last refresh, (2) re-read every existing row against its own reference page, which is what caught drift outside any version window — then one adversarial verifier re-opened the sources as raw .md endpoints, curl, GitHub raw files, the HF API and the locally installed harness catalogs. Merged here: every research delta the verifier did not reject, with its corrections applied, plus the verifier's evidence-carrying «missed» items; rejected but plausible claims went to caveats. New rows: claude-haiku-5-5 (T4); deepseek-flash (REPLACES deepseek-v4-flash, now a retired alias served by V4.1 Flash); glm-5.3 (T2) and glm-5.3-flash (T3); qwen3.8-max (T2), qwen3.8-flash and qwen3.8-27b (T3); MiniMax-M3 (T3); mimo-v2.6-pro (T2) and mimo-v2.6-flash (T3) — all T-placements of the new open-weight rows are registry calls from price and positioning. New harnessBinding row: Grok Build CLI. Drift found outside any version window: claude-sonnet-5-5 cache read halved (2026-10-07); gemini-3.6-flash on the intro schedule since 2026-08-12..15 (stale here for eight weeks); deepseek-v4-pro repriced (peak/off-peak 2026-08-16, V4-Pro-0813); gemini-2.5-flash-lite still asserted a 2026-10-16 shutdown the 2026-09-05 pass had already disproved; Claude Code ultracode semantics changed in v2.1.284, inside the previous pass's own window. The WebFetch summarizer again mis-versioned every Claude Code changelog line it touched and silently dropped one release-note entry — the raw CHANGELOG.md and the .md doc endpoints were authoritative. 2026-10-13 addition, META AXIS ONLY, triggered by revisit rule (b) (a new flagship from any vendor): Muse Wonder (muse-wonder-1.0, released 2026-10-12) was added from the vendor model page, models doc, reasoning doc, pricing/rate-limits page, coding-agents guide, geographic use policy and model card, all fetched the same day, and then checked by an adversarial pass told to refute. Every fact is doc-read: no live API call was made and there is no bench cell for this model. Other vendors' rows were NOT re-swept in this pass.",
   "revisit": {
     "date": "2026-10-26",
@@ -3402,10 +3402,10 @@
       "Subjects are named as practitioners name them. apiModelIds lists the registry rows a subject maps to; an empty list means the subject has no row (a harness, a bundle, or a model not yet confirmed on a vendor page — see revisit.watchlist).",
       "previousRank = the subject's rank at the previous sweep (movement only, never a routing input); a subject split from a row that the previous sweep merged quotes the merged row. carried: true = this sweep's sample for the subject was thin (evidencePosts counts this sweep only) and the rank is the previous sweep's placement, kept because that sweep covered the subject well and this sweep's posts did not contradict it; a carried rank is always low confidence and is the first to re-collect. divergence[] = subjects where this sweep's rank and the in-house measurement were flagged as disagreeing or notably agreeing — community holds the community side only; compare names the generated fields that hold the in-house side (models[].inHouse · measuredRouting · fullGrid), which move with every bench publish; flagged (disagree | agree) was judged against the bench snapshot named in benchSnapshotAt, so when that differs from measuredRouting.snapshotAt the flag predates the current measurements — re-read the in-house fields before citing it. Neither field is a routing input."
     ],
-    "asOf": "2026-10-09",
+    "asOf": "2026-10-16",
     "revisit": {
-      "date": "2026-10-23",
-      "why": "Two weeks after the sweep: Haiku 5.5 had about three days of posts (its B is provisional) and Sonnet 5.5 about eleven; the collector's balance was exhausted at verification time, so the next sweep first confirms that collection runs. Muse Wonder was added out of cycle on 2026-10-13 from about one day of launch posts (provisional C). Re-collect it first, separating Wonder (API) from Wonder Full (Muse Code) posts. 2026-10-13: Gemini 4 Argon ranked C (provisional, low) from about 100 posts, 70% from launch day; re-collect it at this revisit, keeping Antigravity / Ultra-quota complaints apart from quality."
+      "date": "2026-10-30",
+      "why": "Two weeks after the sweep: Gemini 4 Argon and Muse Wonder are still launch-week samples (provisional) and the low-confidence moves (GLM-5.3, GPT-6 Luna and Kimi K3 up; Grok 4.5, Fable 5, GLM-5.2 and Gemini 3.5 Flash-Lite down) are re-checked first; add a Gemini 4 Argon divergence entry once models[gemini-4-argon].inHouse is published, and consider Muse Spark (open weights 2026-10-15) once it has a registry row."
     },
     "scale": {
       "S": "Clear consensus best-in-class right now for serious agentic / development work.",
@@ -3418,28 +3418,28 @@
       "G": "Below F — a flagship widely described as lagging the current frontier for agentic work. Evidence-gated: a model enters G only when the posts say it has fallen behind, never because of who made it. The letter is mnemonic — at introduction the only G-tier model came from Google, whose other models were placed on the evidence at C, D or unranked.",
       "unranked": "Too little first-hand evidence, or the subject is a harness / bundle rather than a model."
     },
-    "method": "X (Twitter) posts collected through the grok CLI's own X search tools (x_keyword_search, x_semantic_search, x_thread_fetch) in four vendor segments (anthropic, openai, google-xai, open-weight), window 2026-09-15 to 2026-10-09, 3 collection runs per segment (12 runs); posts tallied per subject by a separate model (not the collector), deduplicated by URL within a segment; vendor, staff, evaluator, news and promotional accounts excluded from the positive/negative tallies; weighting: head-to-head comparison on the same task > practitioner report with numbers > sentiment counts > engagement. Launch-day early-access praise, unmeasured 'nerfed' claims, predictions and vendor-chart echoes were discounted. Quota and harness complaints were separated from quality complaints where the post allowed it. Ranked from this sweep's evidence, except subjects marked carried: true, whose sample this sweep was thin (evidencePosts is this sweep's count) while the previous sweep covered them well, so they keep the previous sweep's placement at low confidence; for every other subject the previous sweep's rank is kept only as previousRank. A sample of posts was re-checked for existence, author, date and stance through a path independent of the collector (recorded in verification.path) — at this sweep X's public syndication endpoint (root-post text only), because the fresh collector session was refused on quota and a quota refusal is not retried. Measured pitfall recorded for re-runs: restricting the grok CLI with `--tools <x_* names>` REMOVES the X tools from the session (the collector then silently falls back to web search) — run without --tools and deny only write-type tools. Out-of-cycle addition 2026-10-13, one subject (Muse Wonder): X posts collected the same way, through the collector's X search tools in 2 runs (keyword-focused and semantic-focused), window 2026-10-12 to 2026-10-13. Posts were tallied by a separate model and deduplicated by URL across the runs. Vendor, staff and evaluator accounts and one third-party tool vendor were excluded from the tallies. The whole window is launch-day, which this method discounts. The rank is provisional, and the subject is the first to re-collect at the 2026-10-23 sweep. Second out-of-cycle addition 2026-10-13, Gemini 4 Argon (it replaces the unranked «Gemini 4 Argon / 4 Pro» placeholder, which had no released model behind it): X posts collected the same way in 2 runs (keyword-focused and semantic-focused), window 2026-10-01 to 2026-10-13, 70 of the 100 counted posts from the 2026-10-13 GA day. Tallied by a separate model, deduplicated by URL across the runs; vendor, staff, evaluator, news and promotional accounts excluded. Pre-GA posts about leaked or Arena-checkpoint scores were discounted in the weighting, not removed from the count. Muse Wonder Full got no subject of its own: the Muse Wonder subject already covered it and now also lists muse-wonder-full-1.0 (no new posts were collected for it). Both subjects are provisional and re-collected at the 2026-10-23 sweep.",
+    "method": "X (Twitter) posts collected through the grok CLI's own X search tools (x_keyword_search, x_semantic_search, x_thread_fetch) in four vendor segments (anthropic, openai, google-xai, open-weight), window 2026-10-01 to 2026-10-16, 3 collection runs per segment (12 runs); posts tallied per subject by a separate model (not the collector), deduplicated by URL within a segment; vendor, staff, evaluator, news and promotional accounts excluded from the positive/negative tallies; role-split tutorial templates counted apart from quality votes. Weighting: head-to-head comparison on the same task > practitioner report with numbers > sentiment counts > engagement. Launch-week praise, unmeasured 'nerfed' claims, rumours, predictions and vendor-chart echoes were discounted. Quota, access and silent-routing complaints were separated from quality complaints where the post allowed it. Ranked from this sweep's evidence, except subjects marked carried: true, whose sample this sweep was thin (evidencePosts is this sweep's count) while the previous sweep covered them well and this sweep's posts did not contradict it, so they keep the previous sweep's placement at low confidence; for every other subject the previous sweep's rank is kept only as previousRank. Gemini 4 Argon is ranked on post-GA posts only (2026-10-13 onward); it and Muse Wonder are still launch-window samples and stay provisional. A sample of posts was re-checked for existence, author, date and stance through a fresh collector session that fetched each post by id (recorded in verification.path). Measured pitfall recorded for re-runs: restricting the grok CLI with `--tools <x_* names>` REMOVES the X tools from the session (the collector then silently falls back to web search) — run without --tools and deny only write-type tools.",
     "verification": {
       "sampled": 20,
-      "confirmed": 18,
-      "mismatched": 2,
+      "confirmed": 20,
+      "mismatched": 0,
       "notFound": 0,
-      "confirmRate": 0.9,
+      "confirmRate": 1,
       "threshold": 0.8,
-      "path": "X public syndication endpoint, independent of the collector; root-post text only, so claims further down a thread cannot be confirmed this way.",
-      "mismatchHandling": "One post was filed under the wrong subject (its root post tests a different model) and was re-attributed; one benchmark claim not visible in its root post was excluded from that subject's weighting. Per segment: anthropic 6/6, openai 3/4, google-xai 4/5, open-weight 5/5. Out-of-cycle addition 2026-10-13 (Muse Wonder): all 40 counted posts were confirmed through the same syndication endpoint (author and a 2026-10-12/13 date), with 0 mismatched and 0 not found. The 40 is the URL-deduplicated union of two collection runs (51) minus vendor and staff posts (9), the independent evaluator's own post (1) and a tool vendor's launch post (1). These are NOT added to the sweep totals above. Out-of-cycle addition 2026-10-13 (Gemini 4 Argon): 21 of the 100 counted posts — 15 spread across stances and 6 drawn at random — were confirmed through the same syndication endpoint (author and date matching), with 0 mismatched and 0 not found. One of the random six is speculation about leaked scores (tallied positive) and one is about rollout and quota rather than quality. These are NOT added to the sweep totals above either."
+      "path": "Fresh grok CLI session (grok-4.7) fetching each post by status id with x_thread_fetch only; reports existence, date, author and root-post text. Same vendor as the collector but an independent session with no access to the collection runs. No quota refusal at this sweep, so the public syndication fallback used at the previous sweep was not needed.",
+      "mismatchHandling": "Per segment: anthropic 5/5, openai 4/4, google-xai 6/6, open-weight 5/5; 11 of the 20 were rank-moving posts. Notes without a stance change: two sampled posts are replies (their thread roots do not carry the cited numbers, the replies do); one test was over six buggy repositories rather than six bugs; one switch was compared against Opus 5, not Opus 5.5 (already attributed that way)."
     },
-    "biasChecks": "The collector is xAI's own model: Grok evidence was checked for inflation and none was found. Grok 4.7 is the largest subject (62 posts) and about 61% negative, including the most-engaged critics; Grok 4.6 (17 of 25 positive) and Grok 4.5 (11 of 14) look more positive, but the praise is mostly relative to 4.7 or nostalgia, so neither moved up, and the one Grok-favourable benchmark claim failed root-post verification and was excluded. Vendor-adjacent and vendor assistant accounts were flagged as vendor, and vendor-staff labels were applied evenly across vendors. One segment labelled stance toward the previous-generation models, which inflated their positives; that was discounted. Correlated sources: one planted-bug benchmark spans about seven subjects, one evaluation spans four subjects and promotes its author's product, and one benchmark publisher appears in every segment; influencers and a copypasta cluster were counted once each.",
+    "biasChecks": "The collector is xAI's own model. Grok evidence shows no favourable skew: Grok 4.7 is the second-largest subject (63 posts) and 39 of them are negative; Grok 4.6 (8 of 12 positive) and Grok Build (9 of 19) read positive but mostly relative to Grok 4.7 or on cost, and Grok-favourable benchmark-chart claims (3) plus ambassador and fan accounts were discounted. Competitor segments were not thinned: Gemini 4 Argon (96) and GPT-6.1 Sol (72) are the largest samples. Collector stance labels were inconsistent in two places (posts preferring an older model labelled positive for it; some Gemini 3.1 Pro rows labelled by another model's praise) and were re-labelled by content. Concentration: one author supplies 7 of 25 coding-negative Argon posts — the rank holds without him. Correlated sources counted once: one private 105-bug set spans five subjects, one evaluator's index is relayed in many open-model posts, and nerf-benchmark posts were excluded from tallies.",
     "divergence": [
       {
         "subject": "GPT-6 Luna",
         "apiModelIds": [
           "gpt-6-luna"
         ],
-        "flagged": "disagree",
-        "community": "D, down from C — posts prefer GPT-5.6 Luna about 9 to 1 and Haiku 5.5 3 to 1; called fast and cheap but weak; weak spot named: first-answer quality.",
+        "flagged": "agree",
+        "community": "C, up from D — now praised as the cheap fast Codex worker (measured bug-fix and speed reports); criticised for raw first-answer quality without a harness. The previous sweep flagged disagreement; the community has moved toward the cost picture recorded in models[gpt-6-luna].inHouse.",
         "compare": "models[gpt-6-luna].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       },
       {
         "subject": "GPT-6.1 Sol",
@@ -3447,9 +3447,9 @@
           "gpt-6.1-sol"
         ],
         "flagged": "disagree",
-        "community": "C — slow, scope creep and capacity errors; Opus 5.5 preferred 5 to 2; praised as near-Astra quality at about a fifth of the price.",
+        "community": "C — slow output and reported regressions dominate; praised as a reviewer near Astra at a fraction of the spend. Disagrees on reliability, agrees on cost and on slowness.",
         "compare": "models[gpt-6.1-sol].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       },
       {
         "subject": "GPT-6 Sol",
@@ -3457,9 +3457,9 @@
           "gpt-6-sol"
         ],
         "flagged": "disagree",
-        "community": "E — about 22 posts call it a regression from GPT-5.6 Sol, citing third-party bug-hunt and SWE-style results.",
+        "community": "E — called a downgrade from GPT-5.6 Sol, mostly in chat and in Codex impressions rather than measured coding tasks.",
         "compare": "models[gpt-6-sol].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       },
       {
         "subject": "Claude Opus 5.5 vs Claude Sonnet 5.5",
@@ -3468,9 +3468,9 @@
           "claude-sonnet-5-5"
         ],
         "flagged": "disagree",
-        "community": "S vs A — Opus 5.5 is the planning daily driver; a minority of posts prefer Sonnet 5.5 for agentic coding. The bench does not test long unattended planning, where the community places Opus 5.5's lead.",
+        "community": "S vs A — preference split evenly, but several posts call Sonnet 5.5 slower and costlier than Opus 5.5 on real tasks (overthinking). Re-read the cost direction between the two in models[].inHouse against that claim; long unattended planning, where the community puts Opus ahead, is not benched.",
         "compare": "models[claude-opus-5-5].inHouse · models[claude-sonnet-5-5].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       },
       {
         "subject": "Grok 4.7",
@@ -3478,9 +3478,9 @@
           "grok-4.7"
         ],
         "flagged": "disagree",
-        "community": "E — practitioners prefer Grok 4.6; complaints are reliability (loops), token burn and speed. Flagged as disagreeing on reliability and agreeing on cost and speed.",
+        "community": "E — practitioners prefer Grok 4.6; complaints are usage burn, overthinking and lost instructions. Disagrees on reliability, agrees on cost and speed against 4.6.",
         "compare": "models[grok-4.7].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       },
       {
         "subject": "Gemini 3.8 Flash",
@@ -3488,19 +3488,19 @@
           "gemini-3.8-flash"
         ],
         "flagged": "disagree",
-        "community": "D — long-horizon multi-turn loops and invented identifiers; also called expensive for a Flash model. The bounded bench tasks do not reach the multi-turn failure mode, so only the cost complaint is comparable.",
+        "community": "D — looping and extra actions in long multi-turn work, and costly for a Flash model. The bounded bench tasks do not reach the multi-turn failure mode; only the cost complaint is comparable.",
         "compare": "models[gemini-3.8-flash].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       },
       {
         "subject": "Claude Haiku 5.5",
         "apiModelIds": [
           "claude-haiku-5-5"
         ],
-        "flagged": "disagree",
-        "community": "B, provisional (about three days of posts) — cheap worker under an Opus planner; reservations are the price step above 100k tokens and subagent-routing footguns the bench does not exercise.",
+        "flagged": "agree",
+        "community": "B, no longer provisional — measured community small-repo fixes match a much larger model at a fraction of the cost; reservations (complex iterative reasoning, price step past 100k tokens) are outside what the bench exercises.",
         "compare": "models[claude-haiku-5-5].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       },
       {
         "subject": "Claude Fable 5.1",
@@ -3508,9 +3508,19 @@
           "claude-fable-5-1"
         ],
         "flagged": "agree",
-        "community": "B, down from A — strong on hard planning and review, avoided as a daily driver over quota and price (cost per value).",
+        "community": "B — higher ceiling on hard tasks but avoided as a daily driver on cost per value.",
         "compare": "models[claude-fable-5-1].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
+      },
+      {
+        "subject": "Claude Opus 4.8",
+        "apiModelIds": [
+          "claude-opus-4-8"
+        ],
+        "flagged": "agree",
+        "community": "E — kept as a fallback; superseded by the cheaper, newer Opus 5.5.",
+        "compare": "models[claude-opus-4-8].inHouse · measuredRouting · fullGrid",
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       },
       {
         "subject": "Gemini 3.1 Pro (preview)",
@@ -3518,9 +3528,9 @@
           "gemini-3.1-pro-preview"
         ],
         "flagged": "agree",
-        "community": "G — widely described as behind Google's own 3.8 Flash and more expensive.",
+        "community": "G — described as stale and behind Google's own 3.8 Flash, with a minority preferring it on named prompts.",
         "compare": "models[gemini-3.1-pro-preview].inHouse · measuredRouting · fullGrid",
-        "benchSnapshotAt": "2026-10-09T05:34:34.486Z"
+        "benchSnapshotAt": "2026-10-13T04:08:27.331Z"
       }
     ],
     "ranks": [
@@ -3531,8 +3541,8 @@
         ],
         "rank": "S",
         "previousRank": "S",
-        "useFit": "Everyday agentic-coding/planning daily driver and planner/reviewer over cheaper workers; avoided where its safety filter blocks security checks on the user's own code, and by some for computer use (Codex preferred).",
-        "evidencePosts": 43,
+        "useFit": "Everyday agentic-coding driver and planner/reviewer over cheaper workers (Opus plans, Sonnet/Haiku execute); reservations: recurring unmeasured nerf talk, Claude Code classifier interrupting security-adjacent dev loops, occasional dropped tasks and skipped commits.",
+        "evidencePosts": 67,
         "confidence": "medium"
       },
       {
@@ -3541,9 +3551,9 @@
           "claude-sonnet-5-5"
         ],
         "rank": "A",
-        "previousRank": "A (provisional)",
-        "useFit": "Fast, token-light scoped coding, everyday iteration, subagents; avoided at max/Ultracode fan-out (burns limits).",
-        "evidencePosts": 31,
+        "previousRank": "A",
+        "useFit": "Near-Opus daily dev loops and the default implementer/sub-agent under an Opus planner; avoided where it overthinks and ends up slower or costlier than Opus on real tasks.",
+        "evidencePosts": 39,
         "confidence": "medium"
       },
       {
@@ -3552,9 +3562,20 @@
           "claude-fable-5-1"
         ],
         "rank": "B",
-        "previousRank": "A",
-        "useFit": "Hard planning/review/advisor/security review; avoided as a daily driver over quota burn (50% Fable cap) and price.",
-        "evidencePosts": 40,
+        "previousRank": "B",
+        "useFit": "Hard or open-ended problems, writing and second-opinion review beside Opus; avoided as a daily driver over price and plan burn.",
+        "evidencePosts": 50,
+        "confidence": "medium"
+      },
+      {
+        "subject": "Claude Haiku 5.5",
+        "apiModelIds": [
+          "claude-haiku-5-5"
+        ],
+        "rank": "B",
+        "previousRank": "B (provisional)",
+        "useFit": "Cheap scout, classifier and small-bug fixer under Opus/Sonnet; measured small-repo fixes match Opus at a fraction of the cost; avoided for complex iterative reasoning and prompts past the 100k-token price step.",
+        "evidencePosts": 31,
         "confidence": "medium"
       },
       {
@@ -3564,8 +3585,8 @@
         ],
         "rank": "B",
         "previousRank": "B",
-        "useFit": "Planner/orchestrator, hard bugs, one-shot structured output; avoided for reference-following design work and over quota.",
-        "evidencePosts": 33,
+        "useFit": "Planner/reviewer in Codex and hard reasoning/math; avoided over quota burn, capacity errors and inconsistent coding taste.",
+        "evidencePosts": 48,
         "confidence": "medium"
       },
       {
@@ -3575,9 +3596,9 @@
         ],
         "rank": "B",
         "previousRank": "B",
-        "useFit": "The OpenAI model that 'just works' next to Opus 5.5; avoided where in-place degradation in Codex is reported.",
-        "evidencePosts": 57,
-        "confidence": "medium"
+        "useFit": "Still a pick for bug hunting and as the \"just works\" chat/tone model; coding share shrinking as Codex users move to GPT-6.1 Sol.",
+        "evidencePosts": 59,
+        "confidence": "low"
       },
       {
         "subject": "DeepSeek V4.1 Flash",
@@ -3585,9 +3606,9 @@
           "deepseek-flash"
         ],
         "rank": "B",
-        "previousRank": "C",
-        "useFit": "Daily-driver workhorse for coding, debugging, parallel agents and computer use at very low price; avoided without a checker.",
-        "evidencePosts": 40,
+        "previousRank": "B",
+        "useFit": "Cheap daily-driver and local workhorse (visual/spatial tasks, motion graphics, bug finding), free in OpenCode; avoided where long agentic autonomy is needed.",
+        "evidencePosts": 30,
         "confidence": "medium"
       },
       {
@@ -3596,22 +3617,21 @@
           "glm-5.3-flash"
         ],
         "rank": "B",
-        "previousRank": "C (merged GLM row)",
-        "useFit": "API/local coding-debugging driver, working local tool calls, security; avoided for visuals/3D.",
-        "evidencePosts": 27,
-        "confidence": "low"
+        "previousRank": "B",
+        "useFit": "Local/open-weight coding worker; good on easily checked work; avoided for visual/spatial tasks and in harnesses where it underperforms.",
+        "evidencePosts": 28,
+        "confidence": "medium"
       },
       {
-        "subject": "Claude Haiku 5.5",
+        "subject": "GLM-5.3",
         "apiModelIds": [
-          "claude-haiku-5-5"
+          "glm-5.3"
         ],
         "rank": "B",
-        "previousRank": "none (new)",
-        "useFit": "Cheap worker under an Opus planner, strong cost-to-quality on small bug fixes; avoided for prompts over 100k tokens (5x price step) and given subagent-routing footguns.",
-        "evidencePosts": 17,
-        "confidence": "low",
-        "provisional": true
+        "previousRank": "C",
+        "useFit": "The open-weight coding bar others are compared against; long agent sessions at scale; avoided for very long windows and quota-limited plans.",
+        "evidencePosts": 21,
+        "confidence": "low"
       },
       {
         "subject": "GPT-6.1 Sol",
@@ -3619,20 +3639,31 @@
           "gpt-6.1-sol"
         ],
         "rank": "C",
-        "previousRank": "none (new)",
-        "useFit": "Cheap main implementer under an Opus driver, near-Astra quality at about 1/5 the price; avoided interactively (slow, scope creep, capacity errors).",
-        "evidencePosts": 24,
+        "previousRank": "C",
+        "useFit": "Cheap implementer and code reviewer under an Astra or Opus planner; avoided interactively (slow output, reported regressions).",
+        "evidencePosts": 72,
+        "confidence": "medium"
+      },
+      {
+        "subject": "GPT-6 Luna",
+        "apiModelIds": [
+          "gpt-6-luna"
+        ],
+        "rank": "C",
+        "previousRank": "D",
+        "useFit": "Cheap fast Codex worker for bug fixes and background tasks; avoided for raw first-answer quality without a harness and in chat.",
+        "evidencePosts": 44,
         "confidence": "low"
       },
       {
-        "subject": "Xiaomi MiMo V2.6 Pro",
+        "subject": "Kimi K3",
         "apiModelIds": [
-          "mimo-v2.6-pro"
+          "kimi-k3"
         ],
         "rank": "C",
-        "previousRank": "unranked (merged MiMo row)",
-        "useFit": "Cheap code that compiles, cyber tasks without refusals; avoided for frontend/speed, with a trust concern after the Vals AI finding.",
-        "evidencePosts": 29,
+        "previousRank": "D",
+        "useFit": "Open-weight coding and visual/3D work at low cost, sometimes paired with DeepSeek in place of Claude Code; avoided for speed and token-heavy billing.",
+        "evidencePosts": 23,
         "confidence": "low"
       },
       {
@@ -3641,9 +3672,21 @@
           "qwen3.8-flash"
         ],
         "rank": "C",
-        "previousRank": "D (merged Qwen row)",
-        "useFit": "Local worker under an Opus/Sol orchestrator; avoided as controller.",
-        "evidencePosts": 20,
+        "previousRank": "C",
+        "useFit": "Local worker (Flash-Next at usable quants) under a stronger orchestrator; avoided at very low-bit quants and for full-day agent load.",
+        "evidencePosts": 32,
+        "confidence": "low"
+      },
+      {
+        "subject": "Xiaomi MiMo V2.6 Pro",
+        "apiModelIds": [
+          "mimo-v2.6-pro"
+        ],
+        "rank": "C",
+        "previousRank": "C",
+        "carried": true,
+        "useFit": "Cheap open model competitive on coding and cyber benches; avoided for token burn and agentic feel.",
+        "evidencePosts": 8,
         "confidence": "low"
       },
       {
@@ -3653,20 +3696,8 @@
         ],
         "rank": "C",
         "previousRank": "C",
-        "useFit": "Fast and cheap; the model people switch back to after 4.7.",
-        "evidencePosts": 25,
-        "confidence": "medium"
-      },
-      {
-        "subject": "Grok 4.5",
-        "apiModelIds": [
-          "grok-4.5"
-        ],
-        "rank": "C",
-        "previousRank": "C",
-        "carried": true,
-        "useFit": "Remembered as the cheap fast default.",
-        "evidencePosts": 14,
+        "useFit": "Cheap orchestrator/planner and long Cursor sessions; the model people go back to after 4.7.",
+        "evidencePosts": 12,
         "confidence": "low"
       },
       {
@@ -3676,20 +3707,8 @@
         ],
         "rank": "C",
         "previousRank": "C",
-        "carried": true,
-        "useFit": "Faster and more correct than 3.8 Flash for own coding; removed from Antigravity.",
-        "evidencePosts": 10,
-        "confidence": "low"
-      },
-      {
-        "subject": "GLM-5.3",
-        "apiModelIds": [
-          "glm-5.3"
-        ],
-        "rank": "C",
-        "previousRank": "C (merged GLM row)",
-        "useFit": "Long Z.ai coding-plan sessions and devops on 8-GPU hardware; avoided locally and for steering-heavy work.",
-        "evidencePosts": 12,
+        "useFit": "Fast light-token worker that several users prefer to 3.8 Flash on their own workflows; being removed (Antigravity) and deprecated on the API.",
+        "evidencePosts": 27,
         "confidence": "low"
       },
       {
@@ -3699,9 +3718,9 @@
           "muse-wonder-full-1.0"
         ],
         "rank": "C",
-        "previousRank": "none (new)",
-        "useFit": "About one day of launch posts: praised for long-horizon agentic runs, prose and some one-shot builds; numbered head-to-heads mostly trail Opus 5.5, and one trails GPT-6.1 Sol (52% vs 71%), at the Opus 5.5 price. Several of the praised runs used Wonder Full, which is Muse Code-only; Muse Code quota and client complaints are counted apart from quality.",
-        "evidencePosts": 40,
+        "previousRank": "C (provisional)",
+        "useFit": "Wonder Full in Muse Code for long agentic runs near the frontier on one private bug set; API Wonder (non-Full) weak; avoided over plan quota burn.",
+        "evidencePosts": 36,
         "confidence": "low",
         "provisional": true
       },
@@ -3710,45 +3729,12 @@
         "apiModelIds": [
           "gemini-4-argon"
         ],
-        "rank": "C",
-        "previousRank": "unranked",
-        "useFit": "About thirteen days of posts, seven in ten from launch day. Praised for 3D, SVG and visual one-shots, writing and knowledge work, 1M-token output and a per-task cost well under Opus 5.5. Numbered head-to-heads on coding, terminal loops and existing-codebase work mostly trail Opus 5.5 and GPT-6 Astra, and in one branch review it missed a bug that GPT-6.1 Sol and Sonnet 5.5 caught. Antigravity access (Ultra-only), Ultra rate limits and the AI Pro lockout are counted apart from quality; pre-GA posts on leaked or Arena-checkpoint scores were discounted. Community posts also call it «Gemini 4 Pro» — same model.",
-        "evidencePosts": 100,
+        "rank": "D",
+        "previousRank": "C (provisional)",
+        "useFit": "Frontend, 3D and visual one-shots, writing and a second code review; avoided as the main agent on existing codebases (hallucinated system behaviour) and over quota.",
+        "evidencePosts": 96,
         "confidence": "low",
         "provisional": true
-      },
-      {
-        "subject": "Claude Fable 5",
-        "apiModelIds": [
-          "claude-fable-5"
-        ],
-        "rank": "D",
-        "previousRank": "B",
-        "useFit": "Second-hand week-long autonomous runs; avoided for cyber work, cost and style; superseded.",
-        "evidencePosts": 9,
-        "confidence": "low"
-      },
-      {
-        "subject": "GPT-6 Luna",
-        "apiModelIds": [
-          "gpt-6-luna"
-        ],
-        "rank": "D",
-        "previousRank": "C",
-        "useFit": "Cheap background worker; avoided interactively, for vision, and where Haiku 5.5 is available.",
-        "evidencePosts": 25,
-        "confidence": "low"
-      },
-      {
-        "subject": "GPT-5.6 Luna",
-        "apiModelIds": [
-          "gpt-5.6-luna"
-        ],
-        "rank": "D",
-        "previousRank": "D",
-        "useFit": "Cheap and fast for MCP/CLI/prototyping; avoided for real coding.",
-        "evidencePosts": 32,
-        "confidence": "low"
       },
       {
         "subject": "Gemini 3.8 Flash",
@@ -3757,30 +3743,19 @@
         ],
         "rank": "D",
         "previousRank": "D",
-        "useFit": "Small bounded edits, review subagent, finishing work after Opus hits its limit; avoided for long multi-turn agent work.",
-        "evidencePosts": 39,
+        "useFit": "Fast executor/sub-agent under an Opus planner in Antigravity, high output volume before limits; avoided for long multi-turn work (loops, extra actions) and on cost against Haiku 5.5.",
+        "evidencePosts": 62,
         "confidence": "medium"
       },
       {
-        "subject": "Gemini 3.5 Flash-Lite",
+        "subject": "GPT-5.6 Luna",
         "apiModelIds": [
-          "gemini-3.5-flash-lite"
-        ],
-        "rank": "D",
-        "previousRank": "unranked",
-        "useFit": "Speed pick for tiny edits and non-coding work; weak in agents.",
-        "evidencePosts": 16,
-        "confidence": "low"
-      },
-      {
-        "subject": "Kimi K3",
-        "apiModelIds": [
-          "kimi-k3"
+          "gpt-5.6-luna"
         ],
         "rank": "D",
         "previousRank": "D",
-        "useFit": "Cleaner code than Astra for some; avoided for edit-tool failures, slowness, inconsistency, and the CoT restriction.",
-        "evidencePosts": 32,
+        "useFit": "Cheap review loops and simple programming; avoided for real coding and wherever it is the silent fallback for a higher model.",
+        "evidencePosts": 33,
         "confidence": "low"
       },
       {
@@ -3790,9 +3765,8 @@
         ],
         "rank": "D",
         "previousRank": "D",
-        "carried": true,
-        "useFit": "Long goals and very cheap orchestration; avoided for speed and false test claims.",
-        "evidencePosts": 11,
+        "useFit": "Very cheap orchestration and long runs; avoided for speed and honesty under pressure.",
+        "evidencePosts": 13,
         "confidence": "low"
       },
       {
@@ -3801,9 +3775,9 @@
           "qwen3.8-max"
         ],
         "rank": "D",
-        "previousRank": "D (merged Qwen row)",
-        "useFit": "Parallel-agent optimization runs; avoided after a degradation report and API errors.",
-        "evidencePosts": 10,
+        "previousRank": "D",
+        "useFit": "Top of one private bug-fix set among open models; avoided after a reported regression and code loops.",
+        "evidencePosts": 17,
         "confidence": "low"
       },
       {
@@ -3812,9 +3786,9 @@
           "qwen3.8-27b"
         ],
         "rank": "D",
-        "previousRank": "D (merged Qwen row)",
-        "useFit": "Local coding with retries plus a verifier; avoided for single-run agent jobs.",
-        "evidencePosts": 15,
+        "previousRank": "D",
+        "useFit": "Small local model with reliable tool calls as a worker beside Flash-Next; avoided as a single-run agent.",
+        "evidencePosts": 9,
         "confidence": "low"
       },
       {
@@ -3823,21 +3797,29 @@
           "MiniMax-M3"
         ],
         "rank": "D",
-        "previousRank": "unranked",
-        "useFit": "The 'hands' model under another orchestrator; avoided where DeepSeek Flash finishes the task.",
-        "evidencePosts": 15,
+        "previousRank": "D",
+        "useFit": "Value worker under another orchestrator; avoided where cheaper open models finish the job.",
+        "evidencePosts": 10,
         "confidence": "low"
       },
       {
-        "subject": "GLM-5.2",
+        "subject": "Mistral Large 4 (preview)",
+        "apiModelIds": [],
+        "rank": "D",
+        "previousRank": "unranked",
+        "useFit": "Preview open model level with Chinese open models on published benches and cyber; avoided for agentic coding (thinking mode stalls, below GLM/DeepSeek/Kimi hands-on).",
+        "evidencePosts": 19,
+        "confidence": "low"
+      },
+      {
+        "subject": "Grok 4.5",
         "apiModelIds": [
-          "glm-5.2"
+          "grok-4.5"
         ],
         "rank": "D",
-        "previousRank": "D",
-        "carried": true,
-        "useFit": "Cheap literal coder; users are moving to 5.3-Flash.",
-        "evidencePosts": 5,
+        "previousRank": "C",
+        "useFit": "Fast cheap option some still prefer for devex; called no longer relevant by others.",
+        "evidencePosts": 10,
         "confidence": "low"
       },
       {
@@ -3847,9 +3829,9 @@
         ],
         "rank": "E",
         "previousRank": "E",
-        "useFit": "Cheap implementer in Codex role routing; avoided as main agent.",
-        "evidencePosts": 47,
-        "confidence": "high"
+        "useFit": "Cheap implementer where already wired; avoided as main agent and as chat default.",
+        "evidencePosts": 44,
+        "confidence": "medium"
       },
       {
         "subject": "Grok 4.7",
@@ -3858,8 +3840,8 @@
         ],
         "rank": "E",
         "previousRank": "E",
-        "useFit": "Cheap builder/security reviewer in a rotation; avoided over token burn, speed, frontend and loops.",
-        "evidencePosts": 62,
+        "useFit": "Cheap top-tier-on-paper coder inside some harnesses; avoided over usage burn, overthinking, lost instructions and multi-agent hangs.",
+        "evidencePosts": 63,
         "confidence": "medium"
       },
       {
@@ -3869,8 +3851,8 @@
         ],
         "rank": "E",
         "previousRank": "E",
-        "useFit": "Cheap worker only; avoided over early turn ends and needing a checker.",
-        "evidencePosts": 15,
+        "useFit": "Benchmark reference and cheap worker where still wired; retiring from Copilot.",
+        "evidencePosts": 27,
         "confidence": "medium"
       },
       {
@@ -3879,9 +3861,9 @@
           "claude-opus-4-8"
         ],
         "rank": "E",
-        "previousRank": "none (new)",
-        "useFit": "Tuned harnesses and compliance-bound teams; weak as a fallback.",
-        "evidencePosts": 10,
+        "previousRank": "E",
+        "useFit": "Fallback when newer Claude models refuse on security flags; nostalgia; a comparison unit for open models.",
+        "evidencePosts": 31,
         "confidence": "low"
       },
       {
@@ -3890,9 +3872,9 @@
           "claude-sonnet-5"
         ],
         "rank": "E",
-        "previousRank": "D",
-        "useFit": "Daily driver for a few; superseded by 5.5.",
-        "evidencePosts": 7,
+        "previousRank": "E",
+        "useFit": "Superseded by Sonnet 5.5; occasional narrow wins (support-ticket agent).",
+        "evidencePosts": 16,
         "confidence": "low"
       },
       {
@@ -3902,8 +3884,8 @@
         ],
         "rank": "E",
         "previousRank": "E",
-        "useFit": "Triage/Explore slot only.",
-        "evidencePosts": 9,
+        "useFit": "Still wired into permission checks and free chat surfaces; superseded by Haiku 5.5.",
+        "evidencePosts": 28,
         "confidence": "medium"
       },
       {
@@ -3912,9 +3894,42 @@
           "gpt-5.6-terra"
         ],
         "rank": "E",
+        "previousRank": "E",
+        "useFit": "Plan review beside Fable in a few loops; widely called worse than 6.1 Sol at a higher price; leaving Copilot.",
+        "evidencePosts": 28,
+        "confidence": "low"
+      },
+      {
+        "subject": "Claude Fable 5",
+        "apiModelIds": [
+          "claude-fable-5"
+        ],
+        "rank": "E",
         "previousRank": "D",
-        "useFit": "Appears mostly as an insult; widely avoided.",
-        "evidencePosts": 25,
+        "useFit": "Superseded by Fable 5.1; avoided over mid-project refusals and limit burn.",
+        "evidencePosts": 8,
+        "confidence": "low"
+      },
+      {
+        "subject": "GLM-5.2",
+        "apiModelIds": [
+          "glm-5.2"
+        ],
+        "rank": "E",
+        "previousRank": "D",
+        "useFit": "Superseded by GLM-5.3 and 5.3-Flash.",
+        "evidencePosts": 9,
+        "confidence": "low"
+      },
+      {
+        "subject": "Gemini 3.5 Flash-Lite",
+        "apiModelIds": [
+          "gemini-3.5-flash-lite"
+        ],
+        "rank": "E",
+        "previousRank": "D",
+        "useFit": "Only the forced fallback after quota runs out; avoided for coding.",
+        "evidencePosts": 21,
         "confidence": "low"
       },
       {
@@ -3924,9 +3939,8 @@
         ],
         "rank": "G",
         "previousRank": "G",
-        "carried": true,
-        "useFit": "A few users prefer it to Codex on their own stack; widely described as worse than Google's own 3.8 Flash and more expensive.",
-        "evidencePosts": 10,
+        "useFit": "A few users prefer it on large-architecture prompts, Turkish and long personas; widely described as stale and removed from Antigravity for Pro users.",
+        "evidencePosts": 32,
         "confidence": "low"
       },
       {
@@ -3937,8 +3951,8 @@
         ],
         "rank": "unranked",
         "previousRank": "unranked",
-        "useFit": "Security audits only.",
-        "evidencePosts": 13,
+        "useFit": "Restricted security/vulnerability work only.",
+        "evidencePosts": 34,
         "confidence": "low"
       },
       {
@@ -3948,8 +3962,8 @@
         ],
         "rank": "unranked",
         "previousRank": "unranked",
-        "useFit": "Retrospective 'last solid OpenAI model'; retiring 2026-10-14.",
-        "evidencePosts": 41,
+        "useFit": "Retired from ChatGPT surfaces on 2026-10-14; remembered for tone and stability.",
+        "evidencePosts": 47,
         "confidence": "low"
       },
       {
@@ -3958,9 +3972,9 @@
           "gpt-5.4-mini"
         ],
         "rank": "unranked",
-        "previousRank": "none (new)",
-        "useFit": "Appears only as a baseline.",
-        "evidencePosts": 10,
+        "previousRank": "unranked",
+        "useFit": "Baseline and free-tier pick.",
+        "evidencePosts": 13,
         "confidence": "low"
       },
       {
@@ -3969,9 +3983,9 @@
           "gpt-5.4-nano"
         ],
         "rank": "unranked",
-        "previousRank": "none (new)",
-        "useFit": "Very cheap; loses a rules task to 3.1 Flash-Lite.",
-        "evidencePosts": 5,
+        "previousRank": "unranked",
+        "useFit": "Cheap baseline, now priced above GPT-6 Luna.",
+        "evidencePosts": 12,
         "confidence": "low"
       },
       {
@@ -3979,8 +3993,8 @@
         "apiModelIds": [],
         "rank": "unranked",
         "previousRank": "unranked",
-        "useFit": "Harness/bundle row; retrospective praise.",
-        "evidencePosts": 33,
+        "useFit": "Harness/bundle row; most posts are about GPT-6.x inside Codex (thinking budget below API, silent routing).",
+        "evidencePosts": 49,
         "confidence": "low"
       },
       {
@@ -3989,9 +4003,9 @@
           "gemini-3.6-flash"
         ],
         "rank": "unranked",
-        "previousRank": "none (new)",
-        "useFit": "Off-plan edits and false 'done' reports.",
-        "evidencePosts": 4,
+        "previousRank": "unranked",
+        "useFit": "Removed from Antigravity; availability posts only.",
+        "evidencePosts": 14,
         "confidence": "low"
       },
       {
@@ -4001,8 +4015,8 @@
         ],
         "rank": "unranked",
         "previousRank": "unranked",
-        "useFit": "Being phased out.",
-        "evidencePosts": 5,
+        "useFit": "Being shut down and auto-routed to 3.6.",
+        "evidencePosts": 8,
         "confidence": "low"
       },
       {
@@ -4011,9 +4025,9 @@
           "gemini-3.1-flash-lite"
         ],
         "rank": "unranked",
-        "previousRank": "none (new)",
-        "useFit": "Cheap non-coding production default.",
-        "evidencePosts": 9,
+        "previousRank": "unranked",
+        "useFit": "Retirement-table and image-judge mentions.",
+        "evidencePosts": 5,
         "confidence": "low"
       },
       {
@@ -4022,9 +4036,9 @@
           "grok-4.3"
         ],
         "rank": "unranked",
-        "previousRank": "none (new)",
-        "useFit": "Personality/price nostalgia.",
-        "evidencePosts": 7,
+        "previousRank": "unranked",
+        "useFit": "Cheap 1M-context option in menus.",
+        "evidencePosts": 5,
         "confidence": "low"
       },
       {
@@ -4032,8 +4046,8 @@
         "apiModelIds": [],
         "rank": "unranked",
         "previousRank": "unranked",
-        "useFit": "Harness: fast local loop.",
-        "evidencePosts": 14,
+        "useFit": "Harness: small apps and prototypes at low cost; multi-agent hangs and pool burn.",
+        "evidencePosts": 19,
         "confidence": "low"
       },
       {
@@ -4042,18 +4056,9 @@
           "mimo-v2.6-flash"
         ],
         "rank": "unranked",
-        "previousRank": "unranked (merged MiMo row)",
-        "useFit": "Free/cheap loops; slow.",
-        "evidencePosts": 13,
-        "confidence": "low"
-      },
-      {
-        "subject": "Mistral Large 4 (preview)",
-        "apiModelIds": [],
-        "rank": "unranked",
-        "previousRank": "none (new)",
-        "useFit": "Hands-on reports put it below GLM/DeepSeek Flash.",
-        "evidencePosts": 4,
+        "previousRank": "unranked",
+        "useFit": "Cheap agent loops; weak instruction following and slow reviews.",
+        "evidencePosts": 8,
         "confidence": "low"
       }
     ]
