@@ -174,17 +174,26 @@ async function observe(srv, id, note, input) {
   }
 
   const anyDispatched = observations.some((o) => o.dispatched);
+  // 기한·빌드는 기계가 적어요. 종전엔 null 로 써 놓고 사람이 채웠는데, 다음 재측정이 그 값을 지워서
+  //   «재고 나니 검사가 실패» 했어요(A12b: revisit.date 실재). 짝 측정기(measure-dispatch.py)와 같은 49일.
+  const today = nowIso().slice(0, 10);
+  const revisitDate = new Date(Date.parse(today) + 49 * 86400000).toISOString().slice(0, 10);
+  const buildVersion = (String(build || '').match(/\/(\d+\.\d+\.\d+)/) || [])[1] || null;
+  // 사람이 다듬은 설명 칸은 판정 형태가 같을 때만 이어받아요 — 형태가 바뀌면 설명도 다시 써야 해요.
+  let prev = null;
+  try { prev = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch { prev = null; }
+  const sameForm = prev && prev.predicate && prev.predicate.form === (anyDispatched ? null : 'no-local-dispatch-on-this-path');
   const facts = {
     '$schema-note': 'codex app-server 제출 경로에서 «텍스트가 명령으로 디스패치되는 조건» 의 실측 기록. 규격이 아니라 관측이에요 — 하네스 빌드 + 제출 경로에 딸린 사실이라 asOf/revisit 을 달고 늙어요. seat-codex.cjs 가 sigils 를 여기서 읽어요(상수 복제 금지).',
-    asOf: nowIso().slice(0, 10),
+    asOf: today,
     revisit: {
-      date: null,
-      why: '판정은 입력 파서의 성질이라 빌드마다 바뀔 수 있고, 이 경로는 experimental 로 표시된 표면이라 더 잘 움직여요.',
+      date: revisitDate,
+      why: (sameForm && prev.revisit && prev.revisit.why) || '판정은 입력 파서의 성질이라 빌드마다 바뀔 수 있고, 이 경로는 experimental 로 표시된 표면이라 더 잘 움직여요.',
       how: 'node measure-dispatch-codex.cjs --write',
     },
     harness: {
       id: 'codex-cli',
-      build: null,
+      build: buildVersion,
       driver: 'codex app-server (JSON-RPC over stdio) / thread~turn~start',
       options: 'cwd-pinned thread, experimentalApi=true',
       user_agent: build,
@@ -198,6 +207,8 @@ async function observe(srv, id, note, input) {
       decided_before_model: null,
       positive_control: positiveControl,
       caveat: '«디스패치 층이 없음» 은 §4 의 첫 층만 닫아요. 확장(멘션·파일 참조)과 복종(본문 지시를 모델이 따름)은 그대로 열려 있고, 그 통제 수단은 좌석의 권한 범위(--sandbox · 승인 모드)예요.',
+      ...(sameForm && prev.predicate.decided_before_model_why ? { decided_before_model_why: prev.predicate.decided_before_model_why } : {}),
+      ...(sameForm && prev.predicate.layer_scope ? { layer_scope: prev.predicate.layer_scope } : {}),
     },
     observations,
     positive_control: positiveControl,
