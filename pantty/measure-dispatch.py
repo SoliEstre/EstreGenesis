@@ -160,7 +160,18 @@ def main():
         facts["asOf"] = today.isoformat()
         facts["revisit"]["date"] = (today + datetime.timedelta(days=49)).isoformat()
         facts["harness"]["build"] = harness_build()
-        json.dump(facts, open(FACTS, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        # 드라이버 버전도 기계가 적어요 — 손으로 둔 값은 SDK 를 올려도 그대로 남아서 «무엇으로 쟀나» 가 틀려요.
+        try:
+            import claude_agent_sdk
+            sdk_ver = getattr(claude_agent_sdk, "__version__", None)
+        except ImportError:
+            sdk_ver = None
+        if sdk_ver:
+            facts["harness"]["driver"] = "claude-agent-sdk %s (python) / ClaudeSDKClient.query()" % sdk_ver
+        # 들여쓰기 2칸 = 저장소의 다른 사실 파일과 같은 모양(1칸이면 재측정마다 파일 전체가 diff 로 보여요).
+        with open(FACTS, "w", encoding="utf-8") as f:
+            json.dump(facts, f, ensure_ascii=False, indent=2)
+            f.write("\n")
         print("\n사실 파일 갱신: asOf=%s revisit=%s build=%s"
               % (facts["asOf"], facts["revisit"]["date"], facts["harness"]["build"]))
 
