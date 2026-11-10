@@ -18,9 +18,9 @@
  *            · `model` is fable-class:
  *                explicit `effort` (Claude Code 2.1.292+ Agent parameter; a level or a numeric budget) = a binding,
  *                  judged like Workflow opts.effort: xhigh|max → deny unless the prompt carries «fable-xhigh-ok»;
- *                  a lower level → allow — EXCEPT while CLAUDE_CODE_EFFORT_LEVEL is xhigh|max: the precedence of the
- *                  per-call value against that variable is undocumented and frontmatter `effort` is documented to
- *                  lose to it, so the guard does not trust the lower value there (deny, naming the variable)
+ *                  a lower level → allow — EXCEPT while CLAUDE_CODE_EFFORT_LEVEL is xhigh|max: the sub-agents page
+ *                  documents that the variable takes precedence over both the per-call value and frontmatter
+ *                  `effort`, so the lower value does not apply there (deny, naming the variable)
  *                no `effort` and session effort xhigh|max → deny unless «fable-xhigh-ok» (inherits the session rung)
  *   Workflow · per agent(...) span in the script:
  *              a lane without `model:` while the main is T1/unknown  → deny, naming the lane labels
@@ -132,7 +132,7 @@ function judge(input, ctx) {
           return allow();
         }
         const envEff = String((ctx && ctx.effortEnv) || '').toLowerCase();
-        if (HEAVY.test(envEff) && !ok) return deny(`[lane-model-guard] Fable 레인에 effort ${le} 를 명시했지만 CLAUDE_CODE_EFFORT_LEVEL=${envEff} 가 걸려 있어요 — 레인별 effort 와 그 환경변수의 우선순위는 문서에 없고, 정의 frontmatter 의 effort 는 그 변수를 못 이긴다고 문서화돼 있어서 낮춘 값이 실제로 적용된다고 셀 수 없어요. 변수를 풀거나, model 을 opus/sonnet 으로 내리거나, 의도라면 prompt 에 «fable-xhigh-ok» 를 적으세요.`);
+        if (HEAVY.test(envEff) && !ok) return deny(`[lane-model-guard] Fable 레인에 effort ${le} 를 명시했지만 CLAUDE_CODE_EFFORT_LEVEL=${envEff} 가 걸려 있어요 — 그 환경변수가 레인별 effort 와 정의 frontmatter 의 effort 둘 다를 이긴다고 문서화돼 있어서 낮춘 값은 적용되지 않아요. 변수를 풀거나, model 을 opus/sonnet 으로 내리거나, 의도라면 prompt 에 «fable-xhigh-ok» 를 적으세요.`);
         return allow();
       }
       if (HEAVY.test(eff) && !ok) return deny(`[lane-model-guard] Fable 레인을 effort 없이 세션 effort ${eff} 로 띄우려 해요 — 레인이 세션 값을 그대로 상속해요. Agent 호출에 effort(low/medium 등, Claude Code 2.1.292+)를 명시하거나 model 을 opus/sonnet 으로 내리거나 Workflow agent() 의 opts.effort 로 낮추세요. 정말 최상단이 필요하면 prompt 에 «fable-xhigh-ok» 를 적어 의도를 남기세요.`);

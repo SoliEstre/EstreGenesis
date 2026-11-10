@@ -39,6 +39,7 @@
       legend: 'Models — select one to hide or show it',
       shown: 'shown', hidden: 'hidden',
       notReached: 'not reached', notReachedList: 'not reached: {list}', partialList: 'partial cost: {list}',
+      costUnknown: 'cost unknown', costUnknownList: 'reached, cost unknown: {list}',
       tierUnknown: 'tier unknown', dateUnknown: 'release date unknown', released: 'released {d}',
       log: ' (log)',
       key: [
@@ -77,6 +78,7 @@
       legend: '모델 — 눌러서 숨기거나 보이기',
       shown: '보임', hidden: '숨김',
       notReached: '미도달', notReachedList: '미도달: {list}', partialList: '비용 일부: {list}',
+      costUnknown: '비용 모름', costUnknownList: '도달했지만 비용 모름: {list}',
       tierUnknown: '티어 모름', dateUnknown: '출시일 모름', released: '출시 {d}',
       log: ' (로그)',
       key: [
@@ -285,6 +287,12 @@
     return d >= S.from && d <= S.to;
   }
   function plottable(c) { return c[XK] != null && c[YK] != null && c[XK] > 0 && c[YK] > 0; }
+  // not plottable splits two ways: never reached (no trust value at all) · reached but no run left a cost record (time known, cost unknown — not a lower bound)
+  function notReachedCell(c) { return !plottable(c) && !(c.reached > 0); }
+  // 비용 모름 = 생성기가 단 표기로만 판정해요(도달했지만 비용을 아는 실행이 없음). «그려지지 않고 도달함» 으로 추측하면
+  //   시간이 없거나 값이 0 인 칸까지 비용 모름으로 읽어요.
+  function costUnknownCell(c) { return !plottable(c) && (c.notes || []).indexOf('costUnknown') >= 0; }
+  function effTags(cells) { return cells.slice().sort(function (a, b) { return effIdx(a.effort) - effIdx(b.effort); }).map(function (c) { return effLabel(c.effort); }); }
   function effIdx(e) { var i = ORDER.indexOf(e); return i < 0 ? ORDER.length : i; }
 
   function computeView() {
@@ -295,7 +303,7 @@
     var visible = passing.filter(function (m) { return S.hidden.indexOf(m.id) < 0; });
     var series = visible.map(function (m) {
       var cells = byModel[m.id].slice().sort(function (a, b) { return effIdx(a.effort) - effIdx(b.effort); });
-      return { m: m, cells: cells, pts: cells.filter(plottable), miss: cells.filter(function (c) { return !plottable(c); }), n1: cells.every(function (c) { return c.n === 1; }) };
+      return { m: m, cells: cells, pts: cells.filter(plottable), miss: cells.filter(notReachedCell), unk: cells.filter(costUnknownCell), n1: cells.every(function (c) { return c.n === 1; }) };
     });
     var aim = D.aims.filter(function (a) { return a.aim === S.aim; })[0] || { aim: S.aim };
     return { aim: aim, byModel: byModel, present: present, passing: passing, visible: visible, series: series };
@@ -350,7 +358,7 @@
     out.push('<text x="' + ylx + '" y="' + yly.toFixed(1) + '" transform="rotate(-90 ' + ylx + ' ' + yly.toFixed(1) + ')" text-anchor="middle" fill="' + P.text + '" font-size="' + fs + '">' + esc((ax.y['label_' + lang()] || ax.y.label_en || YK) + T('log')) + '</text>');
 
     if (!view.series.some(function (s) { return s.pts.length; })) {
-      out.push('<text x="' + ((pl + pr) / 2).toFixed(1) + '" y="' + ((pt + pb) / 2).toFixed(1) + '" text-anchor="middle" fill="' + P.muted + '" font-size="' + (fs + 1) + '">' + esc(view.visible.length ? T('notReached') : T('noModels')) + '</text>');
+      out.push('<text x="' + ((pl + pr) / 2).toFixed(1) + '" y="' + ((pt + pb) / 2).toFixed(1) + '" text-anchor="middle" fill="' + P.muted + '" font-size="' + (fs + 1) + '">' + esc(!view.visible.length ? T('noModels') : view.series.every(function (s) { return s.cells.every(function (c) { return plottable(c) || costUnknownCell(c); }); }) ? T('costUnknown') : T('notReached')) + '</text>');
       return { svg: out.join(''), points: pts, M: M };
     }
 
@@ -636,11 +644,13 @@
       var shown = S.hidden.indexOf(m.id) < 0;
       var cells = v.byModel[m.id] || [];
       var n1 = cells.length && cells.every(function (c) { return c.n === 1; });
-      var miss = cells.filter(function (c) { return !plottable(c); }).sort(function (a, b) { return effIdx(a.effort) - effIdx(b.effort); }).map(function (c) { return effLabel(c.effort); });
+      var miss = effTags(cells.filter(notReachedCell));
+      var unk = effTags(cells.filter(costUnknownCell));
       var part = partialTags(cells);
       var tags = [HARNESS[m.harness] || m.harness || '', m.tierName || (m.tier ? m.tier : T('tierUnknown')), m.releaseDate ? T('released', { d: m.releaseDate }) : T('dateUnknown')];
       if (n1) tags.push('n=1');
       if (miss.length) tags.push(T('notReachedList', { list: miss.join(', ') }));
+      if (unk.length) tags.push(T('costUnknownList', { list: unk.join(', ') }));
       if (part.length) tags.push(T('partialList', { list: part.join(', ') }));
       var col = lineColor(m), dash = n1 ? N1_DASH : m.dash;
       var sample = '<svg class="bix-sample" width="34" height="16" viewBox="0 0 34 16" aria-hidden="true" focusable="false"><line x1="1" y1="8" x2="33" y2="8" stroke="' + col + '" stroke-width="2.5"' + (dash ? ' stroke-dasharray="' + esc(dash) + '"' : '') + (n1 ? ' stroke-opacity="0.6"' : '') + '/><path d="' + BG.path(vendorOf(m), 5, 17, 8) + '" fill="' + col + '" stroke="' + col + '" stroke-width="1.4" stroke-linejoin="round"/></svg>';
@@ -671,9 +681,11 @@
     var c = T('cols'), h = ['<table><caption>' + esc(T('tableCaption', { aim: aimText(v.aim), count: countText(v) })) + '</caption><thead><tr>' + c.map(function (x) { return '<th scope="col">' + esc(x) + '</th>'; }).join('') + '</tr></thead><tbody>'];
     v.series.forEach(function (s) {
       s.cells.forEach(function (cell) {
-        var ok = plottable(cell);
+        var ok = plottable(cell), unkCost = costUnknownCell(cell);
+        var costTxt = ok ? usd(cell[XK]) : unkCost ? T('costUnknown') : T('notReached');
+        var timeTxt = ok || (unkCost && cell[YK] != null && cell[YK] > 0) ? mins(cell[YK]) : T('notReached');
         h.push('<tr><th scope="row">' + esc(s.m.name + (s.m.releaseDate ? '' : ' (' + T('dateUnknown') + ')') + (s.m.tier ? '' : ' (' + T('tierUnknown') + ')')) + '</th><td>' + esc(cell.effort) + '</td><td>' + esc(cell.n) + '</td><td>' + esc(cell.reached + '/' + cell.n) + '</td><td>' + esc(cell.oneShotAll ? T('yes') : T('no')) +
-          '</td><td>' + esc(ok ? usd(cell[XK]) : T('notReached')) + '</td><td>' + esc(ok ? mins(cell[YK]) : T('notReached')) + '</td><td>' + esc(cellMark(cell)) + '</td><td>' + esc((cell.notes || []).map(footText).join(' ')) + '</td></tr>');
+          '</td><td>' + esc(costTxt) + '</td><td>' + esc(timeTxt) + '</td><td>' + esc(cellMark(cell)) + '</td><td>' + esc((cell.notes || []).map(footText).join(' ')) + '</td></tr>');
       });
     });
     if (!v.series.length) h.push('<tr><td colspan="9">' + esc(T('noModels')) + '</td></tr>');
@@ -828,9 +840,11 @@
       var colW = (W - 2 * pad) / 2, rows = [];
       v.series.forEach(function (s) {
         var miss = s.miss.map(function (c) { return effLabel(c.effort); });
+        var unk = s.unk.map(function (c) { return effLabel(c.effort); });
         var meta = [HARNESS[s.m.harness] || s.m.harness || '', s.m.tierName || T('tierUnknown'), s.m.releaseDate || T('dateUnknown')];
         if (s.n1) meta.push('n=1');
         if (miss.length) meta.push(T('notReachedList', { list: miss.join(', ') }));
+        if (unk.length) meta.push(T('costUnknownList', { list: unk.join(', ') }));
         var part = partialTags(s.cells);
         if (part.length) meta.push(T('partialList', { list: part.join(', ') }));
         rows.push({ s: s, meta: meta.filter(Boolean).join(' · ') });

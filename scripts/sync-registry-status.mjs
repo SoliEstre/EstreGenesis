@@ -53,7 +53,11 @@ function render(reg) {
   L.push('      <h2 data-en="Model profile status" data-ko="모델 프로필 갱신 현황">Model profile status</h2>');
   L.push(`      <p data-en="The /subscaler tiers read a dated registry rather than a model list baked into the spec — models move monthly, the tier vocabulary does not. This block is generated from that registry on every release, so it cannot lag behind it." data-ko="/subscaler 의 티어는 스펙에 박힌 모델 목록이 아니라 날짜가 붙은 레지스트리를 읽어요 — 모델은 달마다 바뀌고 티어 어휘는 안 바뀌니까요. 이 블록은 매 릴리스마다 그 레지스트리에서 생성돼서 레지스트리보다 뒤처질 수 없어요.">The /subscaler tiers read a dated registry rather than a model list baked into the spec. This block is generated from that registry on every release.</p>`);
   L.push('      <ul>');
-  L.push(`        <li data-en="Last researched: ${esc(reg.asOf)} · next scheduled re-check: ${esc(reg.revisit.date)}" data-ko="마지막 조사: ${esc(reg.asOf)} · 다음 재조사 예정: ${esc(reg.revisit.date)}">Last researched: ${esc(reg.asOf)} · next scheduled re-check: ${esc(reg.revisit.date)}</li>`);
+  // A scheduled re-check dated before the last research day was not run: the later passes were out-of-cycle additions.
+  const overdue = dayNum(reg.revisit.date) < asOfDay;
+  const dueEn = overdue ? `${esc(reg.revisit.date)} (overdue — later passes were out-of-cycle additions)` : esc(reg.revisit.date);
+  const dueKo = overdue ? `${esc(reg.revisit.date)} (지남 — 그 뒤 조사는 일정 밖 추가였어요)` : esc(reg.revisit.date);
+  L.push(`        <li data-en="Last researched: ${esc(reg.asOf)} · next scheduled re-check: ${dueEn}" data-ko="마지막 조사: ${esc(reg.asOf)} · 다음 재조사 예정: ${dueKo}">Last researched: ${esc(reg.asOf)} · next scheduled re-check: ${dueEn}</li>`);
   L.push(`        <li data-en="${reg.models.length} models from ${providers.length} providers (${perTier}) · ${newCount} released within ${NEW_WINDOW_DAYS} days of that date" data-ko="모델 ${reg.models.length}개 · 제공사 ${providers.length}곳 (${perTier}) · 조사일 기준 ${NEW_WINDOW_DAYS}일 안에 출시된 모델 ${newCount}개">${reg.models.length} models from ${providers.length} providers (${perTier}) · ${newCount} released within ${NEW_WINDOW_DAYS} days of that date</li>`);
   L.push(`        <li data-en="Open items on the watchlist: ${watchOpen}${closedNoteEn} · recorded caveats (what was not verified): ${reg.caveats.length}" data-ko="감시 목록 미해소: ${watchOpen}건${closedNoteKo} · 기록된 주의사항(확인하지 못한 것): ${reg.caveats.length}건">Open items on the watchlist: ${watchOpen}${closedNoteEn} · recorded caveats (what was not verified): ${reg.caveats.length}</li>`);
   L.push('      </ul>');
