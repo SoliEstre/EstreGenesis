@@ -39,7 +39,7 @@
       legend: 'Models — select one to hide or show it',
       shown: 'shown', hidden: 'hidden',
       notReached: 'not reached', notReachedList: 'not reached: {list}', partialList: 'partial cost: {list}',
-      costUnknown: 'cost unknown', costUnknownList: 'reached, cost unknown: {list}',
+      costUnknown: 'cost unknown', costUnknownList: 'cost unknown: {list}', reachedOf: 'reached {r}/{n}',
       tierUnknown: 'tier unknown', dateUnknown: 'release date unknown', released: 'released {d}',
       log: ' (log)',
       key: [
@@ -78,7 +78,7 @@
       legend: '모델 — 눌러서 숨기거나 보이기',
       shown: '보임', hidden: '숨김',
       notReached: '미도달', notReachedList: '미도달: {list}', partialList: '비용 일부: {list}',
-      costUnknown: '비용 모름', costUnknownList: '도달했지만 비용 모름: {list}',
+      costUnknown: '비용 모름', costUnknownList: '비용 모름: {list}', reachedOf: '도달 {r}/{n}',
       tierUnknown: '티어 모름', dateUnknown: '출시일 모름', released: '출시 {d}',
       log: ' (로그)',
       key: [
@@ -287,12 +287,15 @@
     return d >= S.from && d <= S.to;
   }
   function plottable(c) { return c[XK] != null && c[YK] != null && c[XK] > 0 && c[YK] > 0; }
-  // not plottable splits two ways: never reached (no trust value at all) · reached but no run left a cost record (time known, cost unknown — not a lower bound)
+  // not plottable splits two ways: never reached (no trust value at all) · reached in at least one run but no run left a cost record (time known, cost unknown — not a lower bound)
   function notReachedCell(c) { return !plottable(c) && !(c.reached > 0); }
-  // 비용 모름 = 생성기가 단 표기로만 판정해요(도달했지만 비용을 아는 실행이 없음). «그려지지 않고 도달함» 으로 추측하면
+  // 비용 모름 = 생성기가 단 표기로만 판정해요(한 번 이상 도달했지만 비용을 아는 실행이 없음). «그려지지 않고 도달함» 으로 추측하면
   //   시간이 없거나 값이 0 인 칸까지 비용 모름으로 읽어요.
   function costUnknownCell(c) { return !plottable(c) && (c.notes || []).indexOf('costUnknown') >= 0; }
   function effTags(cells) { return cells.slice().sort(function (a, b) { return effIdx(a.effort) - effIdx(b.effort); }).map(function (c) { return effLabel(c.effort); }); }
+  // 비용 모름 칸의 표지 = effort + 도달 수(11-11): 고정 낱말 «도달했지만» 은 일부 실행만 도달한 칸(Fable 5.2 aim 6 max, 1/2)에서 거짓이 돼서
+  //   도달 여부를 데이터에서 읽어요 — 다 도달한 칸이면 «2/2», 일부면 «1/2».
+  function unkTags(cells) { return cells.slice().sort(function (a, b) { return effIdx(a.effort) - effIdx(b.effort); }).map(function (c) { return effLabel(c.effort) + ' (' + T('reachedOf', { r: c.reached, n: c.n }) + ')'; }); }
   function effIdx(e) { var i = ORDER.indexOf(e); return i < 0 ? ORDER.length : i; }
 
   function computeView() {
@@ -645,7 +648,7 @@
       var cells = v.byModel[m.id] || [];
       var n1 = cells.length && cells.every(function (c) { return c.n === 1; });
       var miss = effTags(cells.filter(notReachedCell));
-      var unk = effTags(cells.filter(costUnknownCell));
+      var unk = unkTags(cells.filter(costUnknownCell));
       var part = partialTags(cells);
       var tags = [HARNESS[m.harness] || m.harness || '', m.tierName || (m.tier ? m.tier : T('tierUnknown')), m.releaseDate ? T('released', { d: m.releaseDate }) : T('dateUnknown')];
       if (n1) tags.push('n=1');
@@ -840,7 +843,7 @@
       var colW = (W - 2 * pad) / 2, rows = [];
       v.series.forEach(function (s) {
         var miss = s.miss.map(function (c) { return effLabel(c.effort); });
-        var unk = s.unk.map(function (c) { return effLabel(c.effort); });
+        var unk = unkTags(s.unk);
         var meta = [HARNESS[s.m.harness] || s.m.harness || '', s.m.tierName || T('tierUnknown'), s.m.releaseDate || T('dateUnknown')];
         if (s.n1) meta.push('n=1');
         if (miss.length) meta.push(T('notReachedList', { list: miss.join(', ') }));
