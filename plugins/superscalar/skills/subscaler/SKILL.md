@@ -55,7 +55,7 @@ Then Steps 3–4 (availability, binding keys) before dispatch.
 |---|---|---|
 | Architecture · design decisions · ambiguous requirements | **T1** frontier-reasoning | vendor default; step up only on observed failure |
 | Adversarial verification / red-team | **T1**, deliberately a **different family** than the author | raised |
-| Complex multi-step execution with residual judgment (daily-driver main loop, heavyweight implementation lanes) | **T1.5** frontier-execution — *measured: see `measuredRouting` aim 3* | vendor default (`medium` on Opus 5.5; `high` on Opus 5); don't raise effort to buy deliberation — pair with verification gates (check-first, test gates) |
+| Complex multi-step execution with residual judgment (daily-driver main loop, heavyweight implementation lanes) | **T1.5** frontier-execution — *measured: see `measuredRouting` aim 3* | vendor default (`medium` on Opus 5.5; `high` on Opus 5; a non-Anthropic member binds by its bench-recommended effort, see `measuredRouting`); don't raise effort to buy deliberation — pair with verification gates (check-first, test gates) |
 | Spec-complete implementation | **T2** agentic-execution — *measured: see `measuredRouting` aim 2* | default, dropping a rung once evals hold |
 | Mechanical multi-file edit / migration | **T2** (T3 if each file is independently verifiable) — *measured: see `measuredRouting` aim 1* | low–medium |
 | Test authoring | **T2** | medium; raise when tests must infer intent |

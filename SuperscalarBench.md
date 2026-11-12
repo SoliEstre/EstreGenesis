@@ -1,6 +1,6 @@
 # Superscalar Bench — trust cost
 
-> What one **verified** coding result costs, in money and minutes, per model × harness × effort — measured on a ladder of six tasks with hidden acceptance suites, across <!--bn:models-->24<!--/bn--> models in <!--bn:harnesses-->4<!--/bn--> harnesses. Vocabulary (aim, reach, one-shot, trust cost) is defined in [Superscalar.md §5.1.5](Superscalar.md); this page reports what was measured and how. **Single observer, private tasks** — read the [limits](#limits) before quoting a number.<!--bn:repsNoteSpEn--> Rows with fewer than three runs: Gemini 4 Carbon has one run per task × effort so far; Fable 5.2 has two runs per task × effort so far (run 3 of Fable 5.2 and run 2 of Gemini 4 Carbon are being measured; the figures will be updated). Their rankings are mostly reliable, but read a gap under ~20% between their cells as a tie, and treat † marks as provisional.<!--/bn-->
+> What one **verified** coding result costs, in money and minutes, per model × harness × effort — measured on a ladder of six tasks with hidden acceptance suites, across <!--bn:models-->24<!--/bn--> models in <!--bn:harnesses-->4<!--/bn--> harnesses. Vocabulary (aim, reach, one-shot, trust cost) is defined in [Superscalar.md §5.1.5](Superscalar.md); this page reports what was measured and how. **Single observer, private tasks** — read the [limits](#limits) before quoting a number.<!--bn:repsNoteSpEn--> Rows with fewer than three runs: Fable 5.2 has two runs per task × effort so far (run 3 of Fable 5.2 is being measured; the figures will be updated). Its rankings are mostly reliable, but read a gap under ~20% between its cells as a tie.<!--/bn-->
 
 [한국어](#한국어)
 
@@ -13,7 +13,7 @@
 - **Rounds**: the first answer, then up to three refinement rounds (four rounds in all). Refinement feedback is what CI gives a person — failing test names and assertion messages, never the test code. A run that passes on the first answer is **one-shot**.
 - **Trust cost / trust time** = mean cost / wall time over *all* attempts (refinement rounds included) ÷ reach rate. A model that is cheap per attempt but rarely reaches pays for its misses here. A combination that never reached has no trust cost.
 - **Cost** is API-equivalent list price, not what a subscription costs: Claude Code and Grok Build report it; Codex and Antigravity runs are priced from token counts × published prices.
-- **Repetitions**: <!--bn:nNoteEn-->n = 3 per cell; n = 1 for Gemini 4 Carbon (further runs being measured); Fable 5.2: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->. The numbers on this page, in the figures and in the tables all come from one snapshot of the run records.
+- **Repetitions**: <!--bn:nNoteEn-->n = 3 per cell; Fable 5.2: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->. The numbers on this page, in the figures and in the tables all come from one snapshot of the run records.
 
 ## The aim ladder
 
@@ -22,21 +22,21 @@ Each aim is one task. Within an aim every model is judged by the same hidden sui
 <!--bn-block:aims-md-en-->
 | | aim | task | hidden tests | reach | first answer | median trust time | median trust cost |
 |---|---|---|---:|---:|---:|---:|---:|
-| <img src="docs/assets/bench/keyart/aim1.png" width="56" alt="aim 1 key image"> | aim 1 | mechanical multi-file edit | 25 | 100% | 95% | 3.5 min | $0.48 |
-| <img src="docs/assets/bench/keyart/aim2.png" width="56" alt="aim 2 key image"> | aim 2 | spec-complete implementation | 73 | 100% | 91% | 4.8 min | $0.57 |
+| <img src="docs/assets/bench/keyart/aim1.png" width="56" alt="aim 1 key image"> | aim 1 | mechanical multi-file edit | 25 | 100% | 95% | 3.5 min | $0.40 |
+| <img src="docs/assets/bench/keyart/aim2.png" width="56" alt="aim 2 key image"> | aim 2 | spec-complete implementation | 73 | 100% | 92% | 4.8 min | $0.57 |
 | <img src="docs/assets/bench/keyart/aim3.png" width="56" alt="aim 3 key image"> | aim 3 | multi-step feature + schema migration | 49 | 100% | 98% | 6.4 min | $0.76 |
 | <img src="docs/assets/bench/keyart/aim4.png" width="56" alt="aim 4 key image"> | aim 4 | diagnose-and-fix from a symptom report | 37 | 100% | 99% | 4.8 min | $0.53 |
-| <img src="docs/assets/bench/keyart/aim5.png" width="56" alt="aim 5 key image"> | aim 5 | design + build a small language interpreter | 96 | 98% | 90% | 10.2 min | $1.02 |
-| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | aim 6 | crash-safe transactional key-value store | 58 | 94% | 81% | 13.2 min | $1.10 |
+| <img src="docs/assets/bench/keyart/aim5.png" width="56" alt="aim 5 key image"> | aim 5 | design + build a small language interpreter | 96 | 98% | 91% | 9.8 min | $1.02 |
+| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | aim 6 | crash-safe transactional key-value store | 58 | 94% | 81% | 13.4 min | $1.12 |
 <!--/bn-block-->
 
 ![The aim ladder — six tasks in designed order of difficulty, and what was measured](docs/assets/bench/trust-cost-ladder.png)
 
 Key images: one wordless picture per aim, generated with Codex CLI's built-in image tool from published prompts ([how they were made](docs/assets/bench/keyart/README.md)); the sheet's text, numbers and ladder are drawn by code.
 
-Medians are over the <!--bn:a1Combos-->105<!--/bn--> model × harness × effort combinations of each aim (<!--bn:nNoteEn-->n = 3 per cell; n = 1 for Gemini 4 Carbon (further runs being measured); Fable 5.2: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->). A combination that never reached on an aim has no trust cost or trust time and is left out of both of that aim's trust medians — this happens only on aim 6 (see finding 1). A combination that reached in at least one run but has no run with a cost record (now <!--bn:costUnknownCellsEn-->Fable 5.2 on aim 6<!--/bn--> at <!--bn:costUnknownEffortsEn-->max<!--/bn-->; see «Missing costs» in [limits](#limits)) keeps its trust time and is left out of that aim's cost median only.
+Medians are over the <!--bn:a1Combos-->105<!--/bn--> model × harness × effort combinations of each aim (<!--bn:nNoteEn-->n = 3 per cell; Fable 5.2: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->). A combination that never reached on an aim has no trust cost or trust time and is left out of both of that aim's trust medians — this happens only on aim 6 (see finding 1). A combination that reached in at least one run but has no run with a cost record (now <!--bn:costUnknownCellsEn-->Fable 5.2 on aim 6<!--/bn--> at <!--bn:costUnknownEffortsEn-->max<!--/bn-->; see «Missing costs» in [limits](#limits)) keeps its trust time and is left out of that aim's cost median only.
 
-**How to read it.** Aims 1–4 fall within <!--bn:a1Cost-->$0.48<!--/bn-->–<!--bn:a3Cost-->$0.76<!--/bn--> and <!--bn:a1Time-->3.5<!--/bn-->–<!--bn:a3Time-->6.4<!--/bn--> min per verified result without a steady rise — aim 2 trips the first answer more often than aims 3–4, and aim 4 is cheaper than aim 3. Aims 5 and 6 sit above that range: about twice the aims 1–4 median in cost, and two to nearly three times in time. Aim 6 costs more than aim 5 at the median, takes longer and misses more; aims 5 and 6 are the only rungs where runs fail to reach. The order is the designed one; the table is what was measured, and it is not a smooth trend.
+**How to read it.** Aims 1–4 fall within <!--bn:a1Cost-->$0.40<!--/bn-->–<!--bn:a3Cost-->$0.76<!--/bn--> and <!--bn:a1Time-->3.5<!--/bn-->–<!--bn:a3Time-->6.4<!--/bn--> min per verified result without a steady rise — aim 2 trips the first answer more often than aims 3–4, and aim 4 is cheaper than aim 3. Aims 5 and 6 sit above that range: about twice the aims 1–4 median in cost, and two to nearly three times in time. Aim 6 costs more than aim 5 at the median, takes longer and misses more; aims 5 and 6 are the only rungs where runs fail to reach. The order is the designed one; the table is what was measured, and it is not a smooth trend.
 
 ## Setup
 
@@ -52,11 +52,11 @@ Medians are over the <!--bn:a1Combos-->105<!--/bn--> model × harness × effort 
 | Antigravity | Gemini 3.8 Flash | low · medium · high |
 | | Gemini 3.1 Pro | low · high |
 | | Gemini 4 Argon (n=<!--bn:m_gemini4argon_n-->3<!--/bn-->) | low · medium · high |
-| | Gemini 4 Carbon (n=<!--bn:m_gemini4carbon_n-->1<!--/bn-->) | low · medium · high |
+| | Gemini 4 Carbon (n=<!--bn:m_gemini4carbon_n-->3<!--/bn-->) | low · medium · high |
 
-- **<!--bn:combos-->105<!--/bn--> combinations × 6 aims (<!--bn:nNoteEn-->n = 3 per cell; n = 1 for Gemini 4 Carbon (further runs being measured); Fable 5.2: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->), less one invalid run that was not re-measured** (Claude Fable 5.1 at max on aim 2 — the [incident](#an-incident-empty-feedback-invites-probing) below): <!--bn:runs-->1,823<!--/bn--> valid runs (aims 1–5: <!--bn:runsAims1to5-->1,519<!--/bn-->, aim 6: <!--bn:runsAim6-->304<!--/bn-->), measured <!--bn:dateFirst-->2026-09-30<!--/bn--> → <!--bn:dateLast-->2026-11-11<!--/bn--> on one machine (all dates and times on this page are UTC). The first measurement ran <!--bn:dateFirst-->2026-09-30<!--/bn--> → 10-06; the rows for Claude Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8 and GPT-5.6 Sol · Terra · Luna were measured after it (2026-10-07 → 10-13), then Gemini 4 Argon (<!--bn:m_gemini4argon_dates-->2026-10-16 → 11-04<!--/bn-->), GPT-6.1 Terra (<!--bn:m_gpt61terra_dates-->2026-10-27<!--/bn-->), Claude Fable 5.2 (<!--bn:m_fable52_dates-->2026-11-10 → 11-11<!--/bn-->) and Gemini 4 Carbon (<!--bn:m_gemini4carbon_dates-->2026-11-11<!--/bn-->).
+- **<!--bn:combos-->105<!--/bn--> combinations × 6 aims (<!--bn:nNoteEn-->n = 3 per cell; Fable 5.2: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->), less one invalid run that was not re-measured** (Claude Fable 5.1 at max on aim 2 — the [incident](#an-incident-empty-feedback-invites-probing) below): <!--bn:runs-->1,859<!--/bn--> valid runs (aims 1–5: <!--bn:runsAims1to5-->1,549<!--/bn-->, aim 6: <!--bn:runsAim6-->310<!--/bn-->), measured <!--bn:dateFirst-->2026-09-30<!--/bn--> → <!--bn:dateLast-->2026-11-11<!--/bn--> on one machine (all dates and times on this page are UTC). The first measurement ran <!--bn:dateFirst-->2026-09-30<!--/bn--> → 10-06; the rows for Claude Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8 and GPT-5.6 Sol · Terra · Luna were measured after it (2026-10-07 → 10-13), then Gemini 4 Argon (<!--bn:m_gemini4argon_dates-->2026-10-16 → 11-04<!--/bn-->), GPT-6.1 Terra (<!--bn:m_gpt61terra_dates-->2026-10-27<!--/bn-->), Claude Fable 5.2 (<!--bn:m_fable52_dates-->2026-11-10 → 11-11<!--/bn-->) and Gemini 4 Carbon (<!--bn:m_gemini4carbon_dates-->2026-11-11<!--/bn-->).
 <!--bn-block:reps-bullet-en-->
-- **Rows with fewer than three runs.** Gemini 4 Carbon has one run per task × effort so far; Fable 5.2 has two runs per task × effort so far (run 3 of Fable 5.2 and run 2 of Gemini 4 Carbon are being measured; the figures will be updated). Their rankings are mostly reliable, but read a gap under ~20% between their cells as a tie, and treat † marks as provisional.
+- **Rows with fewer than three runs.** Fable 5.2 has two runs per task × effort so far (run 3 of Fable 5.2 is being measured; the figures will be updated). Its rankings are mostly reliable, but read a gap under ~20% between its cells as a tie.
 <!--/bn-block-->
 - Each run works in an isolated copy of the task repository. The model may run `node` there (a gate admits node commands only); other shell commands are denied. Plugin hooks are disabled in the Claude Code benchmark sessions from 2026-10-01 11:00 (earlier runs: see the defects table).
 - Round budget 90 minutes of wall time. Claude Code's per-response output cap was kept at the harness default (64,000 tokens); see [limits](#limits).
@@ -66,7 +66,7 @@ Medians are over the <!--bn:a1Combos-->105<!--/bn--> model × harness × effort 
 
 ## Findings
 
-**1. The ladder separates on time, cost and the first answer before it separates on reach.** Every run of aims 1–4 reached. Aim 5 is the first rung with misses — <!--bn:a5Unreached-->5<!--/bn--> of <!--bn:a5Runs-->304<!--/bn--> runs did not reach — and aim 6 has the most: <!--bn:a6Unreached-->19<!--/bn--> of <!--bn:a6Runs-->304<!--/bn-->. The cells with misses (reached / runs):
+**1. The ladder separates on time, cost and the first answer before it separates on reach.** Every run of aims 1–4 reached. Aim 5 is the first rung with misses — <!--bn:a5Unreached-->5<!--/bn--> of <!--bn:a5Runs-->310<!--/bn--> runs did not reach — and aim 6 has the most: <!--bn:a6Unreached-->19<!--/bn--> of <!--bn:a6Runs-->310<!--/bn-->. The cells with misses (reached / runs):
 
 <!--bn-block:misses-md-en-->
 | aim | harness · model · effort | reached |
@@ -142,7 +142,7 @@ In Claude Code the newest versions spread wider than the earlier versions of the
 | Antigravity · Gemini 3.1 Pro | L★ | — | H★ | L★ | — | — |
 | Antigravity · Gemini 3.8 Flash | L★ | L★ | L★ | L★ M☆ | L★ | H★ |
 | Antigravity · Gemini 4 Argon | L★ | L★ | L★ | L★ | L★ | L★ |
-| Antigravity · Gemini 4 Carbon (n=1) | L★† M★† | L★† | M★† H★† | L★† | L★† | L★† |
+| Antigravity · Gemini 4 Carbon | L★ | L★ | M★ H★ | L★ | L★ | L★ |
 <!--/bn-block-->
 
 **3. Claude Haiku: the older small model was not cheap per verified result; Haiku 5.5 is the cheapest Claude row.** Claude Haiku 4.5 (one effort level) reached in <!--bn:m_haiku45_reached-->15<!--/bn--> of <!--bn:m_haiku45_runs-->18<!--/bn--> runs and passed on the first answer in <!--bn:m_haiku45_oneShot-->4<!--/bn--> of them; per verified result it cost more than Claude Sonnet 5.5 at Sonnet's cheapest effort on every aim it reached, and it did not reach aim 6. Claude Haiku 5.5 reached in every run (<!--bn:m_haiku55_reached-->90<!--/bn--> of <!--bn:m_haiku55_runs-->90<!--/bn-->) and passed on the first answer in <!--bn:m_haiku55_oneShot-->89<!--/bn--> — the exception is one run at low on aim 6, which is why its recommended effort is medium on aim 6 and low on aims 1–5. Its low effort was its cheapest on every aim, and cost less than half of Sonnet 5.5's cheapest effort on every aim (trust cost):
@@ -199,11 +199,11 @@ Over all its cells, Haiku 5.5's median trust cost (<!--bn:m_haiku55_medTC-->$0.1
 | Codex · GPT-5.6 Terra | low | 3/3 | 1/3 | $0.52 | 7.7 |
 | Grok Build · grok-4.7 | low | 3/3 | 3/3 | $0.57 | 21.1 |
 | Claude Code · Sonnet 5.5 | medium | 3/3 | 3/3 | $0.57 | 4.4 |
-| Antigravity · Gemini 4 Carbon (n=1) | low | 1/1 | 1/1 | $0.70 | 10.1 |
 | Codex · GPT-5.6 Sol | low | 3/3 | 2/3 | $0.83 | 6.1 |
 | Claude Code · Opus 5.5 | low | 3/3 | 1/3 | $1.00 | 4.2 |
 | Codex · GPT-6 Astra | low | 3/3 | 3/3 | $1.04 | 5.5 |
 | Antigravity · Gemini 3.8 Flash | medium | 3/3 | 2/3 | $1.10 | 6.9 |
+| Antigravity · Gemini 4 Carbon | low | 3/3 | 3/3 | $1.33 | 13.7 |
 | Claude Code · Fable 5.2 (n=2) | low | 2/2 | 2/2 | $1.43 | 3.1 |
 | Claude Code · Fable 5.1 | medium | 3/3 | 3/3 | $2.05 | 4.3 |
 | Claude Code · Sonnet 5 | low | 3/3 | 0/3 | $2.19 | 17.8 |
@@ -253,7 +253,7 @@ In one run (Fable 5.1, max effort, aim 2) every round graded as «no tests execu
 
 - **Single observer, single machine.** Every measurement was run by a single observer on one Windows workstation. Nothing here has been reproduced independently.
 - **Tasks and hidden suites are not published**, to keep them out of training data and out of reach of the runs. You cannot rerun this benchmark yet; treat it as a report, not a standard.
-- **Repetitions.** <!--bn:nNoteEn-->n = 3 per cell; n = 1 for Gemini 4 Carbon (further runs being measured); Fable 5.2: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->. Three runs are enough to see the spread, not enough for fine rankings.<!--bn:repsNoteSpEn--> Rows with fewer than three runs: Gemini 4 Carbon has one run per task × effort so far; Fable 5.2 has two runs per task × effort so far (run 3 of Fable 5.2 and run 2 of Gemini 4 Carbon are being measured; the figures will be updated). Their rankings are mostly reliable, but read a gap under ~20% between their cells as a tie, and treat † marks as provisional.<!--/bn-->
+- **Repetitions.** <!--bn:nNoteEn-->n = 3 per cell; Fable 5.2: 30 cells with n = 2; Fable 5.1: one cell with n = 2<!--/bn-->. Three runs are enough to see the spread, not enough for fine rankings.<!--bn:repsNoteSpEn--> Rows with fewer than three runs: Fable 5.2 has two runs per task × effort so far (run 3 of Fable 5.2 is being measured; the figures will be updated). Its rankings are mostly reliable, but read a gap under ~20% between its cells as a tie.<!--/bn-->
 - **Run order.** Grok Build's third runs on aims 1–5 (and one second run), and all its aim 6 runs, were measured on 2026-10-06, after the other rows of the first measurement. The rows for Claude Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8 and GPT-5.6 Sol · Terra · Luna were measured after that (2026-10-07 → 10-13), then Gemini 4 Argon (<!--bn:m_gemini4argon_dates-->2026-10-16 → 11-04<!--/bn-->), GPT-6.1 Terra (<!--bn:m_gpt61terra_dates-->2026-10-27<!--/bn-->), Claude Fable 5.2 (<!--bn:m_fable52_dates-->2026-11-10 → 11-11<!--/bn-->) and Gemini 4 Carbon (<!--bn:m_gemini4carbon_dates-->2026-11-11<!--/bn-->) — on different days and under different machine load (the Fable 5.2 and Gemini 4 Carbon chains ran at the same time on 2026-11-11). Fable 5.2's second run of aim 6 max and its third runs (still being measured) ran from 2026-11-11 00:38Z on a different subscription account. Gemini 4 Carbon ran on Google AI Ultra and Gemini 4 Argon on Google AI Pro — the same Google account, whose plan changed on 2026-11-06; cost is priced from tokens at published prices, so the plan does not affect cost, while time may differ.
 - **Versions.** The Claude Code CLI version is recorded in the Claude transcripts (runs stopped at the round budget left none). Fable 5.2 ran on a pinned copy whose version is recorded with every run, including the runs stopped at the round budget. For Codex, a version was recorded only in the third runs of GPT-5.6 Terra and GPT-5.6 Luna (codex-cli 0.160.1) and in every GPT-6.1 Terra run. The GPT-6.1 Terra runs all used codex-cli 0.164.0-alpha.11.1, the build bundled with the VS Code extension, pinned because the standalone 0.162.1 could not start shell commands on this machine. It is the only Codex row on that build and no same-build control was run, so read its time against other Codex rows as a mix of model, build and date; cost comes from token counts and is the safer axis. Model behaviour is as of the measurement dates.<!--bn:agyVersionSpEn--> Antigravity CLI versions differ between rows: Gemini 4 Carbon on 1.5.5; Gemini 4 Argon on 1.3.6/1.4.5/1.4.7/1.5.0; Gemini 3.1 Pro and Gemini 3.8 Flash without a recorded version (those runs predate version recording; the 2026-09-30 adapter probe found 1.2.13).<!--/bn-->
 - **Time is the weaker axis.** Wall time depends on machine load (how many chains ran at once), run order and the serving account. The Claude subscription account was switched on 2026-10-03 and again on 2026-11-11 (00:38Z, during the Fable 5.2 runs); cost is unaffected, time may not be. One cell is known to be affected by load: Gemini 4 Carbon at low on aim 3 (run 1) ran while the machine's CPU was saturated (2026-11-11 02:02–02:32Z, CPU busy 1.0 at the start of each round), and its first round's hidden-test run exceeded the 180-second limit, so that cell's time, round count and first-answer result may include machine load. It was not re-measured. The hook-era Claude runs (see the defects table) carry extra seconds per tool call.
@@ -292,7 +292,7 @@ Claude Code's default output cap (64,000 tokens per response) ended 41 rounds in
 
 ![Superscalar Bench — 여섯 aim, aim 마다 키 이미지 한 장, 설계한 사다리 위에](docs/assets/bench/trust-cost-aims-ko.png)
 
-> **검증된** 코딩 결과 하나에 드는 돈과 시간 — 모델 × 하네스 × effort 마다, 숨긴 수용 시험이 있는 여섯 과제의 사다리 위에서, 하네스 <!--bn:harnesses-->4<!--/bn-->종의 모델 <!--bn:models-->24<!--/bn-->개를 쟀어요. 용어(aim · 도달 · 첫 답 · 신뢰비용)의 정의는 [Superscalar.md §5.1.5](Superscalar.md) 에 있고, 여기는 무엇을 어떻게 쟀는지만 적어요. **관측자 한 명 · 비공개 과제** — 숫자를 인용하기 전에 [한계](#한계)를 읽어 주세요.<!--bn:repsNoteSpKo--> 실행이 셋보다 적은 행: Gemini 4 Carbon 은 과제 × effort 마다 아직 실행이 한 번이에요 · Fable 5.2 는 과제 × effort 마다 아직 실행이 두 번이에요(Fable 5.2 3회차, Gemini 4 Carbon 2회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행들 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요 · † 표시는 잠정이에요.<!--/bn-->
+> **검증된** 코딩 결과 하나에 드는 돈과 시간 — 모델 × 하네스 × effort 마다, 숨긴 수용 시험이 있는 여섯 과제의 사다리 위에서, 하네스 <!--bn:harnesses-->4<!--/bn-->종의 모델 <!--bn:models-->24<!--/bn-->개를 쟀어요. 용어(aim · 도달 · 첫 답 · 신뢰비용)의 정의는 [Superscalar.md §5.1.5](Superscalar.md) 에 있고, 여기는 무엇을 어떻게 쟀는지만 적어요. **관측자 한 명 · 비공개 과제** — 숫자를 인용하기 전에 [한계](#한계)를 읽어 주세요.<!--bn:repsNoteSpKo--> 실행이 셋보다 적은 행: Fable 5.2 는 과제 × effort 마다 아직 실행이 두 번이에요(Fable 5.2 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행의 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.<!--/bn-->
 
 ### 무엇을 재나
 
@@ -301,7 +301,7 @@ Claude Code's default output cap (64,000 tokens per response) ended 41 rounds in
 - **라운드**: 첫 답 뒤 보정 라운드 최대 세 번(모두 네 라운드). 보정 피드백은 CI 가 사람에게 주는 만큼 — 실패한 시험 이름과 단정 메시지뿐, 시험 코드는 안 보여 줘요. 첫 답에서 통과하면 **첫 답 통과**예요.
 - **신뢰비용 · 신뢰시간** = 모든 시도(보정 라운드 포함)의 평균 비용·시간 ÷ 도달률. 시도당 싸도 자주 못 닿는 모델은 여기서 그 값을 치러요. 한 번도 못 닿은 조합은 신뢰비용이 없어요.
 - **비용**은 API 정가 환산이에요(구독 요금이 아님). Claude Code·Grok Build 는 하네스가 보고하고, Codex·Antigravity 는 토큰 수 × 공개 단가로 계산해요.
-- **반복**: <!--bn:nNoteKo-->칸마다 n = 3 · Gemini 4 Carbon 은 n = 1(다음 회차 측정 중) · Fable 5.2 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->. 이 문서와 그림 · 표의 숫자는 모두 실행 기록의 스냅샷 하나에서 나왔어요.
+- **반복**: <!--bn:nNoteKo-->칸마다 n = 3 · Fable 5.2 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->. 이 문서와 그림 · 표의 숫자는 모두 실행 기록의 스냅샷 하나에서 나왔어요.
 
 ### aim 사다리
 
@@ -310,21 +310,21 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 <!--bn-block:aims-md-ko-->
 | | aim | 과제 | 숨긴 시험 | 도달 | 첫 답 | 신뢰시간 중앙값 | 신뢰비용 중앙값 |
 |---|---|---|---:|---:|---:|---:|---:|
-| <img src="docs/assets/bench/keyart/aim1.png" width="56" alt="aim 1 key image"> | 1 | 여러 파일 기계적 수정 | 25 | 100% | 95% | 3.5분 | $0.48 |
-| <img src="docs/assets/bench/keyart/aim2.png" width="56" alt="aim 2 key image"> | 2 | 사양서대로 구현 | 73 | 100% | 91% | 4.8분 | $0.57 |
+| <img src="docs/assets/bench/keyart/aim1.png" width="56" alt="aim 1 key image"> | 1 | 여러 파일 기계적 수정 | 25 | 100% | 95% | 3.5분 | $0.40 |
+| <img src="docs/assets/bench/keyart/aim2.png" width="56" alt="aim 2 key image"> | 2 | 사양서대로 구현 | 73 | 100% | 92% | 4.8분 | $0.57 |
 | <img src="docs/assets/bench/keyart/aim3.png" width="56" alt="aim 3 key image"> | 3 | 여러 단계 기능 + 스키마 이전 | 49 | 100% | 98% | 6.4분 | $0.76 |
 | <img src="docs/assets/bench/keyart/aim4.png" width="56" alt="aim 4 key image"> | 4 | 증상 보고에서 진단·수정 | 37 | 100% | 99% | 4.8분 | $0.53 |
-| <img src="docs/assets/bench/keyart/aim5.png" width="56" alt="aim 5 key image"> | 5 | 작은 언어 인터프리터 설계·구현 | 96 | 98% | 90% | 10.2분 | $1.02 |
-| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | 6 | 충돌에 안전한 트랜잭션 키-값 저장소 | 58 | 94% | 81% | 13.2분 | $1.10 |
+| <img src="docs/assets/bench/keyart/aim5.png" width="56" alt="aim 5 key image"> | 5 | 작은 언어 인터프리터 설계·구현 | 96 | 98% | 91% | 9.8분 | $1.02 |
+| <img src="docs/assets/bench/keyart/aim6.png" width="56" alt="aim 6 key image"> | 6 | 충돌에 안전한 트랜잭션 키-값 저장소 | 58 | 94% | 81% | 13.4분 | $1.12 |
 <!--/bn-block-->
 
 ![aim 사다리 — 설계한 난도 순서의 여섯 과제와 잰 것](docs/assets/bench/trust-cost-ladder.png)
 
 키 이미지: aim 마다 글자 없는 그림 한 장 — 공개한 프롬프트로 Codex CLI 의 내장 이미지 도구가 만들었어요([만든 방법](docs/assets/bench/keyart/README.md)). 시트의 글자 · 번호 · 사다리는 코드로 그려요.
 
-중앙값은 aim 마다 모델 × 하네스 × effort 조합 <!--bn:a1Combos-->105<!--/bn-->개 위에서 냈어요(<!--bn:nNoteKo-->칸마다 n = 3 · Gemini 4 Carbon 은 n = 1(다음 회차 측정 중) · Fable 5.2 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->). 어떤 aim 에서 한 번도 못 닿은 조합은 신뢰비용 · 신뢰시간이 없어서 그 aim 의 두 신뢰 중앙값에서 모두 빠져요 — 이런 조합은 aim 6 에만 있어요(찾은 것 1). 한 번 이상 닿았지만 비용 기록이 있는 실행이 하나도 없는 조합(지금은 <!--bn:costUnknownCellsKo-->aim 6 의 Fable 5.2<!--/bn--> <!--bn:costUnknownEffortsKo-->max<!--/bn--> · [한계](#한계)의 «빠진 비용» 참고)은 신뢰시간이 있어서, 그 aim 의 비용 중앙값에서만 빠져요.
+중앙값은 aim 마다 모델 × 하네스 × effort 조합 <!--bn:a1Combos-->105<!--/bn-->개 위에서 냈어요(<!--bn:nNoteKo-->칸마다 n = 3 · Fable 5.2 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->). 어떤 aim 에서 한 번도 못 닿은 조합은 신뢰비용 · 신뢰시간이 없어서 그 aim 의 두 신뢰 중앙값에서 모두 빠져요 — 이런 조합은 aim 6 에만 있어요(찾은 것 1). 한 번 이상 닿았지만 비용 기록이 있는 실행이 하나도 없는 조합(지금은 <!--bn:costUnknownCellsKo-->aim 6 의 Fable 5.2<!--/bn--> <!--bn:costUnknownEffortsKo-->max<!--/bn--> · [한계](#한계)의 «빠진 비용» 참고)은 신뢰시간이 있어서, 그 aim 의 비용 중앙값에서만 빠져요.
 
-**읽는 법.** aim 1–4 는 검증된 결과당 <!--bn:a1Cost-->$0.48<!--/bn-->–<!--bn:a3Cost-->$0.76<!--/bn--> · <!--bn:a1Time-->3.5<!--/bn-->–<!--bn:a3Time-->6.4<!--/bn-->분 안에 있고 고르게 오르지 않아요 — aim 2 가 aim 3–4 보다 첫 답에서 더 자주 걸리고, aim 4 가 aim 3 보다 싸요. aim 5·6 은 그 범위 위에 있어요: 비용은 aim 1–4 중앙값의 대략 두 배, 시간은 두 배에서 세 배 가까이예요. aim 6 은 aim 5 보다 중앙값 비용이 높고, 더 오래 걸리고, 더 많이 놓쳐요. 도달 못 한 실행이 나오는 단은 aim 5·6 뿐이에요. 순서는 설계한 그대로이고, 표는 잰 그대로예요 — 매끈한 추세가 아니에요.
+**읽는 법.** aim 1–4 는 검증된 결과당 <!--bn:a1Cost-->$0.40<!--/bn-->–<!--bn:a3Cost-->$0.76<!--/bn--> · <!--bn:a1Time-->3.5<!--/bn-->–<!--bn:a3Time-->6.4<!--/bn-->분 안에 있고 고르게 오르지 않아요 — aim 2 가 aim 3–4 보다 첫 답에서 더 자주 걸리고, aim 4 가 aim 3 보다 싸요. aim 5·6 은 그 범위 위에 있어요: 비용은 aim 1–4 중앙값의 대략 두 배, 시간은 두 배에서 세 배 가까이예요. aim 6 은 aim 5 보다 중앙값 비용이 높고, 더 오래 걸리고, 더 많이 놓쳐요. 도달 못 한 실행이 나오는 단은 aim 5·6 뿐이에요. 순서는 설계한 그대로이고, 표는 잰 그대로예요 — 매끈한 추세가 아니에요.
 
 ### 설정
 
@@ -340,11 +340,11 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 | Antigravity | Gemini 3.8 Flash | low · medium · high |
 | | Gemini 3.1 Pro | low · high |
 | | Gemini 4 Argon (n=<!--bn:m_gemini4argon_n-->3<!--/bn-->) | low · medium · high |
-| | Gemini 4 Carbon (n=<!--bn:m_gemini4carbon_n-->1<!--/bn-->) | low · medium · high |
+| | Gemini 4 Carbon (n=<!--bn:m_gemini4carbon_n-->3<!--/bn-->) | low · medium · high |
 
-- **<!--bn:combos-->105<!--/bn--> 조합 × 6 aim(<!--bn:nNoteKo-->칸마다 n = 3 · Gemini 4 Carbon 은 n = 1(다음 회차 측정 중) · Fable 5.2 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->)에서, 다시 재지 않은 무효 실행 하나를 뺀** 유효 실행 <!--bn:runs-->1,823<!--/bn-->회(aim 1–5: <!--bn:runsAims1to5-->1,519<!--/bn--> · aim 6: <!--bn:runsAim6-->304<!--/bn-->) — 빠진 하나는 Claude Fable 5.1 max 의 aim 2([아래 사건](#사건--빈-피드백이-탐색을-부른다)). <!--bn:dateFirst-->2026-09-30<!--/bn--> → <!--bn:dateLast-->2026-11-11<!--/bn-->, 기계 한 대(이 문서의 날짜·시각은 모두 UTC). 첫 측정은 <!--bn:dateFirst-->2026-09-30<!--/bn--> → 10-06 이고, Claude Haiku 5.5 · Opus 5 · Sonnet 5 · Opus 4.8 과 GPT-5.6 Sol · Terra · Luna 행은 그 뒤(2026-10-07 → 10-13)에, 이어서 Gemini 4 Argon(<!--bn:m_gemini4argon_dates-->2026-10-16 → 11-04<!--/bn-->), GPT-6.1 Terra(<!--bn:m_gpt61terra_dates-->2026-10-27<!--/bn-->), Claude Fable 5.2(<!--bn:m_fable52_dates-->2026-11-10 → 11-11<!--/bn-->), Gemini 4 Carbon(<!--bn:m_gemini4carbon_dates-->2026-11-11<!--/bn-->)을 쟀어요.
+- **<!--bn:combos-->105<!--/bn--> 조합 × 6 aim(<!--bn:nNoteKo-->칸마다 n = 3 · Fable 5.2 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->)에서, 다시 재지 않은 무효 실행 하나를 뺀** 유효 실행 <!--bn:runs-->1,859<!--/bn-->회(aim 1–5: <!--bn:runsAims1to5-->1,549<!--/bn--> · aim 6: <!--bn:runsAim6-->310<!--/bn-->) — 빠진 하나는 Claude Fable 5.1 max 의 aim 2([아래 사건](#사건--빈-피드백이-탐색을-부른다)). <!--bn:dateFirst-->2026-09-30<!--/bn--> → <!--bn:dateLast-->2026-11-11<!--/bn-->, 기계 한 대(이 문서의 날짜·시각은 모두 UTC). 첫 측정은 <!--bn:dateFirst-->2026-09-30<!--/bn--> → 10-06 이고, Claude Haiku 5.5 · Opus 5 · Sonnet 5 · Opus 4.8 과 GPT-5.6 Sol · Terra · Luna 행은 그 뒤(2026-10-07 → 10-13)에, 이어서 Gemini 4 Argon(<!--bn:m_gemini4argon_dates-->2026-10-16 → 11-04<!--/bn-->), GPT-6.1 Terra(<!--bn:m_gpt61terra_dates-->2026-10-27<!--/bn-->), Claude Fable 5.2(<!--bn:m_fable52_dates-->2026-11-10 → 11-11<!--/bn-->), Gemini 4 Carbon(<!--bn:m_gemini4carbon_dates-->2026-11-11<!--/bn-->)을 쟀어요.
 <!--bn-block:reps-bullet-ko-->
-- **실행이 셋보다 적은 행.** Gemini 4 Carbon 은 과제 × effort 마다 아직 실행이 한 번이에요 · Fable 5.2 는 과제 × effort 마다 아직 실행이 두 번이에요(Fable 5.2 3회차, Gemini 4 Carbon 2회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행들 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요 · † 표시는 잠정이에요.
+- **실행이 셋보다 적은 행.** Fable 5.2 는 과제 × effort 마다 아직 실행이 두 번이에요(Fable 5.2 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행의 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.
 <!--/bn-block-->
 - 실행마다 과제 저장소의 격리된 사본에서 일해요. 모델은 거기서 `node` 를 실행할 수 있고(node 명령만 통과시키는 게이트), 다른 셸 명령은 거부돼요. Claude Code 벤치 세션의 플러그인 훅은 2026-10-01 11:00 부터 껐어요(그 전 실행은 영어 절의 [결함 표](#measurement-defects-found-and-fixed) 참고).
 - 라운드 예산은 벽시계 90분. Claude Code 의 응답당 출력 상한은 하네스 기본값(64,000 토큰) 그대로 뒀어요 — [한계](#한계) 참고.
@@ -354,7 +354,7 @@ aim 하나가 과제 하나예요. 같은 aim 안에서는 모든 모델이 같�
 
 ### 찾은 것
 
-**1. 사다리는 도달보다 먼저 시간 · 비용 · 첫 답에서 갈려요.** aim 1–4 는 모든 실행이 도달했어요. 처음 놓친 단은 aim 5 — <!--bn:a5Runs-->304<!--/bn-->회 중 <!--bn:a5Unreached-->5<!--/bn-->회가 못 닿았어요 — 이고, 가장 많이 놓친 단은 aim 6 이에요: <!--bn:a6Runs-->304<!--/bn-->회 중 <!--bn:a6Unreached-->19<!--/bn-->회. 놓친 실행이 있는 칸(도달 / 실행):
+**1. 사다리는 도달보다 먼저 시간 · 비용 · 첫 답에서 갈려요.** aim 1–4 는 모든 실행이 도달했어요. 처음 놓친 단은 aim 5 — <!--bn:a5Runs-->310<!--/bn-->회 중 <!--bn:a5Unreached-->5<!--/bn-->회가 못 닿았어요 — 이고, 가장 많이 놓친 단은 aim 6 이에요: <!--bn:a6Runs-->310<!--/bn-->회 중 <!--bn:a6Unreached-->19<!--/bn-->회. 놓친 실행이 있는 칸(도달 / 실행):
 
 <!--bn-block:misses-md-ko-->
 | aim | 하네스 · 모델 · effort | 도달 |
@@ -430,7 +430,7 @@ Claude Code 에선 최신 버전이 같은 계열의 앞 버전보다 넓게 벌
 | Antigravity · Gemini 3.1 Pro | L★ | — | H★ | L★ | — | — |
 | Antigravity · Gemini 3.8 Flash | L★ | L★ | L★ | L★ M☆ | L★ | H★ |
 | Antigravity · Gemini 4 Argon | L★ | L★ | L★ | L★ | L★ | L★ |
-| Antigravity · Gemini 4 Carbon (n=1) | L★† M★† | L★† | M★† H★† | L★† | L★† | L★† |
+| Antigravity · Gemini 4 Carbon | L★ | L★ | M★ H★ | L★ | L★ | L★ |
 <!--/bn-block-->
 
 **3. Claude Haiku: 옛 소형 모델은 검증된 결과당 싸지 않았고, Haiku 5.5 는 가장 싼 Claude 행이에요.** Claude Haiku 4.5(effort 하나)는 <!--bn:m_haiku45_runs-->18<!--/bn-->회 중 <!--bn:m_haiku45_reached-->15<!--/bn-->회 도달했고, 그중 <!--bn:m_haiku45_oneShot-->4<!--/bn-->회가 첫 답 통과였어요. 도달한 모든 aim 에서 검증된 결과당 Sonnet 5.5 의 가장 싼 effort 보다 비쌌고, aim 6 에는 못 닿았어요. Claude Haiku 5.5 는 모든 실행이 도달했고(<!--bn:m_haiku55_runs-->90<!--/bn-->회 중 <!--bn:m_haiku55_reached-->90<!--/bn-->회) <!--bn:m_haiku55_oneShot-->89<!--/bn-->회가 첫 답 통과였어요 — 예외는 aim 6 low 의 한 실행이고, 그래서 권장 effort 가 aim 1–5 는 low, aim 6 은 medium 이에요. low 가 모든 aim 에서 자기 effort 중 가장 쌌고, 모든 aim 에서 Sonnet 5.5 의 가장 싼 effort 의 절반도 안 들었어요(신뢰비용):
@@ -487,11 +487,11 @@ Claude Code 에선 최신 버전이 같은 계열의 앞 버전보다 넓게 벌
 | Codex · GPT-5.6 Terra | low | 3/3 | 1/3 | $0.52 | 7.7 |
 | Grok Build · grok-4.7 | low | 3/3 | 3/3 | $0.57 | 21.1 |
 | Claude Code · Sonnet 5.5 | medium | 3/3 | 3/3 | $0.57 | 4.4 |
-| Antigravity · Gemini 4 Carbon (n=1) | low | 1/1 | 1/1 | $0.70 | 10.1 |
 | Codex · GPT-5.6 Sol | low | 3/3 | 2/3 | $0.83 | 6.1 |
 | Claude Code · Opus 5.5 | low | 3/3 | 1/3 | $1.00 | 4.2 |
 | Codex · GPT-6 Astra | low | 3/3 | 3/3 | $1.04 | 5.5 |
 | Antigravity · Gemini 3.8 Flash | medium | 3/3 | 2/3 | $1.10 | 6.9 |
+| Antigravity · Gemini 4 Carbon | low | 3/3 | 3/3 | $1.33 | 13.7 |
 | Claude Code · Fable 5.2 (n=2) | low | 2/2 | 2/2 | $1.43 | 3.1 |
 | Claude Code · Fable 5.1 | medium | 3/3 | 3/3 | $2.05 | 4.3 |
 | Claude Code · Sonnet 5 | low | 3/3 | 0/3 | $2.19 | 17.8 |
@@ -531,7 +531,7 @@ aim 마다 그림 하나: x = 신뢰비용(로그), y = 신뢰시간(로그), �
 
 - **관측자 한 명, 기계 한 대.** 측정은 전부 관측자 한 명이 Windows 워크스테이션 한 대에서 했어요. 독립 재현은 아직 없어요.
 - **과제와 숨긴 시험은 공개하지 않아요** — 학습 데이터와 실행 중인 모델 양쪽에서 떼어 두려고요. 아직 다시 돌려 볼 수 없으니 표준이 아니라 보고서로 읽어 주세요.
-- **반복 수.** <!--bn:nNoteKo-->칸마다 n = 3 · Gemini 4 Carbon 은 n = 1(다음 회차 측정 중) · Fable 5.2 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->. 실행 세 번은 흔들림을 볼 만큼이지 촘촘한 순위를 낼 만큼은 아니에요.<!--bn:repsNoteSpKo--> 실행이 셋보다 적은 행: Gemini 4 Carbon 은 과제 × effort 마다 아직 실행이 한 번이에요 · Fable 5.2 는 과제 × effort 마다 아직 실행이 두 번이에요(Fable 5.2 3회차, Gemini 4 Carbon 2회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행들 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요 · † 표시는 잠정이에요.<!--/bn-->
+- **반복 수.** <!--bn:nNoteKo-->칸마다 n = 3 · Fable 5.2 30칸은 n = 2 · Fable 5.1 1칸은 n = 2<!--/bn-->. 실행 세 번은 흔들림을 볼 만큼이지 촘촘한 순위를 낼 만큼은 아니에요.<!--bn:repsNoteSpKo--> 실행이 셋보다 적은 행: Fable 5.2 는 과제 × effort 마다 아직 실행이 두 번이에요(Fable 5.2 3회차를 재는 중이고, 끝나면 그림과 숫자를 갱신해요). 순위는 대체로 믿을 만하지만, 이 행의 칸끼리 ~20% 안쪽 차이는 동률로 읽어 주세요.<!--/bn-->
 - **실행 순서.** Grok Build 의 aim 1–5 세 번째 실행(과 두 번째 실행 하나), 그리고 aim 6 실행 전부는 첫 측정의 다른 행보다 늦은 2026-10-06 에 쟀어요. Claude Haiku 5.5 · Opus 5 · Sonnet 5 · Opus 4.8, GPT-5.6 Sol · Terra · Luna 행은 그 뒤(2026-10-07 → 10-13)에, 이어서 Gemini 4 Argon(<!--bn:m_gemini4argon_dates-->2026-10-16 → 11-04<!--/bn-->), GPT-6.1 Terra(<!--bn:m_gpt61terra_dates-->2026-10-27<!--/bn-->), Claude Fable 5.2(<!--bn:m_fable52_dates-->2026-11-10 → 11-11<!--/bn-->), Gemini 4 Carbon(<!--bn:m_gemini4carbon_dates-->2026-11-11<!--/bn-->)을 — 다른 날짜와 다른 기계 부하 아래에서 쟀어요(2026-11-11 에는 Fable 5.2 와 Gemini 4 Carbon 체인이 동시에 돌았어요). Fable 5.2 의 aim 6 max 2회차와 3회차(측정 중)는 2026-11-11 00:38Z 이후 다른 구독 계정에서 쟀어요. Gemini 4 Carbon 은 Google AI Ultra, Gemini 4 Argon 은 Google AI Pro 에서 쟀어요 — 같은 Google 계정이고 2026-11-06 에 플랜을 바꿨어요. 비용은 토큰 × 공개 단가라 플랜의 영향이 없고, 시간엔 있을 수 있어요.
 - **버전.** Claude Code CLI 버전은 Claude 전사에 남아 있어요(라운드 예산에 걸려 멈춘 실행은 전사가 없어요). Fable 5.2 는 고정 사본으로 돌려서, 라운드 예산에 걸려 멈춘 실행까지 모든 실행에 버전이 기록돼 있어요. Codex 는 GPT-5.6 Terra · GPT-5.6 Luna 의 세 번째 실행(codex-cli 0.160.1)과 GPT-6.1 Terra 의 모든 실행에만 버전이 기록됐어요. GPT-6.1 Terra 는 전부 codex-cli 0.164.0-alpha.11.1 — VS Code 확장에 번들된 빌드 — 로 고정해 쟀어요. 단독 설치한 0.162.1 이 이 기계에서 셸 명령을 시작하지 못했기 때문이에요. 이 빌드로 잰 Codex 행은 GPT-6.1 Terra 하나뿐이고 같은 빌드 대조군은 없어서, 다른 Codex 행과의 시간 비교는 모델 · 빌드 · 날짜가 섞인 값으로 읽어 주세요. 비용은 토큰 수에서 나와 더 안전한 축이에요. 모델 동작은 측정 날짜 기준이에요.<!--bn:agyVersionSpKo--> Antigravity CLI 버전이 행마다 달라요: Gemini 4 Carbon 은 1.5.5 · Gemini 4 Argon 은 1.3.6/1.4.5/1.4.7/1.5.0 · Gemini 3.1 Pro, Gemini 3.8 Flash 는 버전 기록 없음(버전을 기록하기 전에 잰 실행 · 2026-09-30 어댑터 탐침 때 1.2.13).<!--/bn-->
 - **시간이 더 약한 축이에요.** 벽시계 시간은 기계 부하(동시에 돈 체인 수) · 실행 순서 · 서빙 계정에 따라 흔들려요. Claude 구독 계정은 2026-10-03 에 한 번, 2026-11-11 00:38Z(Fable 5.2 측정 중)에 또 한 번 바꿨어요 — 비용엔 영향이 없고 시간엔 있을 수 있어요. 부하 영향이 알려진 칸이 하나 있어요: Gemini 4 Carbon 의 aim 3 low(1회차)는 측정 기계의 CPU 가 포화된 창(2026-11-11 02:02–02:32Z, 라운드 시작 때 CPU 사용률 1.0)에서 돌았고, 1라운드의 숨긴 시험 실행이 180초 상한을 넘었어요. 그 칸의 시간 · 라운드 수 · 첫 답 여부에는 부하가 섞였을 수 있어요. 다시 재지 않았어요. 훅 시기의 Claude 실행(결함 표)은 도구 호출마다 몇 초씩 더 걸렸어요.
