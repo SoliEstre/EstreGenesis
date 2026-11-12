@@ -222,7 +222,7 @@ Rows are ordered by the cheapest of each model's 2–5 effort cells, which favou
 
 ## Figures
 
-One figure per aim: x = trust cost (log), y = trust time (log), each line one model in one harness, points = effort levels (mark shape = vendor: six-ray star Anthropic, hexagon OpenAI, four-point sparkle Google, bold X xAI; a filled mark reached on the first answer in every run, an outlined one needed a refinement round in some run or missed; n=1 models are drawn with a short, faint dashed line and labelled «n=1»; ★ / ☆ = recommended effort, see «Recommended effort by aim» under Findings, with † on n=1 rows). The legend tags a model's efforts that were not reached, have unknown cost or have partial cost. Lower-left is better. The marker at the top right shows the rung on the ladder.
+One figure per aim: x = trust cost (log), y = trust time (log), each line one model in one harness, points = effort levels (mark shape = vendor: six-ray star Anthropic, hexagon OpenAI, four-point sparkle Google, bold X xAI; a filled mark reached on the first answer in every run, an outlined one needed a refinement round in some run or missed; n=1 models are drawn with a short, faint dashed line and labelled «n=1»; ★ / ☆ = recommended effort, see «Recommended effort by aim» under Findings, with † on n=1 rows). The legend tags a model's efforts that were not reached, have unknown cost or have partial cost. Lower-left is better. The marker at the top right shows the rung on the ladder. The images leave out older versions — Claude 5 and earlier and GPT-5.x — so the current models stay readable; each figure names the rows it leaves out under its legend, and every model is in the interactive chart of the [web version](https://soliestre.github.io/EstreGenesis/superscalar-bench.html).
 
 ![aim 1](docs/assets/bench/trust-cost-aim1.png)
 ![aim 2](docs/assets/bench/trust-cost-aim2.png)
@@ -511,7 +511,7 @@ Claude Code 에선 최신 버전이 같은 계열의 앞 버전보다 넓게 벌
 
 ### 그림
 
-aim 마다 그림 하나: x = 신뢰비용(로그), y = 신뢰시간(로그), 선 하나가 한 하네스의 한 모델, 점은 effort 단계예요(점 모양 = 공급사: 여섯 갈래 별 Anthropic · 육각형 OpenAI · 네 갈래 반짝임 Google · 굵은 X xAI · 채운 점은 모든 실행이 첫 답에서 도달, 외곽선만 있는 점은 보정 라운드가 필요했거나 못 닿은 실행이 있음 · n=1 모델은 옅은 짧은 점선과 «n=1» 표시 · ★ / ☆ = 권장 effort, 찾은 것 2 의 «aim 별 권장 effort» 참고, n=1 행은 †). 범례에는 도달 못 한 effort, 비용을 모르는 effort, 비용이 일부만 있는 effort 를 표시해요. 왼쪽 아래일수록 좋아요. 오른쪽 위 표시는 사다리의 단이에요.
+aim 마다 그림 하나: x = 신뢰비용(로그), y = 신뢰시간(로그), 선 하나가 한 하네스의 한 모델, 점은 effort 단계예요(점 모양 = 공급사: 여섯 갈래 별 Anthropic · 육각형 OpenAI · 네 갈래 반짝임 Google · 굵은 X xAI · 채운 점은 모든 실행이 첫 답에서 도달, 외곽선만 있는 점은 보정 라운드가 필요했거나 못 닿은 실행이 있음 · n=1 모델은 옅은 짧은 점선과 «n=1» 표시 · ★ / ☆ = 권장 effort, 찾은 것 2 의 «aim 별 권장 effort» 참고, n=1 행은 †). 범례에는 도달 못 한 effort, 비용을 모르는 effort, 비용이 일부만 있는 effort 를 표시해요. 왼쪽 아래일수록 좋아요. 오른쪽 위 표시는 사다리의 단이에요. 그림은 현재 모델이 읽히도록 이전 버전(Claude 5 이하 · GPT-5.x)을 빼고 그렸어요 — 뺀 행은 그림마다 범례 아래에 적었고, 모든 모델은 [웹 버전](https://soliestre.github.io/EstreGenesis/superscalar-bench.html)의 인터랙티브 그림에 있어요.
 
 ![aim 1](docs/assets/bench/trust-cost-aim1.png)
 ![aim 2](docs/assets/bench/trust-cost-aim2.png)
