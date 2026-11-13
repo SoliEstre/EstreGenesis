@@ -140,13 +140,13 @@
       "configFiles": "~/.gemini/antigravity-cli/settings.json (keybindings in the sibling keybindings.json). Extension paths moved from the Gemini CLI layout: global skills ~/.gemini/antigravity-cli/skills/, workspace skills .agents/skills/, global MCP ~/.gemini/config/mcp_config.json, workspace MCP .agents/mcp_config.json (schema key url/httpUrl → serverUrl), workspace hooks <workspace>/.agents/hooks.json.",
       "pathGrant": "settings.json allowNonWorkspaceAccess (DEFAULT off) plus /add-dir <path> in session; permission rules live in the same settings.json under `permissions` as allow/deny/ask lists with precedence Deny > Ask > Allow (rule syntax e.g. \"command(git)\"), managed in session via /permissions",
       "modelBind": "--model <slug> — in print mode an unresolvable slug is a hard non-zero failure that prints the available model list; interactive warns and falls back",
-      "effortBind": "--effort low|medium|high (three values only — a narrower ladder than the other harnesses)",
+      "effortBind": "Effort is part of the model id: bind a suffixed id from `agy models` (`-low` / `-medium` / `-high`, and `-xhigh` only where listed — gemini-4-hydrogen on agy 1.5.7, 2026-11-13) and do not also pass --effort (a suffixed id together with --effort was an explicit error on agy 1.3.6). `agy --help` lists --effort low|medium|high|xhigh|max (read on agy 1.4.7), wider than any listed id: no listed id carries max (agy 1.5.7 listing, 2026-11-13), and an unlisted suffix such as -max is an explicit error (probe on agy 1.5.5, 2026-11-13). Per the CLI changelog (read on agy 1.4.7), --effort selects the variant of a bare base name; that form was not measured here. An un-suffixed name is sent with a level the CLI selects: probes saw the label Medium for Gemini 4 Carbon (agy 1.5.5, 2026-11-11) and Gemini 4 Hydrogen (agy 1.5.5 and 1.5.7, 2026-11-13); the level the backend used was not observed. For Gemini 4 Hydrogen that label differs from its API default (high), so an un-suffixed name does not reliably give the API default: pin the suffix. This entry's earlier «three values only» reading (agy 1.1.7, its measuredVersion) no longer holds. Source: superscalar plugin model-registry.json harnessBinding «Antigravity CLI (agy)».",
       "budgetBind": null,
-      "modeFlags": "--mode accept-edits|plan · --sandbox · --dangerously-skip-permissions · --add-dir <dir> (repeatable) · --agent <name> · --model <slug> · --project / --new-project · --log-file <path> · --print-timeout <dur> (default 5m0s)",
+      "modeFlags": "Read on agy 1.1.7 — re-read `agy --help` on the installed version before relying on this list: --mode accept-edits|plan · --sandbox · --dangerously-skip-permissions · --add-dir <dir> (repeatable) · --agent <name> · --model <slug> · --project / --new-project · --log-file <path> · --print-timeout <dur> (default 5m0s)",
       "selfConfigProtection": "not documented as harness-enforced; the .agents/ convention is shared with Codex (which does protect it), so a deployment should assume it must enforce §9.2 itself",
       "gotchas": [
         "Print mode has a wall-clock ceiling of its own: --print-timeout, default 5m0s. A seat whose turn can exceed five minutes must raise it explicitly or it is silently cut.",
-        "No structured output. Where the other harnesses can return JSON, agy returns prose — so a seat on agy should be one whose product is judgement for a human or another model to read, not a record to be parsed. This is why the reviewer seat fits it and a scribe seat does not.",
+        "No structured output on agy 1.1.7 (this entry's measuredVersion; later versions list --output-format text|json|stream-json, recorded on 2026-10-27 with the agy 1.4.7 read, see outputFormat). On that reading, where the other harnesses can return JSON, agy returns prose — so a seat on agy should be one whose product is judgement for a human or another model to read, not a record to be parsed. This is why the reviewer seat fits it and a scribe seat does not.",
         "Headless runs honour persisted settings.json policies, and a tool needing confirmation is soft-denied with a stderr notice naming the required allow-rule. Parse that notice; treating silence as success is the failure it was fixed to prevent.",
         "allowNonWorkspaceAccess defaults to off, so a desk needs an explicit grant before it can read the project root."
       ],
@@ -158,12 +158,13 @@
         "https://antigravity.google/docs/cli/commands/resume",
         "https://antigravity.google/docs/cli/gcli-migration",
         "https://github.com/google-antigravity/antigravity-cli/blob/main/CHANGELOG.md",
-        "local measurement: agy.exe --version (1.1.7) and agy.exe --help on the deployment host, 2026-07-25"
+        "local measurement: agy.exe --version (1.1.7) and agy.exe --help on the deployment host, 2026-07-25",
+        "effortBind and the later-version notes: plugins/superscalar/model-registry.json, harnessBinding entry for the Antigravity CLI (measured on agy 1.3.6 to 1.5.5 and on 1.5.7, including the binding probes on 1.5.5 and 1.5.7, with help and changelog read on 1.4.7; last 2026-11-13)"
       ],
       "confirmedOn": "2026-07-25",
       "measuredVersion": "1.1.7",
       "subcommands": "agent/agents (list) · models (list) · plugin/plugins · changelog · update · install (\"Configure environment paths and shell settings\" — this is what writes the PATH entry) · help",
-      "outputFormat": "NONE — print mode emits plain text. There is no --output-format or --json, so a supervisor parses prose or nothing. This is the sharpest constraint on using agy for a machine-consumed seat.",
+      "outputFormat": "On agy 1.1.7 (measuredVersion): NONE — print mode emitted plain text, with no --output-format or --json, so a supervisor parsed prose or nothing. No longer true on later versions: the superscalar plugin model-registry.json harnessBinding «Antigravity CLI (agy)» records `--output-format text|json|stream-json` in print mode (since 2026-10-27, with the agy 1.4.7 read), and its json result carries no model field (which model ran is in the --log-file log only). Re-check against `agy --help` on the deployed version before assigning a machine-consumed seat.",
       "provenance": "docs + official changelog, then CONFIRMED against the installed binary on the deployment host",
       "providerBind": "No provider or base-url surface in --help on this deployment (2026-07-26): the only model-facing entries are --model and a models subcommand. Treat as subscription-bound — an external endpoint cannot staff an agy seat until a provider surface is measured, and absence in --help is not proof of absence in the binary, only of absence in its documented surface."
     },
@@ -229,7 +230,7 @@
     {
       "harness": "agy",
       "item": "structured output",
-      "why": "Confirmed absent rather than unconfirmed: print mode has no JSON or output-format option. Recorded as a caveat because it constrains which seats may run here, not because the fact is uncertain."
+      "why": "Confirmed absent on agy 1.1.7 (this entry's measuredVersion, read 2026-07-25) rather than unconfirmed: print mode there had no JSON or output-format option. Recorded as a caveat because it constrains which seats may run here, not because the fact is uncertain. Later versions list --output-format text|json|stream-json (recorded on 2026-10-27 with the agy 1.4.7 read; see the agy entry's outputFormat), so re-check `agy --help` on the deployed version."
     }
   ],
   "crossHarnessFacts": [

@@ -1,10 +1,14 @@
-# Superscalar plugin — Phase 1 prototype (v0.1.0)
+# Superscalar plugin (v0.5.31)
 
-Wraps EstreGenesis's `Superscalar.md` (v0.4) as a Claude Code plugin so the discipline is available as a model-invoked skill in any session that installs this plugin.
+Wraps EstreGenesis's `Superscalar.md` (v0.16.9) as a Claude Code plugin so the discipline is available as model-invoked skills in any session that installs this plugin.
 
 ## What this plugin gives you
 
-- **Skill: `superscalar`** (`skills/superscalar/SKILL.md`) — model-invoked checklist the agent consults before parallel sub-agent dispatch. Frontmatter `description` triggers on fan-out / Workflow.parallel / multi-lane Edit contexts.
+- **Skill: `superscalar`** (`skills/superscalar/SKILL.md`) — `/superscalar always|auto|off|status` dispatch-aggressiveness toggle plus the checklist the agent consults before parallel sub-agent dispatch. Frontmatter `description` triggers on fan-out / Workflow.parallel / multi-lane Edit contexts.
+- **Skill: `subscaler`** — tiered model composition (§5.1): model tier and effort per lane, read from `model-registry.json`.
+- **Skill: `ooo`** — out-of-order question scoreboard for the main lane (§5.3).
+- **Skill: `speculation`** — speculation-authorization mode toggle (§4).
+- **Skill: `context-caching`** — context-cache discipline (§5.4); volatile vendor numbers live in `cache-registry.json`.
 
 ## Install
 
@@ -27,19 +31,20 @@ The plugin is also distributed from its source repository's self-hosted marketpl
 /plugin install superscalar@estregenesis-plugins
 ```
 
-## What's in v0.1.0 (Phase 1 prototype)
+## What's in v0.5.31
 
-Just the skill. Phase 2 will add:
-- A workflow validator (checks fan-out shape against issue_width before dispatch)
-- Hooks integration with the cost-benefit gate
-- Telemetry collector for dogfood-log Entry 07+
+The five skills above, plus:
+- `model-registry.json` — the dated model registry `/subscaler` routes by (tiers, rows, harness binding, measured routing)
+- `bench-cells.json` — the Superscalar Bench grid the registry's measured fields point to
+- `cache-registry.json` — the dated per-vendor context-cache figures `context-caching` reads (§5.4)
+- `reference/lane-model-guard.cjs` — a PreToolUse guard that refuses `Agent` / `Workflow` lanes without a model binding while the main runs a T1 model (§5.1.4; wired by the adopter)
 
 ## Source spec
 
 Full Superscalar specification + dogfood ledger lives at the EG repo:
 https://github.com/SoliEstre/EstreGenesis/blob/main/Superscalar.md
 
-The plugin's skill is a condensed checklist; the spec is the authoritative source.
+The plugin's skills are condensed checklists; the spec is the authoritative source.
 
 ## License
 
@@ -50,6 +55,6 @@ Apache-2.0.
 ## Related
 
 - **Module spec** — [Superscalar.md](../../Superscalar.md)
-- **Skills** — [superscalar](skills/superscalar/SKILL.md)
-- **Other plugins** — [constellation](../constellation/README.md) · [hyperbrief](../hyperbrief/README.md) · [greatpractice](../greatpractice/README.md) · [ultrasafe](../ultrasafe/README.md) · [compendium](../compendium/README.md)
+- **Skills** — [superscalar](skills/superscalar/SKILL.md) · [subscaler](skills/subscaler/SKILL.md) · [ooo](skills/ooo/SKILL.md) · [speculation](skills/speculation/SKILL.md) · [context-caching](skills/context-caching/SKILL.md)
+- **Other plugins** — [constellation](../constellation/README.md) · [hyperbrief](../hyperbrief/README.md) · [greatpractice](../greatpractice/README.md) · [ultrasafe](../ultrasafe/README.md) · [compendium](../compendium/README.md) · [corporate](../corporate/README.md)
 - **Project overview** — [README.md](../../README.md)
