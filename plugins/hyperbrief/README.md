@@ -20,10 +20,10 @@ EstreGenesis의 `Hyperbrief.md` (v0.5.2)를 Claude Code 플러그인으로 wrapp
 - **Skill: `hyperbrief`** (`skills/hyperbrief/SKILL.md`) — 본 모듈의 메인 skill. JSON IR 생성 + 두 렌더러 호출 + Constellation `DECISION_REQUEST` + `HyperbriefCard` 동시 emit + revisit-date 등록.
 - **Skill: `hyperbrief-revisit`** (`skills/hyperbrief-revisit/SKILL.md`) — 결정 사후 학습 루프 폐쇄. revisit_date 도래 OR `assumed_invariant` 위반 시 발화. ledger에서 IR 로드 → 사용자에게 실제 결과 질문 → outcome-quality vs decision-quality delta 계산 → Brier 증분 ledger append.
 - **JSON Schema: `schema/hyperbrief.schema.json`** — 9섹션 IR + BlockedStub 의 정형 스키마 (oneOf 분기; v0.5에 `SurfaceProfileEstimate` + `RecommendedArtifact.{language,line_count,body_hash}` + `AudienceProfileFallback.telemetry` 확장). LLM은 이 스키마만 생성, MD/HTML은 코드가 렌더링.
-- **Deterministic Node renderer: `renderers/`** — Phase 2 (v0.4.0+) ship. `mini-engine.cjs` (자체 placeholder substitution + 톤 3축 transform + canonical IR hash + ajv schema validation) + `types.d.ts` (interface contract) + `bin/render.cjs` (CLI entry) + `package.json` (single dep `ajv ^8.17.0`). 결정성 불변식 (same IR + same options → byte-identical output) smoke test PASS.
+- **Deterministic Node renderer: `renderers/`** — Phase 2 (v0.4.0+) ship. `mini-engine.cjs` (own template engine — dot-path substitution, plus a block language (`each` / `if` / `else` / `unless` / `ifEquals`) that it expands for the full-brief and stub Markdown templates — + 톤 3축 transform + canonical IR hash + ajv schema validation) + `types.d.ts` (interface contract) + `bin/render.cjs` (CLI entry) + `package.json` (single dep `ajv ^8.17.0`). 결정성 불변식 (same IR + same options → byte-identical output) smoke test PASS.
 - **MCP server: `mcp/`** — Phase 2 (v0.4.2+) ship. `server.cjs` 가 4 tools 노출 (`hyperbrief_render` / `hyperbrief_validate` / `decision_ledger_append` / `decision_ledger_query`) over stdio JSON-RPC. `plugin.json` 의 `mcp.hyperbrief-mcp` 필드가 Claude Code 호스트에 자동 등록.
-- **Template: `templates/brief.md.template`** + **`templates/brief.html.template`** — FullBrief 용 렌더러 템플릿 (ADR 호환 헤더 + mermaid + chart.js 인터랙티브 시각화).
-- **Template: `templates/brief-stub.md.template`** + **`templates/brief-stub.html.template`** — BlockedStub (`AUTONOMOUS_DECIDE` 결과 — `escalation_sum < 4` 이고 MUST-trigger 없음) 용 compact post-notify card. v0.5.2 (bundle 008 H2) 신규.
+- **Template: `templates/brief.md.template`** + **`templates/brief.html.template`** — FullBrief 용 렌더러 템플릿 (ADR 호환 헤더 + mermaid + chart.js 인터랙티브 시각화). The Markdown template is written in the block language the renderer expands (lists, conditionals, tables; a value inside a table row has its line breaks and `|` escaped — in prose a run of backslashes before a `|` is doubled as well, because the cell is read as Markdown after the table removes one of them, while in code the backslashes are kept as they are, because nothing reads a code span after that step; a value the template prints in code — a path, an id, a key — is left alone by term pairing and the jargon gloss; a block the engine does not know or that is not closed is an error that names the template and line — see Hyperbrief.md §7). The HTML template has no blocks: its page builds the lists from the IR embedded in it, and the renderer appends the optional v0.6 sections as HTML.
+- **Template: `templates/brief-stub.md.template`** + **`templates/brief-stub.html.template`** — BlockedStub (`AUTONOMOUS_DECIDE` 결과 — `escalation_sum < 4` 이고 MUST-trigger 없음) 용 compact post-notify card. v0.5.2 (bundle 008 H2) 신규. Its Markdown template uses the same block language as the full brief's.
 
 ## Infrastructure requirements
 
@@ -83,7 +83,7 @@ EstreGenesis의 `Hyperbrief.md` (v0.5.2)를 Claude Code 플러그인으로 wrapp
 
 ### Phase 2 (v0.2.0+)
 
-- `renderers/renderer-md.cjs` + `renderers/renderer-html.cjs` — Node 순수 함수 렌더러 (ajv 스키마 validation + handlebars 템플릿).
+- `renderers/renderer-md.cjs` + `renderers/renderer-html.cjs` — Node 순수 함수 렌더러 (ajv 스키마 validation; the templates are read by the renderer's own engine — there is no Handlebars dependency).
 - `mcp/server.cjs` — 4 tools (`hyperbrief_render`, `hyperbrief_validate`, `decision_ledger_append`, `decision_ledger_query`).
 - `hooks/hooks.json` 활성화 — PreToolUse 매처 (AskUserQuestion / git push / gh release / Constellation A2A emit 직전에 trigger-check 자동 호출). Stop hook으로 revisit-date 도래 ledger 스캔.
 - Constellation MCP의 `a2a_wait_ack`에 `tier='decided'` 인지 추가 (Constellation plugin과 협업 PR).

@@ -1,3 +1,4 @@
+{{!-- Block language: see the «Block template engine» section of renderers/mini-engine.cjs. Names below that are not IR fields are computed by the renderer: reversibility_badge_emoji, domain_format_is_tree_mermaid, domain_format_is_probe_safe_to_fail, domain_format_is_single_action_card, mcda_rows, and per recommended artifact _fence and _lang. --}}
 # ADR-{{decision_id}} — {{section_6_decision_prompt.essence_one_line}}
 
 <!--
@@ -225,11 +226,9 @@ quadrantChart
 
 | Alternative \\ Criterion | {{#each section_5_consequences_block.mcda_table.criteria}}{{this}} | {{/each}}
 |---|{{#each section_5_consequences_block.mcda_table.criteria}}---|{{/each}}
-{{#each section_5_consequences_block.mcda_table.alternatives}}
-| **{{this}}** | {{!-- cells joined per row by renderer --}} |
+{{#each mcda_rows}}
+| **{{alternative}}** | {{#each cells}}{{value}}{{#if rationale}} — {{rationale}}{{/if}} | {{/each}}
 {{/each}}
-
-*(cells expanded by renderer from `mcda_table.cells[]`)*
 
 ### 5d · Pre-mortem
 
@@ -256,17 +255,17 @@ quadrantChart
 
 ### 5g · Toulmin Predictions
 
-| Claim | Grounds | Qualifier | Rebuttal |
-|---|---|---|---|
-{{#each section_5_consequences_block.toulmin_predictions}}| {{claim}} | {{grounds}} | {{qualifier.point_estimate}} / [{{qualifier.ci_90_low}}, {{qualifier.ci_90_high}}] / *miss:* {{qualifier.most_likely_to_miss_scenario}} | {{rebuttal}} |
+| Claim | Grounds | Warrant | Qualifier | Rebuttal |
+|---|---|---|---|---|
+{{#each section_5_consequences_block.toulmin_predictions}}| {{claim}} | {{grounds}} | {{warrant}} | {{qualifier.point_estimate}} / [{{qualifier.ci_90_low}}, {{qualifier.ci_90_high}}] / *miss:* {{qualifier.most_likely_to_miss_scenario}} | {{rebuttal}} |
 {{/each}}
 
 ---
 
 ## §3 How — Incremental Path Check
 
-| Path | Checked? | Reason |
-|---|---|---|
+| Path | Check |
+|---|---|
 | Strangler Fig | {{section_3_incremental_path_check.strangler_fig_check}} |
 | Branch-by-abstraction | {{section_3_incremental_path_check.branch_by_abstraction_check}} |
 | Feature flag | {{section_3_incremental_path_check.feature_flag_check}} |
@@ -322,8 +321,18 @@ flowchart TD
     N2 -- no --> DEFER["defer"]
     N3 -- yes --> ACCEPT["accept"]
     N3 -- no --> INVESTIGATE["request-investigation"]
-{{!-- additional domain-specific nodes injected by renderer --}}
 ```
+{{#if section_7_decision_tree.nodes}}
+
+**Tree nodes:**
+
+{{#each section_7_decision_tree.nodes}}
+- **{{node_id}}** — {{question}}
+  - *Decision relevance:* {{decision_relevance}}
+{{#if children_ids}}  - *Children:* {{#each children_ids}}`{{this}}`{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{/each}}
+{{/if}}
 {{/if}}
 {{#if domain_format_is_probe_safe_to_fail}}
 **Complex domain — safe-to-fail probes:**
@@ -370,6 +379,20 @@ flowchart TD
 > ⚠️ **Label downgraded** — confidence < 0.6, so this is a **proposal candidate**, not a firm recommendation.
 {{/if}}
 
+{{#if section_8_recommendation.recommendation_conditional.recommended_artifacts}}
+### Recommended artifacts (bodies inline)
+
+{{#each section_8_recommendation.recommendation_conditional.recommended_artifacts}}
+**Artifact {{@index}}** — `{{artifact_type}}` · `{{target_file}}`{{#if target_anchor}} at `{{target_anchor}}`{{/if}}{{#if line_count}} · {{line_count}} lines{{/if}}{{#if body_hash}} · sha256 `{{body_hash}}`{{/if}}
+
+*Rationale:* {{rationale_one_line}}
+
+{{_fence}}{{_lang}}
+{{body}}
+{{_fence}}
+
+{{/each}}
+{{/if}}
 ### Defeaters (any flips the recommendation)
 
 {{#each section_8_recommendation.defeaters}}

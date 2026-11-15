@@ -133,7 +133,7 @@
 
 **증상**: brief 카드에 `AF-18` 또는 `surface_profile_estimate.declared_vs_estimate_gap_warning: true` 표시.
 
-**진단**: 렌더링된 표면의 효과적 청중 프로파일 (이하 audience profile — 추정치 estimate) 이 IR 의 선언된 (declared) audience_profile 과 ≥2 축 어긋남. 일반적으로 *과도한 전문어* 또는 *과도한 평문화* 패턴. 추정치 (estimate) 는 6 가지 휴리스틱 (영문 명사 비율 + 평균 문장 길이 + 전문어 빈도 + 첫 사용 풀어쓰기 존재 + 글머리표 밀도 + 인식론적 태그 형식) 으로 산출. 선언 (declared) 값은 작성자가 IR 에 직접 명시.
+**진단**: 렌더링된 표면의 효과적 청중 프로파일 (이하 audience profile — 추정치 estimate) 이 IR 의 선언된 (declared) audience_profile 과 ≥2 축 어긋남. 일반적으로 *과도한 전문어* 또는 *과도한 평문화* 패턴. 추정치 (estimate) 는 6 가지 휴리스틱 (영문 명사 비율 + 평균 문장 길이 + 전문어 빈도 + 첫 사용 풀어쓰기 존재 + 글머리표 밀도 + 인식론적 태그 형식) 으로 산출. 선언 (declared) 값은 작성자가 IR 에 직접 명시. In the Markdown of a full brief and of a stub the estimate is measured on the text the tone transforms worked on, so a recommended artifact's body and the values the template prints in code (paths, ids, dictionary keys) do not count towards it.
 
 **해법** (작성자 측):
 - IR 의 `audience_profile` 을 실제 출력에 맞게 재선언 (예: L2 → L3)
@@ -143,6 +143,41 @@
 - 카드 위 "뭔 소리야? 한국어로 번역해줘" 버튼 클릭 → `L1.1.1` 최저 대체 동작 (floor fallback) 으로 다시 렌더링
 
 **SSoT**: Hyperbrief.md §5.6.7-pre (declared vs estimate 어긋남 경고).
+
+## T-9. Criteria table full of dashes (MCDA, §5c)
+
+**Symptom**: in the Markdown of a full brief, the MCDA table prints `—` in every cell of a row, or of the whole table, although `mcda_table.cells[]` holds values.
+
+**Diagnosis**: a cell is placed by its labels. The renderer puts it in the row whose alternative is exactly its `alternative` (one of `mcda_table.alternatives[]`) and the column whose criterion is exactly its `criterion` (one of `mcda_table.criteria[]`). A cell that names an alternative or a criterion in another form — a short name, another spelling or case — matches no row or no column, so it is not printed and its place keeps `—`. Each such cell adds one warning to the render result (`[warning]` lines on the stderr of `bin/render.cjs`, the `warnings` field of the MCP render tool):
+
+```
+mcda_table.cells[<i>] ("<alternative>" × "<criterion>") matches no listed alternative × criterion, or repeats one already placed — not rendered
+```
+
+The same warning is given for a second cell of a pair that is already placed. There is no fallback matching (by prefix or by position): the HTML page's radar chart looks cells up by the same exact labels (a cell it cannot place counts as 0 there), and the two surfaces stay in agreement.
+
+**Fix** (IR author): write each cell's `alternative` and `criterion` exactly as they appear in `mcda_table.alternatives[]` and `mcda_table.criteria[]`, then render again; the warnings name the cells to change by index.
+
+## T-10. Size limits of the renderer
+
+**Symptom**: a render takes many seconds or gigabytes, or fails with `Maximum call stack size exceeded` (`bin/render.cjs` exits 2), on an IR far larger than any brief a person or a model writes.
+
+**Diagnosis**: these sizes are stated limits; the renderer is not built for them. Measured with Node 24 on the full brief, one case per process (time · memory of the process):
+
+| Input | Markdown | HTML |
+|---|---|---|
+| one value of 1,000,000 characters (prose, one long word, or an artifact body) | 0.3 s · 105–130 MB | 0.2–0.3 s · 110–150 MB |
+| one value of 100,000,000 characters (same three) | 3–9 s · 1.6–2.9 GB | 4–10 s · 2.2–2.8 GB |
+| one value of 10,000,000 private-use characters (U+E000) | fails: `Maximum call stack size exceeded` in schema validation (5,000,000 pass, 2 s) | same |
+| one list of 10,000 items | 0.3 s · 114 MB | 0.3 s · 98 MB |
+| one list of 1,000,000 items | 4 s · 1.4 GB | 3 s · 1.3 GB |
+| one list of 3,000,000 items | 12 s · 4.4 GB | 8 s · 2.1 GB |
+| inline term-pairing dictionary of 10,000 entries, mode `E` | 0.8 s | 6.5 s |
+| inline term-pairing dictionary of 100,000 entries, mode `E` | 37 s | more than 5 minutes (stopped) |
+
+Term pairing visits the text once per dictionary entry, so its time grows with entries × text length. In the Markdown of a full brief and of a stub one brief holds at most 16,777,216 protected values (recommended-artifact bodies and languages, values printed in code); past that the render throws. Every other size here grows in proportion to the output.
+
+**Fix** (IR author): keep a single value under a million characters and a list under ten thousand items; put large material in a file and cite its path; keep an inline dictionary to the terms the brief uses.
 
 ---
 

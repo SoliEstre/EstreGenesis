@@ -8,7 +8,7 @@
 // Tone profile override:
 //   --audience N --abbreviation N --jargon N    (each 1-5)
 //
-// Exit codes: 0 OK · 1 IR read failure · 2 schema validation failure · 3 unknown format.
+// Exit codes: 0 OK · 1 IR read failure · 2 validation or render failure · 3 unknown format.
 
 "use strict";
 
