@@ -35,6 +35,8 @@
  *   then labels are placed greedily — most constrained first — adding the overlap with labels already placed, and
  *   improved by re-placing each label against all the others until nothing changes. No randomness: the processing
  *   order comes from the geometry and the model ids, never from array order, so the same input gives the same result.
+ *   The fixed costs are looked up through a uniform grid over markers and line segments; that only skips tests that
+ *   cannot add anything, so every cost (and therefore every placement and tie) is the one a test against everything gives.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -60,14 +62,18 @@
     return h <= 0 ? 0 : w * h;
   }
 
-  // Liang–Barsky: does segment (ax,ay)-(bx,by) touch the box?
+  // Liang–Barsky: does segment (ax,ay)-(bx,by) touch the box? The four edge tests run in the fixed order x0, x1, y0, y1;
+  //   no per-call arrays (it runs for every candidate box × nearby segment).
   function segHitsBox(ax, ay, bx, by, r) {
-    var dx = bx - ax, dy = by - ay, t0 = 0, t1 = 1;
-    var p = [-dx, dx, -dy, dy], q = [ax - r.x0, r.x1 - ax, ay - r.y0, r.y1 - ay];
+    var dx = bx - ax, dy = by - ay, t0 = 0, t1 = 1, p, q, t;
     for (var i = 0; i < 4; i++) {
-      if (p[i] === 0) { if (q[i] < 0) return false; continue; }
-      var t = q[i] / p[i];
-      if (p[i] < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+      if (i === 0) { p = -dx; q = ax - r.x0; }
+      else if (i === 1) { p = dx; q = r.x1 - ax; }
+      else if (i === 2) { p = -dy; q = ay - r.y0; }
+      else { p = dy; q = r.y1 - ay; }
+      if (p === 0) { if (q < 0) return false; continue; }
+      t = q / p;
+      if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
       else { if (t < t0) return false; if (t < t1) t1 = t; }
     }
     return true;
@@ -87,6 +93,7 @@
     }
   }
 
+  function fin(v) { return typeof v === 'number' && isFinite(v); }
   function cmpStr(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
 
   function place(input) {
@@ -110,12 +117,82 @@
     }
     var markers = points.filter(function (p) { return isFinite(p.x) && isFinite(p.y); })
       .map(function (p) { return { x0: p.x - R, y0: p.y - R, x1: p.x + R, y1: p.y + R }; });
-    var segs = [];
+    // segments with their bounding boxes; SEG_EPS = the distance beyond which a bounding-box test rules a hit out (see below)
+    var segs = [], segMax = 0;
     if (USE_LINES) {
       Object.keys(byModel).forEach(function (m) {
         var ps = byModel[m];
-        for (var s = 1; s < ps.length; s++) segs.push([ps[s - 1].x, ps[s - 1].y, ps[s].x, ps[s].y]);
+        for (var s = 1; s < ps.length; s++) {
+          var ax = ps[s - 1].x, ay = ps[s - 1].y, bx = ps[s].x, by = ps[s].y;
+          segs.push([ax, ay, bx, by, Math.min(ax, bx), Math.min(ay, by), Math.max(ax, bx), Math.max(ay, by)]);
+          segMax = Math.max(segMax, Math.abs(ax), Math.abs(ay), Math.abs(bx), Math.abs(by));
+        }
       });
+    }
+    var SEG_EPS = 1e-6 * (1 + segMax);
+
+    // Spatial grid (speed only: every box gets the same fixed cost as testing it against every marker and every segment).
+    //   Markers and segments are filed under the GS × GS cells their bounding boxes touch (a segment's widened by SEG_EPS),
+    //   and a box is tested only against what is filed under the cells it touches. The cell index is a non-decreasing
+    //   function of the coordinate, so two intervals that share a point share a cell: nothing that could touch the box is
+    //   left out. What is left out adds nothing: a marker without positive overlap adds 0, and a segment more than SEG_EPS
+    //   away from the box cannot pass segHitsBox. Marker costs are then added in the original marker order (a floating-point
+    //   sum depends on it), and the crossing count is min(hits, CROSS_CAP) in any order. A non-numeric or non-finite
+    //   coordinate (in the grid's input or in a box) or an inverted box is tested against everything instead.
+    var gridOK = true, gx0 = Infinity, gy0 = Infinity, gx1 = -Infinity, gy1 = -Infinity;
+    function extend(x0, y0, x1, y1) {
+      if (!(fin(x0) && fin(y0) && fin(x1) && fin(y1))) { gridOK = false; return; }
+      if (x0 < gx0) gx0 = x0; if (y0 < gy0) gy0 = y0; if (x1 > gx1) gx1 = x1; if (y1 > gy1) gy1 = y1;
+    }
+    markers.forEach(function (m) { extend(m.x0, m.y0, m.x1, m.y1); });
+    segs.forEach(function (s) { if (!(fin(s[0]) && fin(s[1]) && fin(s[2]) && fin(s[3]))) gridOK = false; extend(s[4] - SEG_EPS, s[5] - SEG_EPS, s[6] + SEG_EPS, s[7] + SEG_EPS); });
+    var GS = 32, GW = 1, GH = 1;
+    if (gridOK && gx0 !== Infinity) {
+      GS = Math.max(32, (gx1 - gx0) / 128, (gy1 - gy0) / 128);
+      GW = Math.floor((gx1 - gx0) / GS) + 1; GH = Math.floor((gy1 - gy0) / GS) + 1;
+      if (!(fin(GS) && fin(GW) && fin(GH))) { gridOK = false; GS = 32; GW = 1; GH = 1; }   // a span too large for doubles
+    }
+    var cellM = [], cellS = [];                                   // dense, one slot per cell (null = empty)
+    for (var ci = 0; ci < GW * GH; ci++) { cellM.push(null); cellS.push(null); }
+    function gcx(x) { var c = Math.floor((x - gx0) / GS); return c < 0 ? 0 : c >= GW ? GW - 1 : c; }
+    function gcy(y) { var c = Math.floor((y - gy0) / GS); return c < 0 ? 0 : c >= GH ? GH - 1 : c; }
+    function file(cells, idx, x0, y0, x1, y1) {
+      for (var r = gcy(y0), r1 = gcy(y1); r <= r1; r++) for (var c = gcx(x0), c1 = gcx(x1); c <= c1; c++) { var key = r * GW + c; (cells[key] || (cells[key] = [])).push(idx); }
+    }
+    if (gridOK) {
+      markers.forEach(function (m, i) { file(cellM, i, m.x0, m.y0, m.x1, m.y1); });
+      segs.forEach(function (s, i) { file(cellS, i, s[4] - SEG_EPS, s[5] - SEG_EPS, s[6] + SEG_EPS, s[7] + SEG_EPS); });
+    }
+    var stampM = new Int32Array(markers.length), stampS = new Int32Array(segs.length), stamp = 0;
+    var hitM = new Int32Array(markers.length), hitS = new Int32Array(segs.length);
+    function sortHead(arr, n) { for (var i = 1; i < n; i++) { var v = arr[i], j = i - 1; while (j >= 0 && arr[j] > v) { arr[j + 1] = arr[j]; j--; } arr[j + 1] = v; } }
+    // fixed cost of one box: markers, `avoid`, line crossings — the same sums as the plain loops in the fallback branch
+    function fixedCost(b) {
+      var cost = 0, area, mi, si, cross = 0, sg;
+      if (gridOK && fin(b.x0) && fin(b.y0) && fin(b.x1) && fin(b.y1) && b.x1 >= b.x0 && b.y1 >= b.y0) {
+        var c0 = gcx(b.x0), c1 = gcx(b.x1), r0 = gcy(b.y0), r1 = gcy(b.y1), nm = 0, ns = 0, r, c, list, q;
+        stamp++;
+        for (r = r0; r <= r1; r++) for (c = c0; c <= c1; c++) {
+          list = cellM[r * GW + c];
+          if (list) for (q = 0; q < list.length; q++) { mi = list[q]; if (stampM[mi] !== stamp) { stampM[mi] = stamp; hitM[nm++] = mi; } }
+          if (segs.length) { list = cellS[r * GW + c]; if (list) for (q = 0; q < list.length; q++) { si = list[q]; if (stampS[si] !== stamp) { stampS[si] = stamp; hitS[ns++] = si; } } }
+        }
+        sortHead(hitM, nm);
+        for (q = 0; q < nm; q++) { area = overlapArea(b, markers[hitM[q]]); if (area > 0) cost += W_MARK + area * W_MARK_AREA; }
+        for (var vi = 0; vi < avoid.length; vi++) { area = overlapArea(b, avoid[vi]); if (area > 0) cost += W_AVOID + area * W_AVOID_AREA; }
+        if (segs.length) {
+          for (q = 0; q < ns && cross < CROSS_CAP; q++) { sg = segs[hitS[q]]; if (segHitsBox(sg[0], sg[1], sg[2], sg[3], b)) cross++; }
+          cost += cross * W_CROSS;
+        }
+        return cost;
+      }
+      for (mi = 0; mi < markers.length; mi++) { area = overlapArea(b, markers[mi]); if (area > 0) cost += W_MARK + area * W_MARK_AREA; }
+      for (var vj = 0; vj < avoid.length; vj++) { area = overlapArea(b, avoid[vj]); if (area > 0) cost += W_AVOID + area * W_AVOID_AREA; }
+      if (segs.length) {
+        for (si = 0; si < segs.length && cross < CROSS_CAP; si++) { sg = segs[si]; if (segHitsBox(sg[0], sg[1], sg[2], sg[3], b)) cross++; }
+        cost += cross * W_CROSS;
+      }
+      return cost;
     }
 
     // candidate boxes with their fixed cost
@@ -130,14 +207,7 @@
             var tl = boxAt(DIRS[di], a.x, a.y, lab.w, lab.h, R, k);
             var b = { x0: tl[0], y0: tl[1], x1: tl[0] + lab.w, y1: tl[1] + lab.h };
             if (b.x0 < bounds.x0 || b.y0 < bounds.y0 || b.x1 > bounds.x1 || b.y1 > bounds.y1) continue;
-            var cost = 0, area;
-            for (var mi = 0; mi < markers.length; mi++) { area = overlapArea(b, markers[mi]); if (area > 0) cost += W_MARK + area * W_MARK_AREA; }
-            for (var vi = 0; vi < avoid.length; vi++) { area = overlapArea(b, avoid[vi]); if (area > 0) cost += W_AVOID + area * W_AVOID_AREA; }
-            if (segs.length) {
-              var cross = 0;
-              for (var si = 0; si < segs.length && cross < CROSS_CAP; si++) { var sg = segs[si]; if (segHitsBox(sg[0], sg[1], sg[2], sg[3], b)) cross++; }
-              cost += cross * W_CROSS;
-            }
+            var cost = fixedCost(b);
             var leader = RINGS[ri] >= LEADER_FROM;
             if (leader) cost += W_LEADER;
             cost += RINGS[ri] * W_DIST + di * 0.25 + (anchors.length - 1 - ai) * 0.01;
@@ -198,7 +268,7 @@
       if (!changed) break;
     }
 
-    // checked only here, for the picked box and the retried ones: the candidate loop above stays as it is (it is the hot path)
+    // checked only here, for the picked box and the retried ones: the candidate loop above is the hot path
     function covers(box) { for (var mi = 0; mi < markers.length; mi++) if (overlapArea(box, markers[mi]) > 0) return true; return false; }
     if (o.dropCovering) {
       var dropped = order.filter(function (it) { return it.pick >= 0 && covers(it.cands[it.pick].box); });
