@@ -1,4 +1,4 @@
-# Superscalar plugin (v0.5.38)
+# Superscalar plugin (v0.5.39)
 
 Wraps EstreGenesis's `Superscalar.md` (v0.16.9) as a Claude Code plugin so the discipline is available as model-invoked skills in any session that installs this plugin.
 
@@ -31,7 +31,7 @@ The plugin is also distributed from its source repository's self-hosted marketpl
 /plugin install superscalar@estregenesis-plugins
 ```
 
-## What's in v0.5.38
+## What's in v0.5.39
 
 The five skills above, plus:
 - `model-registry.json` — the dated model registry `/subscaler` routes by (tiers, rows, harness binding, measured routing)
