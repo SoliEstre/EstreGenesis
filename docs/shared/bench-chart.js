@@ -398,7 +398,9 @@
 
     // model names, placed by the shared function
     var t0 = (window.performance && performance.now()) || 0;
-    var placed = BL.place({ points: lpts, labels: lab.map(function (l) { return { model: l.model, w: l.w, h: l.h }; }), bounds: { x0: pl + 2, y0: pt + 2, x1: pr - 2, y1: pb - 2 }, avoid: [], opts: narrow ? { markerR: 8, gap: 2, rings: [0, 8, 20, 36, 56, 80, 110, 140] } : { markerR: 8, gap: 2 } });   // phones: look further out before covering a marker
+    // phones: look further out before covering a marker, and leave off the plot a name that would still cover one (the legend
+    //   under the chart and the point tooltip still name the model) — a name on top of markers hides data. Desktop keeps every name.
+    var placed = BL.place({ points: lpts, labels: lab.map(function (l) { return { model: l.model, w: l.w, h: l.h }; }), bounds: { x0: pl + 2, y0: pt + 2, x1: pr - 2, y1: pb - 2 }, avoid: [], opts: narrow ? { markerR: 8, gap: 2, rings: [0, 8, 20, 36, 56, 80, 110, 140], dropCovering: true } : { markerR: 8, gap: 2 } });
     API.lastLabelMs = ((window.performance && performance.now()) || 0) - t0;
     var labelBoxes = [], labelOut = [];
     placed.forEach(function (r, i) {

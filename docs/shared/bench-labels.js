@@ -19,13 +19,16 @@
  *             rings     extra distances tried around each anchor point
  *             leaderFrom  boxes placed at a ring >= this need a leader line
  *             lines     count label/line crossings as a secondary cost (lines = each model's points in the given order)
+ *             dropCovering  (default false) a label whose best spot still covers a marker gets no spot (x = y = null,
+ *                       dropped = true); each dropped label then gets one more try at a spot that covers neither a
+ *                       marker nor a placed label, since dropping the others may have freed one
  *
  *   Result, in the order of `labels`:
  *     x, y          TOP-LEFT corner of the label box (the box is w × h from `labels`)
  *     anchorEffort  the effort of the point the name belongs to — chosen per model, not always the top effort
  *     leader        true only when no free spot exists near any of the model's points: draw a line from the
  *                   anchor point to the box
- *   A model with no points gets x = y = null and anchorEffort = null.
+ *   A model with no points gets x = y = null and anchorEffort = null (and so does a label left out by dropCovering).
  *
  * Method: every candidate box (each point of the model × each ring × eight directions) gets a fixed cost (covering
  *   markers of any model, covering `avoid`, leaving bounds = discarded, line crossings, distance, needing a leader),
@@ -195,8 +198,24 @@
       if (!changed) break;
     }
 
+    // checked only here, for the picked box and the retried ones: the candidate loop above stays as it is (it is the hot path)
+    function covers(box) { for (var mi = 0; mi < markers.length; mi++) if (overlapArea(box, markers[mi]) > 0) return true; return false; }
+    if (o.dropCovering) {
+      var dropped = order.filter(function (it) { return it.pick >= 0 && covers(it.cands[it.pick].box); });
+      dropped.forEach(function (it) { it.pick = -1; it.dropped = true; });
+      dropped.forEach(function (it) {                          // same most-constrained order as above
+        var bi = -1, bc = Infinity;
+        for (var c = 0; c < it.cands.length; c++) {
+          var cand = it.cands[c];
+          if (cand.cost >= bc || covers(cand.box) || dynCost(it, cand.box) > 0) continue;
+          bc = cand.cost; bi = c;
+        }
+        if (bi >= 0) { it.pick = bi; it.dropped = false; }
+      });
+    }
+
     return items.map(function (it) {
-      if (it.pick < 0) return { model: labels[it.li].model, anchorEffort: null, x: null, y: null, leader: false };
+      if (it.pick < 0) return { model: labels[it.li].model, anchorEffort: null, x: null, y: null, leader: false, dropped: !!it.dropped };
       var c = it.cands[it.pick];
       return { model: labels[it.li].model, anchorEffort: c.anchor.effort, x: c.box.x0, y: c.box.y0, leader: c.leader };
     });
